@@ -8,6 +8,7 @@
     <Product>wombatwebcg</Product>
     <Copyright>wombatwebcg</Copyright>
     <Description>开源的工业通讯库</Description>
+    <PackageProjectUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</PackageProjectUrl>
   </PropertyGroup>
 
   <ItemGroup>
