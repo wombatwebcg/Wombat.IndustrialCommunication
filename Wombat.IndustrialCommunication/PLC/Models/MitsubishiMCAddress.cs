@@ -1,6 +1,6 @@
 ﻿using Wombat.Infrastructure;
 
-namespace Wombat.IndustrialCommunication.Models
+namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// 三菱解析后的地址信息

@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Wombat.IndustrialCommunication.Models;
-using Wombat.IndustrialCommunication.PLC.Enums;
 using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication.PLC

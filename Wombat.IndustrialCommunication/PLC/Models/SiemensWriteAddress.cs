@@ -1,5 +1,5 @@
 ﻿
-namespace Wombat.IndustrialCommunication.Models
+namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// 西门子[写]解析后的地址信息

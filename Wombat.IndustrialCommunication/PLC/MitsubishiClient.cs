@@ -6,7 +6,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Wombat.IndustrialCommunication.PLC.Enums;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

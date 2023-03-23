@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using Wombat.IndustrialCommunication.PLC.Models;
 using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication.PLC

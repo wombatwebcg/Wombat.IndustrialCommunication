@@ -1,4 +1,4 @@
-﻿namespace Wombat.IndustrialCommunication.PLC.Models
+﻿namespace Wombat.IndustrialCommunication.PLC
 {
     public class AllenBradleyAddress
     {

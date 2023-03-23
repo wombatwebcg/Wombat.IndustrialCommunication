@@ -1,7 +1,7 @@
 ﻿using System;
 using System.ComponentModel;
 
-namespace Wombat.IndustrialCommunication.PLC.Enums
+namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// 三菱型号版本

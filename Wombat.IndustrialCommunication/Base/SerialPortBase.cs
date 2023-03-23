@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
@@ -199,7 +200,6 @@ namespace Wombat.IndustrialCommunication
                         for (int i = 0; i < command.Length; i++)
                         {
                             printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
-
                         }
                         Logger?.LogDebug(printSend);
                     }

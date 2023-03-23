@@ -4,7 +4,6 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
-using Wombat.IndustrialCommunication.PLC.Models;
 using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication.PLC

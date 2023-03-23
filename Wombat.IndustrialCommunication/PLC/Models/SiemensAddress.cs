@@ -1,6 +1,6 @@
 ﻿using Wombat.Infrastructure;
 
-namespace Wombat.IndustrialCommunication.Models
+namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// 西门子解析后的地址信息

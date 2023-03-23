@@ -2,17 +2,18 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.0.0</Version>
+    <Version>2.0.1</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
     <Copyright>wombatwebcg</Copyright>
-    <Description>开源的工业通讯库</Description>
+    <Description>开源的工业通讯库(通过modbus协议、三菱FX5U、西门子Smart200、汇川H3U单元测试)</Description>
     <PackageProjectUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</PackageProjectUrl>
+    <RepositoryType>plc;modbus;</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Wombat.Infrastructure\Wombat.Infrastructure\Wombat.Infrastructure.csproj" />
+    <PackageReference Include="Wombat.Infrastructure" Version="2.0.0" />
   </ItemGroup>
 
 </Project>

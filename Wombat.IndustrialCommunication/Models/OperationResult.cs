@@ -6,9 +6,6 @@ using System.Text;
 namespace Wombat.IndustrialCommunication
 {
 
-
-
-
     /// <summary>
     /// 操作结果的类，只带有成功标志和错误信息 -> The class that operates the result, with only success flags and error messages
     /// </summary>

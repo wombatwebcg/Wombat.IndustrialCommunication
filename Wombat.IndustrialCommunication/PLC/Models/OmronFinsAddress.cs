@@ -1,6 +1,6 @@
 ﻿using Wombat.Infrastructure;
 
-namespace Wombat.IndustrialCommunication.PLC.Models
+namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// Omron解析后的地址信息
