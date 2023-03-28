@@ -4,6 +4,7 @@ using System.IO.Ports;
 using System.Net;
 using System.Text;
 using Wombat.Infrastructure;
+using Microsoft.Extensions.Logging;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -28,7 +29,7 @@ namespace Wombat.IndustrialCommunication
         {
             _advancedHybirdLock.Enter();
             OperationResult<byte[]> result = new OperationResult<byte[]>();
-
+            
             if (IsConnect != true)
             {
                 var connectResult = Connect();

@@ -161,9 +161,9 @@ namespace Wombat.IndustrialCommunication
                 receiveFinish += readLeng;
             }
             result.Value = buffer;
-            if (IsUseLog)
+            if (IsPrintCommand)
             {
-                string printSend = $"{_serialPort.PortName} send:";
+                string printSend = $"{_serialPort.PortName} receive:";
                 for (int i = 0; i < buffer.Length; i++)
                 {
                     printSend = printSend + " " + buffer[i].ToString("X").PadLeft(2, '0'); ;
@@ -194,7 +194,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     //发送命令
                     _serialPort.Write(command, 0, command.Length);
-                    if (IsUseLog)
+                    if (IsPrintCommand)
                     {
                         string printSend = $"{_serialPort.PortName} send:";
                         for (int i = 0; i < command.Length; i++)

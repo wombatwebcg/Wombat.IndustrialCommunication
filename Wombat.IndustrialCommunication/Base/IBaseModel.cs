@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunication
 
         int OperationReTryTimes { get; set; }
 
-        bool IsUseLog { get; set; }
+        bool IsPrintCommand { get; set; }
 
         void UseLogger();
 

@@ -26,20 +26,16 @@ namespace Wombat.IndustrialCommunication
 
         public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(1500);
 
-        public TimeSpan WaiteInterval { get; set; } = TimeSpan.FromMilliseconds(20);
+        public TimeSpan WaiteInterval { get; set; } = TimeSpan.FromMilliseconds(10);
 
 
-        public bool IsUseLog { get; set; } = false;
+        public bool IsPrintCommand { get; set; } = false;
 
         public virtual void UseLogger()
         {
-            if (!IsUseLog)
-            {
-                LogHelper.Build();
-                Logger = new SerilogLoggerFactory(LogHelper.Log).CreateLogger<BaseModel> ();
-            }
-            IsUseLog = true;
-
+            LogHelper.Build();
+            Logger = new SerilogLoggerFactory(LogHelper.Log).CreateLogger<BaseModel>();
+            IsPrintCommand = true;
         }
 
 
