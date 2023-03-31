@@ -1001,7 +1001,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public virtual OperationResult Write(string address, byte value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
         {
-            return Write(address,new byte[1] { value }, stationNumber, functionCode, isPlcAddress);
+            return Write(address,new byte[2] { 0x00,value }, stationNumber, functionCode, isPlcAddress);
         }
 
 

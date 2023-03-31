@@ -5,6 +5,7 @@ using System.Net;
 using System.Text;
 using Wombat.Infrastructure;
 using Microsoft.Extensions.Logging;
+using System.Threading;
 
 namespace Wombat.IndustrialCommunication
 {

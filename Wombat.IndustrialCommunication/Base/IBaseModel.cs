@@ -29,11 +29,11 @@ namespace Wombat.IndustrialCommunication
 
         void UseLogger();
 
-        bool IsClearCacheBeforeRead { get; set; }
+        //bool IsClearCacheBeforeRead { get; set; }
 
-        bool IsClearCacheAfterRead { get; set; }
+        //bool IsClearCacheAfterRead { get; set; }
 
-        bool IsBaseStreamFlush { get; set; }
+        //bool IsBaseStreamFlush { get; set; }
 
         bool IsUseLongConnect { get; set; }
 

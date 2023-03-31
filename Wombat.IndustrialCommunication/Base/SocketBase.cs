@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication
@@ -157,6 +158,8 @@ namespace Wombat.IndustrialCommunication
                     result.Exception = ex;
                     return result;
                 }
+                Thread.Sleep(WaiteInterval);
+
             }
             result.Value = receiveBytes;
             return result.EndTime();

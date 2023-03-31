@@ -39,11 +39,11 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public bool IsClearCacheBeforeRead { get; set; } = true;
+        //public bool IsClearCacheBeforeRead { get; set; } = true;
 
-        public bool IsClearCacheAfterRead { get; set; } = true;
+        //public bool IsClearCacheAfterRead { get; set; } = true;
 
-        public bool IsBaseStreamFlush { get; set; } = true;
+        //public bool IsBaseStreamFlush { get; set; } = true;
 
         public bool IsUseLongConnect { get; set; } = true;
 
