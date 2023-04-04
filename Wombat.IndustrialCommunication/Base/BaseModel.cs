@@ -35,7 +35,6 @@ namespace Wombat.IndustrialCommunication
         {
             LogHelper.Build();
             Logger = new SerilogLoggerFactory(LogHelper.Log).CreateLogger<BaseModel>();
-            IsPrintCommand = true;
         }
 
 
