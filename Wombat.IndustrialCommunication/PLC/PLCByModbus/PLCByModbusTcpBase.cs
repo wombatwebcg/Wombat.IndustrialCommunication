@@ -4,7 +4,7 @@ using System.Net;
 using System.Text;
 using Wombat.IndustrialCommunication.Modbus;
 using Wombat.IndustrialCommunication.Models;
-using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

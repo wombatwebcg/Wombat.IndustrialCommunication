@@ -1,4 +1,4 @@
-﻿using Wombat.Infrastructure;
+﻿using Wombat.ObjectConversionExtention;
 using Wombat.IndustrialCommunication.Models;
 using System;
 using System.Collections.Generic;

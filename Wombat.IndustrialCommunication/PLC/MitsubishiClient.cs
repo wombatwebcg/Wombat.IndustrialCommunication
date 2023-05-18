@@ -1,11 +1,11 @@
-﻿using Wombat.Infrastructure;
-using Wombat.IndustrialCommunication.Models;
+﻿using Wombat.IndustrialCommunication.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -418,7 +418,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public override OperationResult Write(string address, bool[] value)
         {
-            return Write(address, TransBoolArrayToByteData(value), true);
+            return Write(address, ToBoolArrayToByteData(value), true);
         }
 
 
@@ -580,7 +580,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="value">原始的数据字节</param>
         /// <returns>压缩过后的数据字节</returns>
-        internal static byte[] TransBoolArrayToByteData(bool[] value)
+        internal static byte[] ToBoolArrayToByteData(bool[] value)
         {
             int length = (value.Length + 1) / 2;
             byte[] buffer = new byte[length];

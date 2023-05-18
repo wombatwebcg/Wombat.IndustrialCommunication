@@ -6,7 +6,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
 using Wombat.IndustrialCommunication.Models;
-using Wombat.Infrastructure;
 using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.Modbus

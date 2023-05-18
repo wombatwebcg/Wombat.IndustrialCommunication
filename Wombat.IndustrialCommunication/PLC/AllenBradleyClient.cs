@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -297,7 +298,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public new OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.Length, 0xC1, value.TransByte());
+            return Write(address, value.Length, 0xC1, value.ToByte());
         }
 
 
@@ -357,7 +358,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, short[] value)
         {
-            return Write(address, value.Length, 0xC3, value.TransByte(IsReverse));
+            return Write(address, value.Length, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -368,7 +369,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ushort value)
         {
-            return Write(address, 1, 0xC3, value.TransByte(IsReverse));
+            return Write(address, 1, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -379,7 +380,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ushort[] value)
         {
-            return Write(address, value.Length, 0xC3, value.TransByte(IsReverse));
+            return Write(address, value.Length, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -390,7 +391,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new  OperationResult Write(string address, int value)
         {
-            return Write(address,1, 0xC4, value.TransByte());
+            return Write(address,1, 0xC4, value.ToByte());
         }
         /// <summary>
         /// 写入数据
@@ -400,7 +401,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -411,7 +412,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, uint value)
         {
-            return Write(address, 1, 0xC4, value.TransByte());
+            return Write(address, 1, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -422,7 +423,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -433,7 +434,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, long value)
         {
-            return Write(address, 1, 0xC4, value.TransByte());
+            return Write(address, 1, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -444,7 +445,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
 
@@ -456,7 +457,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ulong value)
         {
-            return Write(address, 1, 0xC5, value.TransByte());
+            return Write(address, 1, 0xC5, value.ToByte());
         }
 
         /// <summary>
@@ -467,7 +468,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.Length, 0xC5, value.TransByte());
+            return Write(address, value.Length, 0xC5, value.ToByte());
         }
 
         /// <summary>
@@ -478,7 +479,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, float value)
         {
-            return Write(address, 1, 0xCA, value.TransByte());
+            return Write(address, 1, 0xCA, value.ToByte());
         }
 
         /// <summary>
@@ -489,7 +490,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.Length, 0xCA, value.TransByte());
+            return Write(address, value.Length, 0xCA, value.ToByte());
         }
 
         /// <summary>
@@ -500,7 +501,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, double value)
         {
-            return Write(address, 1, 0xCB, value.TransByte());
+            return Write(address, 1, 0xCB, value.ToByte());
         }
 
         /// <summary>
@@ -511,7 +512,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.Length, 0xCB, value.TransByte());
+            return Write(address, value.Length, 0xCB, value.ToByte());
         }
 
         /// <summary>

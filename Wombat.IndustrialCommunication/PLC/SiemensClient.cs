@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using Wombat.IndustrialCommunication.Models;
 using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -281,7 +282,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 1, isBit: true);
             var result = new OperationResult<bool>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0, 1)[0];
+                result.Value = readResult.Value.ToBool(0, 1)[0];
             return result.EndTime();
         }
 
@@ -297,7 +298,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, length*2, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0, length);
+                result.Value = readResult.Value.ToBool(0, length);
             return result.EndTime();
         }
 
@@ -1010,7 +1011,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 command[19 + i * 12] = 0x12;//variable specification
                 command[20 + i * 12] = 0x0A;//Length of following address specification
                 command[21 + i * 12] = 0x10;//Syntax Id: S7ANY 
-                command[22 + i * 12] = data.ReadWriteBit ? (byte)0x01 : (byte)0x02;//Transport size: BYTE 
+                command[22 + i * 12] = data.ReadWriteBit ? (byte)0x01 : (byte)0x02;//Toport size: BYTE 
                 command[23 + i * 12] = (byte)(data.ReadWriteLength / 256);
                 command[24 + i * 12] = (byte)(data.ReadWriteLength % 256);//[23][24]两个字节,访问数据的个数，以byte为单位；
                 command[25 + i * 12] = (byte)(data.DbBlock / 256);

@@ -161,12 +161,12 @@ namespace Wombat.IndustrialCommunication
             OperationResult<string> ReadString(string address, ushort length);
 
             /// <summary>
-            /// 读取自定义的数据类型，需要继承自IDataTransfer接口
+            /// 读取自定义的数据类型，需要继承自IDataTofer接口
             /// </summary>
             /// <typeparam name="T">自定义的类型</typeparam>
             /// <param name="address">起始地址</param>
             /// <returns>带有成功标识的自定义类型数据</returns>
-            OperationResult<T> ReadCustomer<T>(string address) where T : IDataTransfer, new();
+            OperationResult<T> ReadCustomer<T>(string address) where T : IDataTofer, new();
 
 
             #endregion
@@ -279,13 +279,13 @@ namespace Wombat.IndustrialCommunication
             OperationResult Write(string address, string value, int length);
 
             /// <summary>
-            /// 写入自定义类型的数据，该类型必须继承自IDataTransfer接口
+            /// 写入自定义类型的数据，该类型必须继承自IDataTofer接口
             /// </summary>
             /// <typeparam name="T">类型对象</typeparam>
             /// <param name="address">起始地址</param>
             /// <param name="value">写入值</param>
             /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult WriteCustomer<T>(string address, T value) where T : IDataTransfer, new();
+            OperationResult WriteCustomer<T>(string address, T value) where T : IDataTofer, new();
 
             #endregion
 

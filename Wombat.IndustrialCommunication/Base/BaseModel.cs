@@ -2,6 +2,7 @@
 using Serilog.Extensions.Logging;
 using System;
 using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication
 {

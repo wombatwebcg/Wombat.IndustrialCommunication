@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using Wombat.IndustrialCommunication.Models;
-using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
@@ -45,7 +45,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt16(0, readLength,IsReverse);
+                result.Value = readResult.Value.ToInt16(0, readLength,IsReverse);
             return result.EndTime();
         }
 
@@ -70,7 +70,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (adds.Length >= 2)
                 {
                     var index = int.Parse(adds[1].Trim());
-                    var binaryArray = result.Value.TransByte().TransBool(0, 16);
+                    var binaryArray = result.Value.ToByte().ToBool(0, 16);
                     if (left)
                     {
                         var length = binaryArray.Length - 16;
@@ -104,7 +104,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt16(0, readLength, IsReverse);
+                result.Value = readResult.Value.ToUInt16(0, readLength, IsReverse);
             return result.EndTime();
         }
 
@@ -168,7 +168,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, (ushort)(2*readLength), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt32(0,length: readLength,format:DataFormat,reverse:IsReverse);
+                result.Value = readResult.Value.ToInt32(0,length: readLength,format:DataFormat,reverse:IsReverse);
             return result.EndTime();
         }
 
@@ -201,7 +201,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, 2* readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt32(0,length: readLength, format: DataFormat, reverse: IsReverse);
+                result.Value = readResult.Value.ToUInt32(0,length: readLength, format: DataFormat, reverse: IsReverse);
             return result.EndTime();
         }
 
@@ -233,7 +233,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, 4*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt64(0,readLength, format: DataFormat, reverse: IsReverse);
+                result.Value = readResult.Value.ToInt64(0,readLength, format: DataFormat, reverse: IsReverse);
             return result.EndTime();
         }
 
@@ -265,7 +265,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, 4 * readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt64(0, readLength, format: DataFormat, reverse: IsReverse);
+                result.Value = readResult.Value.ToUInt64(0, readLength, format: DataFormat, reverse: IsReverse);
             return result.EndTime();
         }
 
@@ -297,7 +297,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, 2*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransFloat(0,readLength ,format: DataFormat, reverse: IsReverse);
+                result.Value = readResult.Value.ToFloat(0,readLength ,format: DataFormat, reverse: IsReverse);
             return result.EndTime();
         }
 
@@ -330,7 +330,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, 4*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransDouble(0,readLength, format: DataFormat, reverse: IsReverse);
+                result.Value = readResult.Value.ToDouble(0,readLength, format: DataFormat, reverse: IsReverse);
             return result.EndTime();
         }
 
@@ -365,7 +365,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address,readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0,readLength);
+                result.Value = readResult.Value.ToBool(0,readLength);
             return result.EndTime();
         }
 
@@ -399,7 +399,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = Read(address: address, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0, readLength);
+                result.Value = readResult.Value.ToBool(0, readLength);
             return result.EndTime();
         }
 
@@ -422,7 +422,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2).Take(2).ToArray();
                 return new OperationResult<short>
                 {
-                    Value = byteArry.TransInt16(0,IsReverse)
+                    Value = byteArry.ToInt16(0,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -459,7 +459,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<ushort>
                 {
-                    Value = byteArry.TransUInt16(0,IsReverse)
+                    Value = byteArry.ToUInt16(0,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -495,7 +495,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.TransInt32(0,DataFormat,IsReverse)
+                    Value = byteArry.ToInt32(0,DataFormat,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -531,7 +531,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.TransUInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt32(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -567,7 +567,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.TransInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt64(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -603,7 +603,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.TransUInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt64(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -639,7 +639,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.TransFloat(0, DataFormat, IsReverse)
+                    Value = byteArry.ToFloat(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -675,7 +675,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.TransDouble(0, DataFormat, IsReverse)
+                    Value = byteArry.ToDouble(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -1015,7 +1015,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, short value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode,isPlcAddress);
         }
         /// <summary>
@@ -1027,7 +1027,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, short[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode,isPlcAddress);
         }
 
@@ -1041,7 +1041,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ushort value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1054,7 +1054,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1068,7 +1068,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, int value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat,IsReverse);
+            var values = value.ToByte(DataFormat,IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1081,7 +1081,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, int[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat,IsReverse);
+            var values = value.ToByte(DataFormat,IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1096,7 +1096,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, uint value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1109,7 +1109,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1123,7 +1123,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, long value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1136,7 +1136,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, long[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1149,7 +1149,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ulong value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1162,7 +1162,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1175,7 +1175,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, float value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
         /// <summary>
@@ -1187,7 +1187,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, float[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1200,7 +1200,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, double value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1213,7 +1213,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, double[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 

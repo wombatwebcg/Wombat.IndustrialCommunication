@@ -15,7 +15,14 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="Wombat.Infrastructure" Version="2.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="7.0.0" />
+    <PackageReference Include="System.IO.Ports" Version="7.0.0" />
+    <PackageReference Include="Wombat.Extensions.ObjectConversion" Version="1.0.0" />
+    <PackageReference Include="Wombat.Infrastructure" Version="2.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Wombat\Wombat\Wombat.Network\Wombat.Network.csproj" />
   </ItemGroup>
 
 </Project>

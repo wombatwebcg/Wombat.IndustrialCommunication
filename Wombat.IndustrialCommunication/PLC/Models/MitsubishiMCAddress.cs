@@ -1,4 +1,4 @@
-﻿using Wombat.Infrastructure;
+﻿using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

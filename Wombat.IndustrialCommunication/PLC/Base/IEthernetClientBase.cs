@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -175,7 +176,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0, length, IsReverse);
+                result.Value = readResult.Value.ToBool(0, length, IsReverse);
             return result.EndTime();
         }
 
@@ -226,7 +227,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 2*length);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt16(0,length ,IsReverse);
+                result.Value = readResult.Value.ToInt16(0,length ,IsReverse);
             return result.EndTime();
         }
 
@@ -276,7 +277,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt16(0, length, IsReverse);
+                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
             return result.EndTime();
         }
 
@@ -328,7 +329,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 4*length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt32(0,length ,DataFormat, IsReverse);
+                result.Value = readResult.Value.ToInt32(0,length ,DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -342,7 +343,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.TransInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt32(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -380,7 +381,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt32(0, length, DataFormat, IsReverse);
+                result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -395,7 +396,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.TransUInt32(0,  DataFormat, IsReverse)
+                    Value = byteArry.ToUInt32(0,  DataFormat, IsReverse)
             };
             }
             catch (Exception ex)
@@ -432,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 8*length);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt64(0,length ,DataFormat, IsReverse);
+                result.Value = readResult.Value.ToInt64(0,length ,DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -446,7 +447,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.TransInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt64(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -483,7 +484,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 8*length);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt64(0,length ,DataFormat, IsReverse);
+                result.Value = readResult.Value.ToUInt64(0,length ,DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -498,7 +499,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.TransUInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt64(0, DataFormat, IsReverse)
             };
             }
             catch (Exception ex)
@@ -535,7 +536,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 4*length);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransFloat(0, length, DataFormat, IsReverse);
+                result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -549,7 +550,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.TransFloat(0,DataFormat,IsReverse)
+                    Value = byteArry.ToFloat(0,DataFormat,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -586,7 +587,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 8*length);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransDouble(0,length, DataFormat, IsReverse);
+                result.Value = readResult.Value.ToDouble(0,length, DataFormat, IsReverse);
             return result.EndTime();
         }
 
@@ -600,7 +601,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.TransDouble(0,DataFormat,IsReverse)
+                    Value = byteArry.ToDouble(0,DataFormat,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -618,7 +619,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransString(0, length, encoding:Encoding.ASCII);
+                result.Value = readResult.Value.ToString(0, length, encoding:Encoding.ASCII);
             return result.EndTime();
         }
 
@@ -655,7 +656,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public virtual OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.TransByte(),true);
+            return Write(address, value.ToByte(),true);
         }
 
 
@@ -678,7 +679,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, short value)
         {
-            return Write(address, value.TransByte(IsReverse) );
+            return Write(address, value.ToByte(IsReverse) );
         }
 
         /// <summary>
@@ -689,7 +690,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, short[] value)
         {
-            return Write(address, value.TransByte(IsReverse));
+            return Write(address, value.ToByte(IsReverse));
         }
 
 
@@ -701,7 +702,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ushort value)
         {
-            return Write(address, value.TransByte(IsReverse));
+            return Write(address, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -712,7 +713,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ushort[] value)
         {
-            return Write(address, value.TransByte(IsReverse));
+            return Write(address, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -723,7 +724,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, int value)
         {
-            return Write(address, value.TransByte(DataFormat,IsReverse));
+            return Write(address, value.ToByte(DataFormat,IsReverse));
         }
 
         /// <summary>
@@ -734,7 +735,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
         /// <summary>
@@ -745,7 +746,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, uint value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
         /// <summary>
@@ -756,7 +757,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -769,7 +770,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, long value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
         /// <summary>
@@ -780,7 +781,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -793,7 +794,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ulong value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -806,7 +807,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -818,7 +819,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, float value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
         /// <summary>
@@ -829,7 +830,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -841,7 +842,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, double value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
 
@@ -853,12 +854,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.TransByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, IsReverse));
         }
 
         public OperationResult Write(string address, string value)
         {
-            return Write(address, value.TransByte(Encoding.ASCII, DataFormat, IsReverse));
+            return Write(address, value.ToByte(Encoding.ASCII, DataFormat, IsReverse));
         }
 
 

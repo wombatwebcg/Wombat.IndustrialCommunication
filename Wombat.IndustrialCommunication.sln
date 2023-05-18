@@ -5,7 +5,9 @@ VisualStudioVersion = 16.0.32602.291
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunication", "Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj", "{B70B2536-51F1-4851-BCBF-6753422D2A89}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.Network", "..\..\Wombat\Wombat\Wombat.Network\Wombat.Network.csproj", "{DC7D7CD1-CA28-4290-B81B-85348E51BA29}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -21,6 +23,10 @@ Global
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DC7D7CD1-CA28-4290-B81B-85348E51BA29}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DC7D7CD1-CA28-4290-B81B-85348E51BA29}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DC7D7CD1-CA28-4290-B81B-85348E51BA29}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DC7D7CD1-CA28-4290-B81B-85348E51BA29}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

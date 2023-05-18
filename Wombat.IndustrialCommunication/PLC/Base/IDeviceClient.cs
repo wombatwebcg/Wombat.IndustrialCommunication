@@ -1,6 +1,6 @@
 ﻿using System.Collections.Generic;
 using Wombat.IndustrialCommunication;
-using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

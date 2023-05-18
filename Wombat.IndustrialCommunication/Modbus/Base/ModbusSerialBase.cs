@@ -601,7 +601,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (isPlcAddress) { address = TranPLCAddress(address); }
             var writeAddress = ushort.Parse(address?.Trim());
             int length = (values.Length + 1) / 2;
-            byte[] newValue = values.TransByte();
+            byte[] newValue = values.ToByte();
 
             byte[] buffer = new byte[7 + newValue.Length];
             buffer[0] = stationNumber; //站号

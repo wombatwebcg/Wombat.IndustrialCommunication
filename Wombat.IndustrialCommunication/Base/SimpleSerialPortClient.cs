@@ -3,8 +3,9 @@ using System.Collections.Generic;
 using System.IO.Ports;
 using System.Net;
 using System.Text;
-using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 using Microsoft.Extensions.Logging;
+using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication
 {

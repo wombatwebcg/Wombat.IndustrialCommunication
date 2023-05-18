@@ -6,6 +6,7 @@ using System.IO.Ports;
 using System.Text;
 using System.Threading;
 using Wombat.Infrastructure;
+using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication
 {
