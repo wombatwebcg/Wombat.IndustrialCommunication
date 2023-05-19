@@ -7,6 +7,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
@@ -27,7 +28,15 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
         }
 
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
 
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
     }
 }
 

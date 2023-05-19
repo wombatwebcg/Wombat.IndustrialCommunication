@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Models;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
@@ -265,6 +266,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (IsConnect) Dispose();
             }
             return result.Complete();
+        }
+
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
 
         /// <summary>

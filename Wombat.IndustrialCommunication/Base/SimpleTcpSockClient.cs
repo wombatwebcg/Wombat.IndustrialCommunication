@@ -7,6 +7,7 @@ using Wombat.ObjectConversionExtention;
 using Microsoft.Extensions.Logging;
 using System.Threading;
 using Wombat.Infrastructure;
+using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -49,6 +50,16 @@ namespace Wombat.IndustrialCommunication
             //}
 
             return default;
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
     }
 }

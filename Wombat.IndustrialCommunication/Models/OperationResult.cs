@@ -69,12 +69,12 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public double? TimeConsuming { get; private set; }
 
-        public string[] Requsts { get; set; } = new string[2];
+        public string[] Requsts { get; set; } = new string[10];
 
         /// <summary>
         /// 响应报文
         /// </summary>
-        public string[] Responses { get; set; } = new string[2];
+        public string[] Responses { get; set; } = new string[10];
 
 
         /// <summary>

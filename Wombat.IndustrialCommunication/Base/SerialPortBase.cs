@@ -5,6 +5,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
 
@@ -320,6 +321,16 @@ namespace Wombat.IndustrialCommunication
  
 
             }
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
 
         #endregion

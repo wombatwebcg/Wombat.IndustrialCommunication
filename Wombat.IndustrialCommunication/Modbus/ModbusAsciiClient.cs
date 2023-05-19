@@ -1,6 +1,7 @@
 ﻿using System;
 using System.IO.Ports;
 using System.Linq;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
 
@@ -93,6 +94,16 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (IsConnect) Dispose();
             }
             return result.Complete();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
         #endregion
 

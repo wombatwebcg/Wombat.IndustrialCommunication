@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
 
@@ -96,6 +97,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
        public  abstract OperationResult<byte[]> SendPackageReliable(byte[] command);
 
+        public abstract Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command);
 
 
         /// <summary>
@@ -103,8 +105,9 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command">发送命令</param>
         /// <returns></returns>
-       public abstract OperationResult<byte[]> SendPackageSingle(byte[] command);
+        public abstract OperationResult<byte[]> SendPackageSingle(byte[] command);
 
+        public abstract Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command);
 
 
         private bool disposedValue;

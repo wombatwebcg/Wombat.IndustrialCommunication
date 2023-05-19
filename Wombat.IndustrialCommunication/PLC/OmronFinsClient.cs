@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
 
@@ -656,6 +657,26 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
         public override OperationResult BatchWrite(Dictionary<string, object> addresses)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
         {
             throw new NotImplementedException();
         }

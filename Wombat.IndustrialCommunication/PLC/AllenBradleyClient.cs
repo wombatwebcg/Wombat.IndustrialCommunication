@@ -4,6 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.ObjectConversionExtention;
 
@@ -752,6 +753,26 @@ namespace Wombat.IndustrialCommunication.PLC
         private ushort GetContentLength(byte[] head)
         {
             return BitConverter.ToUInt16(head, 2);
+        }
+
+        public override Task<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
     }
 }
