@@ -6,60 +6,59 @@ using System.Text;
 using Wombat.ObjectConversionExtention;
 using Microsoft.Extensions.Logging;
 using Wombat.Infrastructure;
+using Wombat.Core;
 
 namespace Wombat.IndustrialCommunication
 {
     public class SimpleSerialPortClient : SerialPortBase
     {
-        private AdvancedHybirdLock _advancedHybirdLock;
+        private AsyncLock @lock;
 
         public override bool IsConnect => base.IsConnect;
 
         public SimpleSerialPortClient():base()
         {
-            _advancedHybirdLock = new AdvancedHybirdLock();
+            @lock = new AsyncLock();
         }
 
         public SimpleSerialPortClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None) : base(portName, baudRate, dataBits, stopBits, parity, handshake)
         {
-            _advancedHybirdLock = new AdvancedHybirdLock();
+            @lock = new AsyncLock();
 
         }
 
         public override OperationResult<byte[]> SendPackageReliable(byte[] command)
         {
-            _advancedHybirdLock.Enter();
-            OperationResult<byte[]> result = new OperationResult<byte[]>();
-            
-            if (IsConnect != true)
+            using (@lock.Lock())
             {
-                var connectResult = Connect();
-                if (!connectResult.IsSuccess)
+                OperationResult<byte[]> result = new OperationResult<byte[]>();
+
+                if (IsConnect != true)
                 {
-                    connectResult.Message = $"自动连接失败";
-                    _advancedHybirdLock.Leave();
-                    return new OperationResult<byte[]>(connectResult);
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"自动连接失败";
+                        return new OperationResult<byte[]>(connectResult);
+                    }
                 }
-            }
-            try
-            {
-                 result = base.SendPackageReliable(command);
+                try
+                {
+                    result = base.SendPackageReliable(command);
 
-            }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-                _advancedHybirdLock.Leave();
-            }
-            finally
-            {
-                if (!IsUseLongConnect) Disconnect();
-            }
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
 
-            _advancedHybirdLock.Leave();
-            return result;
-
+                return result;
+            }
         }
 
     }

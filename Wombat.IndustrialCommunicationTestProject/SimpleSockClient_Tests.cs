@@ -13,7 +13,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
    public class SimpleSockClient_Tests
     {
-        private SimpleSockClient client;
+        private SimpleTcpSockClient client;
         string ip = "192.168.0.1";
 
         public SimpleSockClient_Tests()
@@ -26,7 +26,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 短连接自动开关()
         {
 
-            client = new SimpleSockClient(ip,501);
+            client = new SimpleTcpSockClient(ip,501);
             client.Connect();
             var sss = client.SendPackageReliable(new byte[4] { 1, 2, 3, 4 });
             client.Disconnect();

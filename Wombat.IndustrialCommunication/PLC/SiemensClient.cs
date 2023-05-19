@@ -161,7 +161,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         break;
                 }
 
-                result.Requst = string.Join(" ", Command1.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", Command1.Select(t => t.ToString("X2")));
                 //第一次初始化指令交互
                 _socket.Send(Command1);
 
@@ -180,9 +180,9 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 var content1 = socketReadResult.Value;
 
-                result.Response = string.Join(" ", head1.Concat(content1).Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", head1.Concat(content1).Select(t => t.ToString("X2")));
 
-                result.Requst2 = string.Join(" ", Command2.Select(t => t.ToString("X2")));
+                result.Requsts[1] = string.Join(" ", Command2.Select(t => t.ToString("X2")));
                 //第二次初始化指令交互
                 _socket.Send(Command2);
 
@@ -201,7 +201,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 var content2 = socketReadResult.Value;
 
-                result.Response2 = string.Join(" ", head2.Concat(content2).Select(t => t.ToString("X2")));
+                result.Responses[1] = string.Join(" ", head2.Concat(content2).Select(t => t.ToString("X2")));
             }
             catch (Exception ex)
             {
@@ -211,7 +211,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         protected override OperationResult DoDisconnect()
@@ -221,14 +221,14 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 _socket?.SafeClose();
-                return result.EndTime();
+                return result.Complete();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                return result.EndTime();
+                return result.Complete();
             }
 
         }
@@ -259,14 +259,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var dataPackage = socketReadResult.Value;
 
                     result.Value = headPackage.Concat(dataPackage).ToArray();
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
                     result.Message = ex.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    
+                    return result.Complete();
                 }
             }
         }
@@ -283,7 +283,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<bool>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToBool(0, 1)[0];
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -299,7 +299,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToBool(0, length);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -321,7 +321,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
                     _advancedHybirdLock.Leave();
-                    return new OperationResult<byte[]>(connectResult).EndTime();
+                    return new OperationResult<byte[]>(connectResult).Complete();
                 }
             }
             var result = new OperationResult<byte[]>();
@@ -332,14 +332,14 @@ namespace Wombat.IndustrialCommunication.PLC
                 arg.ReadWriteLength = (ushort)length;
                 arg.ReadWriteBit = isBit;
                 byte[] command = GetReadCommand(arg);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //发送命令 并获取响应报文
                 var sendResult = SendPackageReliable(command);
                 if (!sendResult.IsSuccess)
                 {
                     sendResult.Message = $"读取{address}失败，{ sendResult.Message}";
                     _advancedHybirdLock.Leave();
-                    return result.SetInfo(sendResult).EndTime();
+                    return result.SetInfo(sendResult).Complete();
                 }
                 var dataPackage = sendResult.Value;
 
@@ -347,7 +347,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 byte[] responseData = new byte[length];
                 Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
                 result.Value = responseData.ToArray();
 
                 //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
@@ -397,7 +397,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!IsUseLongConnect) Disconnect();
             }
             _advancedHybirdLock.Leave();
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -416,7 +416,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!connectResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
-                    return connectResult.EndTime();
+                    return connectResult.Complete();
                 }
             }
             OperationResult result = new OperationResult();
@@ -426,7 +426,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送写入信息
                 var arg = ConvertWriteArg(address, data, isBit);
                 byte[] command = GetWriteCommand(arg);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 var sendResult = SendPackageReliable(command);
                 if (!sendResult.IsSuccess)
                 {
@@ -435,7 +435,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                 var offset = dataPackage.Length - 1;
                 if (dataPackage[offset] == 0x0A)
@@ -480,7 +480,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!IsUseLongConnect) Disconnect();
             }
             _advancedHybirdLock.Leave();
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -517,10 +517,10 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                 }
 
-                result.Requst = tempResult.Requst;
-                result.Response = tempResult.Response;
+                result.Requsts = tempResult.Requsts;
+                result.Responses = tempResult.Responses;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -545,7 +545,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送读取信息
                 var args = ConvertArg(addresses);
                 byte[] command = GetReadCommand(args);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //发送命令 并获取响应报文
                 var sendResult = SendPackageReliable(command);
                 if (!sendResult.IsSuccess)
@@ -564,7 +564,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
 
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
                 var cursor = 0;
                 foreach (var item in args)
                 {
@@ -662,7 +662,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -728,13 +728,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 var arg = ConvertWriteArg(newAddresses);
                 byte[] command = GetWriteCommand(arg);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 var sendResult = SendPackageReliable(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                 if (dataPackage.Length == arg.Length + 21)
                 {
@@ -789,7 +789,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -811,12 +811,12 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     result.IsSuccess = tempResult.IsSuccess;
                     result.Message = tempResult.Message;
-                    result.AddMessage2List();
+                    
                 }
-                result.Requst = tempResult.Requst;
-                result.Response = tempResult.Response;
+                result.Requsts = tempResult.Requsts;
+                result.Responses = tempResult.Responses;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         #region ConvertArg 根据地址信息转换成通讯需要的信息

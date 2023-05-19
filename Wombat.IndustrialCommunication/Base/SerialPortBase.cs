@@ -108,7 +108,7 @@ namespace Wombat.IndustrialCommunication
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -157,7 +157,7 @@ namespace Wombat.IndustrialCommunication
                 if (readLeng == 0)
                 {
                     result.Value = null;
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 receiveFinish += readLeng;
             }
@@ -173,7 +173,7 @@ namespace Wombat.IndustrialCommunication
                 Logger?.LogDebug(printSend);
             }
 
-            return result.EndTime();
+            return result.Complete();
         }
 
 

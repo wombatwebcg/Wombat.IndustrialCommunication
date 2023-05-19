@@ -65,7 +65,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     result.Value = socketReadResult.Value;
-                    return result.EndTime();
+                    return result.Complete();
                 }
             }
 
@@ -119,7 +119,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 //获取命令（组装报文）
                 byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength);
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
 
                 //发送命令并获取响应报文
                 int readLenght;
@@ -136,18 +136,18 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 else if (!CRC16Helper.CheckCRC16(responsePackage))
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
 
                 byte[] resultData = new byte[responsePackage.Length - 2 - 3];
                 Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
                 //4 获取响应报文数据（字节数组形式）       
                 result.Value = resultData.ToArray();
             }
@@ -160,7 +160,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 if (_isAutoOpen) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -178,7 +178,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
                 //发送命令并获取响应报文
                 //var responsePackage = SendPackage(commandCRC16, 8);
                 var sendResult = SendPackage(commandCRC16, 8);
@@ -190,17 +190,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 else if (!CRC16Helper.CheckCRC16(responsePackage))
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
                 byte[] resultBuffer = new byte[responsePackage.Length - 2];
                 Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
             }
             catch (Exception ex)
             {
@@ -211,7 +211,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var command = GetWriteCommand(address, values, stationNumber, functionCode);
 
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
                 //var responsePackage = SendPackage(commandCRC16, 8);
                 var sendResult = SendPackage(commandCRC16, 8);
                 if (!sendResult.IsSuccess)
@@ -243,17 +243,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 else if (!CRC16Helper.CheckCRC16(responsePackage))
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
                 byte[] resultBuffer = new byte[responsePackage.Length - 2];
                 Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
             }
             catch (Exception ex)
             {
@@ -264,7 +264,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -296,13 +296,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        {
         //            result.IsSuccess = false;
         //            result.Message = "响应结果为空";
-        //            return result.EndTime();
+        //            return result.Complete();
         //        }
         //        else if (!CRC16Helper.CheckCRC16(responsePackage))
         //        {
         //            result.IsSuccess = false;
         //            result.Message = "响应结果CRC16Helper验证失败";
-        //            //return result.EndTime();
+        //            //return result.Complete();
         //        }
         //        byte[] resultBuffer = new byte[responsePackage.Length - 2];
         //        Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
@@ -317,7 +317,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    {
         //        if (IsConnect) Dispose();
         //    }
-        //    return result.EndTime();
+        //    return result.Complete();
         //}
 
 

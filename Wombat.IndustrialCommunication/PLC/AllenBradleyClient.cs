@@ -81,7 +81,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     throw new TimeoutException("连接超时");
                 _socket.EndConnect(connectResult);
 
-                result.Requst = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
                 _socket.Send(RegisteredCommand);
 
                 var socketReadResult = SocketRead(_socket, 24);
@@ -95,7 +95,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var content = socketReadResult.Value;
 
                 var response = head.Concat(content).ToArray();
-                result.Response = string.Join(" ", response.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", response.Select(t => t.ToString("X2")));
 
                 byte[] buffer = new byte[4];
                 buffer[0] = response[4];
@@ -113,7 +113,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -162,14 +162,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var content = socketReadResult.Value;
 
                     result.Value = head.Concat(content).ToArray();
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
                     result.Message = ex.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    
+                    return result.Complete();
                 }
             }
         }
@@ -188,13 +188,13 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 var command = GetReadCommand(address, 1);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //发送命令 并获取响应报文
                 var sendResult = SendPackageReliable(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                 ushort count = BitConverter.ToUInt16(dataPackage, 38);
                 byte[] data = new byte[count - 6];
@@ -227,7 +227,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         #region Write
@@ -247,13 +247,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 //Array.Reverse(data);
                 //发送写入信息
                 //var arg = ConvertWriteArg(address, data, false);
-                result.Requst = string.Join(" ", data.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", data.Select(t => t.ToString("X2")));
                 var sendResult = SendPackageReliable(data);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
             }
             catch (SocketException ex)
             {
@@ -280,7 +280,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsConnect) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
 
         }
 

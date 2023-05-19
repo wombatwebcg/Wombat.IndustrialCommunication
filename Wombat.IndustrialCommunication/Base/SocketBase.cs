@@ -5,7 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Wombat.Infrastructure;
-using Wombat.ObjectConversionExtention;
+using Wombat.Network.Socket;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -22,12 +22,12 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// Socket实例
         /// </summary>
-        protected Socket _socket;
+        protected  TcpRawSocketClient _socket;
 
 
         private IPEndPoint _ipEndPoint;
 
-        public override bool IsConnect => _socket == null ? false : _socket.Connected;
+        public override bool IsConnect => _socket.State == SocketConnectionState.Connected ? true :false;
 
 
         /// <summary>
@@ -61,31 +61,32 @@ namespace Wombat.IndustrialCommunication
         protected override OperationResult DoConnect()
         {
             var result = new OperationResult();
-            _socket?.SafeClose();
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _socket?.CloseAsync();
+            _socket = new TcpRawSocketClient(_ipEndPoint);
             try
             {
                 //超时时间设置
-                _socket.ReceiveTimeout = (int)Timeout.TotalMilliseconds;
-                _socket.SendTimeout = (int)Timeout.TotalMilliseconds;
+                _socket.SockConfiguration.ReceiveTimeout = Timeout;
+                _socket.SockConfiguration.SendTimeout = Timeout;
+                _socket.Connect();
 
-                //连接
-                //socket.Connect(ipEndPoint);
-                IAsyncResult connectResult = _socket.BeginConnect(_ipEndPoint, null, null);
-                //阻塞当前线程           
-                if (!connectResult.AsyncWaitHandle.WaitOne(Timeout))
-                    throw new TimeoutException("连接超时");
-                _socket.EndConnect(connectResult);
+                ////连接
+                ////socket.Connect(ipEndPoint);
+                //IAsyncResult connectResult = _socket.BeginConnect(_ipEndPoint, null, null);
+                ////阻塞当前线程           
+                //if (!connectResult.AsyncWaitHandle.WaitOne(Timeout))
+                //    throw new TimeoutException("连接超时");
+                //_socket.EndConnect(connectResult);
             }
             catch (Exception ex)
             {
-                _socket?.SafeClose();
+                _socket?.Close();
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
 
         }
 
@@ -95,7 +96,7 @@ namespace Wombat.IndustrialCommunication
             OperationResult result = new OperationResult();
             try
             {
-                _socket?.SafeClose();
+                _socket?.Close();
                 return result;
             }
             catch (Exception ex)
@@ -124,7 +125,6 @@ namespace Wombat.IndustrialCommunication
             {
                 result.IsSuccess = false;
                 result.Message = $"读取长度[receiveCount]为{receiveCount}";
-                result.AddMessage2List();
                 return result;
             }
 
@@ -142,7 +142,6 @@ namespace Wombat.IndustrialCommunication
                         socket?.SafeClose();
                         result.IsSuccess = false;
                         result.Message = $"连接被断开";
-                        result.AddMessage2List();
                         return result;
                     }
                     receiveFinish += readLeng;
@@ -155,7 +154,6 @@ namespace Wombat.IndustrialCommunication
                     else
                         result.Message = $"连接被断开，{ex.Message}";
                     result.IsSuccess = false;
-                    result.AddMessage2List();
                     result.Exception = ex;
                     return result;
                 }
@@ -163,7 +161,7 @@ namespace Wombat.IndustrialCommunication
 
             }
             result.Value = receiveBytes;
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -214,8 +212,7 @@ namespace Wombat.IndustrialCommunication
                     OperationResult<byte[]> result = new OperationResult<byte[]>();
                     result.IsSuccess = false;
                     result.Message = ex2.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    return result.Complete();
                 }
             }
         }

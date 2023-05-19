@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 result.IsSuccess = false;
                 result.Message = $"读取长度[receiveCount]为{receiveCount}";
-                result.AddMessage2List();
+                
                 return result;
             }
 
@@ -54,7 +54,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         socket?.SafeClose();
                         result.IsSuccess = false;
                         result.Message = $"连接被断开";
-                        result.AddMessage2List();
+                        
                         return result;
                     }
                     receiveFinish += readLeng;
@@ -67,13 +67,13 @@ namespace Wombat.IndustrialCommunication.PLC
                     else
                         result.Message = $"连接被断开，{ex.Message}";
                     result.IsSuccess = false;
-                    result.AddMessage2List();
+                    
                     result.Exception = ex;
                     return result;
                 }
             }
             result.Value = receiveBytes;
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -101,12 +101,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     else
                     {
                         result = SendPackageSingle(command); ;
-                        return result.EndTime();
+                        return result.Complete();
                     }
                 }
                 else
                 {
-                    return result.EndTime();
+                    return result.Complete();
 
                 }
             }
@@ -124,16 +124,15 @@ namespace Wombat.IndustrialCommunication.PLC
                     else
                     {
                       var  result = SendPackageSingle(command); ;
-                        return result.EndTime();
+                        return result.Complete();
                     }
                 }
                 catch (Exception ex2)
                 {
                     var result = new OperationResult<byte[]>();
                     result.IsSuccess = false;
-                    result.Message = ex2.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    result.Message = ex2.Message;                   
+                    return result.Complete();
                 }
             }
         }
@@ -159,9 +158,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadBoolean(address, 1);
             if(result.IsSuccess)
-                return new OperationResult<bool>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<bool>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<bool>(result).EndTime();
+                return new OperationResult<bool>(result).Complete();
         }
 
 
@@ -177,7 +176,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToBool(0, length, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -212,9 +211,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadInt16(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<short>(result).EndTime();
+                return new OperationResult<short>(result).Complete();
         }
 
         /// <summary>
@@ -228,7 +227,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToInt16(0,length ,IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -262,9 +261,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadUInt16(address, 1);
             if(result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<ushort>(result).EndTime();
+                return new OperationResult<ushort>(result).Complete();
         }
 
         /// <summary>
@@ -278,7 +277,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -313,9 +312,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) {Value = result.Value[0] }.EndTime();
+                return new OperationResult<int>(result) {Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<int>(result).EndTime();
+                return new OperationResult<int>(result).Complete();
 
         }
 
@@ -330,7 +329,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToInt32(0,length ,DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -365,9 +364,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadUInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<uint>(result).EndTime();
+                return new OperationResult<uint>(result).Complete();
         }
 
 
@@ -382,7 +381,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -418,9 +417,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<long>(result).EndTime();
+                return new OperationResult<long>(result).Complete();
         }
 
         /// <summary>
@@ -434,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToInt64(0,length ,DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -469,9 +468,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadUInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<ulong>(result).EndTime();
+                return new OperationResult<ulong>(result).Complete();
         }
 
         /// <summary>
@@ -485,7 +484,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToUInt64(0,length ,DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -521,9 +520,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadFloat(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<float>(result).EndTime();
+                return new OperationResult<float>(result).Complete();
         }
 
         /// <summary>
@@ -537,7 +536,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -572,9 +571,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = ReadDouble(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<double>(result).EndTime();
+                return new OperationResult<double>(result).Complete();
         }
 
         /// <summary>
@@ -588,7 +587,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToDouble(0,length, DataFormat, IsReverse);
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -620,7 +619,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
                 result.Value = readResult.Value.ToString(0, length, encoding:Encoding.ASCII);
-            return result.EndTime();
+            return result.Complete();
         }
 
 

@@ -112,7 +112,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         protected override OperationResult DoDisconnect()
@@ -163,14 +163,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var dataPackage = socketReadResult.Value;
 
                     result.Value = headPackage.Concat(dataPackage).ToArray();
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
                     result.Message = ex.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    
+                    return result.Complete();
                 }
             }
         }
@@ -197,7 +197,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var dataPackage = socketReadResult.Value;
 
                     result.Value = dataPackage.ToArray();
-                    return result.EndTime();
+                    return result.Complete();
                 }
             }
 
@@ -244,7 +244,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult<bool>(readResut);
             if (result.IsSuccess)
                 result.Value = (readResut.Value[0] & 0b00010000) != 0;
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -272,7 +272,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -301,7 +301,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
                     _advancedHybirdLock.Leave();
-                    return new OperationResult<byte[]>(connectResult).EndTime();
+                    return new OperationResult<byte[]>(connectResult).Complete();
                 }
 
             }
@@ -323,7 +323,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
                         break;
                 }
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
 
                 OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                 switch (_version)
@@ -347,7 +347,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 byte[] dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                 var bufferLength = length;
                 byte[] responseValue = null;
@@ -389,7 +389,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!IsUseLongConnect) Disconnect();
             }
             _advancedHybirdLock.Leave();
-            return result.EndTime();
+            return result.Complete();
         }
 
 
@@ -439,7 +439,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!connectResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
-                    return connectResult.EndTime();
+                    return connectResult.Complete();
                 }
             }
             OperationResult result = new OperationResult();
@@ -459,7 +459,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
                         break;
                 }
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
 
                 OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                 switch (_version)
@@ -477,7 +477,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     return sendResult;
                 }
                 byte[] dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
             }
             catch (SocketException ex)
             {
@@ -505,7 +505,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!IsUseLongConnect) Disconnect();
             }
             _advancedHybirdLock.Leave();
-            return result.EndTime();
+            return result.Complete();
         }
 
         #region 生成报文命令
@@ -1067,7 +1067,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         result.Exception = tempResult.Exception;
                         result.ErrorCode = tempResult.ErrorCode;
                         result.Message = tempResult.Message;
-                        return result.EndTime();
+                        return result.Complete();
                     }
 
                     var rValue = tempResult.Value.ToArray();
@@ -1117,11 +1117,11 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (tempAddresses.Any(t => t.BeginAddress >= minAddress))
                         minAddress = tempAddresses.Where(t => t.BeginAddress >= minAddress).OrderBy(t => t.BeginAddress).FirstOrDefault().BeginAddress;
                     //else
-                    //    return result.EndTime();
+                    //    return result.Complete();
                 }
-                //return result.EndTime();
+                //return result.Complete();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         public override OperationResult BatchWrite(Dictionary<string, object> addresses)
