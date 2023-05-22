@@ -27,9 +27,9 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        public override bool IsConnect => base.IsConnect;
+        public override bool Connected => base.Connected;
 
-        public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             ////从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             //_advancedHybirdLock.Enter();
@@ -52,14 +52,25 @@ namespace Wombat.IndustrialCommunication
             return default;
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
     }
 }

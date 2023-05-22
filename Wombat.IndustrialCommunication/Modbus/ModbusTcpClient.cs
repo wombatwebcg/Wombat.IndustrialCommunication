@@ -28,15 +28,26 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
     }
 }
 

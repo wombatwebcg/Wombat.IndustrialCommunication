@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
             client = new SimpleTcpSockClient(ip,501);
             client.Connect();
-            var sss = client.SendPackageReliable(new byte[4] { 1, 2, 3, 4 });
+            //var sss = client.InterpretAndExtractMessageData(new byte[4] { 1, 2, 3, 4 });
             client.Disconnect();
         }
 

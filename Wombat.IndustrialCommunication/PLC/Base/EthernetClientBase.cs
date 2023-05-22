@@ -6,22 +6,18 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
+using Wombat.Network.Sockets;
 using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-   public abstract class IEthernetClientBase: BaseModel, IEthernetClient
+   public abstract class EthernetClientBase: ClientBase, IEthernetClient
     {
         public  IPEndPoint IpEndPoint { get; set; }
 
         public abstract  string Version { get; }
 
-
-        /// <summary>
-        /// 分批缓冲区大小
-        /// </summary>
-        protected const int BufferSize = 4096;
-
+        protected internal SocketClientBase _socket;
 
 
         /// <summary>
@@ -30,14 +26,14 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="socket">socket</param>
         /// <param name="receiveCount">读取长度</param>          
         /// <returns></returns>
-        public virtual OperationResult<byte[]> SocketRead(Socket socket, int receiveCount)
+        internal virtual OperationResult<byte[]> ReadBuffer(int receiveCount)
         {
             var result = new OperationResult<byte[]>();
             if (receiveCount < 0)
             {
                 result.IsSuccess = false;
                 result.Message = $"读取长度[receiveCount]为{receiveCount}";
-                
+
                 return result;
             }
 
@@ -46,29 +42,82 @@ namespace Wombat.IndustrialCommunication.PLC
             while (receiveFinish < receiveCount)
             {
                 // 分批读取
-                int receiveLength = (receiveCount - receiveFinish) >= BufferSize ? BufferSize : (receiveCount - receiveFinish);
+                int receiveLength = (receiveCount - receiveFinish) >= _socket.SocketConfiguration.ReceiveBufferSize ? _socket.SocketConfiguration.ReceiveBufferSize : (receiveCount - receiveFinish);
                 try
                 {
-                    var readLeng = socket.Receive(receiveBytes, receiveFinish, receiveLength, SocketFlags.None);
+                    var readLeng = _socket.Receive(receiveBytes, receiveFinish, receiveLength);
                     if (readLeng == 0)
                     {
-                        socket?.SafeClose();
+                        _socket.Close();
                         result.IsSuccess = false;
                         result.Message = $"连接被断开";
-                        
+
                         return result;
                     }
                     receiveFinish += readLeng;
                 }
                 catch (SocketException ex)
                 {
-                    socket?.SafeClose();
+                    _socket?.Close();
                     if (ex.SocketErrorCode == SocketError.TimedOut)
                         result.Message = $"连接超时：{ex.Message}";
                     else
                         result.Message = $"连接被断开，{ex.Message}";
                     result.IsSuccess = false;
-                    
+
+                    result.Exception = ex;
+                    return result;
+                }
+            }
+            result.Value = receiveBytes;
+            return result.Complete();
+        }
+
+        /// <summary>
+        /// Socket读取
+        /// </summary>
+        /// <param name="socket">socket</param>
+        /// <param name="receiveCount">读取长度</param>          
+        /// <returns></returns>
+        internal virtual async ValueTask<OperationResult<byte[]>> ReadBufferAsync(int receiveCount)
+        {
+            var result = new OperationResult<byte[]>();
+            if (receiveCount < 0)
+            {
+                result.IsSuccess = false;
+                result.Message = $"读取长度[receiveCount]为{receiveCount}";
+
+                return result;
+            }
+
+            byte[] receiveBytes = new byte[receiveCount];
+            int receiveFinish = 0;
+            while (receiveFinish < receiveCount)
+            {
+                // 分批读取
+                int receiveLength = (receiveCount - receiveFinish) >= _socket.SocketConfiguration.ReceiveBufferSize ? _socket.SocketConfiguration.ReceiveBufferSize : (receiveCount - receiveFinish);
+                try
+                {
+                    var readLeng =await _socket.ReceiveAsync(receiveBytes, receiveFinish, receiveLength);
+                    if (readLeng == 0)
+                    {
+                        _socket.Close();
+                        result.IsSuccess = false;
+                        result.Message = $"连接被断开";
+
+                        return result;
+                    }
+                    receiveFinish += readLeng;
+                }
+                catch (SocketException ex)
+                {
+                    _socket?.Close();
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                        result.Message = $"连接超时：{ex.Message}";
+                    else
+                        result.Message = $"连接被断开，{ex.Message}";
+                    result.IsSuccess = false;
+
                     result.Exception = ex;
                     return result;
                 }
@@ -84,11 +133,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
             try
             {
-                var result = SendPackageSingle(command);
+                var result = GetMessageContent(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -101,7 +150,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                        result = SendPackageSingle(command); ;
+                        result = GetMessageContent(command); ;
                         return result.Complete();
                     }
                 }
@@ -124,7 +173,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                      var  result = SendPackageSingle(command); ;
+                      var  result = GetMessageContent(command); ;
                         return result.Complete();
                     }
                 }
@@ -147,11 +196,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override async Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             try
             {
-                var result = await SendPackageSingleAsync(command);
+                var result = await GetMessageContentAsync(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -164,7 +213,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                        result =await SendPackageSingleAsync(command); ;
+                        result =await GetMessageContentAsync(command); ;
                         return result.Complete();
                     }
                 }
@@ -187,7 +236,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                        var result = await SendPackageSingleAsync(command); 
+                        var result = await GetMessageContentAsync(command); 
                         return result.Complete();
                     }
                 }
@@ -210,7 +259,7 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        public virtual Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses)
+        public virtual ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses)
         {
             throw new NotImplementedException();
         }
@@ -234,7 +283,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="isBit"></param>
         /// <param name="setEndian">返回值是否设置大小端</param>
         /// <returns></returns>
-        public  abstract Task<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+        public  abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
 
 
         /// <summary>
@@ -252,7 +301,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        public virtual async Task<OperationResult<bool>> ReadBooleanAsync(string address)
+        public virtual async ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
         {
             var result = await ReadBooleanAsync(address, 1);
             if (result.IsSuccess)
@@ -277,7 +326,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
-        public virtual async Task<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
+        public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
             //int reallength = (int)Math.Ceiling(length*1.0 /8);
            var readResult = await ReadAsync(address, length, isBit: true);
@@ -328,7 +377,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        public async Task<OperationResult<short>> ReadInt16Async(string address)
+        public async ValueTask<OperationResult<short>> ReadInt16Async(string address)
         {
             var result =await ReadInt16Async(address, 1);
             if (result.IsSuccess)
@@ -357,7 +406,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        public async Task<OperationResult<short[]>> ReadInt16Async(string address, int length)
+        public async ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length)
         {
             var readResult =await ReadAsync(address, 2 * length);
             var result = new OperationResult<short[]>(readResult);
@@ -407,7 +456,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<ushort>> ReadUInt16Async(string address)
+        public async ValueTask<OperationResult<ushort>> ReadUInt16Async(string address)
         {
             var result =await ReadUInt16Async(address, 1);
             if (result.IsSuccess)
@@ -436,7 +485,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
+        public async ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
         {
             var readResult =await ReadAsync(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
@@ -487,7 +536,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<int>> ReadInt32Async(string address)
+        public async ValueTask<OperationResult<int>> ReadInt32Async(string address)
         {
             var result = await ReadInt32Async(address, 1);
             if (result.IsSuccess)
@@ -519,7 +568,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<int[]>> ReadInt32Async(string address, int length)
+        public async ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length)
         {
             var readResult =await ReadAsync(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
@@ -569,7 +618,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<uint>> ReadUInt32Async(string address)
+        public async ValueTask<OperationResult<uint>> ReadUInt32Async(string address)
         {
             var result =await ReadUInt32Async(address, 1);
             if (result.IsSuccess)
@@ -598,7 +647,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
+        public async ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
         {
             var readResult =await ReadAsync(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
@@ -649,7 +698,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<long>> ReadInt64Async(string address)
+        public async ValueTask<OperationResult<long>> ReadInt64Async(string address)
         {
             var result = await ReadInt64Async(address, 1);
             if (result.IsSuccess)
@@ -679,7 +728,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<long[]>> ReadInt64Async(string address, int length)
+        public async ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length)
         {
             var readResult =await ReadAsync(address, 8 * length);
             var result = new OperationResult<long[]>(readResult);
@@ -730,7 +779,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<ulong>> ReadUInt64Async(string address)
+        public async ValueTask<OperationResult<ulong>> ReadUInt64Async(string address)
         {
             var result =await ReadUInt64Async(address, 1);
             if (result.IsSuccess)
@@ -759,7 +808,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
+        public async ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<ulong[]>(readResult);
@@ -811,7 +860,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async  Task<OperationResult<float>> ReadFloatAsync(string address)
+        public async  ValueTask<OperationResult<float>> ReadFloatAsync(string address)
         {
             var result = await ReadFloatAsync(address, 1);
             if (result.IsSuccess)
@@ -840,7 +889,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<float[]>> ReadFloatAsync(string address, int length)
+        public async ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length)
         {
             var readResult =await ReadAsync(address, 4 * length);
             var result = new OperationResult<float[]>(readResult);
@@ -890,7 +939,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<double>> ReadDoubleAsync(string address)
+        public async ValueTask<OperationResult<double>> ReadDoubleAsync(string address)
         {
             var result = await ReadDoubleAsync(address, 1);
             if (result.IsSuccess)
@@ -920,7 +969,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        public async Task<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
+        public async ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
         {
             var readResult =await ReadAsync(address, 8 * length);
             var result = new OperationResult<double[]>(readResult);
@@ -961,7 +1010,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
-        public async Task<OperationResult<string>> ReadStringAsync(string address, int length)
+        public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
         {
             var readResult =await ReadAsync(address, 4 * length);
             var result = new OperationResult<string>(readResult);

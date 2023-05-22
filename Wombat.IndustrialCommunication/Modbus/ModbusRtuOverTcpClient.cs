@@ -173,7 +173,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode"></param>
         public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5,bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
             var result = new OperationResult();
             try
             {
@@ -210,7 +210,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
         }
@@ -225,7 +225,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool byteFormatting = true)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
 
             var result = new OperationResult();
             try
@@ -263,21 +263,32 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
         }
 
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
 
         /// <summary>
         /// 写入
@@ -289,7 +300,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 6, bool byteFormatting = true)
         //{
-        //    if (!IsConnect) Connect();
+        //    if (!Connected) Connect();
 
         //    var result = new OperationResult();
         //    try
@@ -327,7 +338,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    }
         //    finally
         //    {
-        //        if (IsConnect) Dispose();
+        //        if (Connected) Dispose();
         //    }
         //    return result.Complete();
         //}

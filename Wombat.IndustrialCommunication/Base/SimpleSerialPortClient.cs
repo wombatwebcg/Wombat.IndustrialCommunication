@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication
     {
         private AsyncLock @lock;
 
-        public override bool IsConnect => base.IsConnect;
+        public override bool Connected => base.Connected;
 
         public SimpleSerialPortClient():base()
         {
@@ -27,13 +27,13 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
             using (@lock.Lock())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
 
-                if (IsConnect != true)
+                if (Connected != true)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
@@ -44,7 +44,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 try
                 {
-                    result = base.SendPackageReliable(command);
+                    result = base.InterpretAndExtractMessageData(command);
 
                 }
                 catch (Exception ex)

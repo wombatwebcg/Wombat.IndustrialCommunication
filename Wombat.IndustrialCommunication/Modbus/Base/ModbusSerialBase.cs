@@ -3,6 +3,7 @@ using System;
 using System.IO.Ports;
 using System.Linq;
 using Wombat.Infrastructure;
+using Wombat.Core;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
@@ -19,7 +20,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public Handshake Handshake { get; set; } = Handshake.None;
 
 
-        public override bool IsConnect => _serialPortBase == null ? false : _serialPortBase.IsConnect;
+        public override bool Connected => _serialPortBase == null ? false : _serialPortBase.Connected;
 
 
         private AdvancedHybirdLock _advancedHybirdLock;
@@ -64,14 +65,15 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// 连接
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             if (!DeviceInterfaceHelper.CheckSerialPort(PortName))
             {
-                Logger?.LogError($"电脑没有查找到端口:{PortName}");
+
+                Logger?.Debug($"电脑没有查找到端口:{PortName}");
                 throw new Exception($"电脑没有查找到端口:{PortName}");
             }
-            if (IsConnect) _serialPortBase.Disconnect();
+            if (Connected) _serialPortBase.Disconnect();
            _serialPortBase.PortName = PortName ?? throw new ArgumentNullException(nameof(PortName));
            _serialPortBase.BaudRate = BaudRate;
            _serialPortBase.Parity = Parity;
@@ -87,7 +89,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// 关闭连接
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
            return _serialPortBase.Disconnect();
         }
@@ -109,7 +111,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             _advancedHybirdLock.Enter();
             var result = new OperationResult<byte[]>();
-            if (!_serialPortBase?.IsConnect ?? true)
+            if (!_serialPortBase?.Connected ?? true)
             {
                 var connectResult = Connect();
                 if (!connectResult.IsSuccess)
@@ -127,7 +129,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
 
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(commandCRC16);
+                var sendResult = InterpretAndExtractMessageData(commandCRC16);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -186,7 +188,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             _advancedHybirdLock.Enter();
             var result = new OperationResult();
-            if (!_serialPortBase?.IsConnect ?? true)
+            if (!_serialPortBase?.Connected ?? true)
             {
                 var connectResult = Connect();
                 if (!connectResult.IsSuccess)
@@ -202,7 +204,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
                 result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(commandCRC16);
+                var sendResult = InterpretAndExtractMessageData(commandCRC16);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -249,7 +251,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             _advancedHybirdLock.Enter();
             var result = new OperationResult();
-            if (!_serialPortBase?.IsConnect ?? true)
+            if (!_serialPortBase?.Connected ?? true)
             {
                 var connectResult = Connect();
                 if (!connectResult.IsSuccess)
@@ -265,7 +267,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
                 result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(commandCRC16);
+                var sendResult = InterpretAndExtractMessageData(commandCRC16);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -394,7 +396,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             _advancedHybirdLock.Enter();
             var result = new OperationResult();
-            if (!_serialPortBase?.IsConnect ?? true)
+            if (!_serialPortBase?.Connected ?? true)
             {
                 var connectResult = Connect();
                 if (!connectResult.IsSuccess)
@@ -410,7 +412,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 var commandCRC16 = CRC16Helper.GetCRC16(command);
                 result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(commandCRC16);
+                var sendResult = InterpretAndExtractMessageData(commandCRC16);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -454,14 +456,14 @@ namespace Wombat.IndustrialCommunication.Modbus
 
 
 
-       public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
-            return _serialPortBase.SendPackageReliable(command);
+            return _serialPortBase.InterpretAndExtractMessageData(command);
         }
 
-       public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
-            return _serialPortBase.SendPackageSingle(command);
+            return _serialPortBase.GetMessageContent(command);
         }
 
 

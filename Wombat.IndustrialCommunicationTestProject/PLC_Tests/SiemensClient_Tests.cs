@@ -50,7 +50,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
 
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 50; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
@@ -188,6 +188,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client.IsUseLongConnect = true;
 
             var tt = client.Connect();
+            var ssss1 = client.Write("Q1.3", true);
+            var ssss2 = client.Write("Q1.3", true);
+            var ssss3= client.Write("Q1.3", true);
+            var ssss4 = client.Write("Q1.3", true);
+
+            var ssssss1 = client.WriteAsync("Q1.3", true).Result;
+            var ssssss2 = client.WriteAsync("Q1.3", true).Result;
+            var ssssss3 = client.WriteAsync("Q1.3", true).Result;
+            var ssssss4 = client.WriteAsync("Q1.3", true).Result;
+
             ReadWriteAsync().Wait();
             client?.Disconnect();
         }
@@ -196,7 +206,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
 
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 50; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);

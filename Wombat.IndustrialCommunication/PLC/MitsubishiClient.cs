@@ -7,13 +7,15 @@ using System.Net.Sockets;
 using System.Text;
 using Wombat.Infrastructure;
 using System.Threading.Tasks;
+using Wombat.Core;
+using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
     /// 三菱plc客户端
     /// </summary>
-    public class MitsubishiClient : IEthernetClientBase
+    public class MitsubishiClient : EthernetClientBase
     {
         /// <summary>
         /// 版本
@@ -22,16 +24,15 @@ namespace Wombat.IndustrialCommunication.PLC
 
         private MitsubishiVersion _version;
 
-        protected Socket _socket;
 
-        private AdvancedHybirdLock _advancedHybirdLock;
+        private AsyncLock _lock;
 
 
         /// <summary>
         /// 是否是连接的
         /// </summary>
         /// 
-        public override bool IsConnect => _socket == null ? false : _socket.Connected;
+        public override bool Connected => _socket == null ? false : _socket.Connected;
 
 
         /// <summary>
@@ -42,7 +43,7 @@ namespace Wombat.IndustrialCommunication.PLC
         public MitsubishiClient(MitsubishiVersion version)
         {
             this._version = version;
-            _advancedHybirdLock = new AdvancedHybirdLock();
+            _lock = new AsyncLock();
             IsReverse = false;
             DataFormat = EndianFormat.DCBA;
 
@@ -62,7 +63,7 @@ namespace Wombat.IndustrialCommunication.PLC
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
             IpEndPoint = new IPEndPoint(address, port);
-            _advancedHybirdLock = new AdvancedHybirdLock();
+            _lock = new AsyncLock();
             IsReverse = false;
             DataFormat = EndianFormat.DCBA;
         }
@@ -76,7 +77,7 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             this._version = version;
             IpEndPoint = ipAndPoint;
-            _advancedHybirdLock = new AdvancedHybirdLock();
+            _lock = new AsyncLock();
             IsReverse = false;
             DataFormat = EndianFormat.DCBA;
 
@@ -86,28 +87,23 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 打开连接（如果已经是连接状态会先关闭再打开）
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
-            _socket?.SafeClose();
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _socket?.Close();
+            _socket = new SocketClientBase();
             try
             {
                 //超时时间设置
-                _socket.ReceiveTimeout = (int)Timeout.TotalMilliseconds;
-                _socket.SendTimeout = (int)Timeout.TotalMilliseconds;
-
-
-                //socket.Connect(IpEndPoint);
-                IAsyncResult connectResult = _socket.BeginConnect(IpEndPoint, null, null);
-                //阻塞当前线程           
-                if (!connectResult.AsyncWaitHandle.WaitOne(Timeout))
-                    throw new TimeoutException("连接超时");
-                _socket.EndConnect(connectResult);
+                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.SocketConfiguration.ReceiveBufferSize = 1024;
+                _socket.SocketConfiguration.SendBufferSize = 1024;
+                _socket.Connect(IpEndPoint);
             }
             catch (Exception ex)
             {
-                _socket?.SafeClose();
+                _socket?.Close();
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.ErrorCode = 408;
@@ -116,23 +112,66 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
-        protected override OperationResult DoDisconnect()
+        internal override async Task<OperationResult> DoConnectAsync()
+        {
+            var result = new OperationResult();
+            _socket?.Close();
+            _socket = new SocketClientBase();
+            try
+            {
+                //超时时间设置
+                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.SocketConfiguration.ReceiveBufferSize = 1024;
+                _socket.SocketConfiguration.SendBufferSize = 1024;
+                await _socket.ConnectAsync(IpEndPoint);
+            }
+            catch (Exception ex)
+            {
+                await _socket?.CloseAsync();
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                result.ErrorCode = 408;
+                result.Exception = ex;
+            }
+            return result.Complete();
+        }
+
+
+        internal override OperationResult DoDisconnect()
         {
 
             OperationResult result = new OperationResult();
             try
             {
-                _socket?.SafeClose();
-                return result;
+                _socket?.Close();
+                return result.Complete();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                return result;
+                return result.Complete();
             }
 
+        }
+
+        internal override async Task<OperationResult> DoDisconnectAsync()
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                await _socket?.CloseAsync();
+                return result.Complete();
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                result.Exception = ex;
+                return result.Complete();
+            }
         }
 
 
@@ -142,7 +181,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             lock (this)
@@ -151,14 +190,14 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     _socket.Send(command);
-                    var socketReadResult = SocketRead(_socket, 9);
+                    var socketReadResult = ReadBuffer(9);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var headPackage = socketReadResult.Value;
 
                     //其后内容的总长度
                     var contentLength = BitConverter.ToUInt16(headPackage, 7);
-                    socketReadResult = SocketRead(_socket, contentLength);
+                    socketReadResult = ReadBuffer(contentLength);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var dataPackage = socketReadResult.Value;
@@ -192,7 +231,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     OperationResult<byte[]> result = new OperationResult<byte[]>();
                     _socket.Send(command);
-                    var socketReadResult = SocketRead(_socket, receiveCount);
+                    var socketReadResult = ReadBuffer(receiveCount);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var dataPackage = socketReadResult.Value;
@@ -294,103 +333,201 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
-            _advancedHybirdLock.Enter();
-            if (!_socket?.Connected ?? true)
+            using (_lock.Lock())
             {
-                var connectResult = Connect();
-                if (!connectResult.IsSuccess)
+                if (!_socket?.Connected ?? true)
                 {
-                    connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
-                    _advancedHybirdLock.Leave();
-                    return new OperationResult<byte[]>(connectResult).Complete();
-                }
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        return new OperationResult<byte[]>(connectResult).Complete();
+                    }
 
+                }
+                var result = new OperationResult<byte[]>();
+                try
+                {
+                    //发送读取信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            arg = ConvertArg_A_1E(address);
+                            command = GetReadCommand_A_1E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            arg = ConvertArg_Qna_3E(address);
+                            command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
+                            break;
+                    }
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            var lenght = command[10] + command[11] * 256;
+                            if (isBit)
+                                sendResult = SendPackage(command, (int)Math.Ceiling(lenght * 0.5) + 2);
+                            else
+                                sendResult = SendPackage(command, lenght * 2 + 2);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            sendResult = InterpretAndExtractMessageData(command);
+                            break;
+                    }
+                    if (!sendResult.IsSuccess)
+                    {
+                        return sendResult;
+
+                    }
+
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+
+                    var bufferLength = length;
+                    byte[] responseValue = null;
+
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            responseValue = new byte[dataPackage.Length - 2];
+                            Array.Copy(dataPackage, 2, responseValue, 0, responseValue.Length);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+
+                            if (isBit)
+                            {
+                                bufferLength = (ushort)Math.Ceiling(bufferLength * 0.5);
+                            }
+                            responseValue = new byte[bufferLength];
+                            Array.Copy(dataPackage, dataPackage.Length - bufferLength, responseValue, 0, bufferLength);
+                            break;
+                    }
+
+                    result.Value = responseValue;
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                    }
+                    _socket?.Close();
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+               return result.Complete();
             }
-            var result = new OperationResult<byte[]>();
-            try
+        }
+
+        public override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        {
+            using (_lock.LockAsync())
             {
-                //发送读取信息
-                MitsubishiMCAddress arg = null;
-                byte[] command = null;
-
-                switch (_version)
+                if (!_socket?.Connected ?? true)
                 {
-                    case MitsubishiVersion.A_1E:
-                        arg = ConvertArg_A_1E(address);
-                        command = GetReadCommand_A_1E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
-                        break;
-                    case MitsubishiVersion.Qna_3E:
-                        arg = ConvertArg_Qna_3E(address);
-                        command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
-                        break;
-                }
-                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-
-                OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
-                switch (_version)
-                {
-                    case MitsubishiVersion.A_1E:
-                        var lenght = command[10] + command[11] * 256;
-                        if (isBit)
-                            sendResult = SendPackage(command, (int)Math.Ceiling(lenght * 0.5) + 2);
-                        else
-                            sendResult = SendPackage(command, lenght * 2 + 2);
-                        break;
-                    case MitsubishiVersion.Qna_3E:
-                        sendResult = SendPackageReliable(command);
-                        break;
-                }
-                if (!sendResult.IsSuccess)
-                {
-                    _advancedHybirdLock.Leave(); ;
-                    return sendResult;
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        return new OperationResult<byte[]>(connectResult).Complete();
+                    }
 
                 }
-
-                byte[] dataPackage = sendResult.Value;
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
-
-                var bufferLength = length;
-                byte[] responseValue = null;
-
-                switch (_version)
+                var result = new OperationResult<byte[]>();
+                try
                 {
-                    case MitsubishiVersion.A_1E:
-                        responseValue = new byte[dataPackage.Length - 2];
-                        Array.Copy(dataPackage, 2, responseValue, 0, responseValue.Length);
-                        break;
-                    case MitsubishiVersion.Qna_3E:
+                    //发送读取信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
 
-                        if (isBit)
-                        {
-                            bufferLength = (ushort)Math.Ceiling(bufferLength * 0.5);
-                        }
-                        responseValue = new byte[bufferLength];
-                        Array.Copy(dataPackage, dataPackage.Length - bufferLength, responseValue, 0, bufferLength);
-                        break;
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            arg = ConvertArg_A_1E(address);
+                            command = GetReadCommand_A_1E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            arg = ConvertArg_Qna_3E(address);
+                            command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
+                            break;
+                    }
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            var lenght = command[10] + command[11] * 256;
+                            if (isBit)
+                                sendResult = SendPackage(command, (int)Math.Ceiling(lenght * 0.5) + 2);
+                            else
+                                sendResult = SendPackage(command, lenght * 2 + 2);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            sendResult = await InterpretAndExtractMessageDataAsync(command);
+                            break;
+                    }
+                    if (!sendResult.IsSuccess)
+                    {
+                        return sendResult;
+
+                    }
+
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+
+                    var bufferLength = length;
+                    byte[] responseValue = null;
+
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            responseValue = new byte[dataPackage.Length - 2];
+                            Array.Copy(dataPackage, 2, responseValue, 0, responseValue.Length);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            if (isBit)
+                            {
+                                bufferLength = (ushort)Math.Ceiling(bufferLength * 0.5);
+                            }
+                            responseValue = new byte[bufferLength];
+                            Array.Copy(dataPackage, dataPackage.Length - bufferLength, responseValue, 0, bufferLength);
+                            break;
+                    }
+
+                    result.Value = responseValue;
                 }
-
-                result.Value = responseValue;
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                    }
+                    _socket?.Close();
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
             }
-            catch (SocketException ex)
-            {
-                result.IsSuccess = false;
-                if (ex.SocketErrorCode == SocketError.TimedOut)
-                {
-                    result.Message = "连接超时";
-                }
-                else
-                {
-                    result.Message = ex.Message;
-                }
-                _socket?.SafeClose();
-            }
-            finally
-            {
-                if (!IsUseLongConnect) Disconnect();
-            }
-            _advancedHybirdLock.Leave();
-            return result.Complete();
         }
 
 
@@ -433,80 +570,157 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public override OperationResult Write(string address, byte[] data, bool isBit = false)
         {
-            _advancedHybirdLock.Enter();
-            if (!_socket?.Connected ?? true)
+            using (_lock.Lock())
             {
-                var connectResult = Connect();
-                if (!connectResult.IsSuccess)
+                if (!_socket?.Connected ?? true)
                 {
-                    _advancedHybirdLock.Leave();
-                    return connectResult.Complete();
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return connectResult.Complete();
+                    }
                 }
-            }
-            OperationResult result = new OperationResult();
-            try
-            {
-                //发送写入信息
-                MitsubishiMCAddress arg = null;
-                byte[] command = null;
-                switch (_version)
+                OperationResult result = new OperationResult();
+                try
                 {
-                    case MitsubishiVersion.A_1E:
-                        arg = ConvertArg_A_1E(address);
-                        command = GetWriteCommand_A_1E(arg.BeginAddress, arg.TypeCode, data, isBit);
-                        break;
-                    case MitsubishiVersion.Qna_3E:
-                        arg = ConvertArg_Qna_3E(address);
-                        command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
-                        break;
-                }
-                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    //发送写入信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            arg = ConvertArg_A_1E(address);
+                            command = GetWriteCommand_A_1E(arg.BeginAddress, arg.TypeCode, data, isBit);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            arg = ConvertArg_Qna_3E(address);
+                            command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
+                            break;
+                    }
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
 
-                OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
-                switch (_version)
-                {
-                    case MitsubishiVersion.A_1E:
-                        sendResult = SendPackage(command, 2);
-                        break;
-                    case MitsubishiVersion.Qna_3E:
-                        sendResult = SendPackageReliable(command);
-                        break;
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            sendResult = SendPackage(command, 2);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            sendResult = InterpretAndExtractMessageData(command);
+                            break;
+                    }
+                    if (!sendResult.IsSuccess)
+                    {
+                        return sendResult;
+                    }
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
                 }
-                if (!sendResult.IsSuccess)
+                catch (SocketException ex)
                 {
-                    _advancedHybirdLock.Leave();
-                    return sendResult;
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                        result.Exception = ex;
+                    }
+                    _socket?.Close();
                 }
-                byte[] dataPackage = sendResult.Value;
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
-            }
-            catch (SocketException ex)
-            {
-                result.IsSuccess = false;
-                if (ex.SocketErrorCode == SocketError.TimedOut)
+                catch (Exception ex)
                 {
-                    result.Message = "连接超时";
-                }
-                else
-                {
+                    result.IsSuccess = false;
                     result.Message = ex.Message;
                     result.Exception = ex;
+                    _socket?.Close();
                 }
-                _socket?.SafeClose();
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
             }
-            catch (Exception ex)
+        }
+
+
+        public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            using (_lock.LockAsync())
             {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-                result.Exception = ex;
-                _socket?.SafeClose();
+                if (!_socket?.Connected ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return connectResult.Complete();
+                    }
+                }
+                OperationResult result = new OperationResult();
+                try
+                {
+                    //发送写入信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            arg = ConvertArg_A_1E(address);
+                            command = GetWriteCommand_A_1E(arg.BeginAddress, arg.TypeCode, data, isBit);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            arg = ConvertArg_Qna_3E(address);
+                            command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
+                            break;
+                    }
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>(result);
+                    switch (_version)
+                    {
+                        case MitsubishiVersion.A_1E:
+                            sendResult = SendPackage(command, 2);
+                            break;
+                        case MitsubishiVersion.Qna_3E:
+                            sendResult = await InterpretAndExtractMessageDataAsync(command);
+                            break;
+                    }
+                    if (!sendResult.IsSuccess)
+                    {
+                        return sendResult;
+                    }
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                        result.Exception = ex;
+                    }
+                    _socket?.Close();
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                    result.Exception = ex;
+                    _socket?.Close();
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
             }
-            finally
-            {
-                if (!IsUseLongConnect) Disconnect();
-            }
-            _advancedHybirdLock.Leave();
-            return result.Complete();
         }
 
         #region 生成报文命令
@@ -1130,20 +1344,12 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
-        {
-            throw new NotImplementedException();
-        }
-
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
 
 
         #endregion

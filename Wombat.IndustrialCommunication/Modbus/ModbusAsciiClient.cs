@@ -39,7 +39,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3,bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
 
             var result = new OperationResult<byte[]>();
             try
@@ -57,7 +57,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
 
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(finalCommand);
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
@@ -91,17 +91,17 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
@@ -117,7 +117,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode"></param>
         public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
             var result = new OperationResult();
             try
             {
@@ -132,7 +132,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(finalCommand);
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
@@ -162,7 +162,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
         }
@@ -177,7 +177,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16,bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
 
             var result = new OperationResult();
             try
@@ -192,7 +192,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
                 result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(finalCommand);
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
@@ -222,9 +222,19 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (!IsConnect) Dispose();
+                if (!Connected) Dispose();
             }
             return result.Complete();
+        }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
         }
 
 
@@ -238,7 +248,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         //{
-        //    if (!IsConnect) Connect();
+        //    if (!Connected) Connect();
 
         //    var result = new OperationResult();
         //    try
@@ -283,7 +293,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    }
         //    finally
         //    {
-        //        if (!IsConnect) Dispose();
+        //        if (!Connected) Dispose();
         //    }
         //    return result.Complete();
         //}

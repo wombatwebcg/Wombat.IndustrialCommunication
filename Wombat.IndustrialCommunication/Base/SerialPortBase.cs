@@ -7,14 +7,14 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
-using Wombat.ObjectConversionExtention;
+using Wombat.Core;
 
 namespace Wombat.IndustrialCommunication
 {
     /// <summary>
     /// SerialPort基类
     /// </summary>
-    public  class SerialPortBase : BaseModel
+    public  class SerialPortBase : ClientBase
     {
 
         public string PortName { get; set; }
@@ -69,7 +69,7 @@ namespace Wombat.IndustrialCommunication
             return SerialPort.GetPortNames();
         }
 
-        public override bool IsConnect =>_serialPort==null?false:_serialPort.IsOpen;
+        public override bool Connected =>_serialPort==null?false:_serialPort.IsOpen;
 
 
 
@@ -77,7 +77,7 @@ namespace Wombat.IndustrialCommunication
         /// 连接
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             if (DeviceInterfaceHelper.CheckSerialPort(PortName))
             {
@@ -117,7 +117,7 @@ namespace Wombat.IndustrialCommunication
         /// 关闭连接
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
             var result = new OperationResult();
             try
@@ -163,7 +163,7 @@ namespace Wombat.IndustrialCommunication
                 receiveFinish += readLeng;
             }
             result.Value = buffer;
-            if (IsPrintCommand)
+            if (Logger.MinimumLevel<=LogEventLevel.Debug)
             {
                 string printSend = $"{_serialPort.PortName} receive:";
                 for (int i = 0; i < buffer.Length; i++)
@@ -171,7 +171,7 @@ namespace Wombat.IndustrialCommunication
                     printSend = printSend + " " + buffer[i].ToString("X").PadLeft(2, '0'); ;
 
                 }
-                Logger?.LogDebug(printSend);
+                Logger?.Debug(printSend);
             }
 
             return result.Complete();
@@ -187,7 +187,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command">发送命令</param>
         /// <returns></returns>
-       public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+       internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             OperationResult<byte[]> _sendPackage()
             {
@@ -196,14 +196,14 @@ namespace Wombat.IndustrialCommunication
                 {
                     //发送命令
                     _serialPort.Write(command, 0, command.Length);
-                    if (IsPrintCommand)
+                    if (Logger.MinimumLevel <= LogEventLevel.Debug)
                     {
                         string printSend = $"{_serialPort.PortName} send:";
                         for (int i = 0; i < command.Length; i++)
                         {
                             printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
                         }
-                        Logger?.LogDebug(printSend);
+                        Logger?.Debug(printSend);
                     }
 
                     //获取响应报文
@@ -243,13 +243,13 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-       public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+       internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
             OperationResult<byte[]> result = new OperationResult<byte[]>();
 
             try
             {
-                result = SendPackageSingle(command);
+                result = GetMessageContent(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -257,7 +257,7 @@ namespace Wombat.IndustrialCommunication
                     if (_OperationReTryTimes < OperationReTryTimes)
                     {
                         _OperationReTryTimes++;
-                        SendPackageReliable(command);
+                        InterpretAndExtractMessageData(command);
                     }
                     else
                     {
@@ -277,7 +277,7 @@ namespace Wombat.IndustrialCommunication
                 WarningLog?.Invoke(ex.Message, ex);
                 //如果出现异常，则进行一次重试
                 //重新打开连接
-                result = SendPackageSingle(command);
+                result = GetMessageContent(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -285,7 +285,7 @@ namespace Wombat.IndustrialCommunication
                     if (_OperationReTryTimes < OperationReTryTimes)
                     {
                         _OperationReTryTimes++;
-                         SendPackageReliable(command);
+                         InterpretAndExtractMessageData(command);
                     }
                     else
                     {
@@ -307,7 +307,7 @@ namespace Wombat.IndustrialCommunication
 
         public virtual OperationResult<string> SendPackageReliable(string command, Encoding encoding)
         {
-           var result = SendPackageReliable(encoding.GetBytes(command));
+           var result = InterpretAndExtractMessageData(encoding.GetBytes(command));
             if(result.IsSuccess)
             {
                 return new OperationResult<string>(result)
@@ -323,15 +323,26 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
 
         #endregion
 

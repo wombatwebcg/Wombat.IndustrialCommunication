@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public IPEndPoint IpEndPoint { get; set; }
 
-        public override bool IsConnect => _socket == null ? false : _socket.Connected;
+        public override bool Connected => _socket == null ? false : _socket.Connected;
 
 
         /// <summary>
@@ -79,7 +79,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
 
 
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
             _socket?.SafeClose();
@@ -110,7 +110,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         }
 
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
             OperationResult result = new OperationResult();
             try
@@ -189,7 +189,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             lock (this)
@@ -227,11 +227,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
             try
             {
-                var result = SendPackageSingle(command);
+                var result = GetMessageContent(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -240,7 +240,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (!conentOperationResult.IsSuccess)
                         return new OperationResult<byte[]>(conentOperationResult);
 
-                    return SendPackageSingle(command);
+                    return GetMessageContent(command);
                 }
                 else
                     return result;
@@ -255,7 +255,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (!conentOperationResult.IsSuccess)
                         return new OperationResult<byte[]>(conentOperationResult);
 
-                    return SendPackageSingle(command);
+                    return GetMessageContent(command);
                 }
                 catch (Exception ex2)
                 {
@@ -302,7 +302,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead,isPlcAddress);
                 result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //获取响应报文
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                 {
                     sendResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ sendResult.Message}";
@@ -444,7 +444,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var chenkHead = GetCheckHead(functionCode);
                 var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead,isPlcAddress);
                 result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -509,7 +509,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var chenkHead = GetCheckHead(functionCode);
                 var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
                 result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();
@@ -568,7 +568,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var chenkHead = GetCheckHead(functionCode);
                 var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
                 result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                 {
                     _advancedHybirdLock.Leave();

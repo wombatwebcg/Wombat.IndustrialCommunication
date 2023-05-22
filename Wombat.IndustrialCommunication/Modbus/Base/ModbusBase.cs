@@ -7,7 +7,7 @@ using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public abstract class ModbusBase : BaseModel, IModbusClient
+    public abstract class ModbusBase : ClientBase, IModbusClient
     {
 
 

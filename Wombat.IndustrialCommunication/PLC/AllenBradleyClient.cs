@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// (AB)罗克韦尔客户端 Beta
     /// https://blog.csdn.net/lishiming0308/article/details/85243041
     /// </summary>
-    public class AllenBradleyClient : IEthernetClientBase
+    public class AllenBradleyClient : EthernetClientBase
     {
         public override string Version => "AllenBradley";
 
@@ -24,7 +24,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 是否是连接的
         /// </summary>
-        public override bool IsConnect => _socket.Connected;
+        public override bool Connected => _socket.Connected;
 
         /// <summary>
         /// 插槽
@@ -62,7 +62,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 打开连接（如果已经是连接状态会先关闭再打开）
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
             _socket?.SafeClose();
@@ -85,12 +85,12 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.Requsts[0] = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
                 _socket.Send(RegisteredCommand);
 
-                var socketReadResult = SocketRead(_socket, 24);
+                var socketReadResult = ReadBuffer(24);
                 if (!socketReadResult.IsSuccess)
                     return socketReadResult;
                 var head = socketReadResult.Value;
 
-                socketReadResult = SocketRead(_socket, GetContentLength(head));
+                socketReadResult = ReadBuffer(GetContentLength(head));
                 if (!socketReadResult.IsSuccess)
                     return socketReadResult;
                 var content = socketReadResult.Value;
@@ -118,7 +118,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
 
             OperationResult result = new OperationResult();
@@ -143,7 +143,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             lock (this)
@@ -152,12 +152,12 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     _socket.Send(command);
-                    var socketReadResult = SocketRead(_socket, 24);
+                    var socketReadResult = ReadBuffer(24);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var head = socketReadResult.Value;
 
-                    socketReadResult = SocketRead(_socket, GetContentLength(head));
+                    socketReadResult = ReadBuffer(GetContentLength(head));
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var content = socketReadResult.Value;
@@ -191,7 +191,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var command = GetReadCommand(address, 1);
                 result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //发送命令 并获取响应报文
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
                 var dataPackage = sendResult.Value;
@@ -226,7 +226,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
         }
@@ -249,7 +249,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送写入信息
                 //var arg = ConvertWriteArg(address, data, false);
                 result.Requsts[0] = string.Join(" ", data.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(data);
+                var sendResult = InterpretAndExtractMessageData(data);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
@@ -279,7 +279,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
             return result.Complete();
 
@@ -755,7 +755,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return BitConverter.ToUInt16(head, 2);
         }
 
-        public override Task<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        public override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
             throw new NotImplementedException();
         }
@@ -765,12 +765,22 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageReliableAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult<byte[]>> SendPackageSingleAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
         {
             throw new NotImplementedException();
         }

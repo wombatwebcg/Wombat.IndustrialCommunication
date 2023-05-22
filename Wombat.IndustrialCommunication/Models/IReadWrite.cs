@@ -1,293 +1,749 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication
 {
     public interface IReadWrite
     {
-            #region Read Support
+        #region Read 
 
-            /// <summary>
-            /// 批量读取底层的数据信息，需要指定地址和长度，具体的结果取决于实现
-            /// </summary>
-            /// <param name="address">数据地址</param>
-            /// <param name="length">数据长度</param>
-            /// <returns>带有成功标识的byte[]数组</returns>
-            OperationResult<byte[]> Read(string address, ushort length);
-
-            /// <summary>
-            /// 读取16位的有符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的short数据</returns>
-            OperationResult<bool> ReadBool(string address);
+        /// <summary>
+        /// 分批读取
+        /// </summary>
+        /// <param name="addresses">地址集合</param>
+        /// <param name="batchNumber">批量读取数量</param>
+        /// <returns></returns>
+        OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses);
 
 
-            /// <summary>
-            /// 读取16位的有符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的short数据</returns>
-            OperationResult<bool[]> ReadBool(string address, ushort length);
 
 
-            /// <summary>
-            /// 读取16位的有符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的short数据</returns>
-            OperationResult<short> ReadInt16(string address);
-
-            /// <summary>
-            /// 读取16位的有符号整型数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">读取的数组长度</param>
-            /// <returns>带有成功标识的short数组</returns>
-            OperationResult<short[]> ReadInt16(string address, ushort length);
-
-            /// <summary>
-            /// 读取16位的无符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的ushort数据</returns>
-            OperationResult<ushort> ReadUInt16(string address);
-
-            /// <summary>
-            /// 读取16位的无符号整型数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">读取的数组长度</param>
-            /// <returns>带有成功标识的ushort数组</returns>
-            OperationResult<ushort[]> ReadUInt16(string address, ushort length);
-
-            /// <summary>
-            /// 读取32位的有符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的int数据</returns>
-            OperationResult<int> ReadInt32(string address);
-
-            /// <summary>
-            /// 读取32位有符号整型的数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<int[]> ReadInt32(string address, ushort length);
-
-            /// <summary>
-            /// 读取32位的无符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的uint数据</returns>
-            OperationResult<uint> ReadUInt32(string address);
-
-            /// <summary>
-            /// 读取设备的uint类型的数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<uint[]> ReadUInt32(string address, ushort length);
-
-            /// <summary>
-            /// 读取64位的有符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的long数据</returns>
-            OperationResult<long> ReadInt64(string address);
-
-            /// <summary>
-            /// 读取64位的有符号整型数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<long[]> ReadInt64(string address, ushort length);
-
-            /// <summary>
-            /// 读取64位的无符号整型
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的ulong数据</returns>
-            OperationResult<ulong> ReadUInt64(string address);
-
-            /// <summary>
-            /// 读取64位的无符号整型的数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<ulong[]> ReadUInt64(string address, ushort length);
-
-            /// <summary>
-            /// 读取单浮点精度的数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的float数据</returns>
-            OperationResult<float> ReadFloat(string address);
-
-            /// <summary>
-            /// 读取单浮点精度的数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<float[]> ReadFloat(string address, ushort length);
-
-            /// <summary>
-            /// 读取双浮点精度的数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的double数据</returns>
-            OperationResult<double> ReadDouble(string address);
-
-            /// <summary>
-            /// 读取双浮点精度的数据的数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数组长度</param>
-            /// <returns>带成功标志的结果数据对象</returns>
-            OperationResult<double[]> ReadDouble(string address, ushort length);
-
-            /// <summary>
-            /// 读取字符串数据，
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="length">数据长度</param>
-            /// <returns>带有成功标识的string数据</returns>
-            OperationResult<string> ReadString(string address, ushort length);
-
-            /// <summary>
-            /// 读取自定义的数据类型，需要继承自IDataTofer接口
-            /// </summary>
-            /// <typeparam name="T">自定义的类型</typeparam>
-            /// <param name="address">起始地址</param>
-            /// <returns>带有成功标识的自定义类型数据</returns>
-            OperationResult<T> ReadCustomer<T>(string address) where T : IDataTofer, new();
+        /// <summary>
+        /// 读取Byte
+        /// </summary>
+        /// <param name="address"></param>
+        /// <returns></returns>
+        OperationResult<byte[]> Read(string address, int length, bool isBit = false);
 
 
-            #endregion
+        /// <summary>
+        /// 读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<bool> ReadBoolean(string address);
 
-            #region Write Support
+        /// <summary>
+        /// 读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<bool[]> ReadBoolean(string address, int length);
 
-            /// <summary>
-            /// 写入byte数组数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, byte[] value);
 
-            /// <summary>
-            /// 写入short数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, short value);
+        /// <summary>
+        /// 读取UInt16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<ushort> ReadUInt16(string address);
 
-            /// <summary>
-            /// 写入short数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="values">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, short[] values);
+        /// <summary>
+        /// 读取UInt16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<ushort[]> ReadUInt16(string address, int length);
 
-            /// <summary>
-            /// 写入int数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, int value);
+        /// <summary>
+        /// 读取Int16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<short> ReadInt16(string address);
 
-            /// <summary>
-            /// 写入int[]数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="values">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, int[] values);
 
-            /// <summary>
-            /// 写入long数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, long value);
 
-            /// <summary>
-            /// 写入long数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="values">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, long[] values);
+        /// <summary>
+        /// 读取Int16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<short[]> ReadInt16(string address, int length);
 
-            /// <summary>
-            /// 写入float数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, float value);
 
-            /// <summary>
-            /// 写入float数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="values">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, float[] values);
+        /// <summary>
+        /// 读取UInt32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<uint> ReadUInt32(string address);
 
-            /// <summary>
-            /// 写入double数据
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, double value);
+        /// <summary>
+        /// 读取UInt32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<uint[]> ReadUInt32(string address, int length);
 
-            /// <summary>
-            /// 写入double数组
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="values">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, double[] values);
 
-            /// <summary>
-            /// 写入字符串信息，编码为ASCII
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, string value);
+        /// <summary>
+        /// 读取Int32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<int> ReadInt32(string address);
 
-            /// <summary>
-            /// 写入指定长度的字符串信息，编码为ASCII
-            /// </summary>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <param name="length">字符串的长度</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult Write(string address, string value, int length);
 
-            /// <summary>
-            /// 写入自定义类型的数据，该类型必须继承自IDataTofer接口
-            /// </summary>
-            /// <typeparam name="T">类型对象</typeparam>
-            /// <param name="address">起始地址</param>
-            /// <param name="value">写入值</param>
-            /// <returns>带有成功标识的结果类对象</returns>
-            OperationResult WriteCustomer<T>(string address, T value) where T : IDataTofer, new();
+        /// <summary>
+        /// 读取Int32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<int[]> ReadInt32(string address, int length);
 
-            #endregion
 
+        /// <summary>
+        /// 读取UInt64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<ulong> ReadUInt64(string address);
+
+
+        /// <summary>
+        /// 读取UInt64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<ulong[]> ReadUInt64(string address, int length);
+
+
+        /// <summary>
+        /// 读取Int64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<long> ReadInt64(string address);
+
+
+        /// <summary>
+        /// 读取Int64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<long[]> ReadInt64(string address, int length);
+
+
+        /// <summary>
+        /// 读取Float
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<float> ReadFloat(string address);
+
+
+
+        /// <summary>
+        /// 读取Float
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<float[]> ReadFloat(string address, int length);
+
+
+        /// <summary>
+        /// 读取Double
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<double> ReadDouble(string address);
+
+        /// <summary>
+        /// 读取Double
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<double[]> ReadDouble(string address, int length);
+
+
+        /// <summary>
+        /// 读取String
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<string> ReadString(string address, int length);
+
+        #endregion
+
+        #region ReadAsync 
+
+
+        /// <summary>
+        /// 异步分批读取
+        /// </summary>
+        /// <param name="addresses">地址集合</param>
+        /// <param name="batchNumber">批量读取数量</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses);
+
+
+        /// <summary>
+        /// 异步读取Byte
+        /// </summary>
+        /// <param name="address"></param>
+        /// <returns></returns>
+        ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+
+
+        /// <summary>
+        /// 异步读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<bool>> ReadBooleanAsync(string address);
+
+        /// <summary>
+        /// 异步读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取UInt16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<ushort>> ReadUInt16Async(string address);
+
+        /// <summary>
+        /// 异步读取UInt16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length);
+
+        /// <summary>
+        /// 异步读取Int16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<short>> ReadInt16Async(string address);
+
+
+        /// <summary>
+        /// 异步读取Int16
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取UInt32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<uint>> ReadUInt32Async(string address);
+
+        /// <summary>
+        /// 异步读取UInt32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取Int32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<int>> ReadInt32Async(string address);
+
+
+        /// <summary>
+        /// 异步读取Int32
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取UInt64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<ulong>> ReadUInt64Async(string address);
+
+
+        /// <summary>
+        /// 异步读取UInt64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取Int64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<long>> ReadInt64Async(string address);
+
+
+        /// <summary>
+        /// 异步读取Int64
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取Float
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<float>> ReadFloatAsync(string address);
+
+
+        /// <summary>
+        /// 异步读取Float
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取Double
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<double>> ReadDoubleAsync(string address);
+
+        /// <summary>
+        /// 异步读取Double
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length);
+
+
+        /// <summary>
+        /// 异步读取String
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<string>> ReadStringAsync(string address, int length);
+
+        #endregion
+
+        #region Write
+        /// <summary>
+        /// 分批写入 
+        /// </summary>
+        /// <param name="addresses">地址集合</param>
+        /// <param name="batchNumber">批量读取数量</param>
+        /// <returns></returns>
+
+        OperationResult BatchWrite(Dictionary<string, object> addresses);
+
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, byte[] value, bool isBit);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, bool value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, bool[] value);
+
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, sbyte value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, ushort value);
+
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, ushort[] value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, short value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, short[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, uint value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, uint[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, int value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, int[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, ulong value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, ulong[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, long value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, long[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, float value);
+
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, float[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, double value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, double[] value);
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        OperationResult Write(string address, string value);
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <param name="type">数据类型</param>
+        /// <returns></returns>
+        OperationResult Write(string address, object value, DataTypeEnum type);
+
+
+        #endregion
+
+        #region WriteAsync
+
+
+        /// <summary>
+        /// 异步分批写入 
+        /// </summary>
+        /// <param name="addresses">地址集合</param>
+        /// <param name="batchNumber">批量读取数量</param>
+        /// <returns></returns>
+        Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses);
+
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <param name="isBit">是否位</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, byte[] value, bool isBit);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, bool value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, bool[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, sbyte value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, ushort value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, ushort[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, short value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, short[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, uint value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, uint[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, int value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, int[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, ulong value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, ulong[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, long value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, long[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, float value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, float[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, double value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, double[] value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, string value);
+
+        /// <summary>
+        /// 异步写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <param name="type">数据类型</param>
+        /// <returns></returns>
+        Task<OperationResult> WriteAsync(string address, object value, DataTypeEnum type);
+
+        #endregion
     }
 }

@@ -5,14 +5,14 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using Wombat.Infrastructure;
-using Wombat.Network.Socket;
+using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class SocketBase : BaseModel
+    public abstract class SocketBase : ClientBase
     {
         /// <summary>
         /// 分批缓冲区大小
@@ -27,7 +27,7 @@ namespace Wombat.IndustrialCommunication
 
         private IPEndPoint _ipEndPoint;
 
-        public override bool IsConnect => _socket.State == SocketConnectionState.Connected ? true :false;
+        public override bool Connected => _socket.State == SocketConnectionState.Connected ? true :false;
 
 
         /// <summary>
@@ -58,17 +58,17 @@ namespace Wombat.IndustrialCommunication
             _ipEndPoint = new IPEndPoint(address, port);
        }
 
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
             _socket?.CloseAsync();
-            _socket = new TcpRawSocketClient(_ipEndPoint);
+            _socket = new TcpRawSocketClient();
             try
             {
                 //超时时间设置
-                _socket.SockConfiguration.ReceiveTimeout = Timeout;
-                _socket.SockConfiguration.SendTimeout = Timeout;
-                _socket.Connect();
+                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.Connect(_ipEndPoint);
 
                 ////连接
                 ////socket.Connect(ipEndPoint);
@@ -90,7 +90,7 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
 
             OperationResult result = new OperationResult();
@@ -169,7 +169,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command">发送命令</param>
         /// <returns></returns>
-        public abstract override OperationResult<byte[]> SendPackageSingle(byte[] command);
+        internal abstract override OperationResult<byte[]> GetMessageContent(byte[] command);
 
         /// <summary>
         /// 发送报文，并获取响应报文（如果网络异常，会自动进行一次重试）
@@ -177,11 +177,11 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageReliable(byte[] command)
+        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
         {
             try
             {
-                var result = SendPackageSingle(command);
+                var result = GetMessageContent(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -190,7 +190,7 @@ namespace Wombat.IndustrialCommunication
                     if (!conentOperationResult.IsSuccess)
                         return new OperationResult<byte[]>(conentOperationResult);
 
-                    return SendPackageSingle(command);
+                    return GetMessageContent(command);
                 }
                 else
                     return result;
@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication
                     if (!conentOperationResult.IsSuccess)
                         return new OperationResult<byte[]>(conentOperationResult);
 
-                    return SendPackageSingle(command);
+                    return GetMessageContent(command);
                 }
                 catch (Exception ex2)
                 {

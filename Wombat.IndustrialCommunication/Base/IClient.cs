@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
+using Wombat.Core;
 using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication
@@ -13,35 +15,37 @@ namespace Wombat.IndustrialCommunication
     /// <param name="ex"></param>
     public delegate void LoggerDelegate(string name, Exception ex = null);
 
-    public interface IBaseModel
+    public interface IClient
     {
-        ILogger Logger { get; set; }
+        ILog Logger { get; set; }
 
         EndianFormat DataFormat { get; set; }
 
         TimeSpan Timeout { get; set; }
 
+        TimeSpan ReceiveTimeout { get; set; }
+
+        TimeSpan SendTimeout { get; set; }
+
+
         TimeSpan WaiteInterval { get; set; }
 
         int OperationReTryTimes { get; set; }
 
-        bool IsPrintCommand { get; set; }
-
         void UseLogger();
 
-        //bool IsClearCacheBeforeRead { get; set; }
-
-        //bool IsClearCacheAfterRead { get; set; }
-
-        //bool IsBaseStreamFlush { get; set; }
 
         bool IsUseLongConnect { get; set; }
 
-        bool IsConnect { get; }
+        bool Connected { get; }
 
         OperationResult Connect();
 
         OperationResult Disconnect();
+
+        Task<OperationResult> ConnectAsync();
+
+        Task<OperationResult> DisconnectAsync();
 
 
 
