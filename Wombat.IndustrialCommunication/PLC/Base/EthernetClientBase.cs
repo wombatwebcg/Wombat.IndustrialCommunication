@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
                     //如果出现异常，则进行一次重试         
-                    var conentOperationResult = Connect();
+                    var conentOperationResult =await ConnectAsync();
                     if (!conentOperationResult.IsSuccess)
                     {
                         return new OperationResult<byte[]>(conentOperationResult);

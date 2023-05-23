@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
 using Wombat.Infrastructure;
 using Xunit;
@@ -10,7 +11,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     public class MitsubishiClient_Tests
     {
         private MitsubishiClient client;
-        string ip = "159.75.78.22";
+        string ip = "192.168.0.170";
         //string ip = "192.168.1.180";
 
         public MitsubishiClient_Tests()
@@ -18,7 +19,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Theory]
-        [InlineData(MitsubishiVersion.Qna_3E, 8000)]
+        [InlineData(MitsubishiVersion.Qna_3E, 5000)]
         //[InlineData(MitsubishiVersion.A_1E, 6001)]
         public void 短连接自动开关(MitsubishiVersion version, int port)
         {
@@ -28,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Theory]
-        [InlineData(MitsubishiVersion.Qna_3E, 8001)]
+        [InlineData(MitsubishiVersion.Qna_3E, 5000)]
         //[InlineData(MitsubishiVersion.A_1E, 6001)]
         public void 长连接主动开关(MitsubishiVersion version, int port)
         {
@@ -45,7 +46,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private void ReadWrite()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 100; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);
@@ -54,6 +55,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 //client.Write("Y100", true);
                 //Assert.True(client.ReadBoolean("Y100").Value == true);
+                client.Write("M900", false);
                 var tttttttt = client.Write("M900", true);
                 var sss = client.ReadBoolean("M900");
                 Assert.True(client.ReadBoolean("M900").Value == true);
@@ -174,6 +176,157 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
             }
         }
+
+        [Theory]
+        [InlineData(MitsubishiVersion.Qna_3E, 5000)]
+        //[InlineData(MitsubishiVersion.A_1E, 6001)]
+        public async void 长连接主动开关Async(MitsubishiVersion version, int port)
+        {
+            client = new MitsubishiClient(version, ip, port);
+
+            await client.ConnectAsync();
+            client.IsUseLongConnect = true;
+
+            ReadWriteAsync().Wait();
+
+            client?.Disconnect();
+        }
+
+        private async Task ReadWriteAsync()
+        {
+            Random rnd = new Random((int)Stopwatch.GetTimestamp());
+            for (int i = 0; i < 100; i++)
+            {
+                short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
+                int int_number = rnd.Next(int.MinValue, int.MaxValue);
+                float float_number = int_number / 100;
+                var bool_value = short_number % 2 == 1;
+
+                //client.WriteAsync("Y100", true);
+                //Assert.True(client.ReadBoolean("Y100").Value == true);
+                var tttttttt =await client.WriteAsync("M900", false);
+                 await client.WriteAsync("M900", true);
+
+                var sss =   await client.ReadBooleanAsync("M900");
+                Assert.True(client.ReadBooleanAsync("M900").Result.Value == true);
+                await client.WriteAsync("M901", bool_value);
+                Assert.True(client.ReadBooleanAsync("M901").Result.Value == bool_value);
+                await client.WriteAsync("M902", bool_value);
+                Assert.True(client.ReadBooleanAsync("M902").Result.Value == bool_value);
+                await client.WriteAsync("M903", !bool_value);
+                Assert.True(client.ReadBooleanAsync("M903").Result.Value == !bool_value);
+                await client.WriteAsync("M904", bool_value);
+                Assert.True(client.ReadBooleanAsync("M904").Result.Value == bool_value);
+                //client.WriteAsync("L100", !bool_value);
+                //Assert.True(client.ReadBoolean("L100").Value == !bool_value);
+                //client.WriteAsync("F100", bool_value);
+                //Assert.True(client.ReadBoolean("F100").Value == bool_value);
+                //client.WriteAsync("V100", !bool_value);
+                //Assert.True(client.ReadBoolean("V100").Value == !bool_value);
+                //client.WriteAsync("B100", bool_value);
+                //Assert.True(client.ReadBoolean("B100").Value == bool_value);
+                //client.WriteAsync("S100", bool_value);
+                //Assert.True(client.ReadBoolean("S100").Value == bool_value);
+
+                await client.WriteAsync("D600", short_number);
+                Assert.True(client.ReadInt16Async("D600").Result.Value == short_number);
+
+                await client.WriteAsync("D600", int_number);
+                Assert.True(client.ReadInt32Async("D600").Result.Value == int_number);
+
+                await client.WriteAsync("D600", Convert.ToInt64(int_number));
+                Assert.True(client.ReadInt64Async("D600").Result.Value == Convert.ToInt64(int_number));
+
+                await client.WriteAsync("D600", float_number);
+                Assert.True(client.ReadFloatAsync("D600").Result.Value == float_number);
+
+                await client.WriteAsync("D600", Convert.ToDouble(float_number));
+                Assert.True(client.ReadDoubleAsync("D600").Result.Value == Convert.ToDouble(float_number));
+
+                bool[] bool_values = { true, false,true, true, true, false, false, false, false, false
+                        , false, false, false,false,false,false,false,false,false,false };
+
+                var sss1 = await client.WriteAsync("M900", bool_values);
+                var bool_values_result = await client.ReadBooleanAsync("M900", bool_values.Length);
+                for (int j = 0; j < bool_values_result.Value.Length; j++)
+                {
+                    Assert.True(bool_values_result.Value[j] == bool_values[j]);
+
+                }
+
+                short[] short_values = { 10000, 20000, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010 };
+                await client.WriteAsync("D300", short_values);
+                var short_values_result = await client.ReadInt16Async("D300", short_values.Length);
+                for (int j = 0; j < short_values_result.Value.Length; j++)
+                {
+                    Assert.True(short_values_result.Value[j] == short_values[j]);
+
+                }
+
+                ushort[] ushort_values = { 10000, 20000, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010 };
+                await client.WriteAsync("D300", ushort_values);
+                var ushort_values_result = await client.ReadInt16Async("D300", ushort_values.Length);
+                for (int j = 0; j < ushort_values_result.Value.Length; j++)
+                {
+                    Assert.True(ushort_values_result.Value[j] == ushort_values[j]);
+
+                }
+
+                int[] int_values = { 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000 };
+                await client.WriteAsync("D300", int_values);
+                var int_values_result = await client.ReadInt32Async("D300", int_values.Length);
+                for (int j = 0; j < int_values_result.Value.Length; j++)
+                {
+                    Assert.True(int_values_result.Value[j] == int_values[j]);
+
+                }
+
+                uint[] uint_values = { 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000 };
+                await client.WriteAsync("D300", uint_values);
+                var uint_values_result = await client.ReadUInt32Async("D300", uint_values.Length);
+                for (int j = 0; j < uint_values_result.Value.Length; j++)
+                {
+                    Assert.True(uint_values_result.Value[j] == uint_values[j]);
+
+                }
+
+                long[] long_values = { 100000000, 200000000, 300000000, 400000000, 500000000, 600000000, 7000000, 80000000, 900000000, 1000000000 };
+                await client.WriteAsync("D300", long_values);
+                var long_values_result = await client.ReadInt64Async("D300", long_values.Length);
+                for (long j = 0; j < long_values_result.Value.Length; j++)
+                {
+                    Assert.True(long_values_result.Value[j] == long_values[j]);
+
+                }
+
+                ulong[] ulong_values = { 100000000, 200000000, 300000000, 400000000, 500000000, 600000000, 7000000, 80000000, 900000000, 1000000000 };
+                await client.WriteAsync("D300", ulong_values);
+                var ulong_values_result = await client.ReadUInt64Async("D300", ulong_values.Length);
+                for (int j = 0; j < ulong_values_result.Value.Length; j++)
+                {
+                    Assert.True(ulong_values_result.Value[j] == ulong_values[j]);
+
+                }
+
+                float[] float_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+                await client.WriteAsync("D300", float_values);
+                var float_values_result =await client.ReadFloatAsync("D300", float_values.Length);
+                for (int j = 0; j < float_values_result.Value.Length; j++)
+                {
+                    Assert.True(float_values_result.Value[j] == float_values[j]);
+
+                }
+                double[] double_values = { 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1 };
+                await client.WriteAsync("D300", double_values);
+                var double_values_result = await client.ReadDoubleAsync("D300", double_values.Length);
+                for (int j = 0; j < double_values_result.Value.Length; j++)
+                {
+                    Assert.True(double_values_result.Value[j] == double_values[j]);
+
+                }
+            }
+        }
+
 
         [Theory]
         [InlineData(MitsubishiVersion.Qna_3E, 8000)]

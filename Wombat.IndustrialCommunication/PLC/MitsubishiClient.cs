@@ -63,9 +63,8 @@ namespace Wombat.IndustrialCommunication.PLC
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
             IpEndPoint = new IPEndPoint(address, port);
-            _lock = new AsyncLock();
             IsReverse = false;
-            DataFormat = EndianFormat.DCBA;
+            _lock = new AsyncLock();
         }
 
         /// <summary>
@@ -184,36 +183,64 @@ namespace Wombat.IndustrialCommunication.PLC
         internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
-            lock (this)
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            try
             {
-                OperationResult<byte[]> result = new OperationResult<byte[]>();
-                try
-                {
-                    _socket.Send(command);
-                    var socketReadResult = ReadBuffer(9);
-                    if (!socketReadResult.IsSuccess)
-                        return socketReadResult;
-                    var headPackage = socketReadResult.Value;
+                _socket.Send(command);
+                var socketReadResult = ReadBuffer(9);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var headPackage = socketReadResult.Value;
 
-                    //其后内容的总长度
-                    var contentLength = BitConverter.ToUInt16(headPackage, 7);
-                    socketReadResult = ReadBuffer(contentLength);
-                    if (!socketReadResult.IsSuccess)
-                        return socketReadResult;
-                    var dataPackage = socketReadResult.Value;
+                //其后内容的总长度
+                var contentLength = BitConverter.ToUInt16(headPackage, 7);
+                socketReadResult = ReadBuffer(contentLength);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var dataPackage = socketReadResult.Value;
 
-                    result.Value = headPackage.Concat(dataPackage).ToArray();
-                    return result.Complete();
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    
-                    return result.Complete();
-                }
+                result.Value = headPackage.Concat(dataPackage).ToArray();
+                return result.Complete();
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+
+                return result.Complete();
             }
         }
+
+        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            try
+            {
+               await _socket.SendAsync(command);
+                var socketReadResult =await ReadBufferAsync(9);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var headPackage = socketReadResult.Value;
+
+                //其后内容的总长度
+                var contentLength = BitConverter.ToUInt16(headPackage, 7);
+                socketReadResult = await ReadBufferAsync(contentLength);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var dataPackage = socketReadResult.Value;
+
+                result.Value = headPackage.Concat(dataPackage).ToArray();
+                return result.Complete();
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+
+                return result.Complete();
+            }
+        }
+
 
         /// <summary>
         /// 发送报文，并获取响应报文
@@ -287,6 +314,14 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
+        public override async ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
+        {
+            var readResut = await ReadAsync(address, 1, isBit: true);
+            var result = new OperationResult<bool>(readResut);
+            if (result.IsSuccess)
+                result.Value = (readResut.Value[0] & 0b00010000) != 0;
+            return result.Complete();
+        }
 
 
         /// <summary>
@@ -316,7 +351,26 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
+        public override async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
+        {
+            var readResult =await ReadAsync(address, Convert.ToUInt16(length), isBit: true);
+            var result = new OperationResult<bool[]>(readResult);
+            if (result.IsSuccess)
+            {
+                result.Value = new bool[length];
+                for (ushort i = 0; i < length; i++)
+                {
+                    var index = i / 2;
+                    var isoffset = i % 2 == 0;
+                    if (isoffset)
+                        result.Value[i] = (readResult.Value[index] & 0b00010000) != 0;
+                    else
+                        result.Value[i] = (readResult.Value[index] & 0b00000001) != 0;
+                }
 
+            }
+            return result.Complete();
+        }
 
 
 
@@ -433,7 +487,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
-            using (_lock.LockAsync())
+            using (await _lock.LockAsync())
             {
                 if (!_socket?.Connected ?? true)
                 {
@@ -520,13 +574,15 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         result.Message = ex.Message;
                     }
-                    _socket?.Close();
+                    await _socket?.CloseAsync();
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsUseLongConnect)await DisconnectAsync();
+
                 }
                 return result.Complete();
+
             }
         }
 
@@ -546,6 +602,22 @@ namespace Wombat.IndustrialCommunication.PLC
             return this.Write(address, new bool[] { value });
         }
 
+        public override async Task<OperationResult> WriteAsync(string address, bool value)
+        {
+            return await this.WriteAsync(address, new bool[] { value });
+        }
+
+
+        /// <summary>
+        /// 写入数据
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <param name="value">值</param>
+        /// <returns></returns>
+        public override async Task<OperationResult> WriteAsync(string address, bool[] value)
+        {
+            return await WriteAsync(address, ToBoolArrayToByteData(value), true);
+        }
 
 
         /// <summary>
@@ -648,7 +720,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
-            using (_lock.LockAsync())
+            using (await _lock.LockAsync())
             {
                 if (!_socket?.Connected ?? true)
                 {
@@ -809,21 +881,6 @@ namespace Wombat.IndustrialCommunication.PLC
                     buffer[index] += (byte)(value[i] ? 0b00000001 : 0b00000000);
             }
             return buffer;
-
-
-            //int length = (value.Length + 1) / 2;
-            //byte[] buffer = new byte[length];
-
-            //for (int i = 0; i < length; i++)
-            //{
-            //    if (value[i * 2 + 0]) buffer[i] += 0x10;
-            //    if ((i * 2 + 1) < value.Length)
-            //    {
-            //        if (value[i * 2 + 1]) buffer[i] += 0x01;
-            //    }
-            //}
-
-            //return buffer;
         }
 
 
@@ -1345,10 +1402,6 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
 
 
 
