@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// (AB)罗克韦尔客户端 Beta
     /// https://blog.csdn.net/lishiming0308/article/details/85243041
     /// </summary>
-    public class AllenBradleyClient : EthernetClientBase
+    public class AllenBradleyClient : PLCEthernetBase
     {
         public override string Version => "AllenBradley";
 

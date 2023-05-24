@@ -10,10 +10,6 @@ namespace Wombat.IndustrialCommunication
 {
 
 
-
-
-
-
     abstract public class ClientBase : IClient, IDisposable 
     {
 

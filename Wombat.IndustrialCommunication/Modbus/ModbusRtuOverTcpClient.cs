@@ -60,9 +60,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                     //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
                     OperationResult<byte[]> result = new OperationResult<byte[]>();
                     //发送命令
-                    Base.Send(command);
+                    _socket.Send(command);
                     //获取响应报文    
-                    var socketReadResult = SocketRead(Base, lenght);
+                    var socketReadResult = ReadBuffer(lenght);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     result.Value = socketReadResult.Value;

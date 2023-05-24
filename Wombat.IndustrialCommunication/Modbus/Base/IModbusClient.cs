@@ -9,8 +9,6 @@ namespace Wombat.IndustrialCommunication.Modbus
     public interface IModbusClient
     {
 
-
-
         #region  Read 读取
         /// <summary>
         /// 读取数据

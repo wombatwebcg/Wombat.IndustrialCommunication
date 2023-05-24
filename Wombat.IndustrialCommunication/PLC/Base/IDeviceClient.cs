@@ -5,9 +5,6 @@ using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    /// <summary>
-    /// IIoTClient 接口
-    /// </summary>
     public interface IDeviceClient: IClient,IReadWrite
     {
         /// <summary>

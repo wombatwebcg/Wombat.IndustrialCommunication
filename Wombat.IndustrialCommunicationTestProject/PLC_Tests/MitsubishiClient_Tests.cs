@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private void ReadWrite()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);
@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private async Task ReadWriteAsync()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);

@@ -2,16 +2,14 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Models;
 using Wombat.ObjectConversionExtention;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public abstract class ModbusBase : ClientBase, IModbusClient
+    public abstract class ModbusBase : EthernetDeviceBase, IModbusClient
     {
-
-
-
 
         #region  Read 读取
         /// <summary>
@@ -945,6 +943,77 @@ namespace Wombat.IndustrialCommunication.Modbus
             return result;
         }
 
+
+        #endregion
+
+
+        #region ReadAsync
+        /// <summary>
+        /// 读取数据
+        /// </summary>
+        /// <param name="address">寄存器起始地址</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <param name="readLength">读取长度</param>
+        /// <returns></returns>
+        public abstract Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+
+        /// <summary>
+        /// 读取Int16
+        /// </summary>
+        /// <param name="address">寄存器起始地址</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <returns></returns>
+        public async Task<OperationResult<short>> ReadInt16Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result = await ReadInt16Async(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress).ConfigureAwait(false);
+            if (result.IsSuccess)
+                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<short>(result).Complete();
+        }
+
+        public async Task<OperationResult<short[]>> ReadInt16Async(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult = await ReadAsync(address: address, readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress).ConfigureAwait(false);
+            var result = new OperationResult<short[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToInt16(0, readLength, IsReverse);
+            return result.Complete();
+        }
+
+        /// <summary>
+        /// 按位的方式读取
+        /// </summary>
+        /// <param name="address">寄存器地址:如1.00 ... 1.14、1.15</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <param name="left">按位取值从左边开始取</param>
+        /// <returns></returns>
+        public async Task<OperationResult<short>> ReadInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false)
+        {
+            string[] adds = address.Split('.');
+            var readResult = await ReadAsync(adds[0].Trim(), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress).ConfigureAwait(false);
+            var result = new OperationResult<short>(readResult);
+            if (result.IsSuccess)
+            {
+                result.Value = BitConverter.ToInt16(readResult.Value, 0);
+                if (adds.Length >= 2)
+                {
+                    var index = int.Parse(adds[1].Trim());
+                    var binaryArray = result.Value.ToByte().ToBool(0, 16);
+                    if (left)
+                    {
+                        var length = binaryArray.Length - 16;
+                        result.Value = short.Parse(binaryArray[length + index].ToString());
+                    }
+                    else
+                        result.Value = short.Parse(binaryArray[binaryArray.Length - 1 - index].ToString());
+                }
+            }
+            return result.Complete();
+        }
 
         #endregion
 
