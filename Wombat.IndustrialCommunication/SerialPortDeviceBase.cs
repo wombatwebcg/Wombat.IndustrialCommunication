@@ -210,6 +210,7 @@ namespace Wombat.IndustrialCommunication
             return result.Complete();
         }
 
+
         /// <summary>
         /// 读取串口
         /// </summary>
@@ -253,6 +254,98 @@ namespace Wombat.IndustrialCommunication
             }
 
             return result.Complete();
+        }
+
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        {
+            OperationResult<byte[]> sendPackage()
+            {
+                //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
+                _serialPort.Write(command, 0, command.Length);
+                if (Logger?.MinimumLevel >= LogEventLevel.Debug)
+                {
+                    string printSend = $"{_serialPort.PortName} send:";
+                    for (int i = 0; i < command.Length; i++)
+                    {
+                        printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
+
+                    }
+                    Logger?.Debug(printSend);
+                }
+
+                //获取响应报文
+                return ReadBuffer();
+            }
+
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            try
+            {
+                result = sendPackage();
+                if (!result.IsSuccess)
+                {
+                    WarningLog?.Invoke(result.Message, result.Exception);
+                    //如果出现异常，则进行一次重试         
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                        return new OperationResult<byte[]>(connectResult);
+
+                    result = result.SetInfo(sendPackage());
+                }
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                WarningLog?.Invoke(ex.Message, ex);
+                //如果出现异常，则进行一次重试
+                //重新打开连接
+            }
+            return result;
+        }
+
+        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            async ValueTask<OperationResult<byte[]>> sendPackage()
+            {
+                //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
+                await _serialPort.BaseStream.WriteAsync(command, 0, command.Length);
+                if (Logger?.MinimumLevel >= LogEventLevel.Debug)
+                {
+                    string printSend = $"{_serialPort.PortName} send:";
+                    for (int i = 0; i < command.Length; i++)
+                    {
+                        printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
+
+                    }
+                    Logger?.Debug(printSend);
+                }
+
+                //获取响应报文
+                return await ReadBufferAsync();
+            }
+
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            try
+            {
+                result = await sendPackage();
+                if (!result.IsSuccess)
+                {
+                    WarningLog?.Invoke(result.Message, result.Exception);
+                    //如果出现异常，则进行一次重试         
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                        return new OperationResult<byte[]>(connectResult);
+
+                    result = result.SetInfo(await sendPackage());
+                }
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                WarningLog?.Invoke(ex.Message, ex);
+                //如果出现异常，则进行一次重试
+                //重新打开连接
+            }
+            return result;
         }
 
 
