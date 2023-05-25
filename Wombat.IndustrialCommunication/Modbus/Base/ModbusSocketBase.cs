@@ -98,8 +98,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         internal override async Task<OperationResult> DoConnectAsync()
         {
+            _socket?.CloseAsync();
             var result = new OperationResult();
-            await _socket?.CloseAsync();
             _socket = new SocketClientBase();
             try
             {

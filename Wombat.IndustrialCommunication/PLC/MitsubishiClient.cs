@@ -113,7 +113,7 @@ namespace Wombat.IndustrialCommunication.PLC
         internal override async Task<OperationResult> DoConnectAsync()
         {
             var result = new OperationResult();
-            _socket?.Close();
+            _socket?.CloseAsync();
             _socket = new SocketClientBase();
             try
             {
