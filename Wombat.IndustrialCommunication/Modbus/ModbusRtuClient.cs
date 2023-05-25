@@ -10,7 +10,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusRtu协议客户端
     /// </summary>
-    public class ModbusRtuClient : ModbusSerialBase
+    public class ModbusRtuClient : ModbusSerialPortBase
     {
 
         /// <summary>
@@ -29,25 +29,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
         }
 
-        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override Task<OperationResult> DoConnectAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override Task<OperationResult> DoDisconnectAsync()
-        {
-            throw new NotImplementedException();
-        }
 
     }
 }

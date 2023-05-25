@@ -2,7 +2,6 @@
 using System.IO.Ports;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
-using Wombat.IndustrialCommunication.Models;
 using Wombat.Infrastructure;
 using Xunit;
 

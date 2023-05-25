@@ -10,7 +10,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusAscii
     /// </summary>
-    public class ModbusAsciiClient : ModbusSerialBase
+    public class ModbusAsciiClient : ModbusSerialPortBase
     {
         /// <summary>
         /// 构造函数

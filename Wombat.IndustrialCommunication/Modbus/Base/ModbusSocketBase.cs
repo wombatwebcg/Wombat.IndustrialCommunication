@@ -3,6 +3,7 @@ using System;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading.Tasks;
 using Wombat.Core;
 using Wombat.Infrastructure;
 using Wombat.Network.Sockets;
@@ -12,7 +13,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class ModbusSocketBase : ModbusBase
+    public abstract class ModbusSocketBase : ModbusEthernetDeviceBase
     {
 
         private AsyncLock _lock;
@@ -95,6 +96,31 @@ namespace Wombat.IndustrialCommunication.Modbus
             return result.Complete();
         }
 
+        internal override async Task<OperationResult> DoConnectAsync()
+        {
+            var result = new OperationResult();
+            await _socket?.CloseAsync();
+            _socket = new SocketClientBase();
+            try
+            {
+                //超时时间设置
+                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
+
+                //连接
+                await _socket.ConnectAsync(IpEndPoint);
+            }
+            catch (Exception ex)
+            {
+                await _socket?.CloseAsync(); ;
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                result.ErrorCode = 408;
+                result.Exception = ex;
+            }
+            return result.Complete();
+        }
+
         internal override OperationResult DoDisconnect()
         {
             OperationResult result = new OperationResult();
@@ -115,6 +141,24 @@ namespace Wombat.IndustrialCommunication.Modbus
 
 
 
+        internal override async Task<OperationResult> DoDisconnectAsync()
+        {
+            OperationResult result = new OperationResult();
+            try
+            {
+                await _socket?.CloseAsync();
+                return result;
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                result.Exception = ex;
+                return result;
+            }
+
+        }
+
 
 
         /// <summary>
@@ -125,83 +169,67 @@ namespace Wombat.IndustrialCommunication.Modbus
         internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
-            lock (this)
-            {
-                OperationResult<byte[]> result = new OperationResult<byte[]>();
-                try
-                {
-                    _socket.Send(command);
-                    var socketReadResult = ReadBuffer(8);
-                    if (!socketReadResult.IsSuccess)
-                        return socketReadResult;
-                    var headPackage = socketReadResult.Value;
-                    int length = headPackage[4] * 256 + headPackage[5] - 2;
-                    socketReadResult = ReadBuffer(length);
-                    if (!socketReadResult.IsSuccess)
-                        return socketReadResult;
-                    var dataPackage = socketReadResult.Value;
-
-                    result.Value = headPackage.Concat(dataPackage).ToArray();
-                    return result.Complete();
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    
-                    return result.Complete();
-                }
-            }
-        }
-
-        /// <summary>
-        /// 发送报文，并获取响应报文（如果网络异常，会自动进行一次重试）
-        /// TODO 重试机制应改成用户主动设置
-        /// </summary>
-        /// <param name="command"></param>
-        /// <returns></returns>
-        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
-        {
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
             try
             {
-                var result = GetMessageContent(command);
-                if (!result.IsSuccess)
-                {
-                    WarningLog?.Invoke(result.Message, result.Exception);
-                    //如果出现异常，则进行一次重试         
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                        return new OperationResult<byte[]>(conentOperationResult);
+                _socket.Send(command);
+                var socketReadResult = ReadBuffer(8);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var headPackage = socketReadResult.Value;
+                int length = headPackage[4] * 256 + headPackage[5] - 2;
+                socketReadResult = ReadBuffer(length);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var dataPackage = socketReadResult.Value;
 
-                    return GetMessageContent(command);
-                }
-                else
-                    return result;
+                result.Value = headPackage.Concat(dataPackage).ToArray();
+                return result.Complete();
             }
             catch (Exception ex)
             {
-                try
-                {
-                    WarningLog?.Invoke(ex.Message, ex);
-                    //如果出现异常，则进行一次重试                
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                        return new OperationResult<byte[]>(conentOperationResult);
+                result.IsSuccess = false;
+                result.Message = ex.Message;
 
-                    return GetMessageContent(command);
-                }
-                catch (Exception ex2)
-                {
-                    OperationResult<byte[]> result = new OperationResult<byte[]>
-                    {
-                        IsSuccess = false,
-                        Message = ex2.Message
-                    };
-                    
-                    return result.Complete();
-                }
+                return result.Complete();
             }
         }
+
+
+        /// <summary>
+        /// 发送报文，并获取响应报文（建议使用SendPackageReliable，如果异常会自动重试一次）
+        /// </summary>
+        /// <param name="command"></param>
+        /// <returns></returns>
+        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            try
+            {
+               await _socket.SendAsync(command);
+                var socketReadResult = ReadBuffer(8);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var headPackage = socketReadResult.Value;
+                int length = headPackage[4] * 256 + headPackage[5] - 2;
+                socketReadResult =await ReadBufferAsync(length);
+                if (!socketReadResult.IsSuccess)
+                    return socketReadResult;
+                var dataPackage = socketReadResult.Value;
+
+                result.Value = headPackage.Concat(dataPackage).ToArray();
+                return result.Complete();
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+
+                return result.Complete();
+            }
+        }
+
 
         #region Read 读取
         /// <summary>
@@ -280,6 +308,84 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return result.Complete();
             }
         }
+
+        /// <summary>
+        /// 读取数据
+        /// </summary>
+        /// <param name="address">寄存器起始地址</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <param name="readLength">读取长度</param>
+        /// <param name="byteFormatting">大小端转换</param>
+        /// <returns></returns>
+        public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult<byte[]>();
+
+                if (!_socket?.Connected ?? true)
+                {
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var chenkHead = GetCheckHead(functionCode);
+                    //1 获取命令（组装报文）
+                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead, isPlcAddress);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    //获取响应报文
+                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess)
+                    {
+                        sendResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ sendResult.Message}";
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var dataPackage = sendResult.Value;
+                    byte[] resultBuffer = new byte[dataPackage.Length - 9];
+                    Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    //4 获取响应报文数据（字节数组形式）             
+                    result.Value = resultBuffer.ToArray();
+
+                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                    {
+                        result.IsSuccess = false;
+                        result.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。响应结果校验失败";
+                        _socket?.Close();
+                    }
+                    else if (ModbusHelper.VerifyFunctionCode(functionCode, dataPackage[7]))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。连接超时";
+                       await _socket?.CloseAsync();
+                    }
+                    else
+                    {
+                        result.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ ex.Message}";
+                    }
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
+
 
         /// <summary>
         /// 写入
@@ -415,6 +521,76 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return result.Complete();
             }
         }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">写入地址</param>
+        /// <param name="values">写入字节数组</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <param name="byteFormatting">大小端设置</param>
+        /// <returns></returns>
+        public override async Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                if (!_socket?.Connected ?? true)
+                {
+                    var connectResult =await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var chenkHead = GetCheckHead(functionCode);
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果校验失败";
+                       await _socket?.CloseAsync();
+                    }
+                    else if (ModbusHelper.VerifyFunctionCode(functionCode, dataPackage[7]))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                        await _socket?.CloseAsync();
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                    }
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
+
+
+
         /// <summary>
         /// 线圈写入
         /// </summary>
@@ -480,6 +656,73 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
+
+        /// <summary>
+        /// 线圈写入
+        /// </summary>
+        /// <param name="address">写入地址</param>
+        /// <param name="value"></param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public override async Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                if (!_socket?.Connected ?? true)
+                {
+                    var connectResult =await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var chenkHead = GetCheckHead(functionCode);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果校验失败";
+                        await _socket?.CloseAsync();
+                    }
+                    else if (ModbusHelper.VerifyFunctionCode(functionCode, dataPackage[7]))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                        await _socket?.CloseAsync();
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                    }
+                }
+                finally
+                {
+                    if (!IsUseLongConnect)await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
+
+
         public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15, bool isPlcAddress = false)
         {
             using (_lock.Lock())
@@ -537,6 +780,65 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return result.Complete();
             }
         }
+
+        public override async Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15, bool isPlcAddress = false)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                if (!_socket?.Connected ?? true)
+                {
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var chenkHead = GetCheckHead(functionCode);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果校验失败";
+                        await _socket?.CloseAsync();
+                    }
+                    else if (ModbusHelper.VerifyFunctionCode(functionCode, dataPackage[7]))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
+                    }
+                }
+                catch (SocketException ex)
+                {
+                    result.IsSuccess = false;
+                    if (ex.SocketErrorCode == SocketError.TimedOut)
+                    {
+                        result.Message = "连接超时";
+                        await _socket?.CloseAsync();
+                    }
+                    else
+                    {
+                        result.Message = ex.Message;
+                    }
+                }
+                finally
+                {
+                    if (!IsUseLongConnect)await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
+
 
         #endregion
 
