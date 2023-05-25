@@ -5,10 +5,11 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.Network.Sockets;
-using Wombat.ObjectConversionExtention;
+using Wombat.Core;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -165,109 +166,92 @@ namespace Wombat.IndustrialCommunication
 
 
         /// <summary>
-        /// Socket读取
+        /// 读取串口
         /// </summary>
         /// <param name="socket">socket</param>
         /// <param name="receiveCount">读取长度</param>          
         /// <returns></returns>
-        internal virtual OperationResult<byte[]> ReadBuffer(int receiveCount)
+        internal virtual OperationResult<byte[]> ReadBuffer()
         {
-            var result = new OperationResult<byte[]>();
-            if (receiveCount < 0)
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            DateTime beginTime = DateTime.Now;
+            var tempBufferLength = _serialPort.BytesToRead;
+            //在(没有取到数据或BytesToRead在继续读取)且没有超时的情况，延时处理
+            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(Timeout.TotalMilliseconds))
             {
-                result.IsSuccess = false;
-                result.Message = $"读取长度[receiveCount]为{receiveCount}";
+                tempBufferLength = _serialPort.BytesToRead;
+                //延时处理
+                Thread.Sleep(WaiteInterval);
+            }
+            byte[] buffer = new byte[_serialPort.BytesToRead];
+            var receiveFinish = 0;
+            while (receiveFinish < buffer.Length)
+            {
+                var readLeng = _serialPort.Read(buffer, receiveFinish, buffer.Length);
+                if (readLeng == 0)
+                {
+                    result.Value = null;
+                    return result.Complete();
+                }
+                receiveFinish += readLeng;
+            }
+            result.Value = buffer;
+            if (Logger?.MinimumLevel == Core.LogEventLevel.Debug)
+            {
+                string printSend = $"{_serialPort.PortName} send:";
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    printSend = printSend + " " + buffer[i].ToString("X").PadLeft(2, '0'); ;
 
-                return result;
+                }
+                Logger?.Debug(printSend);
             }
 
-            byte[] receiveBytes = new byte[receiveCount];
-            int receiveFinish = 0;
-            while (receiveFinish < receiveCount)
-            {
-                // 分批读取
-                int receiveLength = (receiveCount - receiveFinish) >= _serialPort.ReadBufferSize ? _serialPort.ReadBufferSize : (receiveCount - receiveFinish);
-                try
-                {
-                    var readLeng = _serialPort.Read(receiveBytes, receiveFinish, receiveLength);
-                    if (readLeng == 0)
-                    {
-                        _serialPort.Close();
-                        result.IsSuccess = false;
-                        result.Message = $"连接被断开";
-
-                        return result;
-                    }
-                    receiveFinish += readLeng;
-                }
-                catch (SocketException ex)
-                {
-                    _serialPort?.Close();
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                        result.Message = $"连接超时：{ex.Message}";
-                    else
-                        result.Message = $"连接被断开，{ex.Message}";
-                    result.IsSuccess = false;
-
-                    result.Exception = ex;
-                    return result;
-                }
-            }
-            result.Value = receiveBytes;
             return result.Complete();
         }
 
         /// <summary>
-        /// Socket读取
+        /// 读取串口
         /// </summary>
         /// <param name="socket">socket</param>
         /// <param name="receiveCount">读取长度</param>          
         /// <returns></returns>
-        internal virtual async ValueTask<OperationResult<byte[]>> ReadBufferAsync(int receiveCount)
+        internal virtual async ValueTask<OperationResult<byte[]>> ReadBufferAsync()
         {
-            var result = new OperationResult<byte[]>();
-            if (receiveCount < 0)
+            OperationResult<byte[]> result = new OperationResult<byte[]>();
+            DateTime beginTime = DateTime.Now;
+            var tempBufferLength = _serialPort.BytesToRead;
+            //在(没有取到数据或BytesToRead在继续读取)且没有超时的情况，延时处理
+            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(Timeout.TotalMilliseconds))
             {
-                result.IsSuccess = false;
-                result.Message = $"读取长度[receiveCount]为{receiveCount}";
+                tempBufferLength = _serialPort.BytesToRead;
+                //延时处理
+                Thread.Sleep(WaiteInterval);
+            }
+            byte[] buffer = new byte[_serialPort.BytesToRead];
+            var receiveFinish = 0;
+            while (receiveFinish < buffer.Length)
+            {
+                var readLeng =await _serialPort.BaseStream.ReadAsync(buffer, receiveFinish, buffer.Length);
+                if (readLeng == 0)
+                {
+                    result.Value = null;
+                    return result.Complete();
+                }
+                receiveFinish += readLeng;
+            }
+            result.Value = buffer;
+            if (Logger?.MinimumLevel == LogEventLevel.Debug)
+            {
+                string printSend = $"{_serialPort.PortName} send:";
+                for (int i = 0; i < buffer.Length; i++)
+                {
+                    printSend = printSend + " " + buffer[i].ToString("X").PadLeft(2, '0'); ;
 
-                return result;
+                }
+                Logger?.Debug(printSend);
             }
 
-            byte[] receiveBytes = new byte[receiveCount];
-            int receiveFinish = 0;
-            while (receiveFinish < receiveCount)
-            {
-                // 分批读取
-                int receiveLength = (receiveCount - receiveFinish) >= _serialPort.ReadBufferSize ? _serialPort.ReadBufferSize : (receiveCount - receiveFinish);
-                try
-                {
-                   
-                   var readLeng = await _serialPort.BaseStream.ReadAsync(receiveBytes, receiveFinish, receiveLength);
-                    if (readLeng == 0)
-                    {
-                        _serialPort.Close();
-                        result.IsSuccess = false;
-                        result.Message = $"连接被断开";
-
-                        return result;
-                    }
-                    receiveFinish += readLeng;
-                }
-                catch (SocketException ex)
-                {
-                    _serialPort?.Close();
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                        result.Message = $"连接超时：{ex.Message}";
-                    else
-                        result.Message = $"连接被断开，{ex.Message}";
-                    result.IsSuccess = false;
-
-                    result.Exception = ex;
-                    return result;
-                }
-            }
-            result.Value = receiveBytes;
             return result.Complete();
         }
 
