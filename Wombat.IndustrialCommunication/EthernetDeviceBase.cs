@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
 using Wombat.Network.Sockets;
-using Wombat.ObjectConversionExtention;
+
 
 namespace Wombat.IndustrialCommunication
 {

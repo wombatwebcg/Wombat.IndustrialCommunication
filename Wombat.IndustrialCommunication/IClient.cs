@@ -2,7 +2,7 @@
 using System;
 using System.Threading.Tasks;
 using Wombat.Core;
-using Wombat.ObjectConversionExtention;
+
 
 namespace Wombat.IndustrialCommunication
 {

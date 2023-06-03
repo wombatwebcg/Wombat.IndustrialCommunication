@@ -3,7 +3,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
-using Wombat.ObjectConversionExtention;
+
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

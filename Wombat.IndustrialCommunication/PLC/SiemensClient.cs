@@ -4,7 +4,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using Wombat.Infrastructure;
-using Wombat.ObjectConversionExtention;
+
 using Wombat.Core;
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;

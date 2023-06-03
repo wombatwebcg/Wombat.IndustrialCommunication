@@ -5,7 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading.Tasks;
 using Wombat.Infrastructure;
-using Wombat.ObjectConversionExtention;
+
 
 namespace Wombat.IndustrialCommunication.PLC
 {
