@@ -2,14 +2,15 @@
 using System;
 using System.IO.Ports;
 using System.Linq;
-using Wombat.Infrastructure;
+using System.Threading.Tasks;
+
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
     /// <summary>
     /// ModbusRtu协议客户端
     /// </summary>
-    public class ModbusRtuClient : ModbusSerialBase
+    public class ModbusRtuClient : ModbusSerialPortBase
     {
 
         /// <summary>
@@ -27,6 +28,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             : base(portName,baudRate,dataBits,stopBits,parity,handshake)
         {
         }
+
 
     }
 }

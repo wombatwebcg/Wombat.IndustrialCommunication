@@ -4,7 +4,9 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -12,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// (AB)罗克韦尔客户端 Beta
     /// https://blog.csdn.net/lishiming0308/article/details/85243041
     /// </summary>
-    public class AllenBradleyClient : IEthernetClientBase
+    public class AllenBradleyClient : PLCEthernetBase
     {
         public override string Version => "AllenBradley";
 
@@ -22,7 +24,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 是否是连接的
         /// </summary>
-        public override bool IsConnect => _socket.Connected;
+        public override bool Connected => _socket.Connected;
 
         /// <summary>
         /// 插槽
@@ -60,7 +62,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 打开连接（如果已经是连接状态会先关闭再打开）
         /// </summary>
         /// <returns></returns>
-        protected override OperationResult DoConnect()
+        internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
             _socket?.SafeClose();
@@ -80,21 +82,21 @@ namespace Wombat.IndustrialCommunication.PLC
                     throw new TimeoutException("连接超时");
                 _socket.EndConnect(connectResult);
 
-                result.Requst = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
                 _socket.Send(RegisteredCommand);
 
-                var socketReadResult = SocketRead(_socket, 24);
+                var socketReadResult = ReadBuffer(24);
                 if (!socketReadResult.IsSuccess)
                     return socketReadResult;
                 var head = socketReadResult.Value;
 
-                socketReadResult = SocketRead(_socket, GetContentLength(head));
+                socketReadResult = ReadBuffer(GetContentLength(head));
                 if (!socketReadResult.IsSuccess)
                     return socketReadResult;
                 var content = socketReadResult.Value;
 
                 var response = head.Concat(content).ToArray();
-                result.Response = string.Join(" ", response.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", response.Select(t => t.ToString("X2")));
 
                 byte[] buffer = new byte[4];
                 buffer[0] = response[4];
@@ -112,11 +114,11 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.ErrorCode = 408;
                 result.Exception = ex;
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
 
-        protected override OperationResult DoDisconnect()
+        internal override OperationResult DoDisconnect()
         {
 
             OperationResult result = new OperationResult();
@@ -141,7 +143,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> SendPackageSingle(byte[] command)
+        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             lock (this)
@@ -150,25 +152,25 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     _socket.Send(command);
-                    var socketReadResult = SocketRead(_socket, 24);
+                    var socketReadResult = ReadBuffer(24);
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var head = socketReadResult.Value;
 
-                    socketReadResult = SocketRead(_socket, GetContentLength(head));
+                    socketReadResult = ReadBuffer(GetContentLength(head));
                     if (!socketReadResult.IsSuccess)
                         return socketReadResult;
                     var content = socketReadResult.Value;
 
                     result.Value = head.Concat(content).ToArray();
-                    return result.EndTime();
+                    return result.Complete();
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
                     result.Message = ex.Message;
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    
+                    return result.Complete();
                 }
             }
         }
@@ -187,13 +189,13 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 var command = GetReadCommand(address, 1);
-                result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                 //发送命令 并获取响应报文
-                var sendResult = SendPackageReliable(command);
+                var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                 ushort count = BitConverter.ToUInt16(dataPackage, 38);
                 byte[] data = new byte[count - 6];
@@ -224,9 +226,9 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         #region Write
@@ -246,13 +248,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 //Array.Reverse(data);
                 //发送写入信息
                 //var arg = ConvertWriteArg(address, data, false);
-                result.Requst = string.Join(" ", data.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(data);
+                result.Requsts[0] = string.Join(" ", data.Select(t => t.ToString("X2")));
+                var sendResult = InterpretAndExtractMessageData(data);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
                 var dataPackage = sendResult.Value;
-                result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
             }
             catch (SocketException ex)
             {
@@ -277,9 +279,9 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
 
         }
 
@@ -297,7 +299,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public new OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.Length, 0xC1, value.TransByte());
+            return Write(address, value.Length, 0xC1, value.ToByte());
         }
 
 
@@ -357,7 +359,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, short[] value)
         {
-            return Write(address, value.Length, 0xC3, value.TransByte(IsReverse));
+            return Write(address, value.Length, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -368,7 +370,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ushort value)
         {
-            return Write(address, 1, 0xC3, value.TransByte(IsReverse));
+            return Write(address, 1, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -379,7 +381,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ushort[] value)
         {
-            return Write(address, value.Length, 0xC3, value.TransByte(IsReverse));
+            return Write(address, value.Length, 0xC3, value.ToByte(IsReverse));
         }
 
         /// <summary>
@@ -390,7 +392,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new  OperationResult Write(string address, int value)
         {
-            return Write(address,1, 0xC4, value.TransByte());
+            return Write(address,1, 0xC4, value.ToByte());
         }
         /// <summary>
         /// 写入数据
@@ -400,7 +402,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -411,7 +413,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, uint value)
         {
-            return Write(address, 1, 0xC4, value.TransByte());
+            return Write(address, 1, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -422,7 +424,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -433,7 +435,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, long value)
         {
-            return Write(address, 1, 0xC4, value.TransByte());
+            return Write(address, 1, 0xC4, value.ToByte());
         }
 
         /// <summary>
@@ -444,7 +446,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.Length, 0xC4, value.TransByte());
+            return Write(address, value.Length, 0xC4, value.ToByte());
         }
 
 
@@ -456,7 +458,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ulong value)
         {
-            return Write(address, 1, 0xC5, value.TransByte());
+            return Write(address, 1, 0xC5, value.ToByte());
         }
 
         /// <summary>
@@ -467,7 +469,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.Length, 0xC5, value.TransByte());
+            return Write(address, value.Length, 0xC5, value.ToByte());
         }
 
         /// <summary>
@@ -478,7 +480,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, float value)
         {
-            return Write(address, 1, 0xCA, value.TransByte());
+            return Write(address, 1, 0xCA, value.ToByte());
         }
 
         /// <summary>
@@ -489,7 +491,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.Length, 0xCA, value.TransByte());
+            return Write(address, value.Length, 0xCA, value.ToByte());
         }
 
         /// <summary>
@@ -500,7 +502,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, double value)
         {
-            return Write(address, 1, 0xCB, value.TransByte());
+            return Write(address, 1, 0xCB, value.ToByte());
         }
 
         /// <summary>
@@ -511,7 +513,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.Length, 0xCB, value.TransByte());
+            return Write(address, value.Length, 0xCB, value.ToByte());
         }
 
         /// <summary>
@@ -751,6 +753,36 @@ namespace Wombat.IndustrialCommunication.PLC
         private ushort GetContentLength(byte[] head)
         {
             return BitConverter.ToUInt16(head, 2);
+        }
+
+        public override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
         }
     }
 }

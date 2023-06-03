@@ -1,5 +1,5 @@
-﻿using Wombat.IndustrialCommunication.Models;
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
+using Wombat.IndustrialCommunication.Modbus;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

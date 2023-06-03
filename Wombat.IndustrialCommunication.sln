@@ -5,7 +5,7 @@ VisualStudioVersion = 16.0.32602.291
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunication", "Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj", "{B70B2536-51F1-4851-BCBF-6753422D2A89}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

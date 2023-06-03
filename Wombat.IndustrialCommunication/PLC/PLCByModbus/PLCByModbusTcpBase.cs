@@ -3,8 +3,7 @@ using System.Collections.Generic;
 using System.Net;
 using System.Text;
 using Wombat.IndustrialCommunication.Modbus;
-using Wombat.IndustrialCommunication.Models;
-using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunication.PLC
 {

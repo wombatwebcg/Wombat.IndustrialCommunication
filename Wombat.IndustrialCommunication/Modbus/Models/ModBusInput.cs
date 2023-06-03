@@ -1,9 +1,9 @@
-﻿using Wombat.Infrastructure;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication.Models
+namespace Wombat.IndustrialCommunication.Modbus
 {
     public class ModbusInput
     {

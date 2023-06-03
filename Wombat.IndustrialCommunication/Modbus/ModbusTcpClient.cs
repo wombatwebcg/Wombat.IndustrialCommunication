@@ -1,5 +1,4 @@
-﻿using Wombat.Infrastructure;
-using Wombat.IndustrialCommunication.Models;
+﻿
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +6,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
@@ -26,6 +26,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ModbusTcpClient(string ip, int port) : base(ip, port)
         {
         }
+
 
 
     }

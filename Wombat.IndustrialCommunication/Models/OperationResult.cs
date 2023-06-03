@@ -24,6 +24,7 @@ namespace Wombat.IndustrialCommunication
 
         public OperationResult()
         {
+
         }
 
 
@@ -68,27 +69,18 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public double? TimeConsuming { get; private set; }
 
-        public string Requst { get; set; }
+        public string[] Requsts { get; set; } = new string[10];
 
         /// <summary>
         /// 响应报文
         /// </summary>
-        public string Response { get; set; }
+        public string[] Responses { get; set; } = new string[10];
 
-        /// <summary>
-        /// 请求报文2
-        /// </summary>
-        public string Requst2 { get; set; }
-
-        /// <summary>
-        /// 响应报文2
-        /// </summary>
-        public string Response2 { get; set; }
 
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public OperationResult EndTime()
+        public OperationResult Complete()
         {
             TimeConsuming = (DateTime.Now - InitialTime).TotalMilliseconds;
             return this;
@@ -104,7 +96,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 异常集合
         /// </summary>
-        public List<string> MessageList { get; private set; } = new List<string>();
+        public List<string> OperationInfo { get; private set; } = new List<string>();
 
         /// <summary>
         /// 设置异常信息和Succeed状态
@@ -117,49 +109,25 @@ namespace Wombat.IndustrialCommunication
             Message = result.Message;
             ErrorCode = result.ErrorCode;
             Exception = result.Exception;
-            foreach (var err in result.MessageList)
-            {
-                if (!MessageList.Contains(err))
-                    MessageList.Add(err);
-            }
+            InitialTime = result.InitialTime;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
             return this;
         }
+
 
 
         /// <summary>
         /// 添加异常到异常集合
         /// </summary>
-        public void AddMessage2List()
+        private void AddMessage2List()
         {
-            if (!MessageList.Contains(Message))
+            if (!OperationInfo.Contains(Message)& Message != null & Message != string.Empty)
             {
-                if (Message != null & Message != string.Empty)
-                    MessageList.Add(Message);
+                    OperationInfo.Add(Message);
 
             }
         }
 
-        public static OperationResult Assignment(OperationResult orgin)
-        {
-            var newOperationValue = new OperationResult()
-            {
-                IsSuccess = orgin.IsSuccess,
-                ErrorCode = orgin.ErrorCode,
-                Message = orgin.Message,
-                Exception = orgin.Exception,
-                InitialTime = orgin.InitialTime,
-                Requst = orgin.Requst,
-                Requst2 = orgin.Requst2,
-                Response = orgin.Response,
-                Response2 = orgin.Response2
-            };
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    newOperationValue.MessageList.Add(message);
-            }
-            return newOperationValue;
-        }
 
 
         #endregion
@@ -527,21 +495,14 @@ namespace Wombat.IndustrialCommunication
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message)=> { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
         }
 
         /// <summary>
@@ -550,21 +511,14 @@ namespace Wombat.IndustrialCommunication
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result,T data)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if(message!=null&message!=string.Empty)
-                this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value = data;
         }
 
@@ -583,9 +537,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T> EndTime()
+        public new OperationResult<T> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }
@@ -635,52 +589,20 @@ namespace Wombat.IndustrialCommunication
 
 
 
-
-
-        /// <summary>
-        /// 实例化一个默认的结果对象
-        /// </summary>
-        public OperationResult(OperationResult result) : base()
-        {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
-
-        }
-
         /// <summary>
         /// 使用指定的消息实例化一个默认的结果对象
         /// </summary>
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result, T1 data1,T2 data2)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value1 = data1;
             Value2 = data2;
 
@@ -702,9 +624,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T1, T2> EndTime()
+        public new OperationResult<T1, T2> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }
@@ -764,49 +686,19 @@ namespace Wombat.IndustrialCommunication
 
 
         /// <summary>
-        /// 实例化一个默认的结果对象
-        /// </summary>
-        public OperationResult(OperationResult result) : base()
-        {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
-
-        }
-
-        /// <summary>
         /// 使用指定的消息实例化一个默认的结果对象
         /// </summary>
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result, T1 data1, T2 data2,T3 data3)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value1 = data1;
             Value2 = data2;
             Value3 = data3;
@@ -836,9 +728,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T1, T2,T3> EndTime()
+        public new OperationResult<T1, T2,T3> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }
@@ -897,49 +789,19 @@ namespace Wombat.IndustrialCommunication
 
 
         /// <summary>
-        /// 实例化一个默认的结果对象
-        /// </summary>
-        public OperationResult(OperationResult result) : base()
-        {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
-
-        }
-
-        /// <summary>
         /// 使用指定的消息实例化一个默认的结果对象
         /// </summary>
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result, T1 data1, T2 data2, T3 data3, T4 data4)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value1 = data1;
             Value2 = data2;
             Value3 = data3;
@@ -975,9 +837,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T1, T2, T3,T4> EndTime()
+        public new OperationResult<T1, T2, T3,T4> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }
@@ -1032,49 +894,19 @@ namespace Wombat.IndustrialCommunication
 
 
         /// <summary>
-        /// 实例化一个默认的结果对象
-        /// </summary>
-        public OperationResult(OperationResult result) : base()
-        {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
-
-        }
-
-        /// <summary>
         /// 使用指定的消息实例化一个默认的结果对象
         /// </summary>
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result, T1 data1, T2 data2, T3 data3, T4 data4, T5 data5)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value1 = data1;
             Value2 = data2;
             Value3 = data3;
@@ -1117,9 +949,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T1, T2, T3, T4,T5> EndTime()
+        public new OperationResult<T1, T2, T3, T4,T5> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }
@@ -1174,51 +1006,20 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-
-        /// <summary>
-        /// 实例化一个默认的结果对象
-        /// </summary>
-        public OperationResult(OperationResult result) : base()
-        {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
-
-        }
-
         /// <summary>
         /// 使用指定的消息实例化一个默认的结果对象
         /// </summary>
         /// <param name="msg">错误消息</param>
         public OperationResult(OperationResult result, T1 data1, T2 data2, T3 data3, T4 data4, T5 data5, T6 data6)
         {
-            var orgin = Assignment(result);
-            this.ErrorCode = orgin.ErrorCode;
-            this.Exception = orgin.Exception;
-            this.InitialTime = orgin.InitialTime;
-            this.IsSuccess = orgin.IsSuccess;
-            this.Message = orgin.Message;
-            foreach (var message in orgin.MessageList)
-            {
-                if (message != null & message != string.Empty)
-                    this.MessageList.Add(message);
-            }
-            this.Requst = orgin.Requst;
-            this.Requst2 = orgin.Requst2;
-            this.Response = orgin.Response;
-            this.Response2 = orgin.Response2;
+            this.ErrorCode = result.ErrorCode;
+            this.Exception = result.Exception;
+            this.InitialTime = result.InitialTime;
+            this.IsSuccess = result.IsSuccess;
+            this.Message = result.Message;
+            result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
+            this.Requsts = result.Requsts;
+            this.Responses = result.Responses;
             Value1 = data1;
             Value2 = data2;
             Value3 = data3;
@@ -1267,9 +1068,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 结束时间统计
         /// </summary>
-        public new OperationResult<T1, T2, T3, T4, T5, T6> EndTime()
+        public new OperationResult<T1, T2, T3, T4, T5, T6> Complete()
         {
-            base.EndTime();
+            base.Complete();
             return this;
 
         }

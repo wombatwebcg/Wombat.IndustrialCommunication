@@ -2,16 +2,13 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Wombat.IndustrialCommunication.Models;
-using Wombat.Infrastructure;
+using System.Threading.Tasks;
+
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public abstract class ModbusBase : BaseModel, IModbusClient
+    public abstract class ModbusEthernetDeviceBase : EthernetDeviceBase, IModbusClient
     {
-
-
-
 
         #region  Read 读取
         /// <summary>
@@ -20,9 +17,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="address">寄存器起始地址</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        /// <param name="readLength">读取长度</param>
+        /// <param name="length">读取长度</param>
         /// <returns></returns>
-        public abstract  OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        public abstract  OperationResult<byte[]> Read(string address, int length = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
 
         /// <summary>
         /// 读取Int16
@@ -33,20 +30,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<short> ReadInt16(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadInt16(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadInt16(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<short>(result).EndTime();
+                return new OperationResult<short>(result).Complete();
         }
 
-        public OperationResult<short[]> ReadInt16(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<short[]> ReadInt16(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt16(0, readLength,IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToInt16(0, length,IsReverse);
+            return result.Complete();
         }
 
 
@@ -70,7 +67,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (adds.Length >= 2)
                 {
                     var index = int.Parse(adds[1].Trim());
-                    var binaryArray = result.Value.TransByte().TransBool(0, 16);
+                    var binaryArray = result.Value.ToByte().ToBool(0, 16);
                     if (left)
                     {
                         var length = binaryArray.Length - 16;
@@ -80,7 +77,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         result.Value = short.Parse(binaryArray[binaryArray.Length - 1 - index].ToString());
                 }
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -92,20 +89,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<ushort> ReadUInt16(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadUInt16(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadUInt16(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<ushort>(result).EndTime();
+                return new OperationResult<ushort>(result).Complete();
         }
 
-        public OperationResult<ushort[]> ReadUInt16(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<ushort[]> ReadUInt16(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt16(0, readLength, IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+            return result.Complete();
         }
 
         /// <summary>
@@ -137,7 +134,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         result.Value = ushort.Parse(binaryArray[binaryArray.Length - 1 - index].ToString());
                 }
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -149,11 +146,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<int> ReadInt32(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadInt32(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadInt32(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<int>(result).EndTime();
+                return new OperationResult<int>(result).Complete();
         }
 
         /// <summary>
@@ -163,13 +160,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<int[]> ReadInt32(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<int[]> ReadInt32(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, (ushort)(2*readLength), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, (ushort)(2*length), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt32(0,length: readLength,format:DataFormat,reverse:IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToInt32(0,length: length,format:DataFormat,reverse:IsReverse);
+            return result.Complete();
         }
 
 
@@ -182,11 +179,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<uint> ReadUInt32(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadUInt32(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadUInt32(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<uint>(result).EndTime();
+                return new OperationResult<uint>(result).Complete();
         }
 
         /// <summary>
@@ -196,13 +193,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<uint[]> ReadUInt32(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<uint[]> ReadUInt32(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, 2* readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, 2* length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt32(0,length: readLength, format: DataFormat, reverse: IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToUInt32(0,length: length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
         }
 
         /// <summary>
@@ -214,11 +211,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<long> ReadInt64(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadInt64(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadInt64(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<long>(result).EndTime();
+                return new OperationResult<long>(result).Complete();
         }
 
         /// <summary>
@@ -228,13 +225,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<long[]> ReadInt64(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<long[]> ReadInt64(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, 4*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, 4*length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransInt64(0,readLength, format: DataFormat, reverse: IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToInt64(0,length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
         }
 
 
@@ -247,11 +244,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<ulong> ReadUInt64(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadUInt64(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadUInt64(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<ulong>(result).EndTime();
+                return new OperationResult<ulong>(result).Complete();
         }
         /// <summary>
         /// 读取UInt64
@@ -260,13 +257,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<ulong[]> ReadUInt64(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<ulong[]> ReadUInt64(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, 4 * readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransUInt64(0, readLength, format: DataFormat, reverse: IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToUInt64(0, length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
         }
 
         /// <summary>
@@ -278,11 +275,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<float> ReadFloat(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadFloat(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var result = ReadFloat(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<float>(result).EndTime();
+                return new OperationResult<float>(result).Complete();
         }
 
         /// <summary>
@@ -292,13 +289,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<float[]> ReadFloat(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<float[]> ReadFloat(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, 2*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, 2*length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransFloat(0,readLength ,format: DataFormat, reverse: IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToFloat(0,length ,format: DataFormat, reverse: IsReverse);
+            return result.Complete();
         }
 
 
@@ -311,11 +308,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public OperationResult<double> ReadDouble(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var result = ReadDouble(address: address, readLength: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = ReadDouble(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.EndTime();
+                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
             else
-                return new OperationResult<double>(result).EndTime();
+                return new OperationResult<double>(result).Complete();
         }
 
         /// <summary>
@@ -325,13 +322,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<double[]> ReadDouble(string address, int readLength, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public OperationResult<double[]> ReadDouble(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, 4*readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address, 4*length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransDouble(0,readLength, format: DataFormat, reverse: IsReverse);
-            return result.EndTime();
+                result.Value = readResult.Value.ToDouble(0,length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
         }
 
 
@@ -350,7 +347,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<bool>(readResult);
             if (result.IsSuccess)
                 result.Value = BitConverter.ToBoolean(readResult.Value, 0);
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -360,13 +357,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public OperationResult<bool[]> ReadCoil(string address, int readLength, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false)
+        public OperationResult<bool[]> ReadCoil(string address, int length, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address,readLength: readLength, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var readResult = Read(address: address,length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0,readLength);
-            return result.EndTime();
+                result.Value = readResult.Value.ToBool(0,length);
+            return result.Complete();
         }
 
 
@@ -384,7 +381,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<bool>(readResult);
             if (result.IsSuccess)
                 result.Value = BitConverter.ToBoolean(readResult.Value, 0);
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -394,13 +391,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public OperationResult<bool[]> ReadDiscrete(string address, int readLength, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false)
+        public OperationResult<bool[]> ReadDiscrete(string address, int length, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false)
         {
-            var readResult = Read(address: address, stationNumber: stationNumber, functionCode: functionCode,isPlcAddress:isPlcAddress);
+            var readResult = Read(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.TransBool(0, readLength);
-            return result.EndTime();
+                result.Value = readResult.Value.ToBool(0, length);
+            return result.Complete();
         }
 
 
@@ -422,7 +419,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2).Take(2).ToArray();
                 return new OperationResult<short>
                 {
-                    Value = byteArry.TransInt16(0,IsReverse)
+                    Value = byteArry.ToInt16(0,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -459,7 +456,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<ushort>
                 {
-                    Value = byteArry.TransUInt16(0,IsReverse)
+                    Value = byteArry.ToUInt16(0,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -495,7 +492,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.TransInt32(0,DataFormat,IsReverse)
+                    Value = byteArry.ToInt32(0,DataFormat,IsReverse)
                 };
             }
             catch (Exception ex)
@@ -531,7 +528,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.TransUInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt32(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -567,7 +564,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.TransInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt64(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -603,7 +600,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.TransUInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt64(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -639,7 +636,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.TransFloat(0, DataFormat, IsReverse)
+                    Value = byteArry.ToFloat(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -675,7 +672,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.TransDouble(0, DataFormat, IsReverse)
+                    Value = byteArry.ToDouble(0, DataFormat, IsReverse)
                 };
             }
             catch (Exception ex)
@@ -807,11 +804,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.SetInfo(tempOperationResult);
                     }
-                    result.Requst = tempOperationResult.Requst;
-                    result.Response = tempOperationResult.Response;
+                    result.Requsts = tempOperationResult.Requsts;
+                    result.Responses = tempOperationResult.Responses;
                 }
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         private OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addressList, byte stationNumber, byte functionCode)
@@ -825,13 +822,13 @@ namespace Wombat.IndustrialCommunication.Modbus
             var maxAddress = addresses.Select(t => t.Key).Max();
             while (maxAddress >= minAddress)
             {
-                int readLength = 121;//125 - 4 = 121
+                int length = 121;//125 - 4 = 121
 
-                var tempAddress = addresses.Where(t => t.Key >= minAddress && t.Key <= minAddress + readLength).ToList();
+                var tempAddress = addresses.Where(t => t.Key >= minAddress && t.Key <= minAddress + length).ToList();
                 //如果范围内没有数据。按正确逻辑不存在这种情况。
                 if (!tempAddress.Any())
                 {
-                    minAddress = minAddress + readLength;
+                    minAddress = minAddress + length;
                     continue;
                 }
 
@@ -842,34 +839,33 @@ namespace Wombat.IndustrialCommunication.Modbus
                     case DataTypeEnum.Byte:
                     case DataTypeEnum.Int16:
                     case DataTypeEnum.UInt16:
-                        readLength = tempMax.Key + 1 - minAddress;
+                        length = tempMax.Key + 1 - minAddress;
                         break;
                     case DataTypeEnum.Int32:
                     case DataTypeEnum.UInt32:
                     case DataTypeEnum.Float:
-                        readLength = tempMax.Key + 2 - minAddress;
+                        length = tempMax.Key + 2 - minAddress;
                         break;
                     case DataTypeEnum.Int64:
                     case DataTypeEnum.UInt64:
                     case DataTypeEnum.Double:
-                        readLength = tempMax.Key + 4 - minAddress;
+                        length = tempMax.Key + 4 - minAddress;
                         break;
                     default:
                         throw new Exception("Message BatchRead 未定义类型 -1");
                 }
 
-                var tempOperationResult = Read(minAddress.ToString(), Convert.ToUInt16(readLength), stationNumber: stationNumber, functionCode: functionCode);
+                var tempOperationResult = Read(minAddress.ToString(), Convert.ToUInt16(length), stationNumber: stationNumber, functionCode: functionCode);
 
-                result.Requst = tempOperationResult.Requst;
-                result.Response = tempOperationResult.Response;
+                result.Requsts = tempOperationResult.Requsts;
+                result.Responses = tempOperationResult.Responses;
                 if (!tempOperationResult.IsSuccess)
                 {
                     result.IsSuccess = tempOperationResult.IsSuccess;
                     result.Exception = tempOperationResult.Exception;
                     result.ErrorCode = tempOperationResult.ErrorCode;
                     result.Message = $"读取 地址:{minAddress} 站号:{stationNumber} 功能码:{functionCode} 失败。{tempOperationResult.Message}";
-                    result.AddMessage2List();
-                    return result.EndTime();
+                    return result.Complete();
                 }
 
                 var rValue = tempOperationResult.Value.Reverse().ToArray();
@@ -914,14 +910,14 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     result.Value.Add(item.Key.ToString(), tempVaue);
                 }
-                minAddress = minAddress + readLength;
+                minAddress = minAddress + length;
 
                 if (addresses.Any(t => t.Key >= minAddress))
                     minAddress = addresses.Where(t => t.Key >= minAddress).OrderBy(t => t.Key).FirstOrDefault().Key;
                 else
-                    return result.EndTime();
+                    return result.Complete();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -944,6 +940,250 @@ namespace Wombat.IndustrialCommunication.Modbus
                     break;
             }
             return result;
+        }
+
+
+        #endregion
+
+        #region ReadAsync
+        public abstract Task<OperationResult<byte[]>> ReadAsync(string address, int length = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+
+        public async Task<OperationResult<short>> ReadInt16Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadInt16Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<short>(result).Complete();
+        }
+
+        public async Task<OperationResult<short[]>> ReadInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<short[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<short>> ReadInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false)
+        {
+            string[] adds = address.Split('.');
+            var readResult =await ReadAsync(adds[0].Trim(), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<short>(readResult);
+            if (result.IsSuccess)
+            {
+                result.Value = BitConverter.ToInt16(readResult.Value, 0);
+                if (adds.Length >= 2)
+                {
+                    var index = int.Parse(adds[1].Trim());
+                    var binaryArray = result.Value.ToByte().ToBool(0, 16);
+                    if (left)
+                    {
+                        var length = binaryArray.Length - 16;
+                        result.Value = short.Parse(binaryArray[length + index].ToString());
+                    }
+                    else
+                        result.Value = short.Parse(binaryArray[binaryArray.Length - 1 - index].ToString());
+                }
+            }
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<ushort[]>> ReadUInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<ushort[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<ushort>> ReadUInt16Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadUInt16Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<ushort>(result).Complete();
+        }
+
+        public async Task<OperationResult<ushort>> ReadUInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false)
+        {
+            string[] adds = address.Split('.');
+            var readResult =await ReadAsync(adds[0].Trim(), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<ushort>(readResult);
+            if (result.IsSuccess)
+            {
+                result.Value = BitConverter.ToUInt16(readResult.Value, 0);
+                if (adds.Length >= 2)
+                {
+                    var index = int.Parse(adds[1].Trim());
+                    var binaryArray = DataConvert.IntToBinaryArray(result.Value, 16);
+                    if (left)
+                    {
+                        var length = binaryArray.Length - 16;
+                        result.Value = ushort.Parse(binaryArray[length + index].ToString());
+                    }
+                    else
+                        result.Value = ushort.Parse(binaryArray[binaryArray.Length - 1 - index].ToString());
+                }
+            }
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<int>> ReadInt32Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadInt32Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<int>(result).Complete();
+        }
+
+        public async Task<OperationResult<int[]>> ReadInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, (ushort)(2 * length), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<int[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToInt32(0, length: length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<uint>> ReadUInt32Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result = await ReadUInt32Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<uint>(result).Complete();
+        }
+
+        public async Task<OperationResult<uint[]>> ReadUInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, 2 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<uint[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToUInt32(0, length: length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<long>> ReadInt64Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadInt64Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<long>(result).Complete();
+        }
+
+        public async Task<OperationResult<long[]>> ReadInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<long[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToInt64(0, length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+
+        public async Task<OperationResult<ulong>> ReadUInt64Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadUInt64Async(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<ulong>(result).Complete();
+        }
+
+        public async Task<OperationResult<ulong[]>> ReadUInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<ulong[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToUInt64(0, length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+
+        public async Task<OperationResult<float>> ReadFloatAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadFloatAsync(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<float>(result).Complete();
+        }
+
+        public async Task<OperationResult<float[]>> ReadFloatAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, 2 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<float[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToFloat(0, length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+
+        public async Task<OperationResult<double>> ReadDoubleAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var result =await ReadDoubleAsync(address: address, length: 1, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            if (result.IsSuccess)
+                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<double>(result).Complete();
+        }
+
+        public async Task<OperationResult<double[]>> ReadDoubleAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<double[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToDouble(0, length, format: DataFormat, reverse: IsReverse);
+            return result.Complete();
+        }
+
+
+        public async Task<OperationResult<bool>> ReadCoilAsync(string address, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<bool>(readResult);
+            if (result.IsSuccess)
+                result.Value = BitConverter.ToBoolean(readResult.Value, 0);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<bool[]>> ReadCoilAsync(string address, int length, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<bool[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToBool(0, length);
+            return result.Complete();
+        }
+
+
+        public async Task<OperationResult<bool>> ReadDiscreteAsync(string address, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false)
+        {
+            var readResult =await ReadAsync(address: address, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<bool>(readResult);
+            if (result.IsSuccess)
+                result.Value = BitConverter.ToBoolean(readResult.Value, 0);
+            return result.Complete();
+        }
+
+        public async Task<OperationResult<bool[]>> ReadDiscreteAsync(string address, int length, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false)
+        {
+            var readResult = await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
+            var result = new OperationResult<bool[]>(readResult);
+            if (result.IsSuccess)
+                result.Value = readResult.Value.ToBool(0, length);
+            return result.Complete();
+        }
+
+        public Task<OperationResult<List<ModbusOutput>>> BatchReadAsync(List<ModbusInput> addresses, uint retryCount = 1)
+        {
+            throw new NotImplementedException();
         }
 
 
@@ -1015,7 +1255,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, short value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode,isPlcAddress);
         }
         /// <summary>
@@ -1027,7 +1267,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, short[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode,isPlcAddress);
         }
 
@@ -1041,7 +1281,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ushort value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1054,7 +1294,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(IsReverse);
+            var values = value.ToByte(IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1068,7 +1308,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, int value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat,IsReverse);
+            var values = value.ToByte(DataFormat,IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1081,7 +1321,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, int[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat,IsReverse);
+            var values = value.ToByte(DataFormat,IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1096,7 +1336,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, uint value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1109,7 +1349,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1123,7 +1363,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, long value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1136,7 +1376,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, long[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1149,7 +1389,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ulong value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1162,7 +1402,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1175,7 +1415,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, float value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
         /// <summary>
@@ -1187,7 +1427,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, float[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1200,7 +1440,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, double value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
@@ -1213,12 +1453,285 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         public OperationResult Write(string address, double[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         {
-            var values = value.TransByte(DataFormat, IsReverse);
+            var values = value.ToByte(DataFormat, IsReverse);
             return Write(address, values, stationNumber, functionCode, isPlcAddress);
         }
 
 
         #endregion
+
+        #region WriteAsync 写入
+        /// <summary>
+        /// 线圈写入
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="value"></param>
+        /// <param name="stationNumber"></param>
+        /// <param name="functionCode"></param>
+        public abstract Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false);
+
+
+        /// <summary>
+        /// 线圈写入
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="value"></param>
+        /// <param name="stationNumber"></param>
+        /// <param name="functionCode"></param>
+        public abstract Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15, bool isPlcAddress = false);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="values"></param>
+        /// <param name="stationNumber"></param>
+        /// <param name="functionCode"></param>
+        /// <returns></returns>
+        public abstract  Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="values"></param>
+        /// <param name="stationNumber"></param>
+        /// <param name="functionCode"></param>
+        /// <returns></returns>
+        //public abstract async Task<OperationResult> WriteAsync(string address, byte values, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false);
+
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="values"></param>
+        /// <param name="stationNumber"></param>
+        /// <param name="functionCode"></param>
+        /// <returns></returns>
+        public virtual async Task<OperationResult> WriteAsync(string address, byte value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
+        {
+            return await WriteAsync(address, new byte[2] { 0x00, value }, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, short value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, short[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, ushort value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, int value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, int[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, uint value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, long value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, long[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, ulong value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, float value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, float[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, double value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public async Task<OperationResult> WriteAsync(string address, double[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        {
+            var values = value.ToByte(DataFormat, IsReverse);
+            return await WriteAsync(address, values, stationNumber, functionCode, isPlcAddress);
+        }
+
+
+        #endregion
+
+
 
     }
 }

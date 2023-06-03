@@ -1,48 +1,50 @@
 ﻿using Microsoft.Extensions.Logging;
 using Serilog.Extensions.Logging;
 using System;
+using System.Threading.Tasks;
+using Wombat.Core;
 using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunication
 {
 
 
-
-
-
-
-    abstract public class BaseModel : IBaseModel, IDisposable 
+    abstract public class ClientBase : IClient, IDisposable 
     {
 
 
 
 
-        public BaseModel()
+        public ClientBase()
         {
 
         }
 
-        public ILogger Logger { get; set; }
+        public ILog Logger { get; set; }
 
         public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(1500);
 
         public TimeSpan WaiteInterval { get; set; } = TimeSpan.FromMilliseconds(10);
 
+        /// <summary>
+        /// 获取或设置接收操作的超时时间
+        /// </summary>
+        public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.Zero;
 
-        public bool IsPrintCommand { get; set; } = false;
+        /// <summary>
+        /// 获取或设置发送操作的超时时间
+        /// </summary>
+        public TimeSpan SendTimeout { get; set; } = TimeSpan.Zero;
+
+
 
         public virtual void UseLogger()
         {
             LogHelper.Build();
-            Logger = new SerilogLoggerFactory(LogHelper.Log).CreateLogger<BaseModel>();
+            Logger = new LoggerBuilder().UseConsoleLogger().UseFileLogger().CreateLogger();
         }
 
-
-        //public bool IsClearCacheBeforeRead { get; set; } = true;
-
-        //public bool IsClearCacheAfterRead { get; set; } = true;
-
-        //public bool IsBaseStreamFlush { get; set; } = true;
 
         public bool IsUseLongConnect { get; set; } = true;
 
@@ -53,11 +55,16 @@ namespace Wombat.IndustrialCommunication
         public  LoggerDelegate WarningLog { get; set; }
 
 
-        abstract protected OperationResult DoConnect();
+        abstract internal OperationResult DoConnect();
 
-        abstract protected OperationResult DoDisconnect();
+        abstract internal OperationResult DoDisconnect();
 
-        public abstract bool IsConnect { get; }
+        abstract internal Task<OperationResult> DoConnectAsync();
+
+        abstract internal Task<OperationResult> DoDisconnectAsync();
+
+
+        public abstract bool Connected { get; }
 
         public int OperationReTryTimes { get; set; } = 2;
 
@@ -67,9 +74,21 @@ namespace Wombat.IndustrialCommunication
 
         public OperationResult Connect()
         {
-            if (!IsConnect)
+            if (!Connected)
             {
                 var result = DoConnect();
+                return result;
+            }
+            else
+            {
+                return new OperationResult() { IsSuccess = true, Message = "已存在连接" };
+            }
+        }
+        public async Task<OperationResult> ConnectAsync()
+        {
+            if (!Connected)
+            {
+                var result = await DoConnectAsync();
                 return result;
             }
             else
@@ -84,25 +103,20 @@ namespace Wombat.IndustrialCommunication
 
         }
 
+        public async Task<OperationResult> DisconnectAsync()
+        {
+          return  await DoDisconnectAsync();
+        }
 
 
 
+        internal abstract OperationResult<byte[]> GetMessageContent(byte[] command);
 
-        /// <summary>
-        /// 发送报文，并获取响应报文
-        /// </summary>
-        /// <param name="command"></param>
-        /// <returns></returns>
-       public  abstract OperationResult<byte[]> SendPackageReliable(byte[] command);
+        internal abstract ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command);
 
+        internal abstract OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command);
 
-
-        /// <summary>
-        /// 发送报文，并获取响应报文（建议使用SendPackageReliable，如果异常会自动重试一次）
-        /// </summary>
-        /// <param name="command">发送命令</param>
-        /// <returns></returns>
-       public abstract OperationResult<byte[]> SendPackageSingle(byte[] command);
+        internal abstract ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command);
 
 
 
@@ -137,6 +151,7 @@ namespace Wombat.IndustrialCommunication
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
+
 
     }
 

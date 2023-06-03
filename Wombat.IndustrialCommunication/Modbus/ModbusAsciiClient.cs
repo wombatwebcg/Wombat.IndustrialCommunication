@@ -1,14 +1,16 @@
 ﻿using System;
 using System.IO.Ports;
 using System.Linq;
+using System.Threading.Tasks;
 using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
     /// <summary>
     /// ModbusAscii
     /// </summary>
-    public class ModbusAsciiClient : ModbusSerialBase
+    public class ModbusAsciiClient : ModbusSerialPortBase
     {
         /// <summary>
         /// 构造函数
@@ -37,7 +39,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3,bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
 
             var result = new OperationResult<byte[]>();
             try
@@ -52,19 +54,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
 
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(finalCommand);
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).EndTime();
+                    return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
 
                 if (!responsePackage.Any())
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
@@ -74,11 +76,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果LRC验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
                 var resultData = new byte[resultByte[2]];
                 Buffer.BlockCopy(resultByte, 3, resultData, 0, resultData.Length);
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
                 //4 获取响应报文数据（字节数组形式）         
                 result.Value = resultData.ToArray();
             }
@@ -89,9 +91,19 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
+        }
+
+        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        {
+            throw new NotImplementedException();
         }
         #endregion
 
@@ -105,7 +117,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode"></param>
         public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
             var result = new OperationResult();
             try
             {
@@ -118,17 +130,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
                 //发送命令并获取响应报文
-                var sendResult = SendPackageReliable(finalCommand);
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).EndTime();
+                    return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
                 if (!responsePackage.Any())
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
@@ -138,10 +150,10 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果LRC验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
 
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
             }
             catch (Exception ex)
             {
@@ -150,9 +162,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (IsConnect) Dispose();
+                if (Connected) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
         }
 
         /// <summary>
@@ -165,7 +177,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16,bool isPlcAddress = false)
         {
-            if (!IsConnect) Connect();
+            if (!Connected) Connect();
 
             var result = new OperationResult();
             try
@@ -179,16 +191,16 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
-                var sendResult = SendPackageReliable(finalCommand);
+                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).EndTime();
+                    return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
                 if (!responsePackage.Any())
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果为空";
-                    return result.EndTime();
+                    return result.Complete();
                 }
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
@@ -198,10 +210,10 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     result.IsSuccess = false;
                     result.Message = "响应结果LRC验证失败";
-                    //return result.EndTime();
+                    //return result.Complete();
                 }
 
-                result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
             }
             catch (Exception ex)
             {
@@ -210,9 +222,19 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             finally
             {
-                if (!IsConnect) Dispose();
+                if (!Connected) Dispose();
             }
-            return result.EndTime();
+            return result.Complete();
+        }
+
+        internal override Task<OperationResult> DoConnectAsync()
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> DoDisconnectAsync()
+        {
+            throw new NotImplementedException();
         }
 
 
@@ -226,7 +248,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
         //{
-        //    if (!IsConnect) Connect();
+        //    if (!Connected) Connect();
 
         //    var result = new OperationResult();
         //    try
@@ -243,13 +265,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
         //        var sendResult = SendPackageReliable(finalCommand);
         //        if (!sendResult.IsSuccess)
-        //            return result.SetInfo(sendResult).EndTime();
+        //            return result.SetInfo(sendResult).Complete();
         //        var responsePackage = sendResult.Value;
         //        if (!responsePackage.Any())
         //        {
         //            result.IsSuccess = false;
         //            result.Message = "响应结果为空";
-        //            return result.EndTime();
+        //            return result.Complete();
         //        }
 
         //        byte[] resultLRC = new byte[responsePackage.Length - 3];
@@ -259,7 +281,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        {
         //            result.IsSuccess = false;
         //            result.Message = "响应结果LRC验证失败";
-        //            //return result.EndTime();
+        //            //return result.Complete();
         //        }
 
         //        result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
@@ -271,9 +293,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    }
         //    finally
         //    {
-        //        if (!IsConnect) Dispose();
+        //        if (!Connected) Dispose();
         //    }
-        //    return result.EndTime();
+        //    return result.Complete();
         //}
 
 

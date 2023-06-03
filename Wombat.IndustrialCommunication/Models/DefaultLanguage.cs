@@ -143,7 +143,7 @@ namespace Wombat.IndustrialCommunication
         public virtual string DeviceCurrentIsLoginRepeat => "当前设备的id重复登录";
         public virtual string DeviceCurrentIsLoginForbidden => "当前设备的id禁止登录";
         public virtual string PasswordCheckFailed => "密码验证失败";
-        public virtual string DataTransformError => "数据转换失败，源数据：";
+        public virtual string DataToformError => "数据转换失败，源数据：";
         public virtual string RemoteClosedConnection => "远程关闭了连接";
 
         /***********************************************************************************

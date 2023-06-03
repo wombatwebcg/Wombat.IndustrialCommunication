@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Wombat.IndustrialCommunication
 {
-    public interface IDataTransfer
+    public interface IDataTofer
     {
         /// <summary>
         /// 读取的数据长度，对于西门子，等同于字节数，对于三菱和Modbus为字节数的一半
