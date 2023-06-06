@@ -22,7 +22,7 @@ namespace Wombat.IndustrialCommunication
         public Parity Parity { get; set; } = Parity.None;
         public Handshake Handshake { get; set; } = Handshake.None;
 
-
+        private AsyncLock _lock = new AsyncLock();
 
         /// <summary>
         /// 串行端口对象
@@ -261,20 +261,23 @@ namespace Wombat.IndustrialCommunication
             OperationResult<byte[]> sendPackage()
             {
                 //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
-                _serialPort.Write(command, 0, command.Length);
-                if (Logger?.MinimumLevel >= LogEventLevel.Debug)
+                using (_lock.Lock())
                 {
-                    string printSend = $"{_serialPort.PortName} send:";
-                    for (int i = 0; i < command.Length; i++)
+                    _serialPort.Write(command, 0, command.Length);
+                    if (Logger?.MinimumLevel >= LogEventLevel.Debug)
                     {
-                        printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
+                        string printSend = $"{_serialPort.PortName} send:";
+                        for (int i = 0; i < command.Length; i++)
+                        {
+                            printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
 
+                        }
+                        Logger?.Debug(printSend);
                     }
-                    Logger?.Debug(printSend);
-                }
 
-                //获取响应报文
-                return ReadBuffer();
+                    //获取响应报文
+                    return ReadBuffer();
+                }
             }
 
             OperationResult<byte[]> result = new OperationResult<byte[]>();
@@ -307,20 +310,23 @@ namespace Wombat.IndustrialCommunication
             async ValueTask<OperationResult<byte[]>> sendPackage()
             {
                 //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
-                await _serialPort.BaseStream.WriteAsync(command, 0, command.Length);
-                if (Logger?.MinimumLevel >= LogEventLevel.Debug)
+                using (await _lock.LockAsync())
                 {
-                    string printSend = $"{_serialPort.PortName} send:";
-                    for (int i = 0; i < command.Length; i++)
+                    await _serialPort.BaseStream.WriteAsync(command, 0, command.Length);
+                    if (Logger?.MinimumLevel >= LogEventLevel.Debug)
                     {
-                        printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
+                        string printSend = $"{_serialPort.PortName} send:";
+                        for (int i = 0; i < command.Length; i++)
+                        {
+                            printSend = printSend + " " + command[i].ToString("X").PadLeft(2, '0'); ;
 
+                        }
+                        Logger?.Debug(printSend);
                     }
-                    Logger?.Debug(printSend);
-                }
 
-                //获取响应报文
-                return await ReadBufferAsync();
+                    //获取响应报文
+                    return await ReadBufferAsync();
+                }
             }
 
             OperationResult<byte[]> result = new OperationResult<byte[]>();

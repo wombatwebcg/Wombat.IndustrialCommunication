@@ -82,7 +82,7 @@ namespace Wombat.IndustrialCommunication
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
                     byte[] resultData = new byte[responsePackage.Length];
                     Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
