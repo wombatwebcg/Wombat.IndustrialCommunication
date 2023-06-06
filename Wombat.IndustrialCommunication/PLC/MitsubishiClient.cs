@@ -61,6 +61,7 @@ namespace Wombat.IndustrialCommunication.PLC
             this._version = version;
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
+            DataFormat = EndianFormat.DCBA;
             IpEndPoint = new IPEndPoint(address, port);
             IsReverse = false;
             _lock = new AsyncLock();

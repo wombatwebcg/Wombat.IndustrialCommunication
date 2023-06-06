@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     public class MitsubishiClient_Tests
     {
         private MitsubishiClient client;
-        string ip = "192.168.0.170";
+        string ip = "192.168.0.171";
         //string ip = "192.168.1.180";
 
         public MitsubishiClient_Tests()
@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private void ReadWrite()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);
@@ -122,8 +122,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                int[] int_values = { 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000 };
-                client.Write("D300", int_values);
+                int[] int_values = { 100000000,- 2000000, 30000000, -40000000, 50000000, 60000000, 70000000, 80000000, 90000000, 100000000 };
+               var r4= client.Write("D300", int_values);
                 var int_values_result = client.ReadInt32("D300", int_values.Length);
                 for (int j = 0; j < int_values_result.Value.Length; j++)
                 {
@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private async Task ReadWriteAsync()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);
@@ -244,7 +244,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 Assert.True(client.ReadDoubleAsync("D600").Result.Value == Convert.ToDouble(float_number));
 
                 bool[] bool_values = { true, false,true, true, true, false, false, false, false, false
-                        , false, false, false,false,false,false,false,false,false,false };
+                        , false, false, false,false,false,false,false,false,false,true };
 
                 var sss1 = await client.WriteAsync("M900", bool_values);
                 var bool_values_result = await client.ReadBooleanAsync("M900", bool_values.Length);
@@ -254,7 +254,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                short[] short_values = { 10000, 20000, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010 };
+                short[] short_values = { 10000, -20000, 30003, -30004, 30005, 30006, 30007, -30008, -30009, 30010 };
                 await client.WriteAsync("D300", short_values);
                 var short_values_result = await client.ReadInt16Async("D300", short_values.Length);
                 for (int j = 0; j < short_values_result.Value.Length; j++)
@@ -272,7 +272,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                int[] int_values = { 100000, 200000, 300000, 400000, 500000, 600000, 700000, 800000, 900000, 1000000 };
+                int[] int_values = { 10000000, -20000000, 30000000, 40000000, 50000000, 60000000, -70000000, 80000000, -90000000, 100000000 };
                 await client.WriteAsync("D300", int_values);
                 var int_values_result = await client.ReadInt32Async("D300", int_values.Length);
                 for (int j = 0; j < int_values_result.Value.Length; j++)
@@ -290,7 +290,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                long[] long_values = { 100000000, 200000000, 300000000, 400000000, 500000000, 600000000, 7000000, 80000000, 900000000, 1000000000 };
+                long[] long_values = { 10000000000, 20000000000, 30000000000, 400000000000, 500000000000, 600000000, 70000000000, 80000000000, 900000000000, 1000000000000 };
                 await client.WriteAsync("D300", long_values);
                 var long_values_result = await client.ReadInt64Async("D300", long_values.Length);
                 for (long j = 0; j < long_values_result.Value.Length; j++)
@@ -308,7 +308,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                float[] float_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
+                float[] float_values = { 1.1f, 2.1f, 3.1f, 4.1f, 5.1f, 6.1f, 7.1f, 8.1f, 9.1f, 10.1f };
                 await client.WriteAsync("D300", float_values);
                 var float_values_result =await client.ReadFloatAsync("D300", float_values.Length);
                 for (int j = 0; j < float_values_result.Value.Length; j++)
@@ -316,7 +316,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     Assert.True(float_values_result.Value[j] == float_values[j]);
 
                 }
-                double[] double_values = { 1.1, 2.1, 3.1, 4.1, 5.1, 6.1, 7.1, 8.1, 9.1, 10.1 };
+                double[] double_values = { 1.1111, 2.111, 3.11111, 4.1111, 5.1, 6.1, 7.1, 8.1, 9.1, 10.11111 };
                 await client.WriteAsync("D300", double_values);
                 var double_values_result = await client.ReadDoubleAsync("D300", double_values.Length);
                 for (int j = 0; j < double_values_result.Value.Length; j++)

@@ -19,14 +19,13 @@ namespace Wombat.IndustrialCommunication
     {
         ILog Logger { get; set; }
 
-        EndianFormat DataFormat { get; set; }
-
         TimeSpan Timeout { get; set; }
 
         TimeSpan ReceiveTimeout { get; set; }
 
         TimeSpan SendTimeout { get; set; }
 
+        EndianFormat DataFormat { get; set; }
 
         TimeSpan WaiteInterval { get; set; }
 
