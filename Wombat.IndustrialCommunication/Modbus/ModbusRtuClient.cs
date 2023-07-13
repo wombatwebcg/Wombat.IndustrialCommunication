@@ -27,6 +27,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ModbusRtuClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None)
             : base(portName,baudRate,dataBits,stopBits,parity,handshake)
         {
+
         }
 
 

@@ -152,6 +152,16 @@ namespace Wombat.IndustrialCommunication
             };
         }
 
+        public static OperationResult CreateFailedResult(string message)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = message
+            };
+        }
+
 
         /// <summary>
         /// 创建并返回一个成功的结果对象，并带有一个参数对象
@@ -294,6 +304,22 @@ namespace Wombat.IndustrialCommunication
                 Message = StringResources.Language.SuccessText,
             };
         }
+
+
+        /// <summary>
+        /// 创建并返回一个成功的结果对象
+        /// </summary>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult CreateSuccessResult(string message)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Message = message,
+            };
+        }
+
 
         /// <summary>
         /// 创建并返回一个成功的结果对象，并带有一个参数对象

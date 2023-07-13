@@ -16,6 +16,9 @@ namespace Wombat.IndustrialCommunication.PLC
     /// </summary>
     public class MitsubishiClient : PLCEthernetBase
     {
+
+
+
         /// <summary>
         /// 版本
         /// </summary>
@@ -900,15 +903,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
             if (isBit)
             {
-                if(data.Length<2)
-                {
-                    length = 1;
-
-                }
-                else
-                {
-                    length = data.Length * 2;
-                }
+                length = data.Length < 2 ? 1 : data.Length * 2;
             }
 
             byte[] command = new byte[21 + data.Length];
@@ -1276,6 +1271,15 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             return addressInfo;
         }
+
+
+
+
+
+
+
+
+
         #endregion
 
         #region TODO

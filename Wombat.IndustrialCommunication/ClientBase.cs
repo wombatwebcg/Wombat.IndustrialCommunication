@@ -23,7 +23,7 @@ namespace Wombat.IndustrialCommunication
 
         public ILog Logger { get; set; }
 
-        public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(1500);
+        public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
         public TimeSpan WaiteInterval { get; set; } = TimeSpan.FromMilliseconds(10);
 
@@ -68,7 +68,7 @@ namespace Wombat.IndustrialCommunication
 
         public int OperationReTryTimes { get; set; } = 2;
 
-        public EndianFormat DataFormat { get; set; } = EndianFormat.ABCD;
+        public EndianFormat DataFormat { get; set; } = EndianFormat.BADC;
 
         public bool IsReverse { get; set; } = true;
 

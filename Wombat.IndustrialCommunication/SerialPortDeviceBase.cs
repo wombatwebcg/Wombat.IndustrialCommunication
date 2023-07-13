@@ -85,6 +85,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         internal override async Task<OperationResult> DoConnectAsync()
         {
+
             _serialPort?.Close();
             _serialPort = new SerialPort();
             _serialPort.PortName = PortName ?? throw new ArgumentNullException(nameof(PortName));
