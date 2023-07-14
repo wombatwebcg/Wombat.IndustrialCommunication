@@ -7,6 +7,9 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
+    /// <summary>
+    /// 三菱PLC编程串口(rs232)通讯协议(一次最好别读超过10个byte)
+    /// </summary>
     public class MitsubishiFxSerialClient : PLCSerialPortBase
     {
         private AsyncLock _lock;
@@ -17,7 +20,6 @@ namespace Wombat.IndustrialCommunication.PLC
             _lock = new AsyncLock();
             IsReverse = false;
             DataFormat = EndianFormat.DCBA;
-
             PortName = portName;
             BaudRate = baudRate;
             DataBits = dataBits;
@@ -35,17 +37,200 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public override string Version => "FXProgramPort";
 
+        public override OperationResult<bool> ReadBoolean(string address)
+        {
+            var readResut = Read(address, 1, isBit: true);
+            var result = new OperationResult<bool>(readResut);
+            if (result.IsSuccess)
+            {
+                int offest = int.Parse(address.Substring(1)) % 8;
+                result.Value = readResut.Value.ToBool(0, 8)[offest];
+            }
+
+            return result.Complete();
+        }
+
+        public override async ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
+        {
+            var readResut =await ReadAsync(address, 1, isBit: true);
+            var result = new OperationResult<bool>(readResut);
+            if (result.IsSuccess)
+            {
+                int offest = int.Parse(address.Substring(1)) % 8;
+                result.Value = readResut.Value.ToBool(0, 8)[offest];
+            }
+
+            return result.Complete();
+
+        }
+
+        public override OperationResult<bool[]> ReadBoolean(string address, int length)
+        {
+            var readResut = Read(address, length, isBit: true);
+            var result = new OperationResult<bool[]>(readResut);
+            if (result.IsSuccess)
+            {
+                int index = int.Parse(address.Substring(1))%8;
+                result.Value = new bool[length];
+                bool[] resultSet = readResut.Value.ToBool(0, readResut.Value.Length * 8);
+                Array.Copy(resultSet, index, result.Value, 0, length);
+            }
+            return result.Complete();
+
+        }
+
+        public override async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
+        {
+            var readResut = await ReadAsync(address, length, isBit: true);
+            var result = new OperationResult<bool[]>(readResut);
+            if (result.IsSuccess)
+            {
+                int index = int.Parse(address.Substring(1)) % 8;
+                result.Value = new bool[length];
+                bool[] resultSet = readResut.Value.ToBool(0, readResut.Value.Length * 8);
+                Array.Copy(resultSet, index, result.Value, 0, length);
+            }
+
+            return result.Complete();
+
+        }
+
+
+        [Obsolete(("该方法并没实现"))]
+        public override  OperationResult Write(string address, bool[] value)
+        {
+            throw new Exception("暂不支持");
+
+        }
+
+        [Obsolete(("该方法并没实现"))]
+        public override Task<OperationResult> WriteAsync(string address, bool[] value)
+        {
+            throw new Exception("暂不支持");
+
+        }
+
         public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
-            throw new NotImplementedException();
+            using (_lock.Lock())
+            {
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        return new OperationResult<byte[]>(connectResult).Complete();
+                    }
+
+                }
+                var result = new OperationResult<byte[]>() {IsSuccess = false };
+                try
+                {
+                    //发送读取信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+
+                    arg = ConvertArgFx(address);
+                    command = GetReadCommand(arg.BeginAddress, arg.TypeChar, (ushort)length, isBit);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    sendResult = InterpretAndExtractMessageData(command);
+                    if (!sendResult.IsSuccess) return sendResult;
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (!CheckReadResponse(dataPackage).IsSuccess) { return result; }
+
+                    var bufferLength = length;
+                    byte[] responseValue = new byte[(dataPackage.Length - 4) / 2];
+                    for (int i = 0; i < responseValue.Length; i++)
+                    {
+                        byte[] buffer = new byte[2];
+                        buffer[0] = dataPackage[i * 2 + 1];
+                        buffer[1] = dataPackage[i * 2 + 2];
+
+                        responseValue[i] = Convert.ToByte(Encoding.ASCII.GetString(buffer), 16);
+                    }
+                    result.Value = responseValue;
+                    result.IsSuccess = true;
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                    result.Exception = ex;
+                    _serialPort?.Close();
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
+            }
         }
 
-        public override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        public override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
-            throw new NotImplementedException();
+            using (await _lock.LockAsync())
+            {
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        return new OperationResult<byte[]>(connectResult).Complete();
+                    }
+
+                }
+                var result = new OperationResult<byte[]>() { IsSuccess = false };
+                try
+                {
+                    //发送读取信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+
+                    arg = ConvertArgFx(address);
+                    command = GetReadCommand(arg.BeginAddress, arg.TypeChar, (ushort)length, isBit);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    sendResult = await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess) return sendResult;
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (!CheckReadResponse(dataPackage).IsSuccess) { return result; }
+
+                    var bufferLength = length;
+                    byte[] responseValue = new byte[(dataPackage.Length - 4) / 2];
+                    for (int i = 0; i < responseValue.Length; i++)
+                    {
+                        byte[] buffer = new byte[2];
+                        buffer[0] = dataPackage[i * 2 + 1];
+                        buffer[1] = dataPackage[i * 2 + 2];
+
+                        responseValue[i] = Convert.ToByte(Encoding.ASCII.GetString(buffer), 16);
+                    }
+                    result.Value = responseValue;
+                    result.IsSuccess = true;
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                    result.Exception = ex;
+                    _serialPort?.Close();
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
         }
 
-        public override OperationResult Write(string address, byte[] data, bool isBit = false)
+        public override  OperationResult Write(string address, byte[] data, bool isBit = false)
         {
             using (_lock.Lock())
             {
@@ -57,17 +242,16 @@ namespace Wombat.IndustrialCommunication.PLC
                         return connectResult.Complete();
                     }
                 }
-                OperationResult result = new OperationResult();
+                OperationResult result = new OperationResult() {IsSuccess = false };
                 try
                 {
                     //发送写入信息
                     MitsubishiMCAddress arg = null;
                     byte[] command = null;
                     arg = ConvertArgFx(address);
-                    command = GetWriteCommand(arg.BeginAddress,arg.TypeCode,data,isBit);
+                    command = GetWriteCommand(arg.BeginAddress,arg.TypeChar,data,isBit);
                     result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-
-                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
                     sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
@@ -75,6 +259,11 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     byte[] dataPackage = sendResult.Value;
                     result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if(CheckWriteResponse(dataPackage).IsSuccess)
+                    {
+                        result.IsSuccess = true;
+                        return result.Complete();
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -92,9 +281,55 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
-            throw new NotImplementedException();
+            using (await _lock.LockAsync())
+            {
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return connectResult.Complete();
+                    }
+                }
+                OperationResult result = new OperationResult() { IsSuccess = false };
+                try
+                {
+                    //发送写入信息
+                    MitsubishiMCAddress arg = null;
+                    byte[] command = null;
+                    arg = ConvertArgFx(address);
+                    command = GetWriteCommand(arg.BeginAddress, arg.TypeChar, data, isBit);
+                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
+                    sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return sendResult;
+                    }
+                    byte[] dataPackage = sendResult.Value;
+                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    if (CheckWriteResponse(dataPackage).IsSuccess)
+                    {
+                        result.IsSuccess = true;
+                        return result.Complete();
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                    result.Exception = ex;
+                    _serialPort?.Close();
+                }
+
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
         }
 
 
@@ -113,45 +348,34 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 case 'X'://X输入寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0x9C, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0x9C };
                         addressInfo.BitType = 0x01;
                         addressInfo.Format = 8;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
-                        addressInfo.BeginAddress = (ushort)(addressInfo.BeginAddress + 0x0400);
                     }
                     break;
                 case 'Y'://Y输出寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0x9D, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0x9D };
                         addressInfo.BitType = 0x01;
                         addressInfo.Format = 8;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
-                        addressInfo.BeginAddress = (ushort)(addressInfo.BeginAddress + 0x0500);
                     }
                     break;
                 case 'M'://M中间寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0x90, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0x90 };
                         addressInfo.BitType = 0x01;
                         addressInfo.Format = 10;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
-                        if (addressInfo.BeginAddress >= 8000)
-                        {
-                            addressInfo.BeginAddress = (ushort)((addressInfo.BeginAddress - 8000) / 8 + 0x01E0);
-                        }
-                        else
-                        {
-                            addressInfo.BeginAddress = (ushort)(addressInfo.BeginAddress / 8 + 0x0100);
-                        }
-
                     }
                     break;
                 case 'S'://S状态寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0x98, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0x98 };
                         addressInfo.BitType = 0x01;
                         addressInfo.Format = 10;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
@@ -160,25 +384,16 @@ namespace Wombat.IndustrialCommunication.PLC
                     break;
                 case 'D'://D数据寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0xA8, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0xA8 };
                         addressInfo.BitType = 0x00;
                         addressInfo.Format = 10;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
-                        if (addressInfo.BeginAddress >= 8000)
-                        {
-                            addressInfo.BeginAddress = (ushort)((addressInfo.BeginAddress - 8000) * 2 + 0x0E00);
-                        }
-                        else
-                        {
-                            addressInfo.BeginAddress = (ushort)(addressInfo.BeginAddress * 2 + 0x1000);
-                        }
-
                     }
                     break;
                 case 'R'://R文件寄存器
                     {
-                        addressInfo.TypeCode = new byte[] { 0xAF, 0x20 };
+                        addressInfo.TypeCode = new byte[] { 0xAF };
                         addressInfo.BitType = 0x00;
                         addressInfo.Format = 10;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
@@ -191,141 +406,175 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
 
-
-        private byte[] GetWriteCommand(int beginAddress, byte[] typeCode, byte[] data, bool isBit)
+        /// <summary>
+        /// 获取A_1E读取命令
+        /// </summary>
+        /// <param name="beginAddress"></param>
+        /// <param name="typeCode"></param>
+        /// <param name="length"></param>
+        /// <param name="isBit"></param>
+        /// <returns></returns>
+        protected byte[] GetReadCommand(int beginAddress, string typeChar, ushort length, bool isBit)
         {
-            byte[] _PLCCommand = new byte[9];
-            var length = data.Length / 2;
-            byte[] startAddressBytes = beginAddress.ToByte(format:EndianFormat.CDAB);
+            ushort factLength = 1;
+            switch (typeChar)
+            {
+                case "X": beginAddress = (ushort)(beginAddress / 8 + 0x0080); break;
+                case "Y": beginAddress = (ushort)(beginAddress / 8 + 0x00A0); break;
+                case "M"://M中间寄存器
+                    {
+                        if (beginAddress >= 8000)
+                        {
+                            beginAddress = (ushort)((beginAddress - 8000) / 8 + 0x01E0);
+                        }
+                        else
+                        {
+                            beginAddress = (ushort)(beginAddress / 8 + 0x0100);
+                        }
+                    }
+                    break;
+                case "S": beginAddress = (ushort)(beginAddress / 8 + 0x0000); break;
+                case "D"://D数据寄存器
+                    if (beginAddress >= 8000)
+                    {
+                        beginAddress = (ushort)((beginAddress - 8000) * 2 + 0x0E00);
+                    }
+                    else
+                    {
+                        beginAddress = (ushort)(beginAddress * 2 + 0x1000);
+                    }
+                    break;
+            }
+            byte[] address = address = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"));
+            byte[] PLCCommand = new byte[11];
             if (isBit)
             {
-                length = data.Length < 2 ? 1 : data.Length * 2;
-                if (length == 1)
-                {
-                    _PLCCommand[0] = 0x02;                         // STX
-                    _PLCCommand[1] = data[0] > 0 ? (byte)0x37 : (byte)0x38;  // Read
-                    _PLCCommand[2] = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"))[2];         // 偏移地址
-                    _PLCCommand[3] = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"))[3];
-                    _PLCCommand[4] = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"))[0];
-                    _PLCCommand[5] = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"))[1];
-                    _PLCCommand[6] = 0x03;                                      // ETX
-                    FxCalculateCRC(_PLCCommand).CopyTo(_PLCCommand, 7);         // CRC
-                }
+                // 计算下实际需要读取的数据长度
+                factLength = (ushort)((beginAddress + length - 1) / 8 - (beginAddress / 8) + 1);
+                PLCCommand[0] = 0x02;                                                    // STX
+                PLCCommand[1] = 0x30;                                                    // Read
+                PLCCommand[2] = address[0];      // 偏移地址
+                PLCCommand[3] = address[1];
+                PLCCommand[4] = address[2];
+                PLCCommand[5] = address[3];
+                PLCCommand[6] = Encoding.ASCII.GetBytes(((byte)factLength).ToString("X2"))[0];          // Read Length
+                PLCCommand[7] = Encoding.ASCII.GetBytes(((byte)factLength).ToString("X2"))[1];
+                PLCCommand[8] = 0x03;                                                    // ETX
+                FxCalculateCRC(PLCCommand).CopyTo(PLCCommand, 9);      // CRC
             }
             else
             {
-
+                factLength = (ushort)(length);
+                address = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"));
+                PLCCommand[0] = 0x02;                                                    // STX
+                PLCCommand[1] = 0x30;                                                    // Read
+                PLCCommand[2] = address[0];      // 偏移地址
+                PLCCommand[3] = address[1];
+                PLCCommand[4] = address[2];
+                PLCCommand[5] = address[3];
+                PLCCommand[6] = Encoding.ASCII.GetBytes(((byte)factLength).ToString("X2"))[0];          // Read Length
+                PLCCommand[7] = Encoding.ASCII.GetBytes(((byte)factLength).ToString("X2"))[1];
+                PLCCommand[8] = 0x03;                                                    // ETX
+                FxCalculateCRC(PLCCommand).CopyTo(PLCCommand, 9);      // CRC
             }
-            return _PLCCommand;
-
-
+            return PLCCommand;
         }
 
-        /// <summary>
-        /// 返回读取的地址及长度信息
-        /// </summary>
-        /// <param name="address">读取的地址信息</param>
-        /// <returns>带起始地址的结果对象</returns>
-        private static OperationResult<ushort> FxCalculateWordStartAddress(string address)
+        private byte[] GetWriteCommand(int beginAddress, string typeChar, byte[] data, bool isBit)
         {
-            // 初步解析，失败就返回
-            var analysis = FxAnalysisAddress(address);
-            if (!analysis.IsSuccess) return OperationResult.CreateFailedResult<ushort>(analysis);
+            byte[] PLCCommand = null;
+            byte[] address = null;
+            var length = data.Length / 2;
+            if (isBit && data.Length == 1&&data[0]<=1)
+            {
+                switch (typeChar)
+                {
+                    case "X": beginAddress = (ushort)(beginAddress + 0x0400); break;
+                    case "Y": beginAddress = (ushort)(beginAddress + 0x0500); break;
+                    case "M"://M中间寄存器                           
+                        if (beginAddress >= 8000)
+                        {
+                            beginAddress = (ushort)(beginAddress - 8000 + 0x0F00);
+                        }
+                        else
+                        {
+                            beginAddress = (ushort)(beginAddress + 0x0800);
+                        }
 
-            // 二次解析
-            ushort startAddress = analysis.Content2;
-            if (analysis.Content1 == MelsecMcDataType.D)
-            {
-                if (startAddress >= 8000)
-                {
-                    startAddress = (ushort)((startAddress - 8000) * 2 + 0x0E00);
+                        break;
+                    case "S": beginAddress = (ushort)(beginAddress + 0x0000); break;
+
                 }
-                else
-                {
-                    startAddress = (ushort)(startAddress * 2 + 0x1000);
-                }
-            }
-            else if (analysis.Content1 == MelsecMcDataType.CN)
-            {
-                if (startAddress >= 200)
-                {
-                    startAddress = (ushort)((startAddress - 200) * 4 + 0x0C00);
-                }
-                else
-                {
-                    startAddress = (ushort)(startAddress * 2 + 0x0A00);
-                }
-            }
-            else if (analysis.Content1 == MelsecMcDataType.TN)
-            {
-                startAddress = (ushort)(startAddress * 2 + 0x0800);
+                address = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"));
+                PLCCommand = new byte[9];
+                PLCCommand[0] = 0x02;                         // STX
+                PLCCommand[1] = data[0] > 0 ? (byte)0x37 : (byte)0x38;  // Read
+                PLCCommand[2] = address[2];         // 偏移地址
+                PLCCommand[3] = address[3];
+                PLCCommand[4] = address[0];
+                PLCCommand[5] = address[1];
+                PLCCommand[6] = 0x03;                                      // ETX
+                FxCalculateCRC(PLCCommand).CopyTo(PLCCommand, 7);         // CRC
             }
             else
             {
-                return new OperationResult<ushort>(StringResources.Language.MelsecCurrentTypeNotSupportedWordOperate);
-            }
+                switch (typeChar)
+                {
+                    case "X": beginAddress = (ushort)(beginAddress / 8 + 0x0080); break;
+                    case "Y": beginAddress = (ushort)(beginAddress / 8 + 0x00A0); break;
+                    case "M"://M中间寄存器
+                        {
+                            if (beginAddress >= 8000)
+                            {
+                                beginAddress = (ushort)((beginAddress - 8000) / 8 + 0x01E0);
+                            }
+                            else
+                            {
+                                beginAddress = (ushort)(beginAddress / 8 + 0x0100);
+                            }
+                        }
+                        break;
+                    case "S": beginAddress = (ushort)(beginAddress / 8 + 0x0000); break;
+                    case "D"://D数据寄存器
+                        if (beginAddress >= 8000)
+                        {
+                            beginAddress = (ushort)((beginAddress - 8000) * 2 + 0x0E00);
+                        }
+                        else
+                        {
+                            beginAddress = (ushort)(beginAddress * 2 + 0x1000);
+                        }
+                        break;
+                }
+                address = Encoding.ASCII.GetBytes(beginAddress.ToString("X4"));
+                byte[] buffer = new byte[data.Length * 2];
+                if (data != null)
+                {
+                    for (int i = 0; i < data.Length; i++)
+                    {
+                        Encoding.ASCII.GetBytes(data[i].ToString("X2")).CopyTo(buffer, 2 * i);
+                    }
+                }
+                var factLength = Encoding.ASCII.GetBytes(((byte)(buffer.Length / 2)).ToString("X2"));
+                PLCCommand = new byte[11 + buffer.Length];
+                PLCCommand[0] = 0x02;                                                                    // STX
+                PLCCommand[1] = 0x31;                                                                    // Read
+                PLCCommand[2] = address[0];                      // Offect Address
+                PLCCommand[3] = address[1];
+                PLCCommand[4] = address[2];
+                PLCCommand[5] = address[3];
+                PLCCommand[6] = factLength[0];          // Read Length
+                PLCCommand[7] = factLength[1];
+                Array.Copy(buffer, 0, PLCCommand, 8, buffer.Length);
+                PLCCommand[PLCCommand.Length - 3] = 0x03;                                               // ETX
+                FxCalculateCRC(PLCCommand).CopyTo(PLCCommand, PLCCommand.Length - 2); // CRC
 
-            return OperationResult.CreateSuccessResult(startAddress);
+            }
+            return PLCCommand;
+
+
         }
 
-        /// <summary>
-        /// 返回读取的地址及长度信息，以及当前的偏置信息
-        /// </summary><param name="address">读取的地址信息</param>
-        /// <returns>带起始地址的结果对象</returns>
-        private static OperationResult<ushort, ushort, ushort> FxCalculateBoolStartAddress(string address)
-        {
-            // 初步解析
-            var analysis = FxAnalysisAddress(address);
-            if (!analysis.IsSuccess) return OperationResult.CreateFailedResult<ushort, ushort, ushort>(analysis);
-
-            // 二次解析
-            ushort startAddress = analysis.Content2;
-            if (analysis.Content1 == MelsecMcDataType.M)
-            {
-                if (startAddress >= 8000)
-                {
-                    startAddress = (ushort)((startAddress - 8000) / 8 + 0x01E0);
-                }
-                else
-                {
-                    startAddress = (ushort)(startAddress / 8 + 0x0100);
-                }
-            }
-            else if (analysis.Content1 == MelsecMcDataType.X)
-            {
-                startAddress = (ushort)(startAddress / 8 + 0x0080);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.Y)
-            {
-                startAddress = (ushort)(startAddress / 8 + 0x00A0);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.S)
-            {
-                startAddress = (ushort)(startAddress / 8 + 0x0000);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.CS)
-            {
-                startAddress += (ushort)(startAddress / 8 + 0x01C0);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.CC)
-            {
-                startAddress += (ushort)(startAddress / 8 + 0x03C0);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.TS)
-            {
-                startAddress += (ushort)(startAddress / 8 + 0x00C0);
-            }
-            else if (analysis.Content1 == MelsecMcDataType.TC)
-            {
-                startAddress += (ushort)(startAddress / 8 + 0x02C0);
-            }
-            else
-            {
-                return new OperationResult<ushort, ushort, ushort>(StringResources.Language.MelsecCurrentTypeNotSupportedBitOperate);
-            }
-
-            return OperationResult.CreateSuccessResult(startAddress, analysis.Content2, (ushort)(analysis.Content2 % 8));
-        }
 
 
         /// <summary>
@@ -343,13 +592,13 @@ namespace Wombat.IndustrialCommunication.PLC
             return Encoding.ASCII.GetBytes(((byte)sum).ToString("X2")); 
         }
 
-        internal OperationResult CheckResponse(byte[] ack,bool isCheckCrc)
-        {
-            if (ack.Length == 0) return OperationResult.CreateFailedResult(StringResources.Language.MelsecFxReceiveZore);
-            if (ack[0] == 0x15)  return OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckNagative + " Actual: " + ack.ToHexString());
-            if (ack[0] != 0x02)  return OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckWrong + ack[0] + " Actual: " + ack.ToHexString());
 
-            if(isCheckCrc) if (!checkCRC(ack)) return OperationResult.CreateFailedResult(StringResources.Language.MelsecFxCrcCheckFailed);
+        internal OperationResult CheckReadResponse(byte[] ack)
+        {
+            if (ack.Length == 0) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxReceiveZore);
+            if (ack[0] == 0x15) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckNagative + " Actual: " + ack.ToHexString());
+            if (ack[0] != 0x02) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckWrong + ack[0] + " Actual: " + ack.ToHexString());
+            if (!checkCRC(ack)) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxCrcCheckFailed);
             return OperationResult.CreateSuccessResult();
 
             bool checkCRC(byte[] data)
@@ -359,6 +608,16 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (crc[1] != data[data.Length - 1]) return false;
                 return true;
             }
+
+        }
+
+        internal OperationResult CheckWriteResponse(byte[] ack)
+        {
+            if (ack.Length == 0) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxReceiveZore);
+            if (ack[0] == 0x15) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckNagative + " Actual: " + ack.ToHexString());
+            if (ack[0] != 0x06) OperationResult.CreateFailedResult(StringResources.Language.MelsecFxAckWrong + ack[0] + " Actual: " + ack.ToHexString());
+
+            return OperationResult.CreateSuccessResult();
         }
 
     }
