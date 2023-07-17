@@ -997,7 +997,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         addressInfo.TypeCode = new byte[] { 0x9C };
                         addressInfo.BitType = 0x01;
-                        addressInfo.Format = 16;
+                        addressInfo.Format = 8;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
                     }
@@ -1006,7 +1006,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         addressInfo.TypeCode = new byte[] { 0x9D };
                         addressInfo.BitType = 0x01;
-                        addressInfo.Format = 16;
+                        addressInfo.Format = 8;
                         addressInfo.BeginAddress = Convert.ToInt32(address.Substring(1), addressInfo.Format);
                         addressInfo.TypeChar = address.Substring(0, 1);
                     }

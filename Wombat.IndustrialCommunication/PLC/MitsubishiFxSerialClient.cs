@@ -96,19 +96,52 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        [Obsolete(("该方法并没实现"))]
+        [Obsolete(("慎用,由单个字写入封装"))]
         public override  OperationResult Write(string address, bool[] value)
         {
-            throw new Exception("暂不支持");
+            var args = ConvertArgFx(address);
+            for (int i = 0; i < value.Length; i++)
+            {
+                var result = Write($"{args.TypeChar}{Convert.ToString(args.BeginAddress + i, args.Format)}", value[i]).Complete();
+                if (result.IsSuccess)
+                {
+                    continue;
+                }
+                else
+                {
+                    return result;
+                }
+            }
+            return OperationResult.CreateSuccessResult();
+
+
+            //throw new Exception("暂不支持");
 
         }
 
-        [Obsolete(("该方法并没实现"))]
-        public override Task<OperationResult> WriteAsync(string address, bool[] value)
+        [Obsolete(("慎用,由单个字写入封装"))]
+        public override async Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            throw new Exception("暂不支持");
+            var args = ConvertArgFx(address);
+            for (int i = 0; i < value.Length; i++)
+            {
+                var result =await WriteAsync($"{args.TypeChar}{Convert.ToString(args.BeginAddress + i, args.Format)}", value[i]);
+                if (result.IsSuccess)
+                {
+                    continue;
+                }
+                else
+                {
+                    return result.Complete();
+                }
+            }
+            return OperationResult.CreateSuccessResult();
+
+            //throw new Exception("暂不支持");
 
         }
+
+
 
         public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
