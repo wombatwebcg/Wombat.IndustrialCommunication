@@ -16,7 +16,8 @@ namespace Wombat.IndustrialCommunication.Modbus
     public abstract class ModbusSocketBase : ModbusEthernetDeviceBase
     {
 
-        private AsyncLock _lock;
+        private AsyncLock _lock = new AsyncLock();
+
 
 
 
@@ -33,7 +34,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="plcAddresses">PLC地址</param>
         public ModbusSocketBase()
         {
-            _lock = new AsyncLock();
         }
 
 
@@ -49,7 +49,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ModbusSocketBase(IPEndPoint ipAndPoint)
         {
             IpEndPoint = ipAndPoint;
-            _lock = new AsyncLock();
         }
 
         /// <summary>
@@ -65,7 +64,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
             IpEndPoint = new IPEndPoint(address, port);
-            _lock = new AsyncLock();
         }
 
 

@@ -18,7 +18,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public override bool Connected => _serialPort == null ? false : _serialPort.IsOpen;
 
 
-        private AsyncLock _lock;
+        private AsyncLock _lock =  new AsyncLock();
 
         /// <summary>
         /// 是否自动打开关闭
@@ -28,7 +28,6 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public ModbusSerialPortBase()
         {
-            _lock = new AsyncLock();
         }
 
         /// <summary>
