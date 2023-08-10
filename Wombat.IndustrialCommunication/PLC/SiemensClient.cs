@@ -121,13 +121,14 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 //超时时间设置
                 _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
+
                 _socket.SocketConfiguration.ReceiveBufferSize = 1024;
                 _socket.SocketConfiguration.SendBufferSize = 1024;
                 _socket.Connect(IpEndPoint);
 
                 //连接
                 //socket.Connect(IpEndPoint);
-                _socket.SocketConfiguration.SendTimeout = Timeout;
                 //阻塞当前线程           
 
                 var Command1 = SiemensConstant.Command1;
@@ -224,13 +225,13 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 //超时时间设置
                 _socket.SocketConfiguration.ReceiveTimeout = Timeout;
+                _socket.SocketConfiguration.SendTimeout = Timeout;
                 _socket.SocketConfiguration.ReceiveBufferSize = 1024;
                 _socket.SocketConfiguration.SendBufferSize = 1024;
                 _socket.Connect(IpEndPoint);
 
                 //连接
                 //socket.Connect(IpEndPoint);
-                _socket.SocketConfiguration.SendTimeout = Timeout;
                 //阻塞当前线程           
 
                 var Command1 = SiemensConstant.Command1;
