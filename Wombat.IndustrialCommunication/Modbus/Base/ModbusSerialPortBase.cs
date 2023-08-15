@@ -129,6 +129,63 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
+        public virtual OperationResult<byte[]> Read(byte[] command)
+        {
+            using (_lock.Lock())
+            {
+                var result = new OperationResult<byte[]>();
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+
+                    //发送命令并获取响应报文
+                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var responsePackage = sendResult.Value;
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+
+                    byte[] resultData = new byte[responsePackage.Length - 2 - 3];
+                    Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
+                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    //4 获取响应报文数据（字节数组形式）                
+                    result.Value = resultData.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
+            }
+        }
+
 
         public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
         {
@@ -194,6 +251,65 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return result.Complete();
             }
         }
+
+        public virtual async Task<OperationResult<byte[]>> ReadAsync(byte[] command)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult<byte[]>();
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    //获取命令（组装报文）
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+
+                    //发送命令并获取响应报文
+                    var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var responsePackage = sendResult.Value;
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+
+                    byte[] resultData = new byte[responsePackage.Length - 2 - 3];
+                    Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
+                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    //4 获取响应报文数据（字节数组形式）                
+                    result.Value = resultData.ToArray();
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
+
 
         #endregion
 
@@ -336,8 +452,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-
-
         public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0X0F, bool isPlcAddress = false)
         {
             using (_lock.Lock())
@@ -460,6 +574,59 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
+        public virtual async Task<OperationResult> WriteAsync(byte[] command)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    //发送命令并获取响应报文
+                    var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var responsePackage = sendResult.Value;
+
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+                    byte[] resultBuffer = new byte[responsePackage.Length - 2];
+                    Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
+                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) await DisconnectAsync();
+                }
+                return result.Complete();
+            }
+        }
 
         /// <summary>
         /// 写入
@@ -583,6 +750,60 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = ModbusHelper.ErrMsg(responsePackage[2]);
+                    }
+                    byte[] resultBuffer = new byte[responsePackage.Length - 2];
+                    Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
+                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = ex.Message;
+                }
+                finally
+                {
+                    if (!IsUseLongConnect) Disconnect();
+                }
+                return result.Complete();
+            }
+        }
+
+
+        public virtual OperationResult Write(byte[] command)
+        {
+            using (_lock.Lock())
+            {
+                var result = new OperationResult();
+                if (!_serialPort?.IsOpen ?? true)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    if (!sendResult.IsSuccess)
+                    {
+                        return result.SetInfo(sendResult).Complete();
+                    }
+                    var responsePackage = sendResult.Value;
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
