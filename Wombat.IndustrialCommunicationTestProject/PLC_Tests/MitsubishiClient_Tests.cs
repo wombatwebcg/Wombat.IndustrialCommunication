@@ -37,6 +37,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
             client.Connect();
             client.IsUseLongConnect = true;
+         var sss =   client.Disconnect();
 
             ReadWrite();
 
@@ -46,7 +47,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private void ReadWrite()
         {
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 10; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 int int_number = rnd.Next(int.MinValue, int.MaxValue);

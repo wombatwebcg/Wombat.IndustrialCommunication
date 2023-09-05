@@ -1,4 +1,6 @@
 ﻿
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Console;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -16,13 +18,20 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private IEthernetClient client;
         public SiemensClient_Tests()
         {
-
+          var loggerFactory = LoggerFactory.Create(builder =>
+            {
+                builder
+                    .AddFilter("Microsoft", LogLevel.Warning)
+                    .AddFilter("System", LogLevel.Warning)//CategoryName以System开头的所有日志输出级别为Warning
+                    .AddFilter<ConsoleLoggerProvider>("Wombat.Socket.TestTcpSocketServer", LogLevel.Debug)
+                    .AddConsole();//在loggerFactory中添加 ConsoleProvider
+            });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
             var ip = IPAddress.Parse("159.75.78.22");//20.205.243.166
-          var  port = 102;
+            var  port = 102;
             client = new SiemensClient(SiemensVersion.S7_200Smart, new IPEndPoint(ip, port));
-            client.UseLogger();
+            client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
         }
 
         [Fact]

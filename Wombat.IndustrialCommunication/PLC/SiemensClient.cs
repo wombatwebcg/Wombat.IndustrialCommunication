@@ -5,7 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using Wombat.Infrastructure;
 
-using Wombat.Core;
+
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;
 

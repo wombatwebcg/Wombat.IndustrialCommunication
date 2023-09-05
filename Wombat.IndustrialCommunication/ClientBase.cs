@@ -2,8 +2,8 @@
 using Serilog.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Wombat.Core;
 using Wombat.Infrastructure;
+
 
 
 namespace Wombat.IndustrialCommunication
@@ -21,7 +21,7 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        public ILog Logger { get; set; }
+        public ILogger Logger { get; set; }
 
         public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
@@ -39,10 +39,9 @@ namespace Wombat.IndustrialCommunication
 
 
 
-        public virtual void UseLogger()
+        public virtual void UseLogger(ILogger logger)
         {
-            LogHelper.Build();
-            Logger = new LoggerBuilder().UseConsoleLogger().UseFileLogger().CreateLogger();
+            Logger = logger;
         }
 
 

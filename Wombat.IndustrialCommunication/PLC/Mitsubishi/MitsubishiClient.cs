@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using Wombat.Infrastructure;
 using System.Threading.Tasks;
-using Wombat.Core;
+
 using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication.PLC

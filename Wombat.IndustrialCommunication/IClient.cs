@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-using Wombat.Core;
+
 
 
 namespace Wombat.IndustrialCommunication
@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunication
 
     public interface IClient
     {
-        ILog Logger { get; set; }
+        ILogger Logger { get; set; }
 
         TimeSpan Timeout { get; set; }
 
@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunication
 
         int OperationReTryTimes { get; set; }
 
-        void UseLogger();
+        void UseLogger(ILogger logger);
 
 
         bool IsUseLongConnect { get; set; }
