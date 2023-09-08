@@ -1033,7 +1033,17 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 2)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
+
                 result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1066,7 +1076,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, length: length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 2)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1117,7 +1136,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, (ushort)(2 * length), stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 4)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToInt32(0, length: length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1135,7 +1163,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, 2 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 4)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToUInt32(0, length: length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1153,7 +1190,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 8)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToInt64(0, length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1172,7 +1218,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 8)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToUInt64(0, length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1191,7 +1246,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, 2 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 4)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToFloat(0, length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
@@ -1210,7 +1274,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             var readResult = await ReadAsync(address: address, 4 * length, stationNumber: stationNumber, functionCode: functionCode, isPlcAddress: isPlcAddress);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
+            {
+                if (result.Value.Length != length * 8)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    return result.Complete();
+
+                }
                 result.Value = readResult.Value.ToDouble(0, length, format: DataFormat, reverse: IsReverse);
+            }
             return result.Complete();
         }
 
