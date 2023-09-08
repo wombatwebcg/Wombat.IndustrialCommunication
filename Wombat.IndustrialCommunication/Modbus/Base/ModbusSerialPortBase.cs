@@ -102,7 +102,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
                     else if (ModbusHelper.VerifyFunctionCode(functionCode, responsePackage[1]))
                     {
@@ -225,7 +225,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
                     else if (ModbusHelper.VerifyFunctionCode(functionCode, responsePackage[1]))
                     {
@@ -288,7 +288,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
 
                     byte[] resultData = new byte[responsePackage.Length - 2 - 3];
@@ -364,7 +364,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = ModbusHelper.ErrMsg(responsePackage[2]);
-                        return result.Complete();
+                        //return result.Complete();
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
@@ -428,7 +428,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
                     else if (ModbusHelper.VerifyFunctionCode(functionCode, responsePackage[1]))
                     {
@@ -609,7 +609,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        return result.Complete();
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);

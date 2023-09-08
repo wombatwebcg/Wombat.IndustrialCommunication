@@ -173,7 +173,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="socket">socket</param>
         /// <param name="receiveCount">读取长度</param>          
         /// <returns></returns>
-        internal virtual OperationResult<byte[]> ReadBuffer()
+        public virtual OperationResult<byte[]> ReadBuffer()
         {
             OperationResult<byte[]> result = new OperationResult<byte[]>();
             DateTime beginTime = DateTime.Now;
@@ -217,7 +217,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="socket">socket</param>
         /// <param name="receiveCount">读取长度</param>          
         /// <returns></returns>
-        internal virtual async ValueTask<OperationResult<byte[]>> ReadBufferAsync()
+        public virtual async ValueTask<OperationResult<byte[]>> ReadBufferAsync()
         {
             OperationResult<byte[]> result = new OperationResult<byte[]>();
             DateTime beginTime = DateTime.Now;
@@ -470,5 +470,17 @@ namespace Wombat.IndustrialCommunication
                 }
             }
         }
+
+
+        /// <summary>
+        /// 丢弃来自串行驱动程序的接收缓冲区的数据
+        /// </summary>
+        public void DiscardInBuffer() => _serialPort?.DiscardInBuffer();
+
+        /// <summary>
+        /// 丢弃来自串行驱动程序的传输缓冲区的数据
+        /// </summary>
+        public void DiscardOutBuffer() => _serialPort?.DiscardOutBuffer();
+
     }
 }
