@@ -41,10 +41,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 2)
+                if (readResult.Value.Length != length * 2)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -109,10 +109,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 2)
+                if (readResult.Value.Length != length * 2)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -182,10 +182,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -224,10 +224,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -265,10 +265,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -306,10 +306,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -347,10 +347,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -389,10 +389,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1034,10 +1034,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 2)
+                if (readResult.Value.Length != length * 2)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1077,10 +1077,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 2)
+                if (readResult.Value.Length != length * 2)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1137,10 +1137,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1164,10 +1164,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1191,10 +1191,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1219,10 +1219,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1247,10 +1247,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 4)
+                if (readResult.Value.Length != length * 4)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
@@ -1275,10 +1275,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
             {
-                if (result.Value.Length != length * 8)
+                if (readResult.Value.Length != length * 8)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"byte返回长度为{result.Value.Length},不能转换对应值";
+                    result.Message = $"byte返回长度为{readResult.Value.Length},不能转换对应值";
                     return result.Complete();
 
                 }
