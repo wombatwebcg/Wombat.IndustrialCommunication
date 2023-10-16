@@ -227,7 +227,7 @@ namespace Wombat.IndustrialCommunication
             {
                 tempBufferLength = _serialPort.BytesToRead;
                 //延时处理
-                Thread.Sleep(WaiteInterval);
+               await Task.Delay(WaiteInterval);
             }
             byte[] buffer = new byte[_serialPort.BytesToRead];
             var receiveFinish = 0;
