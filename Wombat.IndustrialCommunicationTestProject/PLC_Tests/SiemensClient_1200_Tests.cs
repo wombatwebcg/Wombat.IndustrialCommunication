@@ -7,6 +7,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
 using Wombat.Infrastructure;
 using Xunit;
@@ -28,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.0.50");//20.205.243.166
+            var ip = IPAddress.Parse("127.0.0.1");//20.205.243.166
             var  port = 102;
             client = new SiemensClient(SiemensVersion.S7_1200, new IPEndPoint(ip, port));
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
@@ -59,7 +60,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
 
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < 1000; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
@@ -83,6 +84,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 var tttt = client.ReadInt16("DB50");
                 Assert.True(client.ReadInt16("DB50").Value == short_number);
                 client.Write("DB50", short_number_1);
+                var tttt2 = client.ReadUInt16("DB50").Value;
                 Assert.True(client.ReadUInt16("DB50").Value == short_number_1);
 
                 client.Write("DB50", int_number);

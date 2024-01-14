@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.IO.Ports;
 using System.Net;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
@@ -21,7 +22,7 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
 
         public bool ShortToBit(int value, int index)
         {
-            var binaryArray = DataConvert.IntToBinaryArray(value, 16);
+            var binaryArray = DataTypeExtensions.IntToBinaryArray(value, 16);
             var length = binaryArray.Length - 16;
             return binaryArray[length + index].ToString() == "1";
         }

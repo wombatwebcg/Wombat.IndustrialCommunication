@@ -1,8 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
-
-
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {

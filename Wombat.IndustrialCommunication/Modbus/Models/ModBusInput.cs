@@ -2,6 +2,7 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

@@ -8,6 +8,7 @@ using Wombat.Infrastructure;
 
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

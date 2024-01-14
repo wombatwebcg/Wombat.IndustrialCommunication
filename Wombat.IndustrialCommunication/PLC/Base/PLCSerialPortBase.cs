@@ -4,6 +4,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -84,7 +85,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.Value = readResult.Value.ToBool(0, length,IsReverse);
             return result.Complete();
         }
 
@@ -94,7 +95,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = await ReadAsync(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.Value = readResult.Value.ToBool(0, length,IsReverse);
             return result.Complete();
         }
 
@@ -320,7 +321,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.Value = readResult.Value.ToInt32(0, length, DataFormat,IsReverse);
             return result.Complete();
         }
 
@@ -348,7 +349,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.ToInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -428,7 +429,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.ToUInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -509,7 +510,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.ToInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -589,7 +590,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.ToUInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -669,7 +670,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.ToFloat(0, DataFormat, IsReverse)
+                    Value = byteArry.ToFloat(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -750,7 +751,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.ToDouble(0, DataFormat, IsReverse)
+                    Value = byteArry.ToDouble(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -986,7 +987,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, int value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat,IsReverse));
         }
 
         /// <summary>
@@ -1262,12 +1263,12 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public OperationResult Write(string address, string value)
         {
-            return Write(address, value.ToByte(Encoding.ASCII, DataFormat, IsReverse));
+            return Write(address, value.ToByte(Encoding.ASCII));
         }
 
         public async Task<OperationResult> WriteAsync(string address, string value)
         {
-            return await WriteAsync(address, value.ToByte(Encoding.ASCII, DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(Encoding.ASCII));
         }
 
         /// <summary>

@@ -4,6 +4,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

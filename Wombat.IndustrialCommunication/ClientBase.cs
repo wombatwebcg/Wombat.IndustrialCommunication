@@ -2,6 +2,7 @@
 using Serilog.Extensions.Logging;
 using System;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.Infrastructure;
 
 
@@ -18,7 +19,6 @@ namespace Wombat.IndustrialCommunication
 
         public ClientBase()
         {
-
         }
 
         public ILogger Logger { get; set; }

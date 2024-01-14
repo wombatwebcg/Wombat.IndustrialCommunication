@@ -4,7 +4,7 @@ using System.IO.Ports;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.Infrastructure;
 
 namespace Wombat.IndustrialCommunication
@@ -280,6 +280,7 @@ namespace Wombat.IndustrialCommunication
                     result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToString(0,resultData.Length,encoding);
+                    
                 }
                 catch (Exception ex)
                 {

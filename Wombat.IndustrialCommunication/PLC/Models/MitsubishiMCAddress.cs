@@ -1,5 +1,7 @@
 ﻿
 
+using Wombat.Extensions.DataTypeExtensions;
+
 namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>

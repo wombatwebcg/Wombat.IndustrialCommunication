@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.Infrastructure;
 using Wombat.Network.Sockets;
 
@@ -98,7 +99,7 @@ namespace Wombat.IndustrialCommunication.PLC
            var readResult = await ReadAsync(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.Value = readResult.Value.ToBool(0, length,IsReverse);
             return result.Complete();
         }
 
@@ -339,7 +340,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var readResult =await ReadAsync(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.Value = readResult.Value.ToInt32(0, length, DataFormat,IsReverse);
             return result.Complete();
         }
 
@@ -352,7 +353,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.ToInt32(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -432,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.ToUInt32(0,  DataFormat, IsReverse)
+                    Value = byteArry.ToUInt32(0,  DataFormat)
             };
             }
             catch (Exception ex)
@@ -513,7 +514,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.ToInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -593,7 +594,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.ToUInt64(0, DataFormat, IsReverse)
+                    Value = byteArry.ToUInt64(0, DataFormat)
             };
             }
             catch (Exception ex)
@@ -673,7 +674,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.ToFloat(0,DataFormat,IsReverse)
+                    Value = byteArry.ToFloat(0,DataFormat)
                 };
             }
             catch (Exception ex)
@@ -990,7 +991,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public  OperationResult Write(string address, int value)
         {
-            return Write(address, value.ToByte(DataFormat,IsReverse));
+            return Write(address, value.ToByte(DataFormat,reverse:IsReverse));
         }
 
         /// <summary>
@@ -1001,7 +1002,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1013,7 +1014,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1025,7 +1026,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1037,7 +1038,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, uint value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1048,7 +1049,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1060,7 +1061,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1072,7 +1073,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1084,7 +1085,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, long value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1096,7 +1097,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1108,7 +1109,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1119,7 +1120,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1131,7 +1132,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ulong value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1142,7 +1143,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1155,7 +1156,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1167,7 +1168,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1179,7 +1180,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, float value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1190,7 +1191,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1202,7 +1203,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1213,7 +1214,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat,reverse: IsReverse));
         }
 
         /// <summary>
@@ -1224,7 +1225,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, double value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
         /// <summary>
@@ -1235,7 +1236,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1247,7 +1248,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.ToByte(DataFormat, IsReverse));
+            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
@@ -1259,19 +1260,19 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
         }
 
 
 
         public OperationResult Write(string address, string value)
         {
-            return Write(address, value.ToByte(Encoding.ASCII, DataFormat, IsReverse));
+            return Write(address, value.ToByte(Encoding.ASCII));
         }
 
         public async Task<OperationResult> WriteAsync(string address, string value)
         {
-            return await WriteAsync(address, value.ToByte(Encoding.ASCII, DataFormat, IsReverse));
+            return await WriteAsync(address, value.ToByte(Encoding.ASCII));
         }
 
         /// <summary>
