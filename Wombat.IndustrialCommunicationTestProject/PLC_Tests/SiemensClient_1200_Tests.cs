@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("127.0.0.1");//20.205.243.166
+            var ip = IPAddress.Parse("192.168.2.12");//20.205.243.166
             var  port = 102;
             client = new SiemensClient(SiemensVersion.S7_1200, new IPEndPoint(ip, port));
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
