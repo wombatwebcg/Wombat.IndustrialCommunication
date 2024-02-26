@@ -1,4 +1,5 @@
 ﻿
+using Castle.Core.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
@@ -17,6 +18,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     public class SiemensClient_1200_Tests
     {
         private IEthernetClient client;
+        private IEthernetClient client2;
+
         public SiemensClient_1200_Tests()
         {
           var loggerFactory = LoggerFactory.Create(builder =>
@@ -29,10 +32,17 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.2.12");//20.205.243.166
+            var ip = IPAddress.Parse("192.168.2.110");//20.205.243.166
             var  port = 102;
+
             client = new SiemensClient(SiemensVersion.S7_1200, new IPEndPoint(ip, port));
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
+
+
+            var ip2 = IPAddress.Parse("192.168.2.30");//20.205.243.166
+            client2 = new SiemensClient(SiemensVersion.S7_200Smart, new IPEndPoint(ip2, port));
+            client2.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
+
         }
 
         [Fact]
@@ -50,17 +60,20 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 长连接主动开关()
         {
             client.IsUseLongConnect = true;
+            client2.IsUseLongConnect = true;
 
             var tt =   client.Connect();
+            var cc = client2.Connect();
+
             ReadWrite();
             client?.Disconnect();
         }
 
-        private void ReadWrite()
+        private async void ReadWrite()
         {
 
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 1000; i++)
+            for (int i = 0; i < 10000; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
@@ -73,34 +86,39 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 string value_string = "BennyZhao";
 
-               var ssss2 = client.Write("Q1.3", true);
-                Assert.True(client.ReadBoolean("Q1.3").Value == true);
-                client.Write("Q1.4", bool_value);
-                Assert.True(client.ReadBoolean("Q1.4").Value == bool_value);
-                client.Write("Q1.5", !bool_value);
-                Assert.True(client.ReadBoolean("Q1.5").Value == !bool_value);
 
-                var ssss = client.Write("DB50", short_number);
-                var tttt = client.ReadInt16("DB50");
-                Assert.True(client.ReadInt16("DB50").Value == short_number);
-                client.Write("DB50", short_number_1);
-                var tttt2 = client.ReadUInt16("DB50").Value;
-                Assert.True(client.ReadUInt16("DB50").Value == short_number_1);
 
-                client.Write("DB50", int_number);
-                Assert.True(client.ReadInt32("DB50").Value == int_number);
-                client.Write("DB50", int_number_1);
-                Assert.True(client.ReadUInt32("DB50").Value == int_number_1);
+                var tttt6662 =await client.ReadAsync("DB50.DBW0", 1000);
+                var sss =await  client2.WriteAsync("VB0", tttt6662.Value,false);
 
-                client.Write("DB50", Convert.ToInt64(int_number));
-                Assert.True(client.ReadInt64("DB50").Value == Convert.ToInt64(int_number));
-                client.Write("DB50", Convert.ToUInt64(int_number_1));
-                Assert.True(client.ReadUInt64("DB50").Value == Convert.ToUInt64(int_number_1));
+                var ssss2 = client.Write("Q0.3", true);
+                Assert.True(client.ReadBoolean("Q0.3").Value == true);
+                client.Write("Q0.4", bool_value);
+                Assert.True(client.ReadBoolean("Q0.4").Value == bool_value);
+                client.Write("Q0.5", !bool_value);
+                Assert.True(client.ReadBoolean("Q0.5").Value == !bool_value);
 
-                client.Write("DB50", float_number);
-                Assert.True(client.ReadFloat("DB50").Value == float_number);
-                client.Write("DB50", Convert.ToDouble(float_number));
-                Assert.True(client.ReadDouble("DB50").Value == Convert.ToDouble(float_number));
+                var ssss = client.Write("DB50.DBW0", short_number);
+                var tttt = client.ReadInt16("DB50.DBW0");
+                Assert.True(client.ReadInt16("DB50.DBW0").Value == short_number);
+                client.Write("DB50.DBW0", short_number_1);
+                var tttt2 = client.ReadUInt16("DB50.DBW0").Value;
+                Assert.True(client.ReadUInt16("DB50.DBW0").Value == short_number_1);
+
+                client.Write("DB50.DBD0", int_number);
+                Assert.True(client.ReadInt32("DB50.DBD0").Value == int_number);
+                client.Write("DB50.DBD0", int_number_1);
+                Assert.True(client.ReadUInt32("DB50.DBD0").Value == int_number_1);
+
+                client.Write("DB50.DBD0", Convert.ToInt64(int_number));
+                Assert.True(client.ReadInt64("DB50.DBD0").Value == Convert.ToInt64(int_number));
+                client.Write("DB50.DBD0", Convert.ToUInt64(int_number_1));
+                Assert.True(client.ReadUInt64("DB50.DBD0").Value == Convert.ToUInt64(int_number_1));
+
+                client.Write("DB50.DBD0", float_number);
+                Assert.True(client.ReadFloat("DB50.DBD0").Value == float_number);
+                client.Write("DB50.DBD0", Convert.ToDouble(float_number));
+                Assert.True(client.ReadDouble("DB50.DBD0").Value == Convert.ToDouble(float_number));
 
                 //var rrr =  client.Write("V1000", value_string);
                 //  var ttttt = client.ReadString("V1000", value_string.Length);

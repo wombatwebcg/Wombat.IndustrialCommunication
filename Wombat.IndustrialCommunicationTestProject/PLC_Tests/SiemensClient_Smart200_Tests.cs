@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.0.50");//20.205.243.166
+            var ip = IPAddress.Parse("192.168.2.30");//20.205.243.166
             var  port = 102;
             client = new SiemensClient(SiemensVersion.S7_200Smart, new IPEndPoint(ip, port));
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
@@ -74,6 +74,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 string value_string = "BennyZhao";
 
                var ssss2 = client.Write("Q1.3", true);
+
                 Assert.True(client.ReadBoolean("Q1.3").Value == true);
                 client.Write("Q1.4", bool_value);
                 Assert.True(client.ReadBoolean("Q1.4").Value == bool_value);

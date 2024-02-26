@@ -9,6 +9,8 @@ using Wombat.Infrastructure;
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;
 using Wombat.Extensions.DataTypeExtensions;
+using NPOI.SS.Formula.Functions;
+using NPOI.XSSF.Streaming.Values;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -491,9 +493,9 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 读取字节数组
         /// </summary>
-        /// <param name="address">地址</param>
-        /// <param name="length">读取长度</param>
-        /// <param name="isBit">是否Bit类型</param>        
+        /// <param name="address1">地址</param>
+        /// <param name="length1">读取长度</param>
+        /// <param name="isBit1">是否Bit类型</param>        
         /// <returns></returns>
         public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
@@ -504,83 +506,106 @@ namespace Wombat.IndustrialCommunication.PLC
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
                     {
-                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        connectResult.Message = $"读取{address}失败，{connectResult.Message}";
                         return new OperationResult<byte[]>(connectResult).Complete();
                     }
                 }
                 var result = new OperationResult<byte[]>();
-                try
+                ushort alreadyFinished = 0;
+                List<byte> bytesContent = new List<byte>();
+                int index = 0;
+                while (alreadyFinished < length)
                 {
-                    //发送读取信息
-                    var arg = ConvertArg(address);
-                    arg.ReadWriteLength = (ushort)length;
-                    arg.ReadWriteBit = isBit;
-                    byte[] command = GetReadCommand(arg);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                    //发送命令 并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(command);
-                    if (!sendResult.IsSuccess)
-                    {
-                        sendResult.Message = $"读取{address}失败，{ sendResult.Message}";
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-
-                    //length = dataPackage.Length - 21;
-
-                    byte[] responseData = new byte[length];
-                    Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
-                    result.Value = responseData.ToArray();
-
-                    //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
-                    if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
-                    {
-                        if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                        }
-                        else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                        }
-                        else if (dataPackage[21] != 0xFF)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
-                        }
-                    }
-
+                    ushort readLength = (ushort)Math.Min(length - alreadyFinished, 200);
+                    var readTemp = internalRead(address,alreadyFinished, readLength, isBit);
+                    if (!readTemp.IsSuccess) return readTemp;
+                    result.Requsts[index] = readTemp.Requsts[0];
+                    result.Responses[index] = readTemp.Responses[0];
+                    bytesContent.AddRange(readTemp.Value);
+                    alreadyFinished += readLength;
+                    index++;
                 }
-                catch (SocketException ex)
-                {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = $"读取{address}失败，连接超时";
-                    }
-                    else
-                    {
-                        result.Message = $"读取{address}失败，{ ex.Message}";
-                        result.Exception = ex;
-                    }
-                    _socket?.Close();
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    result.Exception = ex;
-                    _socket?.Close();
-                }
-                finally
-                {
-                    if (!IsUseLongConnect) Disconnect();
-                }
+                result.Value = bytesContent.ToArray();
                 return result.Complete();
+                OperationResult<byte[]> internalRead(string address_in,int addressOffest_in, int length_in, bool isBit_in = false)
+                {
+                    var result_in = new OperationResult<byte[]>();
+
+                    try
+                    {
+
+                        //发送读取信息
+                        var arg = ConvertArg(address_in,addressOffest_in);
+                        arg.ReadWriteLength = (ushort)length_in;
+                        arg.ReadWriteBit = isBit_in;
+                        byte[] command = GetReadCommand(arg);
+                        result_in.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        //发送命令 并获取响应报文
+                        var sendResult = InterpretAndExtractMessageData(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            sendResult.Message = $"读取{address_in}失败，{sendResult.Message}";
+                            return result_in.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+
+                        //length = dataPackage.Length - 21;
+
+                        byte[] responseData = new byte[length_in];
+                        Array.Copy(dataPackage, dataPackage.Length - length_in, responseData, 0, length_in);
+                        result_in.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                        result_in.Value = responseData.ToArray();
+
+                        //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
+                        if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
+                        {
+                            if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，请确认是否存在地址{address_in}";
+                            }
+                            else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，请确认是否存在地址{address_in}";
+                            }
+                            else if (dataPackage[21] != 0xFF)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，异常代码[{21}]:{dataPackage[21]}";
+                            }
+                        }
+
+                    }
+                    catch (SocketException ex)
+                    {
+                        result_in.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result_in.Message = $"读取{address_in}失败，连接超时";
+                        }
+                        else
+                        {
+                            result_in.Message = $"读取{address_in}失败，{ex.Message}";
+                            result_in.Exception = ex;   
+                        }
+                        _socket?.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        result_in.IsSuccess = false;
+                        result_in.Message = ex.Message;
+                        result_in.Exception = ex;
+                        _socket?.Close();
+                    }
+                    finally
+                    {
+                        if (!IsUseLongConnect) Disconnect();
+                    }
+                    return result_in.Complete();
+                }
             }
+        
         }
 
 
@@ -597,86 +622,109 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (!Connected)
                 {
-                    var connectResult = Connect();
+                    var connectResult =await ConnectAsync();
                     if (!connectResult.IsSuccess)
                     {
-                        connectResult.Message = $"读取{address}失败，{ connectResult.Message}";
+                        connectResult.Message = $"读取{address}失败，{connectResult.Message}";
                         return new OperationResult<byte[]>(connectResult).Complete();
                     }
                 }
                 var result = new OperationResult<byte[]>();
-                try
+                ushort alreadyFinished = 0;
+                List<byte> bytesContent = new List<byte>();
+                int index = 0;
+                while (alreadyFinished < length)
                 {
-                    //发送读取信息
-                    var arg = ConvertArg(address);
-                    arg.ReadWriteLength = (ushort)length;
-                    arg.ReadWriteBit = isBit;
-                    byte[] command = GetReadCommand(arg);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                    //发送命令 并获取响应报文
-                    var sendResult = await InterpretAndExtractMessageDataAsync(command);
-                    if (!sendResult.IsSuccess)
-                    {
-                        sendResult.Message = $"读取{address}失败，{ sendResult.Message}";
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-
-                    //length = dataPackage.Length - 21;
-
-                    byte[] responseData = new byte[length];
-                    Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
-                    result.Value = responseData.ToArray();
-
-                    //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
-                    if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
-                    {
-                        if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                        }
-                        else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                        }
-                        else if (dataPackage[21] != 0xFF)
-                        {
-                            result.IsSuccess = false;
-                            result.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
-                        }
-                    }
-
+                    ushort readLength = (ushort)Math.Min(length - alreadyFinished, 200);
+                    var readTemp =await internalReadAsync(address, alreadyFinished, readLength, isBit);
+                    if (!readTemp.IsSuccess) return readTemp;
+                    result.Requsts[index] = readTemp.Requsts[0];
+                    result.Responses[index] = readTemp.Responses[0];
+                    bytesContent.AddRange(readTemp.Value);
+                    alreadyFinished += readLength;
+                    index++;
                 }
-                catch (SocketException ex)
-                {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = $"读取{address}失败，连接超时";
-                    }
-                    else
-                    {
-                        result.Message = $"读取{address}失败，{ ex.Message}";
-                        result.Exception = ex;
-                    }
-                    _socket?.Close();
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    result.Exception = ex;
-                    _socket?.Close();
-                }
-                finally
-                {
-                    if (!IsUseLongConnect) Disconnect();
-                }
+                result.Value = bytesContent.ToArray();
                 return result.Complete();
+                async ValueTask<OperationResult<byte[]>> internalReadAsync(string address_in, int addressOffest_in, int length_in, bool isBit_in = false)
+                {
+                    var result_in = new OperationResult<byte[]>();
+
+                    try
+                    {
+
+                        //发送读取信息
+                        var arg = ConvertArg(address_in, addressOffest_in);
+                        arg.ReadWriteLength = (ushort)length_in;
+                        arg.ReadWriteBit = isBit_in;
+                        byte[] command = GetReadCommand(arg);
+                        result_in.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        //发送命令 并获取响应报文
+                        var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            sendResult.Message = $"读取{address_in}失败，{sendResult.Message}";
+                            return result_in.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+
+                        //length = dataPackage.Length - 21;
+
+                        byte[] responseData = new byte[length_in];
+                        Array.Copy(dataPackage, dataPackage.Length - length_in, responseData, 0, length_in);
+                        result_in.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                        result_in.Value = responseData.ToArray();
+
+                        //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
+                        if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
+                        {
+                            if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，请确认是否存在地址{address_in}";
+                            }
+                            else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，请确认是否存在地址{address_in}";
+                            }
+                            else if (dataPackage[21] != 0xFF)
+                            {
+                                result_in.IsSuccess = false;
+                                result_in.Message = $"读取{address_in}失败，异常代码[{21}]:{dataPackage[21]}";
+                            }
+                        }
+
+                    }
+                    catch (SocketException ex)
+                    {
+                        result_in.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result_in.Message = $"读取{address_in}失败，连接超时";
+                        }
+                        else
+                        {
+                            result_in.Message = $"读取{address_in}失败，{ex.Message}";
+                            result_in.Exception = ex;
+                        }
+                        _socket?.Close();
+                    }
+                    catch (Exception ex)
+                    {
+                        result_in.IsSuccess = false;
+                        result_in.Message = ex.Message;
+                        result_in.Exception = ex;
+                        _socket?.Close();
+                    }
+                    finally
+                    {
+                        if (!IsUseLongConnect)await DisconnectAsync();
+                    }
+                    return result_in.Complete();
+                }
             }
+
         }
 
 
@@ -702,13 +750,37 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                 }
                 OperationResult result = new OperationResult();
+                ushort alreadyFinished = 0;
+                List<byte> bytesContent = new List<byte>();
+                int index = 0;
+                int length = data.Length;
+
+                while (alreadyFinished < length)
+                {
+                    ushort readLength = (ushort)Math.Min(length - alreadyFinished, 200);
+                    byte[] tempData = new byte[readLength];
+                    Array.Copy(data, alreadyFinished, tempData, 0, readLength);
+                    var writeTemp = internalWrite(address, alreadyFinished, tempData, isBit);
+                    if (!writeTemp.IsSuccess) return writeTemp;
+                    result.Requsts[index] = writeTemp.Requsts[0];
+                    result.Responses[index] = writeTemp.Responses[0];
+                    alreadyFinished += readLength;
+                    index++;
+                }
+
+                return result.Complete();
+            }
+
+            OperationResult internalWrite(string address_in, int offest, byte[] data_in, bool isBit_in = false)
+            {
+                OperationResult result_in = new OperationResult();
                 try
                 {
-                    //Array.Reverse(data);
+                    //Array.Reverse(data_in);
                     //发送写入信息
-                    var arg = ConvertWriteArg(address, data, isBit);
+                    var arg = ConvertWriteArg(address_in,offest, data_in, isBit_in);
                     byte[] command = GetWriteCommand(arg);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result_in.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
@@ -716,52 +788,54 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result_in.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                     var offset = dataPackage.Length - 1;
                     if (dataPackage[offset] == 0x0A)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，请确认是否存在地址{address}，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，请确认是否存在地址{address_in}，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                     else if (dataPackage[offset] == 0x05)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，请确认是否存在地址{address}，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，请确认是否存在地址{address_in}，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                     else if (dataPackage[offset] != 0xFF)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                 }
                 catch (SocketException ex)
                 {
-                    result.IsSuccess = false;
+                    result_in.IsSuccess = false;
                     if (ex.SocketErrorCode == SocketError.TimedOut)
                     {
-                        result.Message = "连接超时";
+                        result_in.Message = "连接超时";
                     }
                     else
                     {
-                        result.Message = ex.Message;
-                        result.Exception = ex;
+                        result_in.Message = ex.Message;
+                        result_in.Exception = ex;
                     }
                     _socket?.Close();
                 }
                 catch (Exception ex)
                 {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    result.Exception = ex;
+                    result_in.IsSuccess = false;
+                    result_in.Message = ex.Message;
+                    result_in.Exception = ex;
                     _socket?.Close();
                 }
                 finally
                 {
                     if (!IsUseLongConnect) Disconnect();
                 }
-                return result.Complete();
+                return result_in.Complete();
+
             }
+
         }
 
         public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
@@ -770,73 +844,99 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (!Connected)
                 {
-                    var connectResult = Connect();
+                    var connectResult =await ConnectAsync();
                     if (!connectResult.IsSuccess)
                     {
                         return connectResult.Complete();
                     }
                 }
                 OperationResult result = new OperationResult();
+                ushort alreadyFinished = 0;
+                List<byte> bytesContent = new List<byte>();
+                int index = 0;
+                int length = data.Length;
+
+                while (alreadyFinished < length)
+                {
+                    ushort readLength = (ushort)Math.Min(length - alreadyFinished, 200);
+                    byte[] tempData = new byte[readLength];
+                    Array.Copy(data, alreadyFinished, tempData, 0, readLength);
+                    var writeTemp =await internalWriteAsync(address, alreadyFinished, tempData, isBit);
+                    if (!writeTemp.IsSuccess) return writeTemp;
+                    result.Requsts[index] = writeTemp.Requsts[0];
+                    result.Responses[index] = writeTemp.Responses[0];
+                    alreadyFinished += readLength;
+                    index++;
+                }
+
+                return result.Complete();
+            }
+
+            async Task<OperationResult> internalWriteAsync(string address_in, int offest, byte[] data_in, bool isBit_in = false)
+            {
+                OperationResult result_in = new OperationResult();
                 try
                 {
-                    //Array.Reverse(data);
+                    //Array.Reverse(data_in);
                     //发送写入信息
-                    var arg = ConvertWriteArg(address, data, isBit);
+                    var arg = ConvertWriteArg(address_in, offest, data_in, isBit_in);
                     byte[] command = GetWriteCommand(arg);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
-                    var sendResult = await InterpretAndExtractMessageDataAsync(command);
+                    result_in.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return sendResult;
                     }
 
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result_in.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
 
                     var offset = dataPackage.Length - 1;
                     if (dataPackage[offset] == 0x0A)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，请确认是否存在地址{address}，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，请确认是否存在地址{address_in}，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                     else if (dataPackage[offset] == 0x05)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，请确认是否存在地址{address}，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，请确认是否存在地址{address_in}，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                     else if (dataPackage[offset] != 0xFF)
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"写入{address}失败，异常代码[{offset}]:{dataPackage[offset]}";
+                        result_in.IsSuccess = false;
+                        result_in.Message = $"写入{address_in}失败，异常代码[{offset}]:{dataPackage[offset]}";
                     }
                 }
                 catch (SocketException ex)
                 {
-                    result.IsSuccess = false;
+                    result_in.IsSuccess = false;
                     if (ex.SocketErrorCode == SocketError.TimedOut)
                     {
-                        result.Message = "连接超时";
+                        result_in.Message = "连接超时";
                     }
                     else
                     {
-                        result.Message = ex.Message;
-                        result.Exception = ex;
+                        result_in.Message = ex.Message;
+                        result_in.Exception = ex;
                     }
                     _socket?.Close();
                 }
                 catch (Exception ex)
                 {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    result.Exception = ex;
+                    result_in.IsSuccess = false;
+                    result_in.Message = ex.Message;
+                    result_in.Exception = ex;
                     _socket?.Close();
                 }
                 finally
                 {
                     if (!IsUseLongConnect) Disconnect();
                 }
-                return result.Complete();
+                return result_in.Complete();
+
             }
+
         }
 
 
@@ -1182,7 +1282,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        private SiemensAddress ConvertArg(string address)
+        private SiemensAddress ConvertArg(string address,int offest=0)
         {
             try
             {
@@ -1235,20 +1335,20 @@ namespace Wombat.IndustrialCommunication.PLC
                     //DB1.0.0、DB1.4（非PLC地址）
                     var indexOfpoint = address.IndexOf('.') + 1;
                     if (address[indexOfpoint] >= '0' && address[indexOfpoint] <= '9')
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(indexOfpoint));
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(indexOfpoint),offest);
                     //DB1.DBX0.0、DB1.DBD4（标准PLC地址）
                     else
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(address.IndexOf('.') + 4));
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(address.IndexOf('.') + 4), offest);
                 }
                 //非DB块
                 else
                 {
                     //I0.0、V1004的情况（非PLC地址）
                     if (address[1] >= '0' && address[1] <= '9')
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(1));
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
                     //VB1004的情况（标准PLC地址）
                     else
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(2));
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 return addressInfo;
             }
@@ -1258,11 +1358,11 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnum> addresses)
+        private SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnum> addresses,int offest = 0)
         {
             return addresses.Select(t =>
             {
-                var item = ConvertArg(t.Key);
+                var item = ConvertArg(t.Key, offest);
                 item.DataType = t.Value;
                 switch (t.Value)
                 {
@@ -1310,19 +1410,19 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="address"></param>
         /// <param name="writeData"></param>
         /// <returns></returns>
-        private SiemensWriteAddress ConvertWriteArg(string address, byte[] writeData, bool bit)
+        private SiemensWriteAddress ConvertWriteArg(string address, int offest, byte[] writeData, bool bit)
         {
-            SiemensWriteAddress arg = new SiemensWriteAddress(ConvertArg(address));
+            SiemensWriteAddress arg = new SiemensWriteAddress(ConvertArg(address, offest ));
             arg.WriteData = writeData;
             arg.ReadWriteBit = bit;
             return arg;
         }
 
-        private SiemensWriteAddress[] ConvertWriteArg(Dictionary<string, KeyValuePair<byte[], bool>> addresses)
+        private SiemensWriteAddress[] ConvertWriteArg(Dictionary<string, KeyValuePair<byte[], bool>> addresses, int offest = 0)
         {
             return addresses.Select(t =>
             {
-                var item = new SiemensWriteAddress(ConvertArg(t.Key));
+                var item = new SiemensWriteAddress(ConvertArg(t.Key,offest));
                 item.WriteData = t.Value.Key;
                 item.ReadWriteBit = t.Value.Value;
                 return item;
@@ -1523,17 +1623,17 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        protected int GetBeingAddress(string address)
+        protected int GetBeingAddress(string address,int offest)
         {
             //去掉V1025 前面的V
             //address = address.Substring(1);
             //I1.3地址的情况
             if (address.IndexOf('.') < 0)
-                return int.Parse(address) * 8;
+                return (int.Parse(address)+offest) * 8;
             else
             {
                 string[] temp = address.Split('.');
-                return Convert.ToInt32(temp[0]) * 8 + Convert.ToInt32(temp[1]);
+                return (Convert.ToInt32(temp[0])+offest) * 8 + Convert.ToInt32(temp[1]);
             }
         }
 

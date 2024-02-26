@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 //获取命令（组装报文）
                 byte[] command = GetReadCommand(address, stationNumber, functionCode,(ushort) readLength, isPlcAddress: isPlcAddress);
-                var commandLRC = DataTypeExtensions.ByteArrayToAsciiArray(LRCHelper.GetLRC(command));
+                var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
                 var finalCommand = new byte[commandLRC.Length + 3];
                 Buffer.BlockCopy(commandLRC, 0, finalCommand, 1, commandLRC.Length);
@@ -71,7 +71,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
                 Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.AsciiArrayToByteArray(resultLRC);
+                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
                 if (!LRCHelper.CheckLRC(resultByte))
                 {
                     result.IsSuccess = false;
@@ -123,7 +123,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
 
-                var commandAscii = DataTypeExtensions.ByteArrayToAsciiArray(LRCHelper.GetLRC(command));
+                var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                 var finalCommand = new byte[commandAscii.Length + 3];
                 Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
                 finalCommand[0] = 0x3A;
@@ -145,7 +145,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
                 Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.AsciiArrayToByteArray(resultLRC);
+                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
                 if (!LRCHelper.CheckLRC(resultByte))
                 {
                     result.IsSuccess = false;
@@ -184,7 +184,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
 
-                var commandAscii = DataTypeExtensions.ByteArrayToAsciiArray(LRCHelper.GetLRC(command));
+                var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                 var finalCommand = new byte[commandAscii.Length + 3];
                 Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
                 finalCommand[0] = 0x3A;
@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 byte[] resultLRC = new byte[responsePackage.Length - 3];
                 Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.AsciiArrayToByteArray(resultLRC);
+                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
                 if (!LRCHelper.CheckLRC(resultByte))
                 {
                     result.IsSuccess = false;

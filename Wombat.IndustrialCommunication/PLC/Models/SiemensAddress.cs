@@ -30,6 +30,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 开始地址(西门子plc地址为8个位的长度，这里展开实际的开始地址。)
         /// </summary>
         public int BeginAddress { get; set; }
+
+        /// <summary>
+        /// 开始地址偏移(西门子plc地址为8个位的长度，这里展开实际的开始地址。)
+        /// </summary>
+        public int BeginAddressOffest { get; set; }
+
         /// <summary>
         /// 读取或写入长度
         /// </summary>
