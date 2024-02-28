@@ -32,7 +32,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.2.110");//20.205.243.166
+            var ip = IPAddress.Parse("192.168.2.101");//20.205.243.166
             var  port = 102;
 
             client = new SiemensClient(SiemensVersion.S7_1200, new IPEndPoint(ip, port));
@@ -48,8 +48,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 短连接自动开关()
         {
-
-
 
             client.IsUseLongConnect = false;
 
@@ -88,8 +86,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
 
 
-                var tttt6662 =await client.ReadAsync("DB50.DBW0", 1000);
-                var sss =await  client2.WriteAsync("VB0", tttt6662.Value,false);
+                var tttt6662 =await client.ReadByteAsync("DB50.DBW0", 1000);
+                //var sss =await  client2.WriteAsync("VB0", tttt6662.Value);
 
                 var ssss2 = client.Write("Q0.3", true);
                 Assert.True(client.ReadBoolean("Q0.3").Value == true);
@@ -395,72 +393,93 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             var V2650 = (float)re.Next(0, 255);
 
             Dictionary<string, object> writeAddresses = new Dictionary<string, object>();
-            writeAddresses.Add("V2634.0", number0);
-            writeAddresses.Add("V2634.1", number1);
-            writeAddresses.Add("V2634.2", number2);
-            writeAddresses.Add("V2634.3", number3);
-            writeAddresses.Add("V2634.4", number4);
-            writeAddresses.Add("V2634.5", number5);
-            writeAddresses.Add("V2634.6", number6);
-            writeAddresses.Add("V2634.7", number7);
-            writeAddresses.Add("V2642", V2642);
-            writeAddresses.Add("V2646", V2646);
-            writeAddresses.Add("V2650", V2650);
-            writeAddresses.Add("V2654", V2650);
-            writeAddresses.Add("V2658", V2650);
-            writeAddresses.Add("V2662", V2650);
-            writeAddresses.Add("V2666", V2650);
-            writeAddresses.Add("V2670", V2650);
-            writeAddresses.Add("V2674", V2650);
-            writeAddresses.Add("V1650", byte1);
-            writeAddresses.Add("V1651", byte2);
-            writeAddresses.Add("V1652", byte3);
-            client.BatchWrite(writeAddresses);
+            writeAddresses.Add("DB50.DBX0.0", number0);
+            writeAddresses.Add("DB50.DBX0.1", number1);
+            writeAddresses.Add("DB50.DBX0.2", number2);
+            writeAddresses.Add("DB50.DBX0.3", number3);
+            writeAddresses.Add("DB50.DBX0.4", number4);
+            writeAddresses.Add("DB50.DBX1.0", number5);
+            writeAddresses.Add("DB50.DBX2.0", number6);
+            writeAddresses.Add("DB50.DBX3.0", number7);
+            writeAddresses.Add("DB50.DBB4", byte1);
+            writeAddresses.Add("DB50.DBB5", byte2);
+            writeAddresses.Add("DB50.DBB6", byte3);
+            writeAddresses.Add("DB50.DBD10", V2642);
+            writeAddresses.Add("DB50.DBD14", V2646);
+            writeAddresses.Add("DB50.DBD18", V2650);
+            writeAddresses.Add("DB50.DBD30", V2642);
+            writeAddresses.Add("DB50.DBD34", V2646);
+            writeAddresses.Add("DB50.DBD38", V2650);
+            writeAddresses.Add("DB50.DBD50", V2642);
+            writeAddresses.Add("DB50.DBD54", V2646);
+            writeAddresses.Add("DB50.DBD58", V2650);
+            writeAddresses.Add("DB50.DBD70", V2642);
+            writeAddresses.Add("DB50.DBD74", V2646);
+            writeAddresses.Add("DB50.DBD78", V2650);
+            writeAddresses.Add("DB50.DBD90", V2642);
+            writeAddresses.Add("DB50.DBD94", V2646);
+            writeAddresses.Add("DB50.DBD98", V2650);
+
+           var w= client.BatchWrite(writeAddresses);
 
             Dictionary<string, DataTypeEnum> readAddresses = new Dictionary<string, DataTypeEnum>();
-            readAddresses.Add("V2634.0", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.1", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.2", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.3", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.4", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.5", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.6", DataTypeEnum.Bool);
-            readAddresses.Add("V2634.7", DataTypeEnum.Bool);
-            readAddresses.Add("V2642", DataTypeEnum.Float);
-            readAddresses.Add("V2646", DataTypeEnum.Float);
-            readAddresses.Add("V2650", DataTypeEnum.Float);
-            readAddresses.Add("V2654", DataTypeEnum.Float);
-            readAddresses.Add("V2658", DataTypeEnum.Float);
-            readAddresses.Add("V2662", DataTypeEnum.Float);
-            readAddresses.Add("V2666", DataTypeEnum.Float);
-            readAddresses.Add("V2670", DataTypeEnum.Float);
-            readAddresses.Add("V2674", DataTypeEnum.Float);
-            readAddresses.Add("V1650", DataTypeEnum.Byte);
-            readAddresses.Add("V1651", DataTypeEnum.Byte);
-            readAddresses.Add("V1652", DataTypeEnum.Byte);
+
+            readAddresses.Add("DB50.DBX0.0", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX0.1", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX0.2", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX0.3", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX0.4", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX1.0", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX2.0", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBX3.0", DataTypeEnum.Bool);
+            readAddresses.Add("DB50.DBB4", DataTypeEnum.Byte);
+            readAddresses.Add("DB50.DBB5", DataTypeEnum.Byte);
+            readAddresses.Add("DB50.DBB6", DataTypeEnum.Byte);
+            readAddresses.Add("DB50.DBD10", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD14", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD18", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD30", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD34", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD38", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD50", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD54", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD58", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD70", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD74", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD78", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD90", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD94", DataTypeEnum.Float);
+            readAddresses.Add("DB50.DBD98", DataTypeEnum.Float);
 
             var result = client.BatchRead(readAddresses);
 
-            Assert.True(Convert.ToBoolean(result.Value["V2634.0"]) == number0);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.1"]) == number1);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.2"]) == number2);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.3"]) == number3);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.4"]) == number4);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.5"]) == number5);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.6"]) == number6);
-            Assert.True(Convert.ToBoolean(result.Value["V2634.7"]) == number7);
-            Assert.True(Convert.ToSingle(result.Value["V2642"]) == V2642);
-            Assert.True(Convert.ToSingle(result.Value["V2646"]) == V2646);
-            Assert.True(Convert.ToSingle(result.Value["V2650"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2654"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2658"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2662"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2666"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2670"]) == V2650);
-            Assert.True(Convert.ToSingle(result.Value["V2674"]) == V2650);
-            Assert.True(Convert.ToByte(result.Value["V1650"]) == byte1);
-            Assert.True(Convert.ToByte(result.Value["V1651"]) == byte2);
-            Assert.True(Convert.ToByte(result.Value["V1652"]) == byte3);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX0.0"]) == number0);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX0.1"]) == number1);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX0.2"]) == number2);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX0.3"]) == number3);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX0.4"]) == number4);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX1.0"]) == number5);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX2.0"]) == number6);
+            Assert.True(Convert.ToBoolean(result.Value["DB50.DBX3.0"]) == number7);
+            Assert.True(Convert.ToByte(result.Value["DB50.DBB4"]) == byte1);
+            Assert.True(Convert.ToByte(result.Value["DB50.DBB5"]) == byte2);
+            Assert.True(Convert.ToByte(result.Value["DB50.DBB6"]) == byte3);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD10"]) == V2642);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD14"]) == V2646);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD18"]) == V2650);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD30"]) == V2642);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD34"]) == V2646);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD38"]) == V2650);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD50"]) == V2642);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD54"]) == V2646);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD58"]) == V2650);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD70"]) == V2642);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD74"]) == V2646);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD78"]) == V2650);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD90"]) == V2642);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD94"]) == V2646);
+            Assert.True(Convert.ToSingle(result.Value["DB50.DBD98"]) == V2650);
+
             client?.Disconnect();
         }
 

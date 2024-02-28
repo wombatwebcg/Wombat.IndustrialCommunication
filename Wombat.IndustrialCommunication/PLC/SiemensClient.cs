@@ -430,6 +430,8 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
 
+
+
         /// <summary>
         /// 读取Boolean
         /// </summary>
@@ -497,7 +499,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="length1">读取长度</param>
         /// <param name="isBit1">是否Bit类型</param>        
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+       internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
             using (_lock.Lock())
             {
@@ -616,7 +618,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="length">读取长度</param>
         /// <param name="isBit">是否Bit类型</param>        
         /// <returns></returns>
-        public override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -729,7 +731,6 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
 
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -737,7 +738,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] data, bool isBit = false)
+        internal override OperationResult Write(string address, byte[] data, bool isBit)
         {
             using (_lock.Lock())
             {
@@ -838,7 +839,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         }
 
-        public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit)
         {
             using (await _lock.LockAsync())
             {
@@ -942,7 +943,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
         /// <summary>
-        /// 分批读取，默认按19个地址打包读取
+        /// 批量随机读取
         /// </summary>
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
@@ -1250,7 +1251,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         /// <summary>
-        /// 分批写入，默认按10个地址打包读取
+        /// 批量随机写入
         /// </summary>
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
@@ -1275,6 +1276,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             return result.Complete();
         }
+
 
         #region ConvertArg 根据地址信息转换成通讯需要的信息
         /// <summary>
@@ -1358,6 +1360,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
+
         private SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnum> addresses,int offest = 0)
         {
             return addresses.Select(t =>
@@ -1412,7 +1415,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         private SiemensWriteAddress ConvertWriteArg(string address, int offest, byte[] writeData, bool bit)
         {
-            SiemensWriteAddress arg = new SiemensWriteAddress(ConvertArg(address, offest ));
+            SiemensWriteAddress arg = new SiemensWriteAddress(ConvertArg(address, offest));
             arg.WriteData = writeData;
             arg.ReadWriteBit = bit;
             return arg;
@@ -1428,6 +1431,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 return item;
             }).ToArray();
         }
+
         #endregion
 
         #region 获取指令

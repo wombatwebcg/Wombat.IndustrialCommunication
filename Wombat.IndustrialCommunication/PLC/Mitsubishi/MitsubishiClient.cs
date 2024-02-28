@@ -389,7 +389,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="length"></param>
         /// <param name="isBit"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
             using (_lock.Lock())
             {
@@ -489,7 +489,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        public override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -644,7 +644,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data"></param>
         /// <param name="isBit"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] data, bool isBit = false)
+        internal override OperationResult Write(string address, byte[] data, bool isBit = false)
         {
             using (_lock.Lock())
             {
@@ -722,7 +722,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        public override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {

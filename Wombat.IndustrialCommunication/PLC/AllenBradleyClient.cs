@@ -176,7 +176,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
             if (!_socket?.Connected ?? true)
             {
@@ -233,7 +233,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         #region Write
-        public override OperationResult Write(string address, byte[] data, bool isBit = false)
+        internal override OperationResult Write(string address, byte[] data, bool isBit = false)
         {
             if (!_socket?.Connected ?? true)
             {
@@ -756,12 +756,12 @@ namespace Wombat.IndustrialCommunication.PLC
             return BitConverter.ToUInt16(head, 2);
         }
 
-        public override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
             throw new NotImplementedException();
         }

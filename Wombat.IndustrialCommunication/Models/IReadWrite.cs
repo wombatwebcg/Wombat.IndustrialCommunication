@@ -20,13 +20,18 @@ namespace Wombat.IndustrialCommunication
 
 
 
+        /// 读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        OperationResult<byte> ReadByte(string address);
 
         /// <summary>
         /// 读取Byte
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        OperationResult<byte[]> Read(string address, int length, bool isBit = false);
+        OperationResult<byte[]> ReadByte(string address, int length);
 
 
         /// <summary>
@@ -191,12 +196,20 @@ namespace Wombat.IndustrialCommunication
         ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses);
 
 
+
+
+        /// 读取Boolean
+        /// </summary>
+        /// <param name="address">地址</param>
+        /// <returns></returns>
+        ValueTask<OperationResult<byte>> ReadByteAsync(string address);
+
         /// <summary>
-        /// 异步读取Byte
+        /// 读取Byte
         /// </summary>
         /// <param name="address"></param>
         /// <returns></returns>
-        ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+        ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length);
 
 
         /// <summary>
@@ -365,7 +378,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="address">地址</param>
         /// <param name="value">值</param>
         /// <returns></returns>
-        OperationResult Write(string address, byte[] value, bool isBit);
+        OperationResult Write(string address, byte[] value);
 
         /// <summary>
         /// 写入数据
@@ -386,13 +399,15 @@ namespace Wombat.IndustrialCommunication
 
 
 
+
         /// <summary>
         /// 写入数据
         /// </summary>
         /// <param name="address">地址</param>
         /// <param name="value">值</param>
         /// <returns></returns>
-        OperationResult Write(string address, sbyte value);
+        OperationResult Write(string address, byte value);
+
 
         /// <summary>
         /// 写入数据
@@ -574,7 +589,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="isBit">是否位</param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(string address, byte[] value, bool isBit);
+        Task<OperationResult> WriteAsync(string address, byte[] value);
 
         /// <summary>
         /// 异步写入数据
@@ -592,13 +607,16 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         Task<OperationResult> WriteAsync(string address, bool[] value);
 
+
+
+
         /// <summary>
         /// 异步写入数据
         /// </summary>
         /// <param name="address">地址</param>
         /// <param name="value">值</param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(string address, sbyte value);
+        Task<OperationResult> WriteAsync(string address, byte value);
 
         /// <summary>
         /// 异步写入数据

@@ -35,7 +35,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="isBit"></param>
         /// <param name="setEndian">返回值是否设置大小端</param>
         /// <returns></returns>
-        public abstract OperationResult<byte[]> Read(string address, int length, bool isBit = false);
+        internal abstract OperationResult<byte[]> Read(string address, int length, bool isBit = false);
 
 
         /// <summary>
@@ -46,7 +46,41 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="isBit"></param>
         /// <param name="setEndian">返回值是否设置大小端</param>
         /// <returns></returns>
-        public abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+        internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+
+
+
+        public OperationResult<byte> ReadByte(string address)
+        {
+            var result = ReadByte(address, 1);
+            if (result.IsSuccess)
+                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<byte>(result).Complete();
+        }
+
+        public OperationResult<byte[]> ReadByte(string address, int length)
+        {
+            return Read(address, length, false);
+
+        }
+
+        public async ValueTask<OperationResult<byte>> ReadByteAsync(string address)
+        {
+            var result = await ReadByteAsync(address, 1);
+            if (result.IsSuccess)
+                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+            else
+                return new OperationResult<byte>(result).Complete();
+        }
+
+
+
+        public async ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length)
+        {
+            return await ReadAsync(address, length, false);
+        }
+
 
 
         /// <summary>
@@ -811,7 +845,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        public abstract OperationResult Write(string address, byte[] data, bool isBit = false);
+       internal abstract OperationResult Write(string address, byte[] data, bool isBit = false);
 
         /// <summary>
         /// 写入数据
@@ -820,7 +854,24 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        public abstract Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false);
+       internal abstract Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false);
+
+
+        public virtual OperationResult Write(string address, byte[] value) => Write(address, value, false);
+
+
+        public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, false);
+
+
+        public virtual OperationResult Write(string address, byte value)
+        {
+            return Write(address, new byte[1] { value });
+        }
+
+        public virtual async Task<OperationResult> WriteAsync(string address, byte value)
+        {
+            return await WriteAsync(address, new byte[1] { value });
+        }
 
 
         /// <summary>
@@ -1363,7 +1414,6 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             return result;
         }
-
 
 
 

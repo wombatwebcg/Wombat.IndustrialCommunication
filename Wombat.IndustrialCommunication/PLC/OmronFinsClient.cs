@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="isBit"></param>
         /// <param name="setEndian">返回值是否设置大小端</param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
             if (!_socket?.Connected ?? true)
             {
@@ -268,7 +268,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] data, bool isBit = false)
+        internal override OperationResult Write(string address, byte[] data, bool isBit = false)
         {
             if (!_socket?.Connected ?? true)
             {
@@ -662,12 +662,12 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        public override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
             throw new NotImplementedException();
         }
 
-        public override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
             throw new NotImplementedException();
         }
