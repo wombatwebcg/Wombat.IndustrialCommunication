@@ -96,7 +96,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 _socket.EndConnect(connectOperationResult);
 
                 BasicCommand[19] = SA1;
-                result.Requsts[0] = string.Join(" ", BasicCommand.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", BasicCommand.Select(t => t.ToString("X2"))));
                 _socket.Send(BasicCommand);
 
                 var socketReadResult = ReadBuffer(8);
@@ -117,7 +117,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var content = socketReadResult.Value;
 
                 var headContent = head.Concat(content).ToArray();
-                result.Responses[0] = string.Join(" ", headContent.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", headContent.Select(t => t.ToString("X2"))));
                 // 服务器节点编号
                 if (headContent.Length >= 24) DA1 = headContent[23];
                 else DA1 = Convert.ToByte(IpEndPoint.Address.ToString().Substring(IpEndPoint.Address.ToString().LastIndexOf(".") + 1)); ;
@@ -221,7 +221,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送读取信息
                 var arg = ConvertArg(address, isBit: isBit);
                 byte[] command = GetReadCommand(arg, (ushort)length);
-                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                 //发送命令 并获取响应报文
                 var sendOperationResult = InterpretAndExtractMessageData(command);
                 if (!sendOperationResult.IsSuccess)
@@ -230,7 +230,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 byte[] responseData = new byte[length];
                 Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                 result.Value = responseData.ToArray();
             }
             catch (SocketException ex)
@@ -284,13 +284,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送写入信息
                 var arg = ConvertArg(address, isBit: isBit);
                 byte[] command = GetWriteCommand(arg, data);
-                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                 var sendOperationResult = InterpretAndExtractMessageData(command);
                 if (!sendOperationResult.IsSuccess)
                     return sendOperationResult;
 
                 var dataPackage = sendOperationResult.Value;
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
             }
             catch (SocketException ex)
             {

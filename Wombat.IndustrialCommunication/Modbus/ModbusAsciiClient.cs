@@ -54,7 +54,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
 
                 //发送命令并获取响应报文
                 var sendResult = InterpretAndExtractMessageData(finalCommand);
@@ -80,7 +80,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 var resultData = new byte[resultByte[2]];
                 Buffer.BlockCopy(resultByte, 3, resultData, 0, resultData.Length);
-                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 //4 获取响应报文数据（字节数组形式）         
                 result.Value = resultData.ToArray();
             }
@@ -130,7 +130,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
                 //发送命令并获取响应报文
                 var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
@@ -153,7 +153,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     //return result.Complete();
                 }
 
-                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
             }
             catch (Exception ex)
             {
@@ -191,7 +191,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 2] = 0x0D;
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requsts[0] = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
                 var sendResult = InterpretAndExtractMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
@@ -213,7 +213,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     //return result.Complete();
                 }
 
-                result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
             }
             catch (Exception ex)
             {
@@ -262,7 +262,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        finalCommand[finalCommand.Length - 2] = 0x0D;
         //        finalCommand[finalCommand.Length - 1] = 0x0A;
 
-        //        result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2")));
+        //        result.Requst = string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
         //        var sendResult = SendPackageReliable(finalCommand);
         //        if (!sendResult.IsSuccess)
         //            return result.SetInfo(sendResult).Complete();
@@ -284,7 +284,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //            //return result.Complete();
         //        }
 
-        //        result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+        //        result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
         //    }
         //    catch (Exception ex)
         //    {

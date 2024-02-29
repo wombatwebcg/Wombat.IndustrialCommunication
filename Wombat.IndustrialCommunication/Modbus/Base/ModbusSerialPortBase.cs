@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     //获取命令（组装报文）
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
@@ -113,7 +113,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     byte[] resultData = new byte[responsePackage.Length - 2 - 3];
                     Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -146,7 +146,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
@@ -170,7 +170,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     byte[] resultData = new byte[responsePackage.Length - 2 - 3];
                     Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -207,7 +207,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     //获取命令（组装报文）
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
                     var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
@@ -236,7 +236,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     byte[] resultData = new byte[responsePackage.Length - 2 - 3];
                     Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -270,7 +270,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     //获取命令（组装报文）
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
                     var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
@@ -294,7 +294,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     byte[] resultData = new byte[responsePackage.Length - 2 - 3];
                     Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -340,7 +340,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
@@ -369,7 +369,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -410,7 +410,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
                     var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
@@ -438,7 +438,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -471,7 +471,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
@@ -499,7 +499,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -532,7 +532,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
                     var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
@@ -560,7 +560,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -591,7 +591,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
                     var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
@@ -614,7 +614,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -656,7 +656,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        var command = GetWriteCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
 
         //        var commandCRC16 = CRC16Helper.GetCRC16(command);
-        //        result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+        //        result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
         //        var sendResult = SendPackageReliable(commandCRC16);
         //        if (!sendResult.IsSuccess)
         //        {
@@ -684,7 +684,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //        }
         //        byte[] resultBuffer = new byte[responsePackage.Length - 2];
         //        Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-        //        result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+        //        result.Response = string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
         //    }
         //    catch (Exception ex)
         //    {
@@ -728,7 +728,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
@@ -754,7 +754,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -787,7 +787,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
@@ -808,7 +808,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {
@@ -851,7 +851,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts[0] = string.Join(" ", commandCRC16.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
@@ -877,7 +877,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     byte[] resultBuffer = new byte[responsePackage.Length - 2];
                     Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
                 catch (Exception ex)
                 {

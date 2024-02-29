@@ -168,13 +168,13 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     arg = ConvertArgFx(address);
                     command = GetReadCommand(arg.BeginAddress, arg.TypeChar, (ushort)length, isBit);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                     sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess) return sendResult;
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (!CheckReadResponse(dataPackage).IsSuccess) { return result; }
 
                     var bufferLength = length;
@@ -228,13 +228,13 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     arg = ConvertArgFx(address);
                     command = GetReadCommand(arg.BeginAddress, arg.TypeChar, (ushort)length, isBit);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                     sendResult = await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess) return sendResult;
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (!CheckReadResponse(dataPackage).IsSuccess) { return result; }
 
                     var bufferLength = length;
@@ -285,7 +285,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     byte[] command = null;
                     arg = ConvertArgFx(address);
                     command = GetWriteCommand(arg.BeginAddress,arg.TypeChar,data,isBit);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
                     sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -293,7 +293,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return sendResult;
                     }
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if(CheckWriteResponse(dataPackage).IsSuccess)
                     {
                         result.IsSuccess = true;
@@ -336,7 +336,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     byte[] command = null;
                     arg = ConvertArgFx(address);
                     command = GetWriteCommand(arg.BeginAddress, arg.TypeChar, data, isBit);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
                     sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -344,7 +344,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return sendResult;
                     }
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (CheckWriteResponse(dataPackage).IsSuccess)
                     {
                         result.IsSuccess = true;

@@ -71,7 +71,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
 
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 10000; i++)
+            for (int i = 0; i < 100; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);

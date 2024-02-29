@@ -421,7 +421,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
                             break;
                     }
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                     switch (_version)
@@ -444,7 +444,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
 
                     var bufferLength = length;
                     byte[] responseValue = null;
@@ -521,7 +521,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             command = GetReadCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, (ushort)length, isBit);
                             break;
                     }
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                     switch (_version)
@@ -544,7 +544,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
 
                     var bufferLength = length;
                     byte[] responseValue = null;
@@ -673,7 +673,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
                             break;
                     }
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
                     switch (_version)
@@ -690,7 +690,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return sendResult;
                     }
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                 }
                 catch (SocketException ex)
                 {
@@ -751,7 +751,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             command = GetWriteCommand_Qna_3E(arg.BeginAddress, arg.TypeCode, data, isBit);
                             break;
                     }
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>(result);
                     switch (_version)
@@ -768,7 +768,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return sendResult;
                     }
                     byte[] dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                 }
                 catch (SocketException ex)
                 {

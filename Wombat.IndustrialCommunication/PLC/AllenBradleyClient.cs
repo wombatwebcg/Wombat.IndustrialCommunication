@@ -83,7 +83,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     throw new TimeoutException("连接超时");
                 _socket.EndConnect(connectResult);
 
-                result.Requsts[0] = string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2"))));
                 _socket.Send(RegisteredCommand);
 
                 var socketReadResult = ReadBuffer(24);
@@ -97,7 +97,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var content = socketReadResult.Value;
 
                 var response = head.Concat(content).ToArray();
-                result.Responses[0] = string.Join(" ", response.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", response.Select(t => t.ToString("X2"))));
 
                 byte[] buffer = new byte[4];
                 buffer[0] = response[4];
@@ -190,13 +190,13 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 var command = GetReadCommand(address, 1);
-                result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                 //发送命令 并获取响应报文
                 var sendResult = InterpretAndExtractMessageData(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
                 var dataPackage = sendResult.Value;
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
 
                 ushort count = BitConverter.ToUInt16(dataPackage, 38);
                 byte[] data = new byte[count - 6];
@@ -249,13 +249,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 //Array.Reverse(data);
                 //发送写入信息
                 //var arg = ConvertWriteArg(address, data, false);
-                result.Requsts[0] = string.Join(" ", data.Select(t => t.ToString("X2")));
+                result.Requsts.Add(string.Join(" ", data.Select(t => t.ToString("X2"))));
                 var sendResult = InterpretAndExtractMessageData(data);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
                 var dataPackage = sendResult.Value;
-                result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
             }
             catch (SocketException ex)
             {

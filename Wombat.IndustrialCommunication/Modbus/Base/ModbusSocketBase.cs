@@ -259,7 +259,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     //1 获取命令（组装报文）
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -270,7 +270,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var dataPackage = sendResult.Value;
                     byte[] resultBuffer = new byte[dataPackage.Length - 9];
                     Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）             
                     result.Value = resultBuffer.ToArray();
 
@@ -336,7 +336,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     //1 获取命令（组装报文）
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -347,7 +347,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var dataPackage = sendResult.Value;
                     byte[] resultBuffer = new byte[dataPackage.Length - 9];
                     Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）             
                     result.Value = resultBuffer.ToArray();
 
@@ -411,7 +411,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    {
         //        var chenkHead = GetCheckHead(functionCode);
         //        var command = GetWriteOneCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
-        //        result.Requst = string.Join(" ", command.Select(t => t.ToString("X2")));
+        //        result.Requst = string.Join(" ", command.Select(t => t.ToString("X2"))));
         //        var sendResult = SendPackageReliable(command);
         //        if (!sendResult.IsSuccess)
         //        {
@@ -419,7 +419,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //            return result.SetInfo(sendResult).Complete();
         //        }
         //        var dataPackage = sendResult.Value;
-        //        result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+        //        result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
         //        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
         //        {
         //            result.IsSuccess = false;
@@ -479,14 +479,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;
@@ -546,14 +546,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;
@@ -613,14 +613,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;
@@ -679,14 +679,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;
@@ -738,14 +738,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;
@@ -796,14 +796,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
-                    result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
                     }
                     var dataPackage = sendResult.Value;
-                    result.Responses[0] = string.Join(" ", dataPackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
                     if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                     {
                         result.IsSuccess = false;

@@ -62,7 +62,7 @@ namespace Wombat.IndustrialCommunication
                     if (useCRC)
                     {
                         command = CRC16Helper.GetCRC16(message);
-                        result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                        
                     }
                     //发送命令并获取响应报文
@@ -86,7 +86,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     byte[] resultData = new byte[responsePackage.Length];
                     Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -124,7 +124,7 @@ namespace Wombat.IndustrialCommunication
                     if (useCRC)
                     {
                         command = CRC16Helper.GetCRC16(message);
-                        result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     }
                     //发送命令并获取响应报文
@@ -148,7 +148,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     byte[] resultData = new byte[responsePackage.Length];
                     Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToArray();
                 }
@@ -189,7 +189,7 @@ namespace Wombat.IndustrialCommunication
                     if (useCRC)
                     {
                         command = CRC16Helper.GetCRC16(command);
-                        result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     }
                     //发送命令并获取响应报文
@@ -213,7 +213,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     byte[] resultData = new byte[responsePackage.Length];
                     Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToString(0, resultData.Length, encoding);
                 }
@@ -253,7 +253,7 @@ namespace Wombat.IndustrialCommunication
                     if (useCRC)
                     {
                         command = CRC16Helper.GetCRC16(command);
-                        result.Requsts[0] = string.Join(" ", command.Select(t => t.ToString("X2")));
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     }
                     //发送命令并获取响应报文
@@ -277,7 +277,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     byte[] resultData = new byte[responsePackage.Length];
                     Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
-                    result.Responses[0] = string.Join(" ", responsePackage.Select(t => t.ToString("X2")));
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     //4 获取响应报文数据（字节数组形式）                
                     result.Value = resultData.ToString(0,resultData.Length,encoding);
                     
