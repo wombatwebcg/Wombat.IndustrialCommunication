@@ -162,6 +162,39 @@ namespace Wombat.IndustrialCommunication
             };
         }
 
+        /// <summary>
+        /// 创建并返回一个成功的结果对象，并带有一个参数对象
+        /// </summary>
+        /// <typeparam name="T">参数类型</typeparam>
+        /// <param name="value">类型的值对象</param>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult<T> CreateFailedResult<T>()
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = StringResources.Language.ExceptionMessage,
+            };
+        }
+
+
+        /// <summary>
+        /// 创建并返回一个失败的返回结果对象
+        /// </summary>
+        /// <typeparam name="T"></typeparam>
+        /// <param name="错误信息"></param>
+        /// <returns></returns>
+        public static OperationResult<T> CreateFailedResult<T>(string message)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = message,
+            };
+        }
+
 
         /// <summary>
         /// 创建并返回一个成功的结果对象，并带有一个参数对象

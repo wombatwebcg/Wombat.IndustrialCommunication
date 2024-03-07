@@ -1421,5 +1421,299 @@ namespace Wombat.IndustrialCommunication.PLC
 
         #endregion
 
+
+        #region object类型操作
+        public OperationResult<object> Read(DataTypeEnum dataTypeEnum, string address)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult<object>("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return ReadBoolean(address).ToObject();
+                case DataTypeEnum.Byte:
+                    return ReadByte(address).ToObject();
+                case DataTypeEnum.Int16:
+                    return ReadInt16(address).ToObject();
+                case DataTypeEnum.UInt16:
+                    return ReadUInt16(address).ToObject();
+                case DataTypeEnum.Int32:
+                    return ReadInt32(address).ToObject();
+                case DataTypeEnum.UInt32:
+                    return ReadUInt32(address).ToObject();
+                case DataTypeEnum.Int64:
+                    return ReadInt64(address).ToObject();
+                case DataTypeEnum.UInt64:
+                    return ReadUInt64(address).ToObject();
+                case DataTypeEnum.Float:
+                    return ReadFloat(address).ToObject();
+                case DataTypeEnum.Double:
+                    return ReadDouble(address).ToObject();
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
+                default:
+                    return OperationResult.CreateFailedResult<object>();
+            }
+        }
+
+
+        public OperationResult<object[]> Read(DataTypeEnum dataTypeEnum, string address, int length)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult<object[]>("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return ReadBoolean(address, length).ToObject();
+                case DataTypeEnum.Byte:
+                    return ReadByte(address, length).ToObject();
+                case DataTypeEnum.Int16:
+                    return ReadInt16(address, length).ToObject();
+                case DataTypeEnum.UInt16:
+                    return ReadUInt16(address, length).ToObject();
+                case DataTypeEnum.Int32:
+                    return ReadInt32(address, length).ToObject();
+                case DataTypeEnum.UInt32:
+                    return ReadUInt32(address, length).ToObject();
+                case DataTypeEnum.Int64:
+                    return ReadInt64(address, length).ToObject();
+                case DataTypeEnum.UInt64:
+                    return ReadUInt64(address, length).ToObject();
+                case DataTypeEnum.Float:
+                    return ReadFloat(address, length).ToObject();
+                case DataTypeEnum.Double:
+                    return ReadDouble(address, length).ToObject();
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现");
+                default:
+                    return OperationResult.CreateFailedResult<object[]>();
+            }
+        }
+
+
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnum dataTypeEnum, string address)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
+                case DataTypeEnum.Bool:
+                    return (await ReadBooleanAsync(address)).ToObject();
+                case DataTypeEnum.Byte:
+                    return (await ReadByteAsync(address)).ToObject();
+                case DataTypeEnum.Int16:
+                    return (await ReadInt16Async(address)).ToObject();
+                case DataTypeEnum.UInt16:
+                    return (await ReadUInt16Async(address)).ToObject();
+                case DataTypeEnum.Int32:
+                    return (await ReadInt32Async(address)).ToObject();
+                case DataTypeEnum.UInt32:
+                    return (await ReadUInt32Async(address)).ToObject();
+                case DataTypeEnum.Int64:
+                    return (await ReadInt64Async(address)).ToObject();
+                case DataTypeEnum.UInt64:
+                    return (await ReadUInt64Async(address)).ToObject();
+                case DataTypeEnum.Float:
+                    return (await ReadFloatAsync(address)).ToObject();
+                case DataTypeEnum.Double:
+                    return (await ReadDoubleAsync(address)).ToObject();
+                case DataTypeEnum.String:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
+                default:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+            }
+        }
+
+
+        public async ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnum dataTypeEnum, string address, int length)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("数据类型为null"));
+                case DataTypeEnum.Bool:
+                    return (await ReadBooleanAsync(address, length)).ToObject();
+                case DataTypeEnum.Byte:
+                    return (await ReadByteAsync(address, length)).ToObject();
+                case DataTypeEnum.Int16:
+                    return (await ReadInt16Async(address, length)).ToObject();
+                case DataTypeEnum.UInt16:
+                    return (await ReadUInt16Async(address, length)).ToObject();
+                case DataTypeEnum.Int32:
+                    return (await ReadInt32Async(address, length)).ToObject();
+                case DataTypeEnum.UInt32:
+                    return (await ReadUInt32Async(address, length)).ToObject();
+                case DataTypeEnum.Int64:
+                    return (await ReadInt64Async(address, length)).ToObject();
+                case DataTypeEnum.UInt64:
+                    return (await ReadUInt64Async(address, length)).ToObject();
+                case DataTypeEnum.Float:
+                    return (await ReadFloatAsync(address, length)).ToObject();
+                case DataTypeEnum.Double:
+                    return (await ReadDoubleAsync(address, length)).ToObject();
+                case DataTypeEnum.String:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现"));
+                default:
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>());
+            }
+        }
+
+
+        public OperationResult Write(DataTypeEnum dataTypeEnum, string address, object value)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return Write(address, (bool)value);
+                case DataTypeEnum.Byte:
+                    return Write(address, (byte)value);
+                case DataTypeEnum.Int16:
+                    return Write(address, (short)value);
+                case DataTypeEnum.UInt16:
+                    return Write(address, (int)value);
+                case DataTypeEnum.Int32:
+                    return Write(address, (long)value);
+                case DataTypeEnum.UInt32:
+                    return Write(address, (ushort)value);
+                case DataTypeEnum.Int64:
+                    return Write(address, (uint)value);
+                case DataTypeEnum.UInt64:
+                    return Write(address, (ulong)value);
+                case DataTypeEnum.Float:
+                    return Write(address, (float)value);
+                case DataTypeEnum.Double:
+                    return Write(address, (double)value);
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult("string写入未实现");
+                default:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+
+
+
+
+            }
+        }
+
+
+        public OperationResult Write(DataTypeEnum dataTypeEnum, string address, object[] values)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return Write(address, values.Cast<bool>().ToArray());
+                case DataTypeEnum.Byte:
+                    return Write(address, values.Cast<byte>().ToArray());
+                case DataTypeEnum.Int16:
+                    return Write(address, values.Cast<short>().ToArray());
+                case DataTypeEnum.UInt16:
+                    return Write(address, values.Cast<ushort>().ToArray());
+                case DataTypeEnum.Int32:
+                    return Write(address, values.Cast<int>().ToArray());
+                case DataTypeEnum.UInt32:
+                    return Write(address, values.Cast<uint>().ToArray());
+                case DataTypeEnum.Int64:
+                    return Write(address, values.Cast<long>().ToArray());
+                case DataTypeEnum.UInt64:
+                    return Write(address, values.Cast<ulong>().ToArray());
+                case DataTypeEnum.Float:
+                    return Write(address, values.Cast<float>().ToArray());
+                case DataTypeEnum.Double:
+                    return Write(address, values.Cast<double>().ToArray());
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult("string写入未实现");
+                default:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+
+
+
+
+            }
+        }
+
+
+
+        public async Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object value)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return await WriteAsync(address, (bool)value);
+                case DataTypeEnum.Byte:
+                    return await WriteAsync(address, (byte)value);
+                case DataTypeEnum.Int16:
+                    return await WriteAsync(address, (short)value);
+                case DataTypeEnum.UInt16:
+                    return await WriteAsync(address, (int)value);
+                case DataTypeEnum.Int32:
+                    return await WriteAsync(address, (long)value);
+                case DataTypeEnum.UInt32:
+                    return await WriteAsync(address, (ushort)value);
+                case DataTypeEnum.Int64:
+                    return await WriteAsync(address, (uint)value);
+                case DataTypeEnum.UInt64:
+                    return await WriteAsync(address, (ulong)value);
+                case DataTypeEnum.Float:
+                    return await WriteAsync(address, (float)value);
+                case DataTypeEnum.Double:
+                    return await WriteAsync(address, (double)value);
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult("string写入未实现");
+                default:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+
+
+
+
+            }
+        }
+
+
+        public async Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object[] values)
+        {
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnum.None:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+                case DataTypeEnum.Bool:
+                    return await WriteAsync(address, values.Cast<bool>().ToArray());
+                case DataTypeEnum.Byte:
+                    return await WriteAsync(address, values.Cast<byte>().ToArray());
+                case DataTypeEnum.Int16:
+                    return await WriteAsync(address, values.Cast<short>().ToArray());
+                case DataTypeEnum.UInt16:
+                    return await WriteAsync(address, values.Cast<ushort>().ToArray());
+                case DataTypeEnum.Int32:
+                    return await WriteAsync(address, values.Cast<int>().ToArray());
+                case DataTypeEnum.UInt32:
+                    return await WriteAsync(address, values.Cast<uint>().ToArray());
+                case DataTypeEnum.Int64:
+                    return await WriteAsync(address, values.Cast<long>().ToArray());
+                case DataTypeEnum.UInt64:
+                    return await WriteAsync(address, values.Cast<ulong>().ToArray());
+                case DataTypeEnum.Float:
+                    return await WriteAsync(address, values.Cast<float>().ToArray());
+                case DataTypeEnum.Double:
+                    return await WriteAsync(address, values.Cast<double>().ToArray());
+                case DataTypeEnum.String:
+                    return OperationResult.CreateFailedResult("string写入未实现");
+                default:
+                    return OperationResult.CreateFailedResult("数据类型为null");
+
+
+
+
+            }
+        }
+
+
+        #endregion
+
+
     }
 }

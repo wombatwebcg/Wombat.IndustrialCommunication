@@ -1,11 +1,50 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 
 namespace Wombat.IndustrialCommunication
 {
    public static class OperationResultExtensions
     {
+
+        public static  OperationResult<object> ToObject<T>(this OperationResult<T> orgin)
+        {
+            var result = new OperationResult<object>()
+            {
+                IsSuccess = orgin.IsSuccess,
+                ErrorCode = orgin.ErrorCode,
+                Message = orgin.Message,
+                Exception = orgin.Exception,
+                Requsts = orgin.Requsts,
+                Responses = orgin.Responses,
+            };
+            orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
+            if (orgin.Value != null)
+            {
+                result.Value = orgin.Value;
+            }
+            return result;
+        }
+
+        public static OperationResult<object[]> ToObject<T>(this OperationResult<T[]> orgin)
+        {
+            var result = new OperationResult<object[]>()
+            {
+                IsSuccess = orgin.IsSuccess,
+                ErrorCode = orgin.ErrorCode,
+                Message = orgin.Message,
+                Exception = orgin.Exception,
+                Requsts = orgin.Requsts,
+                Responses = orgin.Responses,
+            };
+            orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
+            if (orgin.Value != null && orgin.Value.Length>0)
+            {
+                result.Value = orgin.Value.Cast<object>().ToArray();
+            }
+            return result;
+        }
 
         public static OperationResult Copy(this OperationResult orgin)
         {

@@ -1,8 +1,11 @@
-﻿using System;
+﻿using InfluxData.Net.InfluxDb.Models.Responses;
+using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.PLC;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -182,6 +185,13 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         OperationResult<string> ReadString(string address, int length);
 
+
+        OperationResult<object>Read(DataTypeEnum dataTypeEnum,string address);
+
+
+        OperationResult<object[]> Read(DataTypeEnum dataTypeEnum, string address,int length);
+
+
         #endregion
 
         #region ReadAsync 
@@ -357,6 +367,12 @@ namespace Wombat.IndustrialCommunication
         /// <param name="address">地址</param>
         /// <returns></returns>
         ValueTask<OperationResult<string>> ReadStringAsync(string address, int length);
+
+
+
+        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnum dataTypeEnum, string address);
+
+        ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnum dataTypeEnum, string address, int length);
 
         #endregion
 
@@ -565,7 +581,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        OperationResult Write(string address, object value, DataTypeEnum type);
+        OperationResult Write(DataTypeEnum dataTypeEnum, string address, object value);
+
+
+        OperationResult Write(DataTypeEnum dataTypeEnum, string address, object[] value);
 
 
         #endregion
@@ -761,8 +780,14 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(string address, object value, DataTypeEnum type);
+        Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object value);
+
+
+        Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object[] value);
 
         #endregion
+
+
+
     }
 }
