@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.0.19</Version>
+    <Version>2.0.20</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
@@ -18,7 +18,7 @@
   <ItemGroup>
     <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.3" />
     <PackageReference Include="Wombat.Infrastructure" Version="2.0.16" />
-    <PackageReference Include="Wombat.Network" Version="1.0.5" />
+    <PackageReference Include="Wombat.Network" Version="1.0.6" />
   </ItemGroup>
 
 </Project>
