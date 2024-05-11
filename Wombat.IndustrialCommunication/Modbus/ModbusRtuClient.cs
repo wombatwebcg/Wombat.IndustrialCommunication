@@ -3,7 +3,7 @@ using System;
 using System.IO.Ports;
 using System.Linq;
 using System.Threading.Tasks;
-
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
@@ -12,6 +12,13 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// </summary>
     public class ModbusRtuClient : ModbusSerialPortBase
     {
+
+
+        public ModbusRtuClient() : base()
+        {
+            this.DataFormat = EndianFormat.ABCD;
+
+        }
 
         /// <summary>
         /// 构造函数
@@ -27,6 +34,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ModbusRtuClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None)
             : base(portName,baudRate,dataBits,stopBits,parity,handshake)
         {
+           this.DataFormat = EndianFormat.ABCD;
 
         }
 

@@ -17,14 +17,19 @@ namespace Wombat.IndustrialCommunication.Modbus
     {
         public ModbusTcpClient() : base()
         {
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
+
         }
 
         public ModbusTcpClient(IPEndPoint ipAndPoint) : base(ipAndPoint)
         {
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
         }
 
         public ModbusTcpClient(string ip, int port) : base(ip, port)
         {
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
+
         }
 
 

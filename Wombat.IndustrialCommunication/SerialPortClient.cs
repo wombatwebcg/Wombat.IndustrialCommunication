@@ -142,6 +142,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     else if (useCRC & !CRC16Helper.CheckCRC16(responsePackage))
                     {
+
                         result.IsSuccess = false;
                         result.Message = "响应结果CRC16Helper验证失败";
                         //return result.Complete();

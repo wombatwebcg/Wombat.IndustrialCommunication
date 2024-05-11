@@ -15,17 +15,14 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         public ModbusRtuClient_tests()
         {
             //client = new ModbusRtuClient("COM3", 9600, 8, StopBits.One, Parity.None);
-            client = new ModbusRtuClient("COM23", 9600, 8, StopBits.One, Parity.Even);
-            client.DataFormat = EndianFormat.DCBA;
-            client.IsReverse = true;
+            client = new ModbusRtuClient("COM6", 9600, 8);
         }
 
         [Fact]
         public void  短连接自动开关()
         {
-            client.Disconnect();
             client.Connect();
-            var ssss = client.Write("32", (ushort)4, stationNumber: 0xFF);
+            var ssss = client.Write("100", (ushort)1, stationNumber: 1);
             var ggg = client.ReadInt16("14",stationNumber:0xFF);
 
             short Number = 33;
