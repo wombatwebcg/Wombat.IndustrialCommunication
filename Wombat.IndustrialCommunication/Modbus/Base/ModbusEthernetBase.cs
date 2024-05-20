@@ -13,7 +13,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class ModbusSocketBase : ModbusEthernetDeviceBase
+    public abstract class ModbusEthernetBase : ModbusEthernetDeviceBase
     {
 
         private AsyncLock _lock = new AsyncLock();
@@ -32,7 +32,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusSocketBase()
+        public ModbusEthernetBase()
         {
         }
 
@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusSocketBase(IPEndPoint ipAndPoint)
+        public ModbusEthernetBase(IPEndPoint ipAndPoint)
         {
             IpEndPoint = ipAndPoint;
         }
@@ -59,7 +59,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="timeout">超时时间（毫秒）</param>
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusSocketBase(string ip, int port)
+        public ModbusEthernetBase(string ip, int port)
         {
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();

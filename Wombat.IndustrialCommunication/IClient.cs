@@ -16,6 +16,8 @@ namespace Wombat.IndustrialCommunication
 
     public interface IClient
     {
+        string Version { get; }
+
         ILogger Logger { get; set; }
 
         TimeSpan Timeout { get; set; }

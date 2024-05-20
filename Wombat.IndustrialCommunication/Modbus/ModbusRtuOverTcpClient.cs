@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Tcp的方式发送ModbusRtu协议报文 - 客户端
     /// </summary>
-    public class ModbusRtuOverTcpClient : ModbusSocketBase
+    public class ModbusRtuOverTcpClient : ModbusEthernetBase
     {
 
 
@@ -19,6 +19,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// 是否自动打开关闭
         /// </summary>
         protected bool _isAutoOpen = true;
+
+        public override string Version => "ModbusRtuOverTcpClient";
 
         /// <summary>
         /// 构造函数

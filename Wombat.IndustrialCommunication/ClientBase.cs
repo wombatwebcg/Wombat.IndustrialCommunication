@@ -69,6 +69,8 @@ namespace Wombat.IndustrialCommunication
 
         public bool IsReverse { get; set; } = true;
 
+        public abstract string Version { get; }
+
         public OperationResult Connect()
         {
             if (!Connected)

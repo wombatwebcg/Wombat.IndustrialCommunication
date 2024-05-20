@@ -21,7 +21,7 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         [Fact]
         public void  短连接自动开关()
         {
-            client.Connect();
+          var tttt  =  client.Connect();
             var ssss = client.Write("100", (ushort)1, stationNumber: 1);
             var ggg = client.ReadInt16("14",stationNumber:0xFF);
 

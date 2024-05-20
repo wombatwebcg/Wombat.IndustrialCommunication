@@ -7,7 +7,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-   public abstract class ModbusSerialPortDeviceBase : SerialPortDeviceBase, IModbusClient
+   public abstract class ModbusSerialPortDeviceBase : SerialPortDeviceBase, IModbusReadWrite
     {
         #region  Read 读取
         /// <summary>

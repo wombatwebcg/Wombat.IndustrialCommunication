@@ -6,7 +6,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// 
     /// </summary>
-    public interface IModbusClient
+    public interface IModbusReadWrite
     {
 
         #region  Read 读取

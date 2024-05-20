@@ -5,7 +5,7 @@ using System.Text;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    public interface ISerialPortClient : IDeviceClient
+    public interface ISerialPortClient : IClient, IReadWrite
     {
         string PortName { get; set; }
         int BaudRate { get; set; }

@@ -197,7 +197,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 receiveFinish += readLeng;
             }
-            result.Value = buffer;
+             Array.Copy(buffer, result.Value,buffer.Length);
 
             string printSend = $"{_serialPort.PortName} send:";
             for (int i = 0; i < buffer.Length; i++)

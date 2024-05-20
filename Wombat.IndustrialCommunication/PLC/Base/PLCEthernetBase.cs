@@ -15,7 +15,6 @@ namespace Wombat.IndustrialCommunication.PLC
    public abstract class PLCEthernetBase: EthernetDeviceBase, IEthernetClient
     {
 
-        public abstract  string Version { get; }
 
 
         #region Read
@@ -1313,104 +1312,6 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             return await WriteAsync(address, value.ToByte(Encoding.ASCII));
         }
-
-        /// <summary>
-        /// 写入数据
-        /// </summary>
-        /// <param name="address">地址</param>
-        /// <param name="value">值</param>
-        /// <param name="type">数据类型</param>
-        /// <returns></returns>
-        //public OperationResult Write(string address, object value, DataTypeEnum type)
-        //{
-        //    var result = new OperationResult() { IsSuccess = false };
-        //    switch (type)
-        //    {
-        //        case DataTypeEnum.Bool:
-        //            result = Write(address, Convert.ToBoolean(value));
-        //            break;
-        //        case DataTypeEnum.Byte:
-        //            result = Write(address, Convert.ToByte(value));
-        //            break;
-        //        case DataTypeEnum.Int16:
-        //            result = Write(address, Convert.ToInt16(value));
-        //            break;
-        //        case DataTypeEnum.UInt16:
-        //            result = Write(address, Convert.ToUInt16(value));
-        //            break;
-        //        case DataTypeEnum.Int32:
-        //            result = Write(address, Convert.ToInt32(value));
-        //            break;
-        //        case DataTypeEnum.UInt32:
-        //            result = Write(address, Convert.ToUInt32(value));
-        //            break;
-        //        case DataTypeEnum.Int64:
-        //            result = Write(address, Convert.ToInt64(value));
-        //            break;
-        //        case DataTypeEnum.UInt64:
-        //            result = Write(address, Convert.ToUInt64(value));
-        //            break;
-        //        case DataTypeEnum.Float:
-        //            result = Write(address, Convert.ToSingle(value));
-        //            break;
-        //        case DataTypeEnum.Double:
-        //            result = Write(address, Convert.ToDouble(value));
-        //            break;
-        //    }
-        //    return result;
-        //}
-
-
-        /// <summary>
-        /// 写入数据
-        /// </summary>
-        /// <param name="address">地址</param>
-        /// <param name="value">值</param>
-        /// <param name="type">数据类型</param>
-        /// <returns></returns>
-        //public async Task<OperationResult> WriteAsync(string address, object value, DataTypeEnum type)
-        //{
-        //    var result = new OperationResult() { IsSuccess = false };
-        //    switch (type)
-        //    {
-        //        case DataTypeEnum.Bool:
-        //            result = await WriteAsync(address, Convert.ToBoolean(value));
-        //            break;
-        //        case DataTypeEnum.Byte:
-        //            result = await WriteAsync(address, Convert.ToByte(value));
-        //            break;
-        //        case DataTypeEnum.Int16:
-        //            result = await WriteAsync(address, Convert.ToInt16(value));
-        //            break;
-        //        case DataTypeEnum.UInt16:
-        //            result = await WriteAsync(address, Convert.ToUInt16(value));
-        //            break;
-        //        case DataTypeEnum.Int32:
-        //            result = await WriteAsync(address, Convert.ToInt32(value));
-        //            break;
-        //        case DataTypeEnum.UInt32:
-        //            result = await WriteAsync(address, Convert.ToUInt32(value));
-        //            break;
-        //        case DataTypeEnum.Int64:
-        //            result = await WriteAsync(address, Convert.ToInt64(value));
-        //            break;
-        //        case DataTypeEnum.UInt64:
-        //            result = await WriteAsync(address, Convert.ToUInt64(value));
-        //            break;
-        //        case DataTypeEnum.Float:
-        //            result = await WriteAsync(address, Convert.ToSingle(value));
-        //            break;
-        //        case DataTypeEnum.Double:
-        //            result = await WriteAsync(address, Convert.ToDouble(value));
-        //            break;
-        //    }
-        //    return result;
-        //}
-
-
-
-
-
 
 
 

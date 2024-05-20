@@ -12,6 +12,8 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// </summary>
     public class ModbusAsciiClient : ModbusSerialPortBase
     {
+        public override string Version => "ModbusAsciiClient";
+
         /// <summary>
         /// 构造函数
         /// </summary>

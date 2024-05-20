@@ -13,6 +13,7 @@ namespace Wombat.IndustrialCommunication
     {
         private AsyncLock _lock;
 
+        public override string Version => "SerialPortClient";
 
         public SerialPortClient()
         {

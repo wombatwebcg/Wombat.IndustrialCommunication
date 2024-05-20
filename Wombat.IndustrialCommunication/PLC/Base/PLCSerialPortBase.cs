@@ -12,7 +12,6 @@ namespace Wombat.IndustrialCommunication.PLC
     {
 
 
-        public abstract string Version { get; }
 
         #region Read
 

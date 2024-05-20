@@ -785,6 +785,8 @@ namespace Wombat.IndustrialCommunication
 
         Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object[] value);
 
+
+
         #endregion
 
 
