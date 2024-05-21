@@ -28,6 +28,8 @@ namespace Wombat.IndustrialCommunication
 
         EndianFormat DataFormat { get; set; }
 
+       bool IsReverse { get; set; }
+
         TimeSpan WaiteInterval { get; set; }
 
         int OperationReTryTimes { get; set; }
@@ -35,7 +37,7 @@ namespace Wombat.IndustrialCommunication
         void UseLogger(ILogger logger);
 
 
-        bool IsUseLongConnect { get; set; }
+        bool IsLongLivedConnection { get; set; }
 
         bool Connected { get; }
 

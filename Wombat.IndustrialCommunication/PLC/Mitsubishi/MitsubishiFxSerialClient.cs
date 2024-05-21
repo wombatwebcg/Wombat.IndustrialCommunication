@@ -199,7 +199,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -259,7 +259,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -310,7 +310,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -361,7 +361,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }

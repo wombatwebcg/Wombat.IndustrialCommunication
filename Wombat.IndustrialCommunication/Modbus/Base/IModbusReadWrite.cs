@@ -19,7 +19,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="setEndian">设置构造函数中的大小端</param>
         /// <returns></returns>
-        OperationResult<byte[]> Read(string address,int readLength, byte stationNumber, byte functionCode, bool isPlcAddress = false);
+        OperationResult<byte[]> Read(string address,int readLength, byte stationNumber, byte functionCode);
 
         /// <summary>
         /// 读取Int16
@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<short> ReadInt16(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<short> ReadInt16(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -38,7 +38,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<short[]> ReadInt16(string address,int length ,byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<short[]> ReadInt16(string address,int length ,byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -49,7 +49,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        OperationResult<short> ReadInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false);
+        OperationResult<short> ReadInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true);
 
         /// <summary>
         /// 从批量读取的数据字节提取对应的地址数据
@@ -67,7 +67,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<ushort[]> ReadUInt16(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<ushort[]> ReadUInt16(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt16
@@ -76,7 +76,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<ushort> ReadUInt16(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<ushort> ReadUInt16(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -96,7 +96,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        OperationResult<ushort> ReadUInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false);
+        OperationResult<ushort> ReadUInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true);
 
         /// <summary>
         /// 读取Int32
@@ -105,7 +105,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<int> ReadInt32(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<int> ReadInt32(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Int32
@@ -114,7 +114,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<int[]> ReadInt32(string address,int length ,byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<int[]> ReadInt32(string address,int length ,byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -133,7 +133,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<uint> ReadUInt32(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<uint> ReadUInt32(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt32
@@ -142,7 +142,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<uint[]> ReadUInt32(string address,int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<uint[]> ReadUInt32(string address,int length, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -162,7 +162,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<long> ReadInt64(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<long> ReadInt64(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Int64
@@ -171,7 +171,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<long[]> ReadInt64(string address,int length ,byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<long[]> ReadInt64(string address,int length ,byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 从批量读取的数据字节提取对应的地址数据
@@ -189,7 +189,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<ulong> ReadUInt64(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<ulong> ReadUInt64(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt64
@@ -198,7 +198,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<ulong[]> ReadUInt64(string address,int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<ulong[]> ReadUInt64(string address,int length, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -217,7 +217,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<float> ReadFloat(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<float> ReadFloat(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -227,7 +227,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<float[]> ReadFloat(string address,int length ,byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<float[]> ReadFloat(string address,int length ,byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -246,7 +246,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<double> ReadDouble(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<double> ReadDouble(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Double
@@ -255,7 +255,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<double[]> ReadDouble(string address,int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        OperationResult<double[]> ReadDouble(string address,int length, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -274,7 +274,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<bool> ReadCoil(string address, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false);
+        OperationResult<bool> ReadCoil(string address, byte stationNumber = 1, byte functionCode = 1);
 
         /// <summary>
         /// 读取线圈
@@ -283,7 +283,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        OperationResult<bool[]> ReadCoil(string address,int length ,byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false);
+        OperationResult<bool[]> ReadCoil(string address,int length ,byte stationNumber = 1, byte functionCode = 1);
 
 
         /// <summary>
@@ -302,7 +302,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        OperationResult<bool> ReadDiscrete(string address, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false);
+        OperationResult<bool> ReadDiscrete(string address, byte stationNumber = 1, byte functionCode = 2);
 
         /// <summary>
         /// 读取离散
@@ -311,7 +311,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        OperationResult<bool[]> ReadDiscrete(string address,int length ,byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false);
+        OperationResult<bool[]> ReadDiscrete(string address,int length ,byte stationNumber = 1, byte functionCode = 2);
 
 
 
@@ -343,7 +343,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="setEndian">设置构造函数中的大小端</param>
         /// <returns></returns>
-        Task<OperationResult<byte[]>> ReadAsync(string address, int readLength, byte stationNumber, byte functionCode, bool isPlcAddress = false);
+        Task<OperationResult<byte[]>> ReadAsync(string address, int readLength, byte stationNumber, byte functionCode);
 
         /// <summary>
         /// 读取Int16
@@ -352,7 +352,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<short>> ReadInt16Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<short>> ReadInt16Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -362,7 +362,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<short[]>> ReadInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<short[]>> ReadInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -373,7 +373,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        Task<OperationResult<short>> ReadInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false);
+        Task<OperationResult<short>> ReadInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true);
 
 
         /// <summary>
@@ -383,7 +383,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<ushort[]>> ReadUInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<ushort[]>> ReadUInt16Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt16
@@ -392,7 +392,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<ushort>> ReadUInt16Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<ushort>> ReadUInt16Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -404,7 +404,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        Task<OperationResult<ushort>> ReadUInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true, bool isPlcAddress = false);
+        Task<OperationResult<ushort>> ReadUInt16BitAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true);
 
         /// <summary>
         /// 读取Int32
@@ -413,7 +413,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<int>> ReadInt32Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<int>> ReadInt32Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Int32
@@ -422,7 +422,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<int[]>> ReadInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<int[]>> ReadInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -432,7 +432,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<uint>> ReadUInt32Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<uint>> ReadUInt32Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt32
@@ -441,7 +441,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<uint[]>> ReadUInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<uint[]>> ReadUInt32Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -452,7 +452,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<long>> ReadInt64Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<long>> ReadInt64Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Int64
@@ -461,7 +461,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<long[]>> ReadInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<long[]>> ReadInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -471,7 +471,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<ulong>> ReadUInt64Async(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<ulong>> ReadUInt64Async(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取UInt64
@@ -480,7 +480,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<ulong[]>> ReadUInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<ulong[]>> ReadUInt64Async(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -491,7 +491,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<float>> ReadFloatAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<float>> ReadFloatAsync(string address, byte stationNumber = 1, byte functionCode = 3);
 
 
         /// <summary>
@@ -501,7 +501,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<float[]>> ReadFloatAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<float[]>> ReadFloatAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -512,7 +512,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<double>> ReadDoubleAsync(string address, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<double>> ReadDoubleAsync(string address, byte stationNumber = 1, byte functionCode = 3);
 
         /// <summary>
         /// 读取Double
@@ -521,7 +521,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<double[]>> ReadDoubleAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false);
+        Task<OperationResult<double[]>> ReadDoubleAsync(string address, int length, byte stationNumber = 1, byte functionCode = 3);
 
 
 
@@ -532,7 +532,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<bool>> ReadCoilAsync(string address, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false);
+        Task<OperationResult<bool>> ReadCoilAsync(string address, byte stationNumber = 1, byte functionCode = 1);
 
         /// <summary>
         /// 读取线圈
@@ -541,7 +541,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        Task<OperationResult<bool[]>> ReadCoilAsync(string address, int length, byte stationNumber = 1, byte functionCode = 1, bool isPlcAddress = false);
+        Task<OperationResult<bool[]>> ReadCoilAsync(string address, int length, byte stationNumber = 1, byte functionCode = 1);
 
 
         /// <summary>
@@ -551,7 +551,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        Task<OperationResult<bool>> ReadDiscreteAsync(string address, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false);
+        Task<OperationResult<bool>> ReadDiscreteAsync(string address, byte stationNumber = 1, byte functionCode = 2);
 
         /// <summary>
         /// 读取离散
@@ -560,7 +560,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        Task<OperationResult<bool[]>> ReadDiscreteAsync(string address, int length, byte stationNumber = 1, byte functionCode = 2, bool isPlcAddress = false);
+        Task<OperationResult<bool[]>> ReadDiscreteAsync(string address, int length, byte stationNumber = 1, byte functionCode = 2);
 
 
 
@@ -582,7 +582,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false);
+        OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5);
 
         /// <summary>
         /// 线圈写入
@@ -591,7 +591,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false);
+        OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 5);
 
 
         /// <summary>
@@ -602,7 +602,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16);
 
 
         /// <summary>
@@ -613,7 +613,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        //OperationResult Write(string address, byte value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false);
+        //OperationResult Write(string address, byte value, byte stationNumber = 1, byte functionCode = 6);
 
 
 
@@ -624,7 +624,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, short value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, short value, byte stationNumber = 1, byte functionCode = 16);
 
         /// <summary>
         /// 写入
@@ -633,103 +633,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, short[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, ushort value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, int value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, int[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, uint value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, long value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, long[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, ulong value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, short[] value, byte stationNumber = 1, byte functionCode = 16);
 
 
 
@@ -740,7 +644,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, float value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, ushort value, byte stationNumber = 1, byte functionCode = 16);
 
         /// <summary>
         /// 写入
@@ -749,17 +653,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, float[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, double value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16);
 
 
         /// <summary>
@@ -769,7 +663,113 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        OperationResult Write(string address, double[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        OperationResult Write(string address, int value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, int[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, uint value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, long value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, long[] value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, ulong value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, float value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, float[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, double value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        OperationResult Write(string address, double[] value, byte stationNumber = 1, byte functionCode = 16);
 
         #endregion
 
@@ -781,7 +781,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5);
 
         /// <summary>
         /// 线圈写入
@@ -790,7 +790,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 5);
 
 
         /// <summary>
@@ -801,7 +801,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16);
 
 
         /// <summary>
@@ -812,7 +812,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        //Task<OperationResult> WriteAsync(string address, byte value, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false);
+        //Task<OperationResult> WriteAsync(string address, byte value, byte stationNumber = 1, byte functionCode = 6);
 
 
 
@@ -823,7 +823,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, short value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, short value, byte stationNumber = 1, byte functionCode = 16);
 
         /// <summary>
         /// 写入
@@ -832,103 +832,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, short[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, ushort value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, int value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, int[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, uint value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, long value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, long[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, ulong value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, short[] value, byte stationNumber = 1, byte functionCode = 16);
 
 
 
@@ -939,7 +843,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, float value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, ushort value, byte stationNumber = 1, byte functionCode = 16);
 
         /// <summary>
         /// 写入
@@ -948,17 +852,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, float[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, double value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16);
 
 
         /// <summary>
@@ -968,7 +862,113 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        Task<OperationResult> WriteAsync(string address, double[] value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false);
+        Task<OperationResult> WriteAsync(string address, int value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, int[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, uint value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, long value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, long[] value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, ulong value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, float value, byte stationNumber = 1, byte functionCode = 16);
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, float[] value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, double value, byte stationNumber = 1, byte functionCode = 16);
+
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        Task<OperationResult> WriteAsync(string address, double[] value, byte stationNumber = 1, byte functionCode = 16);
 
         #endregion
 

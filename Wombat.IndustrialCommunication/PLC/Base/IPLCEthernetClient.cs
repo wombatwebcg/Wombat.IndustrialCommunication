@@ -5,7 +5,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// <summary>
     /// 以太网形式
     /// </summary>
-    public interface IEthernetClient : IClient, IReadWrite
+    public interface IPLCEthernetClient : IClient, IReadWrite
     {
         /// <summary>
         /// IPEndPoint

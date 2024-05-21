@@ -98,7 +98,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -161,7 +161,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -226,7 +226,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -291,7 +291,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }

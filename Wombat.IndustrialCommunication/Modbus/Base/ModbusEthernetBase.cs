@@ -13,11 +13,10 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class ModbusEthernetBase : ModbusEthernetDeviceBase
+    public abstract class ModbusEthernetBase : ModbusEthernetDeviceBase, IModbusEthernetClient
     {
 
         private AsyncLock _lock = new AsyncLock();
-
 
 
 
@@ -34,6 +33,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="plcAddresses">PLC地址</param>
         public ModbusEthernetBase()
         {
+
         }
 
 
@@ -77,8 +77,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             try
             {
                 //超时时间设置
-                _socket.SocketConfiguration.ReceiveTimeout = Timeout; 
-                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.SocketConfiguration.ConnectTimeout = Timeout;
 
                 //连接
                 _socket.Connect(IpEndPoint);
@@ -239,7 +238,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="byteFormatting">大小端转换</param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             using (_lock.Lock())
             {
@@ -258,7 +257,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     //1 获取命令（组装报文）
-                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead, isPlcAddress);
+                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
                     var sendResult = InterpretAndExtractMessageData(command);
@@ -301,7 +300,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -316,7 +315,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="byteFormatting">大小端转换</param>
         /// <returns></returns>
-        public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             using (await _lock.LockAsync())
             {
@@ -335,7 +334,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var chenkHead = GetCheckHead(functionCode);
                     //1 获取命令（组装报文）
-                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead, isPlcAddress);
+                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
@@ -378,80 +377,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
         }
 
 
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">写入地址</param>
-        /// <param name="values">写入字节数组</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        /// <param name="byteFormatting">大小端设置</param>
-        /// <returns></returns>
-        //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 6, bool isPlcAddress = false)
-        //{
-        //    _advancedHybirdLock.Enter();
-        //    var result = new OperationResult();
-        //    if (!_socket?.Connected ?? true)
-        //    {
-        //        var connectResult = Connect();
-        //        if (!connectResult.IsSuccess)
-        //        {
-        //            _advancedHybirdLock.Leave();
-        //            return result.SetInfo(connectResult);
-        //        }
-        //    }
-        //    try
-        //    {
-        //        var chenkHead = GetCheckHead(functionCode);
-        //        var command = GetWriteOneCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
-        //        result.Requst = string.Join(" ", command.Select(t => t.ToString("X2"))));
-        //        var sendResult = SendPackageReliable(command);
-        //        if (!sendResult.IsSuccess)
-        //        {
-        //            _advancedHybirdLock.Leave();
-        //            return result.SetInfo(sendResult).Complete();
-        //        }
-        //        var dataPackage = sendResult.Value;
-        //        result.Response = string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-        //        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-        //        {
-        //            result.IsSuccess = false;
-        //            result.Message = "响应结果校验失败";
-        //            _socket?.SafeClose();
-        //        }
-        //        else if (ModbusHelper.VerifyFunctionCode(functionCode, dataPackage[7]))
-        //        {
-        //            result.IsSuccess = false;
-        //            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
-        //        }
-        //    }
-        //    catch (SocketException ex)
-        //    {
-        //        result.IsSuccess = false;
-        //        if (ex.SocketErrorCode == SocketError.TimedOut)
-        //        {
-        //            result.Message = "连接超时";
-        //            _socket?.SafeClose();
-        //        }
-        //        else
-        //        {
-        //            result.Message = ex.Message;
-        //        }
-        //    }
-        //    finally
-        //    {
-        //        if (!IsUseLongConnect) Disconnect();
-        //    }
-        //    _advancedHybirdLock.Leave();
-        //    return result.Complete();
-        //}
 
         /// <summary>
         /// 写入
@@ -462,7 +394,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="byteFormatting">大小端设置</param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16,bool isPlcAddress = false)
+        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             using (_lock.Lock())
             {
@@ -478,7 +410,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -514,7 +446,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -529,7 +461,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="byteFormatting">大小端设置</param>
         /// <returns></returns>
-        public override async Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             using (await _lock.LockAsync())
             {
@@ -545,7 +477,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -581,7 +513,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -596,7 +528,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             using (_lock.Lock())
             {
@@ -612,7 +544,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -648,7 +580,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -662,7 +594,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public override async Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             using (await _lock.LockAsync())
             {
@@ -678,7 +610,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -714,14 +646,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
         }
 
 
-        public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15, bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15)
         {
             using (_lock.Lock())
             {
@@ -737,7 +669,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretAndExtractMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -773,13 +705,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
         }
 
-        public override async Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 15)
         {
             using (await _lock.LockAsync())
             {
@@ -795,7 +727,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     var chenkHead = GetCheckHead(functionCode);
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead, isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult =await InterpretAndExtractMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -831,7 +763,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -865,9 +797,10 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="length">读取长度</param>
         /// <returns></returns>
-        public byte[] GetReadCommand(string address, byte stationNumber, byte functionCode, ushort length, byte[] check = null, bool isPlcAddress = false)
+        public byte[] GetReadCommand(string address, byte stationNumber, byte functionCode, ushort length, byte[] check = null)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            //if (_isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var readAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[12];
             buffer[0] = check?[0] ?? 0x19;
@@ -894,9 +827,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        //public byte[] GetWriteOneCommand(string address, byte[] values, byte stationNumber, byte functionCode, byte[] check = null, bool isPlcAddress = false)
+        //public byte[] GetWriteOneCommand(string address, byte[] values, byte stationNumber, byte functionCode, byte[] check = null)
         //{
-        //    if (isPlcAddress) { address = TranPLCAddress(address); }
+        //    if (_isPlcAddress) { address = TranPLCAddress(address); }
         //    var writeAddress = ushort.Parse(address?.Trim());
         //    byte[] buffer = new byte[12];
         //    buffer[0] = check?[0] ?? 0x19;
@@ -922,9 +855,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCommand(string address, byte[] values, byte stationNumber, byte functionCode, byte[] check = null, bool isPlcAddress = false)
+        public byte[] GetWriteCommand(string address, byte[] values, byte stationNumber, byte functionCode, byte[] check = null)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var writeAddress = ushort.Parse(address?.Trim());
 
             if (values.Length > 2)
@@ -973,9 +906,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCoilCommand(string address, bool value, byte stationNumber, byte functionCode, byte[] check = null, bool isPlcAddress = false)
+        public byte[] GetWriteCoilCommand(string address, bool value, byte stationNumber, byte functionCode, byte[] check = null)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var writeAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[12];
             buffer[0] = check?[0] ?? 0x19;
@@ -1002,9 +935,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCoilCommand(string address, bool[] values, byte stationNumber, byte functionCode, byte[] check = null, bool isPlcAddress = false)
+        public byte[] GetWriteCoilCommand(string address, bool[] values, byte stationNumber, byte functionCode, byte[] check = null)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var writeAddress = ushort.Parse(address?.Trim());
             int length = (values.Length + 1) / 2;
             byte[] newValue = values.ToByte();

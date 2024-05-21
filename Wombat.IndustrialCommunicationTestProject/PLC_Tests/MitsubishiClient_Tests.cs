@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 短连接自动开关(MitsubishiVersion version, int port)
         {
             client = new MitsubishiClient(version, ip, port);
-            client.IsUseLongConnect = false;
+            client.IsLongLivedConnection = false;
             ReadWrite();
         }
 
@@ -37,7 +37,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new MitsubishiClient(version, ip, port);
 
             client.Connect();
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
          var sss =   client.Disconnect();
 
             ReadWrite();
@@ -187,7 +187,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new MitsubishiClient(version, ip, port);
 
             await client.ConnectAsync();
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             ReadWriteAsync().Wait();
 

@@ -59,6 +59,7 @@ namespace Wombat.IndustrialCommunication
             _serialPort.StopBits = StopBits;
             _serialPort.Handshake = Handshake;
 
+
             _serialPort.WriteTimeout = (int)Timeout.TotalMilliseconds;
             _serialPort.ReadTimeout = (int)Timeout.TotalMilliseconds;
 

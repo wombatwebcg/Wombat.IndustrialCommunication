@@ -110,7 +110,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="byteFormatting"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             if (_isAutoOpen) Connect();
 
@@ -171,7 +171,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5,bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             if (!Connected) Connect();
             var result = new OperationResult();
@@ -223,7 +223,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool byteFormatting = true)
+        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             if (!Connected) Connect();
 

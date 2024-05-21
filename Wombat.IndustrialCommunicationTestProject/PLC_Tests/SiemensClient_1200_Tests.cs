@@ -17,8 +17,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     public class SiemensClient_1200_Tests
     {
-        private IEthernetClient client;
-        private IEthernetClient client2;
+        private IPLCEthernetClient client;
+        private IPLCEthernetClient client2;
 
         public SiemensClient_1200_Tests()
         {
@@ -49,7 +49,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 短连接自动开关()
         {
 
-            client.IsUseLongConnect = false;
+            client.IsLongLivedConnection = false;
 
             ReadWrite();
         }
@@ -57,8 +57,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 长连接主动开关()
         {
-            client.IsUseLongConnect = true;
-            client2.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
+            client2.IsLongLivedConnection = true;
 
             var tt =   client.Connect();
             var cc = client2.Connect();
@@ -212,7 +212,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 长连接主动开关Async()
         {
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             var tt = client.Connect();
             var ssss1 = client.Write("Q1.3", true);

@@ -16,7 +16,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     public class SiemensClient_Smart200_Tests
     {
-        private IEthernetClient client;
+        private IPLCEthernetClient client;
         public SiemensClient_Smart200_Tests()
         {
           var loggerFactory = LoggerFactory.Create(builder =>
@@ -41,7 +41,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
 
 
-            client.IsUseLongConnect = false;
+            client.IsLongLivedConnection = false;
 
             ReadWrite();
         }
@@ -49,7 +49,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 长连接主动开关()
         {
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             var tt =   client.Connect();
             ReadWrite();
@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 长连接主动开关Async()
         {
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             var tt = client.Connect();
             var ssss1 = client.Write("Q1.3", true);

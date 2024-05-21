@@ -1,25 +1,23 @@
-﻿
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Net;
-using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Adapter;
 using Wombat.IndustrialCommunication.PLC;
-using Wombat.Infrastructure;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace IoTClient.Tests.PLC_Tests
 {
-    public class SiemensClient_200_Tests
+    public class DeviceClientFactory_Tests
     {
         private IPLCEthernetClient client;
-        public SiemensClient_200_Tests()
+        public DeviceClientFactory_Tests()
         {
-          var loggerFactory = LoggerFactory.Create(builder =>
+            var loggerFactory = LoggerFactory.Create(builder =>
             {
                 builder
                     .AddFilter("Microsoft", LogLevel.Warning)
@@ -29,9 +27,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.1.218");//20.205.243.166
-            var  port = 102;
-            client = new SiemensClient(SiemensVersion.S7_200, new IPEndPoint(ip, port));
+            var ip = IPAddress.Parse("192.168.100.51");//20.205.243.166
+            var port = 102;
+            client = DeviceClientFactory.CreatePLCEthernetDevice(EthernetDeviceVersion.Siemens_S7_200Smart, "192.168.100.51",102);
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
         }
 
@@ -51,7 +49,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             client.IsLongLivedConnection = true;
 
-            var tt =   client.Connect();
+            var tt = client.Connect();
             ReadWrite();
             client?.Disconnect();
         }
@@ -73,7 +71,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 string value_string = "BennyZhao";
 
-               var ssss2 = client.Write("Q1.3", true);
+                var ssss2 = client.Write("Q1.3", true);
 
                 Assert.True(client.ReadBoolean("Q1.3").Value == true);
                 client.Write("Q1.4", bool_value);
@@ -169,7 +167,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 }
 
-                float[] float_values = { 999.1f, 999.2f, 999.13f, 999.14f, 999.15f, 999.16f, 999.17f, 999.2f, 999.19f, 999.110f };
+                float[] float_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
                 client.Write("V700", float_values);
                 var float_values_result = client.ReadFloat("V700", float_values.Length);
                 for (int j = 0; j < float_values_result.Value.Length; j++)
@@ -177,7 +175,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     Assert.True(float_values_result.Value[j] == float_values[j]);
 
                 }
-                double[] double_values = { 999.1, 999.2, 999.13, 999.14, 999.15, 999.16, 999.17, 999.2, 999.19, 999.110 };
+                double[] double_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
                 client.Write("V700", double_values);
                 var double_values_result = client.ReadDouble("V700", double_values.Length);
                 for (int j = 0; j < double_values_result.Value.Length; j++)
@@ -200,7 +198,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             var tt = client.Connect();
             var ssss1 = client.Write("Q1.3", true);
             var ssss2 = client.Write("Q1.3", true);
-            var ssss3= client.Write("Q1.3", true);
+            var ssss3 = client.Write("Q1.3", true);
             var ssss4 = client.Write("Q1.3", true);
 
             var ssssss1 = client.WriteAsync("Q1.3", true).Result;
@@ -351,7 +349,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void 批量读写()
         {
-          var sss =  client.Connect();
+            var sss = client.Connect();
 
             //client.WarningLog = (msg, ex) =>
             //{

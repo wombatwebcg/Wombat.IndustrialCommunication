@@ -39,7 +39,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="readLength">读取长度</param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3,bool isPlcAddress = false)
+        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             if (!Connected) Connect();
 
@@ -47,7 +47,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             try
             {
                 //获取命令（组装报文）
-                byte[] command = GetReadCommand(address, stationNumber, functionCode,(ushort) readLength, isPlcAddress: isPlcAddress);
+                byte[] command = GetReadCommand(address, stationNumber, functionCode,(ushort) readLength);
                 var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
                 var finalCommand = new byte[commandLRC.Length + 3];
@@ -117,13 +117,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             if (!Connected) Connect();
             var result = new OperationResult();
             try
             {
-                var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
 
                 var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                 var finalCommand = new byte[commandAscii.Length + 3];
@@ -177,14 +177,14 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16,bool isPlcAddress = false)
+        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             if (!Connected) Connect();
 
             var result = new OperationResult();
             try
             {
-                var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                var command = GetWriteCommand(address, values, stationNumber, functionCode);
 
                 var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                 var finalCommand = new byte[commandAscii.Length + 3];
@@ -248,14 +248,14 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        //public override OperationResult WriteOne(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         //{
         //    if (!Connected) Connect();
 
         //    var result = new OperationResult();
         //    try
         //    {
-        //        var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+        //        var command = GetWriteCommand(address, values, stationNumber, functionCode: isPlcAddress);
 
         //        var commandAscii = DataTypeExtensions.ByteArrayToAsciiArray(LRCHelper.GetLRC(command));
         //        var finalCommand = new byte[commandAscii.Length + 3];

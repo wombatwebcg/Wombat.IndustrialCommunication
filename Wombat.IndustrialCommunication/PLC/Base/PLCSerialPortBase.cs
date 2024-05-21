@@ -8,7 +8,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-   public abstract  class PLCSerialPortBase : SerialPortDeviceBase, ISerialPortClient
+   public abstract  class PLCSerialPortBase : SerialPortDeviceBase, IPLCSerialPortClient
     {
 
 

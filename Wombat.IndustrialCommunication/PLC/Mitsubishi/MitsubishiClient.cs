@@ -98,8 +98,7 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 //超时时间设置
-                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
-                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.SocketConfiguration.ConnectTimeout = Timeout;
                 _socket.SocketConfiguration.ReceiveBufferSize = 1024;
                 _socket.SocketConfiguration.SendBufferSize = 1024;
                 _socket.Connect(IpEndPoint);
@@ -391,9 +390,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
+            if (!Connected && IsLongLivedConnection) { return OperationResult.CreateFailedResult<byte[]>($"读取{address}失败，PLC使用长连接，连接断开"); }
             using (_lock.Lock())
             {
-                if (!_socket?.Connected ?? true)
+                if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
@@ -483,7 +483,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                return result.Complete();
             }
@@ -493,7 +493,7 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (await _lock.LockAsync())
             {
-                if (!_socket?.Connected ?? true)
+                if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = await ConnectAsync();
                     if (!connectResult.IsSuccess)
@@ -582,7 +582,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
 
                 }
                 return result.Complete();
@@ -648,7 +648,7 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (_lock.Lock())
             {
-                if (!_socket?.Connected ?? true)
+                if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
@@ -715,7 +715,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -726,7 +726,7 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (await _lock.LockAsync())
             {
-                if (!_socket?.Connected ?? true)
+                if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
@@ -793,7 +793,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }

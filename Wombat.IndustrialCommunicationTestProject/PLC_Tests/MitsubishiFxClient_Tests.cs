@@ -24,7 +24,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 短连接自动开关(string portName)
         {
             client = new MitsubishiFxSerialClient(portName);
-            client.IsUseLongConnect = false;
+            client.IsLongLivedConnection = false;
 
             //var sss = client.Write("d0", (short)0);
             ReadWrite();
@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new MitsubishiFxSerialClient(portName);
 
             client.Connect();
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             ReadWrite();
 
@@ -190,7 +190,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new MitsubishiFxSerialClient(portName);
 
             await client.ConnectAsync();
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             ReadWriteAsync().Wait();
 

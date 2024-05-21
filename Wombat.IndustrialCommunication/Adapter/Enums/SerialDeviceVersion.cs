@@ -8,5 +8,7 @@ namespace Wombat.IndustrialCommunication.Adapter
         ModbusRtu,
         [Description("ModBusAscii")]
         ModBusAscii,
+        [Description("MitsubishiFxSerial")]
+        MitsubishiFxSerial
     }
 }

@@ -57,7 +57,7 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         [Fact]
         public void 长连接主动开关()
         {
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
 
             client.Connect();
 

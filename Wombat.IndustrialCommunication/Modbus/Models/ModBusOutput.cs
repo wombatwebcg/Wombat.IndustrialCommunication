@@ -19,6 +19,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public byte FunctionCode { get; set; }
 
+
         public object Value { get; set; }
     }
 }

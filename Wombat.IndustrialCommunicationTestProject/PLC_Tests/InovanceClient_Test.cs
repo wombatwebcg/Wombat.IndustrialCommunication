@@ -27,7 +27,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
 
             client = new InovanceClient(ip,502);
-            client.IsUseLongConnect = false;
+            client.IsLongLivedConnection = false;
             ReadWrite();
         }
         [Fact]
@@ -35,7 +35,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void 长连接自动开关()
         {
             client = new InovanceClient(ip, 502);
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
             client.Connect();
             client.Timeout = TimeSpan.FromMilliseconds(500);
 
@@ -61,7 +61,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public async void 长连接自动开关Async()
         {
             client = new InovanceClient(ip, 502);
-            client.IsUseLongConnect = true;
+            client.IsLongLivedConnection = true;
             await client.ConnectAsync();
             client.Timeout = TimeSpan.FromMilliseconds(500);
 

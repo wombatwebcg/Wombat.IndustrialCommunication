@@ -43,7 +43,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public bool IsUseLongConnect { get; set; } = true;
+        public bool IsLongLivedConnection { get; set; } = true;
 
         /// <summary>
         /// 警告日志委托
@@ -65,9 +65,9 @@ namespace Wombat.IndustrialCommunication
 
         public int OperationReTryTimes { get; set; } = 2;
 
-        public EndianFormat DataFormat { get; set; } = EndianFormat.BADC;
+        public EndianFormat DataFormat { get; set; } = EndianFormat.ABCD;
 
-        public bool IsReverse { get; set; } = true;
+        public bool IsReverse { get; set; } = false;
 
         public abstract string Version { get; }
 

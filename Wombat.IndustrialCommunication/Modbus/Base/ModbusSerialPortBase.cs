@@ -12,7 +12,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusRtu协议客户端
     /// </summary>
-    public abstract class ModbusSerialPortBase : ModbusSerialPortDeviceBase
+    public abstract class ModbusSerialPortBase : ModbusSerialPortDeviceBase, IModbusSerialPortClient
     {
 
 
@@ -65,7 +65,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="byteFormatting"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             using (_lock.Lock())
             {
@@ -82,7 +82,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     //获取命令（组装报文）
-                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, isPlcAddress: isPlcAddress);
+                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
@@ -124,7 +124,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -181,14 +181,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
         }
 
 
-        public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3, bool isPlcAddress = false)
+        public override async Task<OperationResult<byte[]>> ReadAsync(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         {
             using (await _lock.LockAsync())
             {
@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 try
                 {
                     //获取命令（组装报文）
-                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, isPlcAddress: isPlcAddress);
+                    byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
@@ -247,7 +247,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -305,7 +305,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -322,7 +322,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             using (_lock.Lock())
             {
@@ -338,7 +338,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
@@ -378,7 +378,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -392,7 +392,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override async Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
         {
             using (await _lock.LockAsync())
             {
@@ -408,7 +408,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
@@ -447,13 +447,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
         }
 
-        public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0X0F, bool isPlcAddress = false)
+        public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0X0F)
         {
             using (_lock.Lock())
             {
@@ -469,7 +469,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
@@ -508,13 +508,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
         }
 
-        public override async Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0X0F, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0X0F)
         {
             using (await _lock.LockAsync())
             {
@@ -530,7 +530,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
@@ -569,7 +569,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -623,7 +623,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) await DisconnectAsync();
+                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -637,7 +637,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        //public override OperationResult Write(string address, byte value, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        //public override OperationResult Write(string address, byte value, byte stationNumber = 1, byte functionCode = 16)
         //{
         //    _advancedHybirdLock.Enter();
         //    var result = new OperationResult();
@@ -653,7 +653,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    }
         //    try
         //    {
-        //        var command = GetWriteCommand(address, value, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+        //        var command = GetWriteCommand(address, value, stationNumber, functionCode);
 
         //        var commandCRC16 = CRC16Helper.GetCRC16(command);
         //        result.Requst = string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
@@ -693,7 +693,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         //    }
         //    finally
         //    {
-        //        if (!IsUseLongConnect) Disconnect();
+        //        if (!IsLongLivedConnection) Disconnect();
         //    }
         //    _advancedHybirdLock.Leave();
         //    return result.Complete();
@@ -709,7 +709,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             using (_lock.Lock())
             {
@@ -725,7 +725,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode);
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
@@ -763,7 +763,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -817,7 +817,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect) Disconnect();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
                 return result.Complete();
             }
@@ -832,7 +832,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override async Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16, bool isPlcAddress = false)
+        public override async Task<OperationResult> WriteAsync(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
         {
             using (await _lock.LockAsync())
             {
@@ -848,7 +848,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 try
                 {
-                    var command = GetWriteCommand(address, values, stationNumber, functionCode, isPlcAddress: isPlcAddress);
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode);
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
@@ -886,7 +886,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 finally
                 {
-                    if (!IsUseLongConnect)await DisconnectAsync();
+                    if (!IsLongLivedConnection)await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -912,9 +912,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="length">读取长度</param>
         /// <returns></returns>
-        public byte[] GetReadCommand(string address, byte stationNumber, byte functionCode, ushort length, bool isPlcAddress = false)
+        public byte[] GetReadCommand(string address, byte stationNumber, byte functionCode, ushort length)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var readAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[6];
             buffer[0] = stationNumber;  //站号
@@ -936,10 +936,10 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCommand(string address, byte value, byte stationNumber, byte functionCode, bool isPlcAddress = false)
+        public byte[] GetWriteCommand(string address, byte value, byte stationNumber, byte functionCode)
         {
 
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var readAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[6];
             buffer[0] = stationNumber;//站号
@@ -962,9 +962,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCommand(string address, byte[] values, byte stationNumber, byte functionCode, bool isPlcAddress = false)
+        public byte[] GetWriteCommand(string address, byte[] values, byte stationNumber, byte functionCode)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var readAddress = ushort.Parse(address?.Trim());
             if (values.Length > 2)
             {
@@ -1002,9 +1002,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public  byte[] GetWriteCoilCommand(string address, bool value, byte stationNumber, byte functionCode, bool isPlcAddress = false)
+        public  byte[] GetWriteCoilCommand(string address, bool value, byte stationNumber, byte functionCode)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var readAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[6];
             buffer[0] = stationNumber;//站号
@@ -1025,9 +1025,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCoilCommand(string address, bool[] values, byte stationNumber, byte functionCode, byte[] check = null, bool isPlcAddress = false)
+        public byte[] GetWriteCoilCommand(string address, bool[] values, byte stationNumber, byte functionCode, byte[] check = null)
         {
-            if (isPlcAddress) { address = TranPLCAddress(address); }
+            address = TranPLCAddress(address);
             var writeAddress = ushort.Parse(address?.Trim());
             int length = (values.Length + 1) / 2;
             byte[] newValue = values.ToByte();

@@ -12,7 +12,7 @@ using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-   public abstract class PLCEthernetBase: EthernetDeviceBase, IEthernetClient
+   public abstract class PLCEthernetBase: EthernetDeviceBase, IPLCEthernetClient
     {
 
 
