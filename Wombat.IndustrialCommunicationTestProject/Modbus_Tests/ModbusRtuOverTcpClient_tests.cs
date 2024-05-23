@@ -6,7 +6,7 @@ using System.Net;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
-using Wombat.Infrastructure;
+
 using Xunit;
 
 

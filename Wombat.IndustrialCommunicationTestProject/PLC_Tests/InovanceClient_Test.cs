@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
-using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests
 {

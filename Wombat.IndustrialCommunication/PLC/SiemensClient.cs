@@ -3,14 +3,10 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
-using Wombat.Infrastructure;
-
-
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;
 using Wombat.Extensions.DataTypeExtensions;
-using NPOI.SS.Formula.Functions;
-using NPOI.XSSF.Streaming.Values;
+
 
 namespace Wombat.IndustrialCommunication.PLC
 {

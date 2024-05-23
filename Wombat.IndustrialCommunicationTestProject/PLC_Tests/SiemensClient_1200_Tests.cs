@@ -1,5 +1,4 @@
 ﻿
-using Castle.Core.Logging;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
@@ -10,7 +9,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
-using Wombat.Infrastructure;
+
 using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests

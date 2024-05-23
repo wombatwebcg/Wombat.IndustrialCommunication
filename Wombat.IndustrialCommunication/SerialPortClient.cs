@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
-using Wombat.Infrastructure;
+
 
 namespace Wombat.IndustrialCommunication
 {

@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.Infrastructure;
+
 using Wombat.Network.Sockets;
 using Microsoft.Extensions.Logging;
 
