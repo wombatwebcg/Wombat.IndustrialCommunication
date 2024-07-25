@@ -73,13 +73,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             var result = new OperationResult();
             _socket?.Close(); ;
-            _socket = new SocketClientBase();
             try
             {
-                //超时时间设置
-                _socket.SocketConfiguration.ConnectTimeout = Timeout;
-
-                //连接
                 _socket.Connect(IpEndPoint);
             }
             catch (Exception ex)
@@ -97,14 +92,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             _socket?.CloseAsync();
             var result = new OperationResult();
-            _socket = new SocketClientBase();
             try
             {
-                //超时时间设置
-                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
-                _socket.SocketConfiguration.SendTimeout = Timeout;
-
-                //连接
                 await _socket.ConnectAsync(IpEndPoint);
             }
             catch (Exception ex)
@@ -163,7 +152,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        internal override OperationResult<byte[]> ExchangingMessages(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             OperationResult<byte[]> result = new OperationResult<byte[]>();
@@ -198,7 +187,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             OperationResult<byte[]> result = new OperationResult<byte[]>();
@@ -260,7 +249,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         sendResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ sendResult.Message}";
@@ -337,7 +326,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     //获取响应报文
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         sendResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ sendResult.Message}";
@@ -412,7 +401,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -479,7 +468,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCommand(address, values, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -546,7 +535,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -612,7 +601,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -671,7 +660,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -729,7 +718,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var chenkHead = GetCheckHead(functionCode);
                     var command = GetWriteCoilCommand(address, value, stationNumber, functionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();

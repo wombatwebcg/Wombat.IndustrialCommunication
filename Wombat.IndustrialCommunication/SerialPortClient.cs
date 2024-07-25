@@ -67,7 +67,7 @@ namespace Wombat.IndustrialCommunication
                        
                     }
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -129,7 +129,7 @@ namespace Wombat.IndustrialCommunication
 
                     }
                     //发送命令并获取响应报文
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunication
 
                     }
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -259,7 +259,7 @@ namespace Wombat.IndustrialCommunication
 
                     }
                     //发送命令并获取响应报文
-                    var sendResult = await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult = await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();

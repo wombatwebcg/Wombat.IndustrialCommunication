@@ -37,7 +37,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new InovanceClient(ip, 502);
             client.IsLongLivedConnection = true;
             client.Connect();
-            client.Timeout = TimeSpan.FromMilliseconds(500);
+            client.ConnectTimeout = TimeSpan.FromMilliseconds(500);
 
             ReadWrite();
 
@@ -63,7 +63,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             client = new InovanceClient(ip, 502);
             client.IsLongLivedConnection = true;
             await client.ConnectAsync();
-            client.Timeout = TimeSpan.FromMilliseconds(500);
+            client.ConnectTimeout = TimeSpan.FromMilliseconds(500);
 
             ReadWrite();
 

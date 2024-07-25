@@ -94,13 +94,8 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = new OperationResult();
             _socket?.Close();
-            _socket = new SocketClientBase();
             try
             {
-                //超时时间设置
-                _socket.SocketConfiguration.ConnectTimeout = Timeout;
-                _socket.SocketConfiguration.ReceiveBufferSize = 1024;
-                _socket.SocketConfiguration.SendBufferSize = 1024;
                 _socket.Connect(IpEndPoint);
             }
             catch (Exception ex)
@@ -118,12 +113,11 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = new OperationResult();
             _socket?.CloseAsync();
-            _socket = new SocketClientBase();
             try
             {
                 //超时时间设置
-                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
-                _socket.SocketConfiguration.SendTimeout = Timeout;
+                _socket.SocketConfiguration.ReceiveTimeout = ConnectTimeout;
+                _socket.SocketConfiguration.SendTimeout = ConnectTimeout;
                 _socket.SocketConfiguration.ReceiveBufferSize = 1024;
                 _socket.SocketConfiguration.SendBufferSize = 1024;
                 await _socket.ConnectAsync(IpEndPoint);
@@ -183,7 +177,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        internal override OperationResult<byte[]> ExchangingMessages(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             OperationResult<byte[]> result = new OperationResult<byte[]>();
@@ -214,7 +208,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command)
         {
             OperationResult<byte[]> result = new OperationResult<byte[]>();
             try
@@ -434,7 +428,7 @@ namespace Wombat.IndustrialCommunication.PLC
                                 sendResult = SendPackage(command, lenght * 2 + 2);
                             break;
                         case MitsubishiVersion.Qna_3E:
-                            sendResult = InterpretAndExtractMessageData(command);
+                            sendResult = InterpretMessageData(command);
                             break;
                     }
                     if (!sendResult.IsSuccess)
@@ -534,7 +528,7 @@ namespace Wombat.IndustrialCommunication.PLC
                                 sendResult = SendPackage(command, lenght * 2 + 2);
                             break;
                         case MitsubishiVersion.Qna_3E:
-                            sendResult = await InterpretAndExtractMessageDataAsync(command);
+                            sendResult = await InterpretMessageDataAsync(command);
                             break;
                     }
                     if (!sendResult.IsSuccess)
@@ -682,7 +676,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             sendResult = SendPackage(command, 2);
                             break;
                         case MitsubishiVersion.Qna_3E:
-                            sendResult = InterpretAndExtractMessageData(command);
+                            sendResult = InterpretMessageData(command);
                             break;
                     }
                     if (!sendResult.IsSuccess)
@@ -760,7 +754,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             sendResult = SendPackage(command, 2);
                             break;
                         case MitsubishiVersion.Qna_3E:
-                            sendResult = await InterpretAndExtractMessageDataAsync(command);
+                            sendResult = await InterpretMessageDataAsync(command);
                             break;
                     }
                     if (!sendResult.IsSuccess)

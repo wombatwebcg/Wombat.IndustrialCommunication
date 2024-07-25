@@ -269,25 +269,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
 
 
-        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override Task<OperationResult> DoConnectAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override Task<OperationResult> DoDisconnectAsync()
-        {
-            throw new NotImplementedException();
-        }
 
 
         /// <summary>

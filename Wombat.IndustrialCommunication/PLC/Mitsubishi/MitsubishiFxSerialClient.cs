@@ -171,7 +171,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
-                    sendResult = InterpretAndExtractMessageData(command);
+                    sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess) return sendResult;
                     byte[] dataPackage = sendResult.Value;
                     result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
@@ -231,7 +231,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>();
-                    sendResult = await InterpretAndExtractMessageDataAsync(command);
+                    sendResult = await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess) return sendResult;
                     byte[] dataPackage = sendResult.Value;
                     result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
@@ -287,7 +287,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     command = GetWriteCommand(arg.BeginAddress,arg.TypeChar,data,isBit);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
-                    sendResult = InterpretAndExtractMessageData(command);
+                    sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return sendResult;
@@ -338,7 +338,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     command = GetWriteCommand(arg.BeginAddress, arg.TypeChar, data, isBit);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     OperationResult<byte[]> sendResult = new OperationResult<byte[]>() { IsSuccess = false };
-                    sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return sendResult;

@@ -59,7 +59,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
 
                 //发送命令并获取响应报文
-                var sendResult = InterpretAndExtractMessageData(finalCommand);
+                var sendResult = InterpretMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
@@ -98,15 +98,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             return result.Complete();
         }
 
-        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
-        {
-            throw new NotImplementedException();
-        }
         #endregion
 
         #region Write 写入
@@ -134,7 +125,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
                 //发送命令并获取响应报文
-                var sendResult = InterpretAndExtractMessageData(finalCommand);
+                var sendResult = InterpretMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;
@@ -194,7 +185,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finalCommand[finalCommand.Length - 1] = 0x0A;
 
                 result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
-                var sendResult = InterpretAndExtractMessageData(finalCommand);
+                var sendResult = InterpretMessageData(finalCommand);
                 if (!sendResult.IsSuccess)
                     return result.SetInfo(sendResult).Complete();
                 var responsePackage = sendResult.Value;

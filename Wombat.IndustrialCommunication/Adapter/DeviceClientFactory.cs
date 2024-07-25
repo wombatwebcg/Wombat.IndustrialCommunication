@@ -58,8 +58,8 @@ namespace Wombat.IndustrialCommunication.Adapter
                     throw new Exception($"类型[{deviceVersion}]暂未实现");
             }
 
-            iotClientCommon.Timeout = TimeSpan.FromMilliseconds(timeout);
-            iotClientCommon.Timeout = TimeSpan.FromMilliseconds(timeout);
+            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
+            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
             //iotClientCommon.DataFormat = format;
             //iotClientCommon.IsReverse = isReverse;
             return iotClientCommon;
@@ -95,7 +95,7 @@ namespace Wombat.IndustrialCommunication.Adapter
                     throw new Exception($"类型[{deviceVersion}]暂未实现");
             }
 
-            iotClientCommon.Timeout = TimeSpan.FromMilliseconds(timeout);
+            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
             iotClientCommon.DataFormat = format;
             //iotClientCommon.DataFormat = format;
             //iotClientCommon.IsReverse = isReverse;
@@ -130,7 +130,7 @@ namespace Wombat.IndustrialCommunication.Adapter
                 default:
                     throw new Exception($"类型[{deviceVersion}]暂未实现");
             }
-            iotClientCommon.Timeout = TimeSpan.FromMilliseconds(timeout);
+            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
             iotClientCommon.DataFormat = format;
             //iotClientCommon.DataFormat = format;
             //iotClientCommon.IsReverse = isReverse;
@@ -163,7 +163,7 @@ namespace Wombat.IndustrialCommunication.Adapter
                 default:
                     throw new Exception($"类型[{deviceVersion}]暂未实现");
             }
-            iotClientCommon.Timeout = TimeSpan.FromMilliseconds(timeout);
+            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
             iotClientCommon.DataFormat = format;
             //iotClientCommon.DataFormat = format;
             //iotClientCommon.IsReverse = isReverse;

@@ -60,8 +60,8 @@ namespace Wombat.IndustrialCommunication
             _serialPort.Handshake = Handshake;
 
 
-            _serialPort.WriteTimeout = (int)Timeout.TotalMilliseconds;
-            _serialPort.ReadTimeout = (int)Timeout.TotalMilliseconds;
+            _serialPort.WriteTimeout = (int)ConnectTimeout.TotalMilliseconds;
+            _serialPort.ReadTimeout = (int)ConnectTimeout.TotalMilliseconds;
 
 
             var result = new OperationResult();
@@ -97,8 +97,8 @@ namespace Wombat.IndustrialCommunication
             _serialPort.StopBits = StopBits;
             _serialPort.Handshake = Handshake;
 
-            _serialPort.WriteTimeout = (int)Timeout.TotalMilliseconds;
-            _serialPort.ReadTimeout = (int)Timeout.TotalMilliseconds;
+            _serialPort.WriteTimeout = (int)ConnectTimeout.TotalMilliseconds;
+            _serialPort.ReadTimeout = (int)ConnectTimeout.TotalMilliseconds;
 
 
             var result = new OperationResult();
@@ -180,7 +180,7 @@ namespace Wombat.IndustrialCommunication
             DateTime beginTime = DateTime.Now;
             var tempBufferLength = _serialPort.BytesToRead;
             //在(没有取到数据或BytesToRead在继续读取)且没有超时的情况，延时处理
-            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(Timeout.TotalMilliseconds))
+            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(ConnectTimeout.TotalMilliseconds))
             {
                 tempBufferLength = _serialPort.BytesToRead;
                 //延时处理
@@ -224,7 +224,7 @@ namespace Wombat.IndustrialCommunication
             DateTime beginTime = DateTime.Now;
             var tempBufferLength = _serialPort.BytesToRead;
             //在(没有取到数据或BytesToRead在继续读取)且没有超时的情况，延时处理
-            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(Timeout.TotalMilliseconds))
+            while ((_serialPort.BytesToRead == 0 || tempBufferLength != _serialPort.BytesToRead) && DateTime.Now - beginTime <= TimeSpan.FromMilliseconds(ConnectTimeout.TotalMilliseconds))
             {
                 tempBufferLength = _serialPort.BytesToRead;
                 //延时处理
@@ -255,7 +255,7 @@ namespace Wombat.IndustrialCommunication
             return result.Complete();
         }
 
-        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        internal override OperationResult<byte[]> ExchangingMessages(byte[] command)
         {
             OperationResult<byte[]> sendPackage()
             {
@@ -302,7 +302,7 @@ namespace Wombat.IndustrialCommunication
             return result;
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command)
         {
             async ValueTask<OperationResult<byte[]>> sendPackage()
             {
@@ -355,26 +355,17 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
+        internal override OperationResult<byte[]> InterpretMessageData(byte[] command)
         {
+            var result = new OperationResult<byte[]>();
             try
             {
-                var result = GetMessageContent(command);
+                result = ExchangingMessages(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
-                    //如果出现异常，则进行一次重试         
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-
-                    }
-                    else
-                    {
-                        result = GetMessageContent(command); ;
-                        return result.Complete();
-                    }
+                    result.Message = "设备响应异常";
+                    return result.Complete();
                 }
                 else
                 {
@@ -384,28 +375,11 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                try
-                {
-                    WarningLog?.Invoke(ex.Message, ex);
-                    //如果出现异常，则进行一次重试                
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-                    }
-                    else
-                    {
-                      var  result = GetMessageContent(command); ;
-                        return result.Complete();
-                    }
-                }
-                catch (Exception ex2)
-                {
-                    var result = new OperationResult<byte[]>();
-                    result.IsSuccess = false;
-                    result.Message = ex2.Message;                   
-                    return result.Complete();
-                }
+                WarningLog?.Invoke(ex.Message, ex);
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                return result.Complete();
+
             }
         }
 
@@ -418,11 +392,11 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override async ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> InterpretMessageDataAsync(byte[] command)
         {
             try
             {
-                var result = await GetMessageContentAsync(command);
+                var result = await ExchangingMessagesAsync(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
@@ -435,7 +409,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     else
                     {
-                        result =await GetMessageContentAsync(command); ;
+                        result =await ExchangingMessagesAsync(command); ;
                         return result.Complete();
                     }
                 }
@@ -458,7 +432,7 @@ namespace Wombat.IndustrialCommunication
                     }
                     else
                     {
-                        var result = await GetMessageContentAsync(command); 
+                        var result = await ExchangingMessagesAsync(command); 
                         return result.Complete();
                     }
                 }

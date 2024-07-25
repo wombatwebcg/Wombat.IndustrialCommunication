@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
 EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.Network", "..\..\Wombat.Network\Wombat.Network\Wombat.Network\Wombat.Network.csproj", "{CE5199CA-27A2-4585-9525-E3A9450A81B3}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CE5199CA-27A2-4585-9525-E3A9450A81B3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CE5199CA-27A2-4585-9525-E3A9450A81B3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CE5199CA-27A2-4585-9525-E3A9450A81B3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CE5199CA-27A2-4585-9525-E3A9450A81B3}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

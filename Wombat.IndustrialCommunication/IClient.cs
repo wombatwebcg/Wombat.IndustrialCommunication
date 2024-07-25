@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunication
 
         ILogger Logger { get; set; }
 
-        TimeSpan Timeout { get; set; }
+        TimeSpan ConnectTimeout { get; set; }
 
         TimeSpan ReceiveTimeout { get; set; }
 

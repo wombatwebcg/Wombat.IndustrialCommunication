@@ -21,19 +21,21 @@ namespace Wombat.IndustrialCommunication
 
         public ILogger Logger { get; set; }
 
-        public TimeSpan Timeout { get; set; } = TimeSpan.FromMilliseconds(500);
+
+        public TimeSpan ConnectTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
+
 
         public TimeSpan WaiteInterval { get; set; } = TimeSpan.FromMilliseconds(10);
 
         /// <summary>
         /// 获取或设置接收操作的超时时间
         /// </summary>
-        public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.Zero;
+        public TimeSpan ReceiveTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
         /// <summary>
         /// 获取或设置发送操作的超时时间
         /// </summary>
-        public TimeSpan SendTimeout { get; set; } = TimeSpan.Zero;
+        public TimeSpan SendTimeout { get; set; } = TimeSpan.FromMilliseconds(500);
 
 
 
@@ -109,13 +111,13 @@ namespace Wombat.IndustrialCommunication
 
 
 
-        internal abstract OperationResult<byte[]> GetMessageContent(byte[] command);
+        internal abstract OperationResult<byte[]> ExchangingMessages(byte[] command);
 
-        internal abstract ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command);
+        internal abstract ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command);
 
-        internal abstract OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command);
+        internal abstract OperationResult<byte[]> InterpretMessageData(byte[] command);
 
-        internal abstract ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command);
+        internal abstract ValueTask<OperationResult<byte[]>> InterpretMessageDataAsync(byte[] command);
 
 
 

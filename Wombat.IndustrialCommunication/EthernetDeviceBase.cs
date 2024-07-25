@@ -16,6 +16,18 @@ namespace Wombat.IndustrialCommunication
         public  IPEndPoint IpEndPoint { get; set; }
 
 
+        public EthernetDeviceBase()
+        {
+
+            _socket = new SocketClientBase();
+            _socket.SocketConfiguration.ConnectTimeout = ConnectTimeout;
+            _socket.SocketConfiguration.ReceiveTimeout = SendTimeout;
+            _socket.SocketConfiguration.SendTimeout = ReceiveTimeout;
+
+
+
+        }
+
         protected internal SocketClientBase _socket;
 
 
@@ -132,26 +144,17 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> InterpretAndExtractMessageData(byte[] command)
+        internal override OperationResult<byte[]> InterpretMessageData(byte[] command)
         {
+            var result = new OperationResult<byte[]>();
             try
             {
-                var result = GetMessageContent(command);
+                result = ExchangingMessages(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
-                    //如果出现异常，则进行一次重试         
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-
-                    }
-                    else
-                    {
-                        result = GetMessageContent(command); ;
-                        return result.Complete();
-                    }
+                    result.Message = "设备响应异常";
+                    return result.Complete();
                 }
                 else
                 {
@@ -161,28 +164,11 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                try
-                {
-                    WarningLog?.Invoke(ex.Message, ex);
-                    //如果出现异常，则进行一次重试                
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-                    }
-                    else
-                    {
-                      var  result = GetMessageContent(command); ;
-                        return result.Complete();
-                    }
-                }
-                catch (Exception ex2)
-                {
-                    var result = new OperationResult<byte[]>();
-                    result.IsSuccess = false;
-                    result.Message = ex2.Message;                   
-                    return result.Complete();
-                }
+                WarningLog?.Invoke(ex.Message, ex);
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                return result.Complete();
+
             }
         }
 
@@ -195,26 +181,18 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override async ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> InterpretMessageDataAsync(byte[] command)
         {
+            var result = new OperationResult<byte[]>();
+
             try
             {
-                var result = await GetMessageContentAsync(command);
+                result =await ExchangingMessagesAsync(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
-                    //如果出现异常，则进行一次重试         
-                    var conentOperationResult =await ConnectAsync();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-
-                    }
-                    else
-                    {
-                        result =await GetMessageContentAsync(command); ;
-                        return result.Complete();
-                    }
+                    result.Message = "设备响应异常";
+                    return result.Complete();
                 }
                 else
                 {
@@ -224,28 +202,11 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                try
-                {
-                    WarningLog?.Invoke(ex.Message, ex);
-                    //如果出现异常，则进行一次重试                
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-                    }
-                    else
-                    {
-                        var result = await GetMessageContentAsync(command); 
-                        return result.Complete();
-                    }
-                }
-                catch (Exception ex2)
-                {
-                    var result = new OperationResult<byte[]>();
-                    result.IsSuccess = false;
-                    result.Message = ex2.Message;
-                    return result.Complete();
-                }
+                WarningLog?.Invoke(ex.Message, ex);
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                return result.Complete();
+
             }
         }
     }

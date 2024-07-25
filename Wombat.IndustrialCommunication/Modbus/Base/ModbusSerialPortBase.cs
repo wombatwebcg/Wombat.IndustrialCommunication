@@ -87,7 +87,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -149,7 +149,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -210,7 +210,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
-                    var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult =await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -273,7 +273,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
                     //发送命令并获取响应报文
-                    var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult = await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -342,7 +342,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -412,7 +412,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
-                    var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult =await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -473,7 +473,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -534,7 +534,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
-                    var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult =await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -593,7 +593,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
-                    var sendResult = await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult = await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -729,7 +729,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -788,7 +788,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(commandCRC16);
+                    var sendResult = InterpretMessageData(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();
@@ -852,7 +852,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                    var sendResult =await InterpretAndExtractMessageDataAsync(commandCRC16);
+                    var sendResult =await InterpretMessageDataAsync(commandCRC16);
                     if (!sendResult.IsSuccess)
                     {
                         return result.SetInfo(sendResult).Complete();

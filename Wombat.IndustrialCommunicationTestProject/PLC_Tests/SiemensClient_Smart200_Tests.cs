@@ -29,9 +29,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             });
             //var ip = IPAddress.Parse("192.168.1.180");
             //var port = int.Parse("102");
-            var ip = IPAddress.Parse("192.168.2.30");//20.205.243.166
+            var ip = IPAddress.Parse("192.168.2.52");//20.205.243.166
             var  port = 102;
             client = new SiemensClient(SiemensVersion.S7_200Smart, new IPEndPoint(ip, port));
+            client.ReceiveTimeout = TimeSpan.FromSeconds(10);
+            client.SendTimeout = TimeSpan.FromSeconds(10);
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
         }
 
@@ -371,9 +373,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             byte byte1 = (byte)re.Next(0, 255);
             byte byte2 = (byte)re.Next(0, 255);
             byte byte3 = (byte)re.Next(0, 255);
-            var V2642 = (float)re.Next(0, 255);
-            var V2646 = (float)re.Next(0, 255);
-            var V2650 = (float)re.Next(0, 255);
+            float V2642 = (float)re.Next(0, 255);
+            float V2646 = (float)re.Next(0, 255);
+            float V2650 = (float)re.Next(0, 255);
 
             Dictionary<string, object> writeAddresses = new Dictionary<string, object>();
             writeAddresses.Add("V2634.0", number0);
@@ -396,7 +398,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             writeAddresses.Add("V1650", byte1);
             writeAddresses.Add("V1651", byte2);
             writeAddresses.Add("V1652", byte3);
-            client.BatchWrite(writeAddresses);
+           var w1 =  client.BatchWrite(writeAddresses);
 
             Dictionary<string, DataTypeEnum> readAddresses = new Dictionary<string, DataTypeEnum>();
             readAddresses.Add("V2634.0", DataTypeEnum.Bool);

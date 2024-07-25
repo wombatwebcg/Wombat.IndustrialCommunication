@@ -72,14 +72,14 @@ namespace Wombat.IndustrialCommunication.PLC
             try
             {
                 //超时时间设置
-                _socket.ReceiveTimeout = (int)Timeout.TotalMilliseconds;
-                _socket.SendTimeout = (int)Timeout.TotalMilliseconds;
+                _socket.ReceiveTimeout = (int)ConnectTimeout.TotalMilliseconds;
+                _socket.SendTimeout = (int)ConnectTimeout.TotalMilliseconds;
 
                 //连接
                 //socket.Connect(IpEndPoint);
                 IAsyncResult connectResult = _socket.BeginConnect(IpEndPoint, null, null);
                 //阻塞当前线程           
-                if (!connectResult.AsyncWaitHandle.WaitOne(Timeout))
+                if (!connectResult.AsyncWaitHandle.WaitOne(ConnectTimeout))
                     throw new TimeoutException("连接超时");
                 _socket.EndConnect(connectResult);
 
@@ -144,7 +144,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        internal override OperationResult<byte[]> ExchangingMessages(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             lock (this)
@@ -192,7 +192,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var command = GetReadCommand(address, 1);
                 result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                 //发送命令 并获取响应报文
-                var sendResult = InterpretAndExtractMessageData(command);
+                var sendResult = InterpretMessageData(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
                 var dataPackage = sendResult.Value;
@@ -250,7 +250,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 //发送写入信息
                 //var arg = ConvertWriteArg(address, data, false);
                 result.Requsts.Add(string.Join(" ", data.Select(t => t.ToString("X2"))));
-                var sendResult = InterpretAndExtractMessageData(data);
+                var sendResult = InterpretMessageData(data);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
@@ -766,12 +766,12 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        internal override ValueTask<OperationResult<byte[]>> InterpretAndExtractMessageDataAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> InterpretMessageDataAsync(byte[] command)
         {
             throw new NotImplementedException();
         }
 
-        internal override ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        internal override ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command)
         {
             throw new NotImplementedException();
         }

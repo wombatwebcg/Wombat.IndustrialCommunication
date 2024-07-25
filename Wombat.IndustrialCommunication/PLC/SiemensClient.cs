@@ -115,19 +115,9 @@ namespace Wombat.IndustrialCommunication.PLC
             var result = new OperationResult();
 
             _socket?.Close();
-            _socket = new SocketClientBase();
             try
             {
-                //超时时间设置
-                _socket.SocketConfiguration.ConnectTimeout = Timeout;
-                _socket.SocketConfiguration.ReceiveBufferSize = 1024;
-                _socket.SocketConfiguration.SendBufferSize = 1024;
                 _socket.Connect(IpEndPoint);
-
-                //连接
-                //socket.Connect(IpEndPoint);
-                //阻塞当前线程           
-
                 var Command1 = SiemensConstant.Command1;
                 var Command2 = SiemensConstant.Command2;
 
@@ -216,21 +206,12 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var result = new OperationResult();
 
-            _socket?.Close();
-            _socket = new SocketClientBase();
+            await _socket?.CloseAsync();
             try
             {
-                //超时时间设置
-                _socket.SocketConfiguration.ReceiveTimeout = Timeout;
-                _socket.SocketConfiguration.SendTimeout = Timeout;
-                _socket.SocketConfiguration.ReceiveBufferSize = 1024;
-                _socket.SocketConfiguration.SendBufferSize = 1024;
-                _socket.Connect(IpEndPoint);
+                await _socket.ConnectAsync(IpEndPoint);
 
                 //连接
-                //socket.Connect(IpEndPoint);
-                //阻塞当前线程           
-
                 var Command1 = SiemensConstant.Command1;
                 var Command2 = SiemensConstant.Command2;
 
@@ -264,7 +245,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 result.Requsts.Add(string.Join(" ", Command1.Select(t => t.ToString("X2"))));
                 //第一次初始化指令交互
-                _socket.Send(Command1);
+                await _socket.SendAsync(Command1);
 
                 var socketReadResult = await ReadBufferAsync(SiemensConstant.InitHeadLength);
                 if (!socketReadResult.IsSuccess)
@@ -358,7 +339,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override OperationResult<byte[]> GetMessageContent(byte[] command)
+        internal override OperationResult<byte[]> ExchangingMessages(byte[] command)
         {
             //从发送命令到读取响应为最小单元，避免多线程执行串数据（可线程安全执行）
             OperationResult<byte[]> result = new OperationResult<byte[]>();
@@ -393,7 +374,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
-        internal override async ValueTask<OperationResult<byte[]>> GetMessageContentAsync(byte[] command)
+        internal override async ValueTask<OperationResult<byte[]>> ExchangingMessagesAsync(byte[] command)
         {
             OperationResult<byte[]> result = new OperationResult<byte[]>();
             try
@@ -537,7 +518,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         byte[] command = GetReadCommand(arg);
                         result_in.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         //发送命令 并获取响应报文
-                        var sendResult = InterpretAndExtractMessageData(command);
+                        var sendResult = InterpretMessageData(command);
                         if (!sendResult.IsSuccess)
                         {
                             sendResult.Message = $"读取{address_in}失败，{sendResult.Message}";
@@ -585,14 +566,12 @@ namespace Wombat.IndustrialCommunication.PLC
                             result_in.Message = $"读取{address_in}失败，{ex.Message}";
                             result_in.Exception = ex;   
                         }
-                        _socket?.Close();
                     }
                     catch (Exception ex)
                     {
                         result_in.IsSuccess = false;
                         result_in.Message = ex.Message;
                         result_in.Exception = ex;
-                        _socket?.Close();
                     }
                     finally
                     {
@@ -656,7 +635,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         byte[] command = GetReadCommand(arg);
                         result_in.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         //发送命令 并获取响应报文
-                        var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                        var sendResult =await InterpretMessageDataAsync(command);
                         if (!sendResult.IsSuccess)
                         {
                             sendResult.Message = $"读取{address_in}失败，{sendResult.Message}";
@@ -704,14 +683,12 @@ namespace Wombat.IndustrialCommunication.PLC
                             result_in.Message = $"读取{address_in}失败，{ex.Message}";
                             result_in.Exception = ex;
                         }
-                        _socket?.Close();
                     }
                     catch (Exception ex)
                     {
                         result_in.IsSuccess = false;
                         result_in.Message = ex.Message;
                         result_in.Exception = ex;
-                        _socket?.Close();
                     }
                     finally
                     {
@@ -776,7 +753,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var arg = ConvertWriteArg(address_in,offest, data_in, isBit_in);
                     byte[] command = GetWriteCommand(arg);
                     result_in.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretAndExtractMessageData(command);
+                    var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
                     {
                         return sendResult;
@@ -814,14 +791,12 @@ namespace Wombat.IndustrialCommunication.PLC
                         result_in.Message = ex.Message;
                         result_in.Exception = ex;
                     }
-                    _socket?.Close();
                 }
                 catch (Exception ex)
                 {
                     result_in.IsSuccess = false;
                     result_in.Message = ex.Message;
                     result_in.Exception = ex;
-                    _socket?.Close();
                 }
                 finally
                 {
@@ -877,7 +852,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var arg = ConvertWriteArg(address_in, offest, data_in, isBit_in);
                     byte[] command = GetWriteCommand(arg);
                     result_in.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult =await InterpretAndExtractMessageDataAsync(command);
+                    var sendResult =await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
                     {
                         return sendResult;
@@ -915,14 +890,12 @@ namespace Wombat.IndustrialCommunication.PLC
                         result_in.Message = ex.Message;
                         result_in.Exception = ex;
                     }
-                    _socket?.Close();
                 }
                 catch (Exception ex)
                 {
                     result_in.IsSuccess = false;
                     result_in.Message = ex.Message;
                     result_in.Exception = ex;
-                    _socket?.Close();
                 }
                 finally
                 {
@@ -999,7 +972,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 byte[] command = GetReadCommand(args);
                 result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                 //发送命令 并获取响应报文
-                var sendResult = InterpretAndExtractMessageData(command);
+                var sendResult = InterpretMessageData(command);
                 if (!sendResult.IsSuccess)
                     return new OperationResult<Dictionary<string, object>>(sendResult);
 
@@ -1112,7 +1085,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (Connected) Dispose();
+                if (!IsLongLivedConnection) Disconnect();
             }
             return result.Complete();
         }
@@ -1181,7 +1154,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var arg = ConvertWriteArg(newAddresses);
                 byte[] command = GetWriteCommand(arg);
                 result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                var sendResult = InterpretAndExtractMessageData(command);
+                var sendResult = InterpretMessageData(command);
                 if (!sendResult.IsSuccess)
                     return sendResult;
 
@@ -1228,18 +1201,17 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.Close();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.Close();
             }
             finally
             {
-                if (Connected) Dispose();
+                if (!IsLongLivedConnection) Disconnect();
+
             }
             return result.Complete();
         }
@@ -1265,8 +1237,8 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = tempResult.Message;
                     
                 }
-                result.Requsts = tempResult.Requsts;
-                result.Responses = tempResult.Responses;
+                result.Requsts.Add(tempResult.Requsts.FirstOrDefault());
+                result.Responses.Add(tempResult.Responses.FirstOrDefault());
             }
             return result.Complete();
         }
