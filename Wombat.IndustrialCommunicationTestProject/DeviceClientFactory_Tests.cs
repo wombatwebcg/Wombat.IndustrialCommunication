@@ -6,6 +6,7 @@ using System.Diagnostics;
 using System.Net;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.Adapter;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
@@ -14,7 +15,7 @@ namespace IoTClient.Tests.PLC_Tests
 {
     public class DeviceClientFactory_Tests
     {
-        private IPLCEthernetClient client;
+        private IEthernetClient client;
         public DeviceClientFactory_Tests()
         {
             var loggerFactory = LoggerFactory.Create(builder =>

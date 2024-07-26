@@ -4,8 +4,11 @@ using System.Text;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public interface IModbusSerialPortClient: IModbusClient, ISerialPortClient
+   public interface IModbusClient:IDeviceClient
     {
+        byte StationNumber { get; set; }
+
+        byte FunctionCode { get; set; }
 
     }
 }

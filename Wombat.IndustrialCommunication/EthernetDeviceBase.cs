@@ -192,13 +192,8 @@ namespace Wombat.IndustrialCommunication
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
                     result.Message = "设备响应异常";
-                    return result.Complete();
                 }
-                else
-                {
-                    return result.Complete();
-
-                }
+                return result.Complete();
             }
             catch (Exception ex)
             {

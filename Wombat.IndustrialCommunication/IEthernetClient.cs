@@ -1,11 +1,11 @@
 ﻿using System.Net;
 
-namespace Wombat.IndustrialCommunication.PLC
+namespace Wombat.IndustrialCommunication
 {
     /// <summary>
     /// 以太网形式
     /// </summary>
-    public interface IPLCEthernetClient : IClient, IReadWrite
+    public interface IEthernetClient : IDeviceClient
     {
         /// <summary>
         /// IPEndPoint

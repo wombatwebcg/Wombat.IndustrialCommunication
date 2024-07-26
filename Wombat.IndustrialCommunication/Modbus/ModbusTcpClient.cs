@@ -33,6 +33,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
 
         public override string Version => "ModbusTcpClient";
+
     }
 }
 

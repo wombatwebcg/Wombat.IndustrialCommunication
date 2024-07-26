@@ -19,9 +19,9 @@ namespace Wombat.IndustrialCommunication.Adapter
         /// <param name="timeout">超时时间</param>
         /// <param name="format">大小端设置</param>
         /// <returns></returns>
-        public static IPLCEthernetClient CreatePLCEthernetDevice(EthernetDeviceVersion deviceVersion, string ip, int port, int timeout = 1500, EndianFormat format = EndianFormat.ABCD,bool isReverse = false)
+        public static IEthernetClient CreatePLCEthernetDevice(EthernetDeviceVersion deviceVersion, string ip, int port, int timeout = 1500, EndianFormat format = EndianFormat.ABCD,bool isReverse = false)
         {
-            IPLCEthernetClient iotClientCommon;
+            IEthernetClient iotClientCommon;
             switch (deviceVersion)
             { 
                 case EthernetDeviceVersion.Siemens_S7_200:
@@ -119,9 +119,9 @@ namespace Wombat.IndustrialCommunication.Adapter
         /// <param name="timeout">超时时间（毫秒）</param>
         /// <param name="format">大小端设置</param>
         /// <returns></returns>
-        public static IPLCSerialPortClient CreatePLCSerialPortClient(SerialDeviceVersion deviceVersion, string portName, int baudRate, int dataBits, StopBits stopBits, Parity parity, int timeout = 1500, EndianFormat format = EndianFormat.ABCD, bool Isreve = false)
+        public static ISerialPortClient CreatePLCSerialPortClient(SerialDeviceVersion deviceVersion, string portName, int baudRate, int dataBits, StopBits stopBits, Parity parity, int timeout = 1500, EndianFormat format = EndianFormat.ABCD, bool Isreve = false)
         {
-            IPLCSerialPortClient iotClientCommon;
+            ISerialPortClient iotClientCommon;
             switch (deviceVersion)
             {
                 case SerialDeviceVersion.MitsubishiFxSerial:

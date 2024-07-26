@@ -45,7 +45,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public bool IsLongLivedConnection { get; set; } = true;
+        public  bool IsLongLivedConnection { get; set; } = true;
 
         /// <summary>
         /// 警告日志委托

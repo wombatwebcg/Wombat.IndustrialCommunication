@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-   public interface IModbusEthernetClient: IClient,IModbusReadWrite
+   public interface IModbusEthernetClient: IModbusClient, IEthernetClient
     {
     }
 }

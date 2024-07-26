@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         //public new  OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
         //{
-        //    return base.Read(address, readLength, stationNumber, functionCode);
+        //    return base.Read(address, readLength);
         //}
 
 
@@ -25,13 +25,46 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<short> ReadInt16(string address, byte stationNumber = 1, byte functionCode = 3)
-          => base.ReadInt16(address, stationNumber, functionCode);
+        public new OperationResult<short> ReadInt16(string address)
+        {
+            return this.SetFunctionCode(3).ReadInt16(address);
+        }
 
-        public new OperationResult<short[]> ReadInt16(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-          => base.ReadInt16(address, readLength, stationNumber, functionCode);
+        /// <summary>
+        /// 读取Int16
+        /// </summary>
+        /// <param name="address">寄存器起始地址</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        /// <returns></returns>
+        public new OperationResult<short[]> ReadInt16(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadInt16(address, readLength);
+
+        }
+        /// <summary>
+        /// 读取UInt16
+        /// </summary>
+        /// <param name="address">寄存器起始地址</param>
+        /// <returns></returns>
+
+        public new OperationResult<ushort> ReadUInt16(string address)
+        {
+            return this.SetFunctionCode(3).ReadUInt16(address);
+        }
 
 
+
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="address"></param>
+        /// <param name="readLength"></param>
+        /// <returns></returns>
+        public new OperationResult<ushort[]> ReadUInt16(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadUInt16(address, readLength);
+        }
 
         /// <summary>
         /// 按位的方式读取
@@ -41,12 +74,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        public new OperationResult<short> ReadInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true)
-          => base.ReadInt16Bit(address, stationNumber, functionCode, left);
+        public new OperationResult<ushort> ReadUInt16Bit(string address, bool left = true)
+        {
+            return ((ModbusTcpClient)(this.SetFunctionCode(3))).ReadUInt16Bit(address, left);
 
-
-        public new OperationResult<ushort[]> ReadUInt16(string address, ushort readLength, byte stationNumber = 1, byte functionCode = 3)
-          => base.ReadUInt16(address, readLength, stationNumber, functionCode);
+        }
 
         /// <summary>
         /// 按位的方式读取
@@ -56,8 +88,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         /// <param name="left">按位取值从左边开始取</param>
         /// <returns></returns>
-        public new OperationResult<ushort> ReadUInt16Bit(string address, byte stationNumber = 1, byte functionCode = 3, bool left = true)
-            => base.ReadUInt16Bit(address, stationNumber, functionCode, left);
+        public new OperationResult<short> ReadInt16Bit(string address, bool left = true)
+        {
+            return ((ModbusTcpClient)(this.SetFunctionCode(3))).ReadInt16Bit(address, left);
+
+        }
+
 
         /// <summary>
         /// 读取Int32
@@ -66,8 +102,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<int> ReadInt32(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadInt32(address, stationNumber, functionCode);
+        public new OperationResult<int> ReadInt32(string address)
+        {
+            return this.SetFunctionCode(3).ReadInt32(address);
+        }
 
         /// <summary>
         /// 读取Int32
@@ -76,8 +114,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<int[]> ReadInt32(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadInt32(address, readLength, stationNumber, functionCode);
+        public new OperationResult<int[]> ReadInt32(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadInt32(address, readLength);
+        }
 
         /// <summary>
         /// 读取UInt32
@@ -86,18 +126,21 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<uint> ReadUInt32(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadUInt32(address, stationNumber, functionCode);
+        public new OperationResult<uint> ReadUInt32(string address)
+        {
+            return this.SetFunctionCode(3).ReadUInt32(address);
+        }
+
 
         /// <summary>
         /// 读取UInt32
         /// </summary>
         /// <param name="address">寄存器起始地址</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<uint[]> ReadUInt32(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadUInt32(address, readLength, stationNumber, functionCode);
+        public new OperationResult<uint[]> ReadUInt32(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadUInt32(address, readLength);
+        }
 
         /// <summary>
         /// 读取Int64
@@ -106,8 +149,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<long> ReadInt64(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadInt64(address, stationNumber, functionCode);
+        public new OperationResult<long> ReadInt64(string address)
+        {
+            return this.SetFunctionCode(3).ReadInt64(address);
+
+        }
 
         /// <summary>
         /// 读取Int64
@@ -116,8 +162,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<long[]> ReadInt64(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadInt64(address, readLength, stationNumber, functionCode);
+        public new OperationResult<long[]> ReadInt64(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadInt64(address, readLength);
+
+        }
 
 
         /// <summary>
@@ -127,8 +176,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<ulong> ReadUInt64(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadUInt64(address, stationNumber, functionCode);
+        public new OperationResult<ulong> ReadUInt64(string address)
+        {
+            return this.SetFunctionCode(3).ReadUInt64(address);
+        }
 
         /// <summary>
         /// 读取UInt64
@@ -137,8 +188,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<ulong[]> ReadUInt64(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadUInt64(address, readLength, stationNumber, functionCode);
+        public new OperationResult<ulong[]> ReadUInt64(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadUInt64(address, readLength);
+        }
 
         /// <summary>
         /// 读取Float
@@ -147,8 +200,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<float> ReadFloat(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadFloat(address, stationNumber, functionCode);
+        public new OperationResult<float> ReadFloat(string address)
+        {
+            return this.SetFunctionCode(3).ReadFloat(address);
+        }
 
         /// <summary>
         /// 读取Float
@@ -157,8 +212,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<float[]> ReadFloat(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadFloat(address, readLength, stationNumber, functionCode);
+        public new OperationResult<float[]> ReadFloat(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadFloat(address, readLength);
+        }
 
 
         /// <summary>
@@ -168,8 +225,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<double> ReadDouble(string address, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadDouble(address, stationNumber, functionCode);
+        public new OperationResult<double> ReadDouble(string address)
+        {
+            return this.SetFunctionCode(3).ReadDouble(address); ;
+        }
+
 
         /// <summary>
         /// 读取Double
@@ -178,8 +238,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<double[]> ReadDouble(string address, int readLength, byte stationNumber = 1, byte functionCode = 3)
-            => base.ReadDouble(address, readLength, stationNumber, functionCode);
+        public new OperationResult<double[]> ReadDouble(string address, int readLength)
+        {
+            return this.SetFunctionCode(3).ReadDouble(address, readLength);
+        }
 
 
 
@@ -191,8 +253,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<bool> ReadCoil(string address, byte stationNumber = 1, byte functionCode = 1)
-            => base.ReadCoil(address, stationNumber, functionCode);
+        public new OperationResult<bool> ReadBoolean(string address)
+        {
+            return this.SetFunctionCode(1).ReadBoolean(address);
+        }
 
         /// <summary>
         /// 读取线圈
@@ -201,30 +265,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
         /// <returns></returns>
-        public new OperationResult<bool[]> ReadCoil(string address, int readLength, byte stationNumber = 1, byte functionCode = 1)
-            => base.ReadCoil(address, readLength, stationNumber, functionCode);
+        public new OperationResult<bool[]> ReadBoolean(string address, int readLength)
+        {
+            return this.SetFunctionCode(1).ReadBoolean(address, readLength);
+        }
 
 
-
-        /// <summary>
-        /// 读取离散
-        /// </summary>
-        /// <param name="address"></param>
-        /// <param name="stationNumber"></param>
-        /// <param name="functionCode"></param>
-        /// <returns></returns>
-        public new OperationResult<bool> ReadDiscrete(string address, byte stationNumber = 1, byte functionCode = 2)
-            => base.ReadDiscrete(address, stationNumber, functionCode);
-
-        /// <summary>
-        /// 读取离散
-        /// </summary>
-        /// <param name="address"></param>
-        /// <param name="stationNumber"></param>
-        /// <param name="functionCode"></param>
-        /// <returns></returns>
-        public new OperationResult<bool[]> ReadDiscrete(string address, int readLength, byte stationNumber = 1, byte functionCode = 2)
-            => base.ReadDiscrete(address, readLength, stationNumber, functionCode);
 
 
 
@@ -232,19 +278,19 @@ namespace Wombat.IndustrialCommunication.PLC
 
         #region Write 写入
 
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
+        public override OperationResult Write(string address, bool value)
         {
-            return base.Write(address, value, stationNumber, functionCode);
+            return this.SetFunctionCode(5).Write(address, value);
         }
 
-        public override OperationResult Write(string address, bool[] value, byte stationNumber = 1, byte functionCode = 0xF)
+        public override OperationResult Write(string address, bool[] value)
         {
-            return base.Write(address, value, stationNumber, functionCode);
+            return this.SetFunctionCode(15).Write(address, value);
         }
 
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
+        public override OperationResult Write(string address, byte[] values)
         {
-            return base.Write(address, values, stationNumber, functionCode);
+            return this.SetFunctionCode(16).Write(address, values);
         }
         /// <summary>
         /// 写入
@@ -253,9 +299,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, short value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
-
+        public new OperationResult Write(string address, short value)
+        {
+            return this.SetFunctionCode(6).Write(address, value);
+        }
         /// <summary>
         /// 写入
         /// </summary>
@@ -263,29 +310,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, short[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, ushort value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, ushort[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, short[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
 
         /// <summary>
@@ -295,8 +323,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, int value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, ushort value)
+        {
+            return this.SetFunctionCode(6).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -305,30 +335,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, int[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
-
-
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, uint value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
-
-        /// <summary>
-        /// 写入
-        /// </summary>
-        /// <param name="address">寄存器地址</param>
-        /// <param name="value">写入的值</param>
-        /// <param name="stationNumber">站号</param>
-        /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, uint[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, ushort[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
 
         /// <summary>
@@ -338,8 +348,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, long value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, int value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -348,8 +360,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, long[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, int[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
+
 
         /// <summary>
         /// 写入
@@ -358,8 +374,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, ulong value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, uint value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -368,8 +386,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, ulong[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, uint[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
 
         /// <summary>
         /// 写入
@@ -378,8 +399,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, float value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, long value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -388,8 +411,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, float[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, long[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -398,8 +423,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, double value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, ulong value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
         /// <summary>
         /// 写入
@@ -408,8 +435,58 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">写入的值</param>
         /// <param name="stationNumber">站号</param>
         /// <param name="functionCode">功能码</param>
-        public new OperationResult Write(string address, double[] value, byte stationNumber = 1, byte functionCode = 16)
-            => base.Write(address, value, stationNumber, functionCode);
+        public new OperationResult Write(string address, ulong[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public new OperationResult Write(string address, float value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public new OperationResult Write(string address, float[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public new OperationResult Write(string address, double value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
+
+        /// <summary>
+        /// 写入
+        /// </summary>
+        /// <param name="address">寄存器地址</param>
+        /// <param name="value">写入的值</param>
+        /// <param name="stationNumber">站号</param>
+        /// <param name="functionCode">功能码</param>
+        public new OperationResult Write(string address, double[] value)
+        {
+            return this.SetFunctionCode(16).Write(address, value);
+        }
 
 
         #endregion

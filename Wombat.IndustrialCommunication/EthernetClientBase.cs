@@ -10,9 +10,9 @@ using Wombat.Extensions.DataTypeExtensions;
 using Wombat.Network.Sockets;
 
 
-namespace Wombat.IndustrialCommunication.PLC
+namespace Wombat.IndustrialCommunication
 {
-   public abstract class PLCEthernetBase: EthernetDeviceBase, IPLCEthernetClient
+   public abstract class EthernetClientBase : EthernetDeviceBase, IEthernetClient
     {
 
 
@@ -36,7 +36,6 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="address">地址</param>
         /// <param name="length"></param>
         /// <param name="isBit"></param>
-        /// <param name="setEndian">返回值是否设置大小端</param>
         /// <returns></returns>
        internal abstract OperationResult<byte[]> Read(string address, int length, bool isBit = false);
 
@@ -47,7 +46,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="address">地址</param>
         /// <param name="length"></param>
         /// <param name="isBit"></param>
-        /// <param name="setEndian">返回值是否设置大小端</param>
+
         /// <returns></returns>
         internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
 
@@ -1318,8 +1317,6 @@ namespace Wombat.IndustrialCommunication.PLC
 
 
         #endregion
-
-
 
         #region object类型操作
         public OperationResult<object> Read(DataTypeEnum dataTypeEnum, string address)

@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// 西门子客户端
     /// http://www.360doc.cn/mip/763580999.html
     /// </summary>
-    public class SiemensClient : PLCEthernetBase
+    public class SiemensClient : EthernetClientBase 
     {
         //protected TcpRawSocketClient _socket;
         private AsyncLock _lock; 

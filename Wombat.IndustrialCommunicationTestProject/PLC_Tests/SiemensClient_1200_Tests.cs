@@ -8,6 +8,7 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.PLC;
 
 using Xunit;
@@ -16,8 +17,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     public class SiemensClient_1200_Tests
     {
-        private IPLCEthernetClient client;
-        private IPLCEthernetClient client2;
+        private IEthernetClient client;
+        private IEthernetClient client2;
 
         public SiemensClient_1200_Tests()
         {

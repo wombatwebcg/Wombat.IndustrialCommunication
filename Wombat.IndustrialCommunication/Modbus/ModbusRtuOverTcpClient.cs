@@ -15,11 +15,6 @@ namespace Wombat.IndustrialCommunication.Modbus
     {
 
 
-        /// <summary>
-        /// 是否自动打开关闭
-        /// </summary>
-        protected bool _isAutoOpen = true;
-
         public override string Version => "ModbusRtuOverTcpClient";
 
         /// <summary>
@@ -110,58 +105,71 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="readLength">读取长度</param>
         /// <param name="byteFormatting"></param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
+        internal override OperationResult<byte[]> Read(string address, int readLength = 1,bool IsBit = false)
         {
-            if (_isAutoOpen) Connect();
-
-            var result = new OperationResult<byte[]>();
-            try
+            using (_lock.Lock())
             {
-                //获取命令（组装报文）
-                byte[] command = GetReadCommand(address, stationNumber, functionCode, (ushort)readLength);
-                var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
+                byte stationNumber = _stationNumber;
+                byte functionCode = _functionCode;
+                var result = new OperationResult<byte[]>();
 
-                //发送命令并获取响应报文
-                int readLenght;
-                if (functionCode == 1 || functionCode == 2)
-                    readLenght = 5 + (int)Math.Ceiling((float)readLength / 8);
-                else
-                    readLenght = 5 + readLength * 2;
-                var sendResult = SendPackage(commandCRC16, readLenght);
-                if (!sendResult.IsSuccess)
-                    return sendResult;
-                var responsePackage = sendResult.Value;
-                //var responsePackage = SendPackage(commandCRC16, readLenght);
-                if (!responsePackage.Any())
+                if (!Connected && !IsLongLivedConnection)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    //获取命令（组装报文）
+                    byte[] command = GetReadCommand(address, _stationNumber, _functionCode, (ushort)readLength);
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
+
+                    //发送命令并获取响应报文
+                    int readLenght;
+                    if (functionCode == 1 || functionCode == 2)
+                        readLenght = 5 + (int)Math.Ceiling((float)readLength / 8);
+                    else
+                        readLenght = 5 + readLength * 2;
+                    var sendResult = SendPackage(commandCRC16, readLenght);
+                    if (!sendResult.IsSuccess)
+                        return sendResult;
+                    var responsePackage = sendResult.Value;
+                    //var responsePackage = SendPackage(commandCRC16, readLenght);
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+
+                    byte[] resultData = new byte[responsePackage.Length - 2 - 3];
+                    Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                    //4 获取响应报文数据（字节数组形式）       
+                    result.Value = resultData.ToArray();
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    result.Message = ex.Message;
                 }
-                else if (!CRC16Helper.CheckCRC16(responsePackage))
+                finally
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.Complete();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
-
-                byte[] resultData = new byte[responsePackage.Length - 2 - 3];
-                Array.Copy(responsePackage, 3, resultData, 0, resultData.Length);
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
-                //4 获取响应报文数据（字节数组形式）       
-                result.Value = resultData.ToArray();
+                return result.Complete();
             }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (_isAutoOpen) Dispose();
-            }
-            return result.Complete();
         }
 
         /// <summary>
@@ -171,48 +179,61 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
+        public override OperationResult Write(string address, bool value)
         {
-            if (!Connected) Connect();
-            var result = new OperationResult();
-            try
+            using (_lock.Lock())
             {
-                var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
-                var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                //发送命令并获取响应报文
-                //var responsePackage = SendPackage(commandCRC16, 8);
-                var sendResult = SendPackage(commandCRC16, 8);
-                if (!sendResult.IsSuccess)
-                    return sendResult;
-                var responsePackage = sendResult.Value;
+                byte stationNumber = _stationNumber;
+                byte functionCode = _functionCode;
+                var result = new OperationResult();
+                if (!Connected && !IsLongLivedConnection)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var command = GetWriteCoilCommand(address, value, _stationNumber, _functionCode);
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
+                    //发送命令并获取响应报文
+                    //var responsePackage = SendPackage(commandCRC16, 8);
+                    var sendResult = SendPackage(commandCRC16, 8);
+                    if (!sendResult.IsSuccess)
+                        return sendResult;
+                    var responsePackage = sendResult.Value;
 
-                if (!responsePackage.Any())
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+                    byte[] resultBuffer = new byte[responsePackage.Length - 2];
+                    Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    result.Message = ex.Message;
                 }
-                else if (!CRC16Helper.CheckCRC16(responsePackage))
+                finally
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.Complete();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
-                byte[] resultBuffer = new byte[responsePackage.Length - 2];
-                Buffer.BlockCopy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                return result.Complete();
             }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (Connected) Dispose();
-            }
-            return result.Complete();
         }
 
         /// <summary>
@@ -223,49 +244,61 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
+        public override OperationResult Write(string address, byte[] values)
         {
-            if (!Connected) Connect();
-
-            var result = new OperationResult();
-            try
+            using (_lock.Lock())
             {
-                var command = GetWriteCommand(address, values, stationNumber, functionCode);
+                byte stationNumber = _stationNumber;
+                byte functionCode = _functionCode;
+                var result = new OperationResult();
+                if (!Connected && !IsLongLivedConnection)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var command = GetWriteCommand(address, values, stationNumber, functionCode);
 
-                var commandCRC16 = CRC16Helper.GetCRC16(command);
-                result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                //var responsePackage = SendPackage(commandCRC16, 8);
-                var sendResult = SendPackage(commandCRC16, 8);
-                if (!sendResult.IsSuccess)
-                    return sendResult;
-                var responsePackage = sendResult.Value;
+                    var commandCRC16 = CRC16Helper.GetCRC16(command);
+                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
+                    //var responsePackage = SendPackage(commandCRC16, 8);
+                    var sendResult = SendPackage(commandCRC16, 8);
+                    if (!sendResult.IsSuccess)
+                        return sendResult;
+                    var responsePackage = sendResult.Value;
 
-                if (!responsePackage.Any())
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果CRC16Helper验证失败";
+                        //return result.Complete();
+                    }
+                    byte[] resultBuffer = new byte[responsePackage.Length - 2];
+                    Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    result.Message = ex.Message;
                 }
-                else if (!CRC16Helper.CheckCRC16(responsePackage))
+                finally
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果CRC16Helper验证失败";
-                    //return result.Complete();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
-                byte[] resultBuffer = new byte[responsePackage.Length - 2];
-                Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                return result.Complete();
             }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (Connected) Dispose();
-            }
-            return result.Complete();
         }
 
 

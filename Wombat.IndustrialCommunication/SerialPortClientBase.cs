@@ -6,9 +6,9 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
-namespace Wombat.IndustrialCommunication.PLC
+namespace Wombat.IndustrialCommunication
 {
-   public abstract  class PLCSerialPortBase : SerialPortDeviceBase, IPLCSerialPortClient
+   public abstract  class SerialPortClientBase : SerialPortDeviceBase, ISerialPortClient
     {
 
 

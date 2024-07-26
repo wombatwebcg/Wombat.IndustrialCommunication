@@ -40,32 +40,32 @@ namespace Wombat.IndustrialCommunicationTest.Modbus_Tests
                 #endregion
 
                 //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                client.Write("0", short_number, stationNumber, 16);
-                client.Write("4", ushort_number, stationNumber, 16);
-                client.Write("8", int_number, stationNumber, 16);
-                client.Write("12", uint_number, stationNumber, 16);
-                client.Write("16", long_number, stationNumber, 16);
-                client.Write("20", ulong_number, stationNumber, 16);
-                client.Write("24", float_number, stationNumber, 16);
-                client.Write("28", double_number, stationNumber, 16);
+                client.Write("0", short_number);
+                client.Write("4", ushort_number);
+                client.Write("8", int_number);
+                client.Write("12", uint_number);
+                client.Write("16", long_number);
+                client.Write("20", ulong_number);
+                client.Write("24", float_number);
+                client.Write("28", double_number);
 
-                client.Write("32", coil, stationNumber, 5);
+                client.Write("32", coil);
 
                 //写入可能有一定的延时，500毫秒后检验
                 await Task.Delay(500);
 
                 //读取地址:0 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                var read_short_number = client.ReadInt16("0", stationNumber, 3).Value;
+                var read_short_number = client.ReadInt16("0").Value;
                 Assert.True(read_short_number == short_number);
-                Assert.True(client.ReadUInt16("4", stationNumber, 3).Value == ushort_number);
-                Assert.True(client.ReadInt32("8", stationNumber, 3).Value == int_number);
-                Assert.True(client.ReadUInt32("12", stationNumber, 3).Value == uint_number);
-                Assert.True(client.ReadInt64("16", stationNumber, 3).Value == long_number);
-                Assert.True(client.ReadUInt64("20", stationNumber, 3).Value == ulong_number);
-                Assert.True(client.ReadFloat("24", stationNumber, 3).Value == float_number);
-                Assert.True(client.ReadDouble("28", stationNumber, 3).Value == double_number);
+                Assert.True(client.ReadUInt16("4").Value == ushort_number);
+                Assert.True(client.ReadInt32("8").Value == int_number);
+                Assert.True(client.ReadUInt32("12").Value == uint_number);
+                Assert.True(client.ReadInt64("16").Value == long_number);
+                Assert.True(client.ReadUInt64("20").Value == ulong_number);
+                Assert.True(client.ReadFloat("24").Value == float_number);
+                Assert.True(client.ReadDouble("28").Value == double_number);
 
-                Assert.True(client.ReadCoil("32", stationNumber, 1).Value == coil);
+                Assert.True(client.ReadBoolean("32").Value == coil);
             }
         }
 
@@ -90,32 +90,32 @@ namespace Wombat.IndustrialCommunicationTest.Modbus_Tests
                 #endregion
 
                 //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                client.Write("0", short_number, stationNumber, 16);
-                client.Write("4", ushort_number, stationNumber, 16);
-                client.Write("8", int_number, stationNumber, 16);
-                client.Write("12", uint_number, stationNumber, 16);
-                client.Write("16", long_number, stationNumber, 16);
-                client.Write("20", ulong_number, stationNumber, 16);
-                client.Write("24", float_number, stationNumber, 16);
-                client.Write("28", double_number, stationNumber, 16);
+                client.Write("0", short_number);
+                client.Write("4", ushort_number);
+                client.Write("8", int_number);
+                client.Write("12", uint_number);
+                client.Write("16", long_number);
+                client.Write("20", ulong_number);
+                client.Write("24", float_number);
+                client.Write("28", double_number);
 
-                client.Write("32", coil, stationNumber, 5);
+                client.Write("32", coil);
 
                 //写入可能有一定的延时，500毫秒后检验
                 await Task.Delay(500);
 
                 //读取地址:0 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                var read_short_number = client.ReadInt16("0", stationNumber, 3).Value;
+                var read_short_number = client.ReadInt16("0").Value;
                 Assert.True(read_short_number == short_number);
-                Assert.True(client.ReadUInt16("4", stationNumber, 3).Value == ushort_number);
-                Assert.True(client.ReadInt32("8", stationNumber, 3).Value == int_number);
-                Assert.True(client.ReadUInt32("12", stationNumber, 3).Value == uint_number);
-                Assert.True(client.ReadInt64("16", stationNumber, 3).Value == long_number);
-                Assert.True(client.ReadUInt64("20", stationNumber, 3).Value == ulong_number);
-                Assert.True(client.ReadFloat("24", stationNumber, 3).Value == float_number);
-                Assert.True(client.ReadDouble("28", stationNumber, 3).Value == double_number);
+                Assert.True(client.ReadUInt16("4").Value == ushort_number);
+                Assert.True(client.ReadInt32("8").Value == int_number);
+                Assert.True(client.ReadUInt32("12").Value == uint_number);
+                Assert.True(client.ReadInt64("16").Value == long_number);
+                Assert.True(client.ReadUInt64("20").Value == ulong_number);
+                Assert.True(client.ReadFloat("24").Value == float_number);
+                Assert.True(client.ReadDouble("28").Value == double_number);
 
-                Assert.True(client.ReadCoil("32", stationNumber, 1).Value == coil);
+                Assert.True(client.ReadBoolean("32").Value == coil);
             }
 
             client.Disconnect();

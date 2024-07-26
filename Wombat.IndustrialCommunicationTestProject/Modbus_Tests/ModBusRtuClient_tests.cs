@@ -21,37 +21,35 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         [Fact]
         public void  短连接自动开关()
         {
-          var tttt  =  client.Connect();
-            var ssss = client.Write("100", (ushort)1, stationNumber: 1);
-            var ggg = client.ReadInt16("14",stationNumber:0xFF);
-
+           var tttt  =  client.Connect();
+            client.SetFunctionCode(3);
             short Number = 33;
-            client.Write("4", Number, stationNumber);
-            Assert.True(client.ReadInt16("4", stationNumber).Value == Number);
+            client.Write("4", Number);
+            Assert.True(client.ReadInt16("4").Value == Number);
 
             Number = 34;
-            client.Write("4", Number, stationNumber);
-            Assert.True(client.ReadInt16("4", stationNumber).Value == Number);
+            client.Write("4", Number);
+            Assert.True(client.ReadInt16("4").Value == Number);
 
             Number = 1;
-            client.Write("12", Number, stationNumber);
-            Assert.True(client.ReadInt16("12", stationNumber).Value == 1);
+            client.Write("12", Number);
+            Assert.True(client.ReadInt16("12").Value == 1);
 
             Number = 0;
-            client.Write("12", Number, stationNumber);
-            Assert.True(client.ReadInt16("12", stationNumber).Value == 0);
+            client.Write("12", Number);
+            Assert.True(client.ReadInt16("12").Value == 0);
 
             int numberInt32 = -12;
-            client.Write("4", numberInt32, stationNumber);
-            Assert.True(client.ReadInt32("4", stationNumber).Value == numberInt32);
+            client.Write("4", numberInt32);
+            Assert.True(client.ReadInt32("4").Value == numberInt32);
 
             float numberFloat = 112;
-            client.Write("4", numberFloat, stationNumber);
-            Assert.True(client.ReadFloat("4", stationNumber).Value == numberFloat);
+            client.Write("4", numberFloat);
+            Assert.True(client.ReadFloat("4").Value == numberFloat);
 
             double numberDouble = 32;
-            client.Write("4", numberDouble, stationNumber);
-            Assert.True(client.ReadDouble("4", stationNumber).Value == numberDouble);
+            client.Write("4", numberDouble);
+            Assert.True(client.ReadDouble("4").Value == numberDouble);
         }
 
         [Fact]
@@ -62,32 +60,32 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
             client.Connect();
 
             short Number = 33;
-            client.Write("4", Number, stationNumber);
-            Assert.True(client.ReadInt16("4", stationNumber).Value == Number);
+            client.Write("4", Number);
+            Assert.True(client.ReadInt16("4").Value == Number);
 
             Number = 34;
-            client.Write("4", Number, stationNumber);
-            Assert.True(client.ReadInt16("4", stationNumber).Value == Number);
+            client.Write("4", Number);
+            Assert.True(client.ReadInt16("4").Value == Number);
 
             Number = 1;
-            client.Write("12", Number, stationNumber);
-            Assert.True(client.ReadInt16("12", stationNumber).Value == 1);
+            client.Write("12", Number);
+            Assert.True(client.ReadInt16("12").Value == 1);
 
             Number = 0;
-            client.Write("12", Number, stationNumber);
-            Assert.True(client.ReadInt16("12", stationNumber).Value == 0);
+            client.Write("12", Number);
+            Assert.True(client.ReadInt16("12").Value == 0);
 
             int numberInt32 = -12;
-            client.Write("4", numberInt32, stationNumber);
-            Assert.True(client.ReadInt32("4", stationNumber).Value == numberInt32);
+            client.Write("4", numberInt32);
+            Assert.True(client.ReadInt32("4").Value == numberInt32);
 
             float numberFloat = 112;
-            client.Write("4", numberFloat, stationNumber);
-            Assert.True(client.ReadFloat("4", stationNumber).Value == numberFloat);
+            client.Write("4", numberFloat);
+            Assert.True(client.ReadFloat("4").Value == numberFloat);
 
             double numberDouble = 32;
-            client.Write("4", numberDouble, stationNumber);
-            Assert.True(client.ReadDouble("4", stationNumber).Value == numberDouble);
+            client.Write("4", numberDouble);
+            Assert.True(client.ReadDouble("4").Value == numberDouble);
 
             client.Disconnect();
         }

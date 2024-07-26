@@ -39,7 +39,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="functionCode">功能码</param>
         /// <param name="readLength">读取长度</param>
         /// <returns></returns>
-        public override OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
+        internal override OperationResult<byte[]> Read(string address, int readLength = 1,bool isBit = false)
         {
             if (!Connected) Connect();
 
@@ -47,7 +47,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             try
             {
                 //获取命令（组装报文）
-                byte[] command = GetReadCommand(address, stationNumber, functionCode,(ushort) readLength);
+                byte[] command = GetReadCommand(address, _stationNumber, _functionCode,(ushort) readLength);
                 var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
                 var finalCommand = new byte[commandLRC.Length + 3];
@@ -108,56 +108,69 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value"></param>
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
-        public override OperationResult Write(string address, bool value, byte stationNumber = 1, byte functionCode = 5)
+        public override OperationResult Write(string address, bool value)
         {
-            if (!Connected) Connect();
-            var result = new OperationResult();
-            try
+            using (_lock.Lock())
             {
-                var command = GetWriteCoilCommand(address, value, stationNumber, functionCode);
+                byte stationNumber = _stationNumber;
+                byte functionCode = _functionCode;
+                var result = new OperationResult();
+                if (!Connected && !IsLongLivedConnection)
+                {
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
+                }
+                try
+                {
+                    var command = GetWriteCoilCommand(address, value, _stationNumber, _functionCode);
 
-                var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
-                var finalCommand = new byte[commandAscii.Length + 3];
-                Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
-                finalCommand[0] = 0x3A;
-                finalCommand[finalCommand.Length - 2] = 0x0D;
-                finalCommand[finalCommand.Length - 1] = 0x0A;
+                    var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
+                    var finalCommand = new byte[commandAscii.Length + 3];
+                    Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
+                    finalCommand[0] = 0x3A;
+                    finalCommand[finalCommand.Length - 2] = 0x0D;
+                    finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
-                //发送命令并获取响应报文
-                var sendResult = InterpretMessageData(finalCommand);
-                if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).Complete();
-                var responsePackage = sendResult.Value;
-                if (!responsePackage.Any())
+                    result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
+                    //发送命令并获取响应报文
+                    var sendResult = InterpretMessageData(finalCommand);
+                    if (!sendResult.IsSuccess)
+                        return result.SetInfo(sendResult).Complete();
+                    var responsePackage = sendResult.Value;
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+
+                    byte[] resultLRC = new byte[responsePackage.Length - 3];
+                    Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
+                    var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
+                    if (!LRCHelper.CheckLRC(resultByte))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果LRC验证失败";
+                        //return result.Complete();
+                    }
+
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    result.Message = ex.Message;
                 }
-
-                byte[] resultLRC = new byte[responsePackage.Length - 3];
-                Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
-                if (!LRCHelper.CheckLRC(resultByte))
+                finally
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果LRC验证失败";
-                    //return result.Complete();
+                    if (!IsLongLivedConnection) Disconnect();
                 }
-
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                return result.Complete();
             }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (Connected) Dispose();
-            }
-            return result.Complete();
         }
 
         /// <summary>
@@ -168,67 +181,71 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="stationNumber"></param>
         /// <param name="functionCode"></param>
         /// <returns></returns>
-        public override OperationResult Write(string address, byte[] values, byte stationNumber = 1, byte functionCode = 16)
+        internal override OperationResult Write(string address, byte[] values, bool IsBit)
         {
-            if (!Connected) Connect();
-
-            var result = new OperationResult();
-            try
+            using (_lock.Lock())
             {
-                var command = GetWriteCommand(address, values, stationNumber, functionCode);
-
-                var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
-                var finalCommand = new byte[commandAscii.Length + 3];
-                Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
-                finalCommand[0] = 0x3A;
-                finalCommand[finalCommand.Length - 2] = 0x0D;
-                finalCommand[finalCommand.Length - 1] = 0x0A;
-
-                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
-                var sendResult = InterpretMessageData(finalCommand);
-                if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).Complete();
-                var responsePackage = sendResult.Value;
-                if (!responsePackage.Any())
+                byte stationNumber = _stationNumber;
+                byte functionCode = _functionCode;
+                var result = new OperationResult();
+                if (!Connected && !IsLongLivedConnection)
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    var connectResult = Connect();
+                    if (!connectResult.IsSuccess)
+                    {
+                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        return result.SetInfo(connectResult);
+                    }
                 }
 
-                byte[] resultLRC = new byte[responsePackage.Length - 3];
-                Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
-                if (!LRCHelper.CheckLRC(resultByte))
+                try
+                {
+                    var command = GetWriteCommand(address, values, _stationNumber, _functionCode);
+
+                    var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
+                    var finalCommand = new byte[commandAscii.Length + 3];
+                    Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
+                    finalCommand[0] = 0x3A;
+                    finalCommand[finalCommand.Length - 2] = 0x0D;
+                    finalCommand[finalCommand.Length - 1] = 0x0A;
+
+                    result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
+                    var sendResult = InterpretMessageData(finalCommand);
+                    if (!sendResult.IsSuccess)
+                        return result.SetInfo(sendResult).Complete();
+                    var responsePackage = sendResult.Value;
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+
+                    byte[] resultLRC = new byte[responsePackage.Length - 3];
+                    Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
+                    var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
+                    if (!LRCHelper.CheckLRC(resultByte))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果LRC验证失败";
+                        //return result.Complete();
+                    }
+
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果LRC验证失败";
-                    //return result.Complete();
+                    result.Message = ex.Message;
                 }
-
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                finally
+                {
+                    if (!IsLongLivedConnection) Disconnect();
+                }
+                return result.Complete();
             }
-            catch (Exception ex)
-            {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (!Connected) Dispose();
-            }
-            return result.Complete();
         }
 
-        internal override Task<OperationResult> DoConnectAsync()
-        {
-            throw new NotImplementedException();
-        }
-
-        internal override Task<OperationResult> DoDisconnectAsync()
-        {
-            throw new NotImplementedException();
-        }
 
 
         /// <summary>

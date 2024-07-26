@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.IO.Ports;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication.PLC
+namespace Wombat.IndustrialCommunication
 {
-    public interface IPLCSerialPortClient : IClient, IReadWrite
+    public interface ISerialPortClient : IDeviceClient
     {
         string PortName { get; set; }
         int BaudRate { get; set; }

@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// <summary>
     /// 三菱plc客户端
     /// </summary>
-    public class MitsubishiClient : PLCEthernetBase
+    public class MitsubishiClient : EthernetClientBase 
     {
 
 

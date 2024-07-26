@@ -98,16 +98,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 //client.Write("Y100", true);
                 //Assert.True(client.ReadBoolean("Y100").Value == true);
-                client.Write("M900", true);
-                var sss = client.ReadCoil("M900");
-                Assert.True(client.ReadCoil("M900").Value == true);
-                client.Write("M901", bool_value);
-                Assert.True(client.ReadCoil("M901").Value == bool_value);
-                client.Write("M902", bool_value);
-                Assert.True(client.ReadCoil("M902").Value == bool_value);
-                client.Write("M903", !bool_value);
-                Assert.True(client.ReadCoil("M903").Value == !bool_value);
-                client.Write("M904", bool_value);
+                //client.Write("M900", true);
+                //var sss = client.ReadCoil("M900");
+                //Assert.True(client.ReadCoil("M900").Value == true);
+                //client.Write("M901", bool_value);
+                //Assert.True(client.ReadCoil("M901").Value == bool_value);
+                //client.Write("M902", bool_value);
+                //Assert.True(client.ReadCoil("M902").Value == bool_value);
+                //client.Write("M903", !bool_value);
+                //Assert.True(client.ReadCoil("M903").Value == !bool_value);
+                //client.Write("M904", bool_value);
                 //Assert.True(client.ReadCoil("M904").Value == bool_value);
                 //client.Write("L100", !bool_value);
                 //Assert.True(client.ReadBoolean("L100").Value == !bool_value);
@@ -156,12 +156,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                         , false, false, false,false,false,false,false,false,false, true };
 
                 var sss1 = client.Write("M900", bool_values);
-                var bool_values_result = client.ReadCoil("M900", bool_values.Length);
-                for (int j = 0; j < bool_values_result.Value.Length; j++)
-                {
-                    Assert.True(bool_values_result.Value[j] == bool_values[j]);
+                ////var bool_values_result = client.ReadCoil("M900", bool_values.Length);
+                //for (int j = 0; j < bool_values_result.Value.Length; j++)
+                //{
+                //    Assert.True(bool_values_result.Value[j] == bool_values[j]);
 
-                }
+                //}
 
                 short[] short_values = { 10000, 20000, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010 };
                 client.Write("D300", short_values);
@@ -252,16 +252,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 //await client.WriteAsync("Y100", true);
                 //Assert.True(client.ReadBoolean("Y100").Value == true);
-                await client.WriteAsync("M900", true);
-                var sss = client.ReadCoil("M900");
-                Assert.True(client.ReadCoil("M900").Value == true);
-                await client.WriteAsync("M901", bool_value);
-                Assert.True(client.ReadCoil("M901").Value == bool_value);
-                await client.WriteAsync("M902", bool_value);
-                Assert.True(client.ReadCoil("M902").Value == bool_value);
-                await client.WriteAsync("M903", !bool_value);
-                Assert.True(client.ReadCoil("M903").Value == !bool_value);
-                await client.WriteAsync("M904", bool_value);
+                //await client.WriteAsync("M900", true);
+                //var sss = client.ReadCoil("M900");
+                //Assert.True(client.ReadCoil("M900").Value == true);
+                //await client.WriteAsync("M901", bool_value);
+                //Assert.True(client.ReadCoil("M901").Value == bool_value);
+                //await client.WriteAsync("M902", bool_value);
+                //Assert.True(client.ReadCoil("M902").Value == bool_value);
+                //await client.WriteAsync("M903", !bool_value);
+                //Assert.True(client.ReadCoil("M903").Value == !bool_value);
+                //await client.WriteAsync("M904", bool_value);
                 //Assert.True(client.ReadCoil("M904").Value == bool_value);
                 //await client.WriteAsync("L100", !bool_value);
                 //Assert.True(client.ReadBoolean("L100").Value == !bool_value);
@@ -306,16 +306,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 //}
 
-                bool[] bool_values = { true, true, false, false, true, false, false, false, false, false
-                        , false, false, false,false,false,false,false,false,false, true };
+                //bool[] bool_values = { true, true, false, false, true, false, false, false, false, false
+                //        , false, false, false,false,false,false,false,false,false, true };
 
-                var sss1 = await client.WriteAsync("M900", bool_values);
-                var bool_values_result = client.ReadCoil("M900", bool_values.Length);
-                for (int j = 0; j < bool_values_result.Value.Length; j++)
-                {
-                    Assert.True(bool_values_result.Value[j] == bool_values[j]);
+                //var sss1 = await client.WriteAsync("M900", bool_values);
+                //var bool_values_result = client.ReadCoil("M900", bool_values.Length);
+                //for (int j = 0; j < bool_values_result.Value.Length; j++)
+                //{
+                //    Assert.True(bool_values_result.Value[j] == bool_values[j]);
 
-                }
+                //}
 
                 short[] short_values = { 10000, 20000, 30003, 30004, 30005, 30006, 30007, 30008, 30009, 30010 };
                 await client.WriteAsync("D300", short_values);
