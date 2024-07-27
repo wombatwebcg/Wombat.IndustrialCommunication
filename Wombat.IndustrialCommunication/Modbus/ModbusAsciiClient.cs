@@ -42,12 +42,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         internal override OperationResult<byte[]> Read(string address, int readLength = 1,bool isBit = false)
         {
             if (!Connected) Connect();
+            var modbusHeader = ModbusAddressParser.Parse(address);
 
             var result = new OperationResult<byte[]>();
             try
             {
                 //获取命令（组装报文）
-                byte[] command = GetReadCommand(address, _stationNumber, _functionCode,(ushort) readLength);
+                byte[] command = GetReadCommand(address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort) readLength);
                 var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
                 var finalCommand = new byte[commandLRC.Length + 3];
@@ -112,21 +113,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                byte stationNumber = _stationNumber;
-                byte functionCode = _functionCode;
+                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
                 if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
                     {
-                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
                         return result.SetInfo(connectResult);
                     }
                 }
                 try
                 {
-                    var command = GetWriteCoilCommand(address, value, _stationNumber, _functionCode);
+                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
 
                     var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                     var finalCommand = new byte[commandAscii.Length + 3];
@@ -185,22 +185,21 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                byte stationNumber = _stationNumber;
-                byte functionCode = _functionCode;
+                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
                 if (!Connected && !IsLongLivedConnection)
                 {
                     var connectResult = Connect();
                     if (!connectResult.IsSuccess)
                     {
-                        connectResult.Message = $"读取 地址:{address} 站号:{stationNumber} 功能码:{functionCode} 失败。{ connectResult.Message}";
+                        connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
                         return result.SetInfo(connectResult);
                     }
                 }
 
                 try
                 {
-                    var command = GetWriteCommand(address, values, _stationNumber, _functionCode);
+                    var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
 
                     var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                     var finalCommand = new byte[commandAscii.Length + 3];

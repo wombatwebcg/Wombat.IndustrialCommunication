@@ -23,8 +23,15 @@ namespace Wombat.IndustrialCommunication.PLC
         {
 
         }
+
+
         #region  Read 读取
 
+
+        //public new  OperationResult<byte[]> Read(string address, int readLength = 1, byte stationNumber = 1, byte functionCode = 3)
+        //{
+        //    return base.Read(address, readLength);
+        //}
 
 
         /// <summary>
@@ -36,7 +43,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<short> ReadInt16(string address)
         {
-            return this.SetFunctionCode(3).ReadInt16(address);
+            return this.ReadInt16(address);
         }
 
         /// <summary>
@@ -48,7 +55,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<short[]> ReadInt16(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadInt16(address, readLength);
+            return this.ReadInt16(address, readLength);
 
         }
         /// <summary>
@@ -59,7 +66,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public new OperationResult<ushort> ReadUInt16(string address)
         {
-            return this.SetFunctionCode(3).ReadUInt16(address);
+            return this.ReadUInt16(address);
         }
 
 
@@ -72,7 +79,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<ushort[]> ReadUInt16(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadUInt16(address, readLength);
+            return this.ReadUInt16(address, readLength);
         }
 
         /// <summary>
@@ -85,7 +92,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<ushort> ReadUInt16Bit(string address, bool left = true)
         {
-            return ((ModbusTcpClient)(this.SetFunctionCode(3))).ReadUInt16Bit(address, left);
+            return ReadUInt16Bit(address, left);
 
         }
 
@@ -99,7 +106,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<short> ReadInt16Bit(string address, bool left = true)
         {
-            return ((ModbusTcpClient)(this.SetFunctionCode(3))).ReadInt16Bit(address, left);
+            return ReadInt16Bit(address, left);
 
         }
 
@@ -113,7 +120,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<int> ReadInt32(string address)
         {
-            return this.SetFunctionCode(3).ReadInt32(address);
+            return this.ReadInt32(address);
         }
 
         /// <summary>
@@ -125,8 +132,8 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<int[]> ReadInt32(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadInt32(address, readLength);
-        } 
+            return this.ReadInt32(address, readLength);
+        }
 
         /// <summary>
         /// 读取UInt32
@@ -137,7 +144,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<uint> ReadUInt32(string address)
         {
-            return this.SetFunctionCode(3).ReadUInt32(address);
+            return this.ReadUInt32(address);
         }
 
 
@@ -148,7 +155,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<uint[]> ReadUInt32(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadUInt32(address,readLength);
+            return this.ReadUInt32(address, readLength);
         }
 
         /// <summary>
@@ -160,7 +167,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<long> ReadInt64(string address)
         {
-            return this.SetFunctionCode(3).ReadInt64(address);
+            return this.ReadInt64(address);
 
         }
 
@@ -173,7 +180,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<long[]> ReadInt64(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadInt64(address, readLength);
+            return this.ReadInt64(address, readLength);
 
         }
 
@@ -187,7 +194,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<ulong> ReadUInt64(string address)
         {
-            return this.SetFunctionCode(3).ReadUInt64(address);
+            return this.ReadUInt64(address);
         }
 
         /// <summary>
@@ -199,7 +206,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<ulong[]> ReadUInt64(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadUInt64(address, readLength);
+            return this.ReadUInt64(address, readLength);
         }
 
         /// <summary>
@@ -211,7 +218,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<float> ReadFloat(string address)
         {
-            return this.SetFunctionCode(3).ReadFloat(address);
+            return this.ReadFloat(address);
         }
 
         /// <summary>
@@ -223,7 +230,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<float[]> ReadFloat(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadFloat(address, readLength);
+            return this.ReadFloat(address, readLength);
         }
 
 
@@ -236,7 +243,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<double> ReadDouble(string address)
         {
-            return this.SetFunctionCode(3).ReadDouble(address); ;
+            return this.ReadDouble(address); ;
         }
 
 
@@ -249,7 +256,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<double[]> ReadDouble(string address, int readLength)
         {
-            return this.SetFunctionCode(3).ReadDouble(address, readLength);
+            return this.ReadDouble(address, readLength);
         }
 
 
@@ -264,7 +271,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<bool> ReadBoolean(string address)
         {
-            return this.SetFunctionCode(1).ReadBoolean(address);
+            return this.ReadBoolean(address);
         }
 
         /// <summary>
@@ -276,7 +283,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public new OperationResult<bool[]> ReadBoolean(string address, int readLength)
         {
-            return this.SetFunctionCode(1).ReadBoolean(address, readLength);
+            return this.ReadBoolean(address, readLength);
         }
 
 
@@ -289,17 +296,17 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public override OperationResult Write(string address, bool value)
         {
-            return this.SetFunctionCode(5).Write(address, value);   
+            return this.Write(address, value);
         }
 
         public override OperationResult Write(string address, bool[] value)
         {
-            return this.SetFunctionCode(15).Write(address, value);
+            return this.Write(address, value);
         }
 
         public override OperationResult Write(string address, byte[] values)
         {
-            return this.SetFunctionCode(16).Write(address, values);  
+            return this.Write(address, values);
         }
         /// <summary>
         /// 写入
@@ -310,7 +317,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, short value)
         {
-          return  this.SetFunctionCode(6).Write(address, value);
+            return this.Write(address, value);
         }
         /// <summary>
         /// 写入
@@ -321,7 +328,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, short[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
 
@@ -334,7 +341,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, ushort value)
         {
-            return this.SetFunctionCode(6).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -346,7 +353,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, ushort[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
 
@@ -359,7 +366,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, int value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -371,7 +378,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, int[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
 
@@ -385,7 +392,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, uint value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -397,7 +404,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, uint[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
 
@@ -410,7 +417,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, long value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -422,7 +429,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, long[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -434,7 +441,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, ulong value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -446,7 +453,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, ulong[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -458,7 +465,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, float value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -470,7 +477,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, float[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -482,7 +489,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, double value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
         /// <summary>
@@ -494,7 +501,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="functionCode">功能码</param>
         public new OperationResult Write(string address, double[] value)
         {
-            return this.SetFunctionCode(16).Write(address, value);
+            return this.Write(address, value);
         }
 
 

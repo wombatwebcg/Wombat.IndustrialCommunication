@@ -127,91 +127,91 @@ namespace Wombat.IndustrialCommunicationTest.Modbus_Tests
             var list = new List<ModbusInput>();
             list.Add(new ModbusInput()
             {
-                Address = "2",
+                RegisterAddress = "2",
                 DataType = DataTypeEnum.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "2",
+                RegisterAddress = "2",
                 DataType = DataTypeEnum.Int16,
                 FunctionCode = 4,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "5",
+                RegisterAddress = "5",
                 DataType = DataTypeEnum.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "199",
+                RegisterAddress = "199",
                 DataType = DataTypeEnum.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "200",
+                RegisterAddress = "200",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "201",
+                RegisterAddress = "201",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "202",
+                RegisterAddress = "202",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "203",
+                RegisterAddress = "203",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "204",
+                RegisterAddress = "204",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "205",
+                RegisterAddress = "205",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "206",
+                RegisterAddress = "206",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "207",
+                RegisterAddress = "207",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                Address = "208",
+                RegisterAddress = "208",
                 DataType = DataTypeEnum.Bool,
                 FunctionCode = 2,
                 StationNumber = 1

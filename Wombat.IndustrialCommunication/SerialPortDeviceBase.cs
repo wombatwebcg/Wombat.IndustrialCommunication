@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Wombat.IndustrialCommunication
 {
-   public abstract class SerialPortDeviceBase : ClientBase
+   public abstract class SerialPortDeviceBase : DeviceClient, ISerialPortClient
     {
         public string PortName { get; set; }
         public int BaudRate { get; set; } = 9600;
@@ -187,6 +187,7 @@ namespace Wombat.IndustrialCommunication
                 Thread.Sleep(WaiteInterval);
             }
             byte[] buffer = new byte[_serialPort.BytesToRead];
+            result.Value = new byte[buffer.Length];
             var receiveFinish = 0;
             while (receiveFinish < buffer.Length)
             {
@@ -196,9 +197,9 @@ namespace Wombat.IndustrialCommunication
                     result.Value = null;
                     return result.Complete();
                 }
+                Array.Copy(buffer, receiveFinish, result.Value, receiveFinish, readLeng);
                 receiveFinish += readLeng;
             }
-             Array.Copy(buffer, result.Value,buffer.Length);
 
             string printSend = $"{_serialPort.PortName} send:";
             for (int i = 0; i < buffer.Length; i++)
@@ -231,6 +232,7 @@ namespace Wombat.IndustrialCommunication
                await Task.Delay(WaiteInterval);
             }
             byte[] buffer = new byte[_serialPort.BytesToRead];
+            result.Value = new byte[buffer.Length];
             var receiveFinish = 0;
             while (receiveFinish < buffer.Length)
             {
@@ -240,9 +242,9 @@ namespace Wombat.IndustrialCommunication
                     result.Value = null;
                     return result.Complete();
                 }
+                Array.Copy(buffer, receiveFinish, result.Value, receiveFinish, readLeng);
                 receiveFinish += readLeng;
             }
-            result.Value = buffer;
 
             string printSend = $"{_serialPort.PortName} send:";
             for (int i = 0; i < buffer.Length; i++)
@@ -355,6 +357,12 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="command"></param>
         /// <returns></returns>
+        /// <summary>
+        /// 发送报文，并获取响应报文（如果网络异常，会自动进行一次重试）
+        /// TODO 重试机制应改成用户主动设置
+        /// </summary>
+        /// <param name="command"></param>
+        /// <returns></returns>
         internal override OperationResult<byte[]> InterpretMessageData(byte[] command)
         {
             var result = new OperationResult<byte[]>();
@@ -394,55 +402,25 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         internal override async ValueTask<OperationResult<byte[]>> InterpretMessageDataAsync(byte[] command)
         {
+            var result = new OperationResult<byte[]>();
+
             try
             {
-                var result = await ExchangingMessagesAsync(command);
+                result = await ExchangingMessagesAsync(command);
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
-                    //如果出现异常，则进行一次重试         
-                    var conentOperationResult =await ConnectAsync();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-
-                    }
-                    else
-                    {
-                        result =await ExchangingMessagesAsync(command); ;
-                        return result.Complete();
-                    }
+                    result.Message = "设备响应异常";
                 }
-                else
-                {
-                    return result.Complete();
-
-                }
+                return result.Complete();
             }
             catch (Exception ex)
             {
-                try
-                {
-                    WarningLog?.Invoke(ex.Message, ex);
-                    //如果出现异常，则进行一次重试                
-                    var conentOperationResult = Connect();
-                    if (!conentOperationResult.IsSuccess)
-                    {
-                        return new OperationResult<byte[]>(conentOperationResult);
-                    }
-                    else
-                    {
-                        var result = await ExchangingMessagesAsync(command); 
-                        return result.Complete();
-                    }
-                }
-                catch (Exception ex2)
-                {
-                    var result = new OperationResult<byte[]>();
-                    result.IsSuccess = false;
-                    result.Message = ex2.Message;
-                    return result.Complete();
-                }
+                WarningLog?.Invoke(ex.Message, ex);
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                return result.Complete();
+
             }
         }
 

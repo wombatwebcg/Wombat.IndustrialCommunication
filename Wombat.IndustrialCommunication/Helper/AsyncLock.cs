@@ -38,6 +38,9 @@ namespace Wombat.IndustrialCommunication
         private static readonly AsyncLocal<long> _asyncId = new AsyncLocal<long>();
         private static long AsyncId => _asyncId.Value;
 
+        private   bool _isLocking =false;
+
+        public bool IsLocking => _isLocking;
 
         private static int ThreadId => Thread.CurrentThread.ManagedThreadId;
 
@@ -328,9 +331,12 @@ namespace Wombat.IndustrialCommunication
         // the AsyncLocal value.
         public Task<IDisposable> LockAsync(CancellationToken ct = default)
         {
+            _isLocking = true;
             var @lock = new InnerLock(this, _asyncId.Value, ThreadId);
             _asyncId.Value = Interlocked.Increment(ref AsyncLock.AsyncStackCounter);
-            return @lock.ObtainLockAsync(ct);
+            var result = @lock.ObtainLockAsync(ct);
+            _isLocking = false;
+            return result;
         }
 
         // Make sure InnerLock.LockAsync() does not use await, because an async function triggers a snapshot of
@@ -469,11 +475,14 @@ namespace Wombat.IndustrialCommunication
 
         public IDisposable Lock(CancellationToken cancellationToken = default)
         {
+            _isLocking = true;
             var @lock = new InnerLock(this, _asyncId.Value, ThreadId);
             // Increment the async stack counter to prevent a child task from getting
             // the lock at the same time as a child thread.
             _asyncId.Value = Interlocked.Increment(ref AsyncLock.AsyncStackCounter);
-            return @lock.ObtainLock(cancellationToken);
+            var result = @lock.ObtainLock(cancellationToken);
+            _isLocking = false;
+            return result;
         }
 
         public bool TryLock(Action callback, TimeSpan timeout)

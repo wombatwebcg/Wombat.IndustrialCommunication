@@ -298,5 +298,24 @@ namespace Wombat.IndustrialCommunication
 
         }
 
+        internal override OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override OperationResult Write(string address, byte[] data, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
+
+        internal override Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            throw new NotImplementedException();
+        }
     }
 }

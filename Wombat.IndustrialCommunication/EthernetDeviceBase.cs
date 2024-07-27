@@ -11,7 +11,7 @@ using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
-   public abstract class EthernetDeviceBase: ClientBase
+   public abstract class EthernetDeviceBase: DeviceClient, IEthernetClient
     {
         public  IPEndPoint IpEndPoint { get; set; }
 
