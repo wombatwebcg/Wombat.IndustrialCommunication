@@ -1088,6 +1088,188 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
+
+
+        /// <summary>
+        /// 批量随机读取
+        /// </summary>
+        /// <param name="addresses">地址集合</param>
+        /// <param name="batchNumber">批量读取数量</param>
+        /// <returns></returns>
+        public override async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses)
+        {
+            int batchNumber = 19;
+            var result = new OperationResult<Dictionary<string, object>>();
+            result.Value = new Dictionary<string, object>();
+
+            var batchCount = Math.Ceiling((float)addresses.Count / batchNumber);
+            for (int i = 0; i < batchCount; i++)
+            {
+                var tempAddresses = addresses.Skip(i * batchNumber).Take(batchNumber).ToDictionary(t => t.Key, t => t.Value);
+                var tempResult =await BatchReadBaseAsync(tempAddresses);
+                if (!tempResult.IsSuccess)
+                {
+                    result.IsSuccess = false;
+                    result.Message = tempResult.Message;
+                    result.Exception = tempResult.Exception;
+                    result.ErrorCode = tempResult.ErrorCode;
+                }
+
+                if (tempResult.Value?.Any() ?? false)
+                {
+                    foreach (var item in tempResult.Value)
+                    {
+                        result.Value.Add(item.Key, item.Value);
+                    }
+                }
+
+                result.Requsts = tempResult.Requsts;
+                result.Responses = tempResult.Responses;
+            }
+            return result.Complete();
+        }
+
+        /// <summary>
+        /// 最多只能批量读取19个数据？        
+        /// </summary>
+        /// <param name="addresses"></param>
+        /// <returns></returns>
+        private async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadBaseAsync(Dictionary<string, DataTypeEnum> addresses)
+        {
+            if (!Connected && !IsLongLivedConnection)
+            {
+                var connectResult =await ConnectAsync();
+                if (!connectResult.IsSuccess)
+                {
+                    return new OperationResult<Dictionary<string, object>>(connectResult);
+                }
+            }
+            var result = new OperationResult<Dictionary<string, object>>();
+            result.Value = new Dictionary<string, object>();
+            try
+            {
+                //发送读取信息
+                var args = ConvertArg(addresses);
+                byte[] command = GetReadCommand(args);
+                result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                //发送命令 并获取响应报文
+                var sendResult =await InterpretMessageDataAsync(command);
+                if (!sendResult.IsSuccess)
+                    return new OperationResult<Dictionary<string, object>>(sendResult);
+
+                var dataPackage = sendResult.Value;
+
+                //2021.5.27注释，直接使用【var length = dataPackage.Length - 21】代替。
+                //DataType类型为Bool的时候需要读取两个字节
+                //var length = args.Sum(t => t.ReadWriteLength == 1 ? 2 : t.ReadWriteLength) + args.Length * 4;
+                //if (args.Last().ReadWriteLength == 1) length--;//最后一个如果是 ReadWriteLength == 1  ，结果会少一个字节。
+
+                var length = dataPackage.Length - 21;
+
+                byte[] responseData = new byte[length];
+
+                Array.Copy(dataPackage, dataPackage.Length - length, responseData, 0, length);
+
+                result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                var cursor = 0;
+                foreach (var item in args)
+                {
+                    object value;
+
+                    var isSucceed = true;
+                    if (responseData[cursor] == 0x0A && responseData[cursor + 1] == 0x00)
+                    {
+                        isSucceed = false;
+                        result.Message = $"读取{item.Address}失败，请确认是否存在地址{item.Address}";
+
+                    }
+                    else if (responseData[cursor] == 0x05 && responseData[cursor + 1] == 0x00)
+                    {
+                        isSucceed = false;
+                        result.Message = $"读取{item.Address}失败，请确认是否存在地址{item.Address}";
+                    }
+                    else if (responseData[cursor] != 0xFF)
+                    {
+                        isSucceed = false;
+                        result.Message = $"读取{item.Address}失败，异常代码[{cursor}]:{responseData[cursor]}";
+                    }
+
+                    cursor += 4;
+
+                    //如果本次读取有异常
+                    if (!isSucceed)
+                    {
+                        result.IsSuccess = false;
+                        continue;
+                    }
+
+                    var readResult = responseData.Skip(cursor).Take(item.ReadWriteLength).Reverse().ToArray();
+                    cursor += item.ReadWriteLength == 1 ? 2 : item.ReadWriteLength;
+                    switch (item.DataType)
+                    {
+                        case DataTypeEnum.Bool:
+                            value = BitConverter.ToBoolean(readResult, 0) ? 1 : 0;
+                            break;
+                        case DataTypeEnum.Byte:
+                            value = readResult[0];
+                            break;
+                        case DataTypeEnum.Int16:
+                            value = BitConverter.ToInt16(readResult, 0);
+                            break;
+                        case DataTypeEnum.UInt16:
+                            value = BitConverter.ToUInt16(readResult, 0);
+                            break;
+                        case DataTypeEnum.Int32:
+                            value = BitConverter.ToInt32(readResult, 0);
+                            break;
+                        case DataTypeEnum.UInt32:
+                            value = BitConverter.ToUInt32(readResult, 0);
+                            break;
+                        case DataTypeEnum.Int64:
+                            value = BitConverter.ToInt64(readResult, 0);
+                            break;
+                        case DataTypeEnum.UInt64:
+                            value = BitConverter.ToUInt64(readResult, 0);
+                            break;
+                        case DataTypeEnum.Float:
+                            value = BitConverter.ToSingle(readResult, 0);
+                            break;
+                        case DataTypeEnum.Double:
+                            value = BitConverter.ToDouble(readResult, 0);
+                            break;
+                        default:
+                            throw new Exception($"未定义数据类型：{item.DataType}");
+                    }
+                    result.Value.Add(item.Address, value);
+                }
+            }
+            catch (SocketException ex)
+            {
+                result.IsSuccess = false;
+                if (ex.SocketErrorCode == SocketError.TimedOut)
+                {
+                    result.Message = "连接超时";
+                }
+                else
+                {
+                    result.Message = ex.Message;
+                    result.Exception = ex;
+                }
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = ex.Message;
+                result.Exception = ex;
+            }
+            finally
+            {
+                if (!IsLongLivedConnection) DisconnectAsync();
+            }
+            return result.Complete();
+        }
+
+
         /// <summary>
         /// 批量写入
         /// TODO 可以重构后面的Write 都走BatchWrite
