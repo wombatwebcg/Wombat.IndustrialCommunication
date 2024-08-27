@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class ModbusEthernetBase : ModbusClient
+    public abstract class ModbusEthernetBase : ModbusClient, IEthernetClient
     {
         public IPEndPoint IpEndPoint { get; set; }
         protected internal SocketClientBase _socket;

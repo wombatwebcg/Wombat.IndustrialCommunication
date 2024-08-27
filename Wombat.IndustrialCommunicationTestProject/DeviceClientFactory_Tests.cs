@@ -30,7 +30,7 @@ namespace IoTClient.Tests.PLC_Tests
             //var port = int.Parse("102");
             var ip = IPAddress.Parse("192.168.100.51");//20.205.243.166
             var port = 102;
-            client = DeviceClientFactory.CreatePLCEthernetDevice(EthernetDeviceVersion.Siemens_S7_200Smart, "192.168.100.51",102);
+            client = DeviceClientFactory.CreateEthernetDevice(EthernetDeviceVersion.Siemens_S7_200Smart, "192.168.100.51",102);
             client.UseLogger(loggerFactory.CreateLogger<SiemensClient>());
         }
 

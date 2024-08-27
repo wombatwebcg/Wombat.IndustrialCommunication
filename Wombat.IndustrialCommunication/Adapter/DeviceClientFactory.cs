@@ -19,7 +19,7 @@ namespace Wombat.IndustrialCommunication.Adapter
         /// <param name="timeout">超时时间</param>
         /// <param name="format">大小端设置</param>
         /// <returns></returns>
-        public static IEthernetClient CreatePLCEthernetDevice(EthernetDeviceVersion deviceVersion, string ip, int port, int timeout = 1500, EndianFormat format = EndianFormat.ABCD,bool isReverse = false)
+        public static IEthernetClient CreateEthernetDevice(EthernetDeviceVersion deviceVersion, string ip, int port, int timeout = 1500,bool isLongLivedConnection = true)
         {
             IEthernetClient iotClientCommon;
             switch (deviceVersion)
@@ -54,14 +54,14 @@ namespace Wombat.IndustrialCommunication.Adapter
                 case EthernetDeviceVersion.Mitsubishi_Qna_3E:
                     iotClientCommon = new MitsubishiClient(MitsubishiVersion.Qna_3E, ip, port);
                     break;
+                case EthernetDeviceVersion.ModbusTcp:
+                    iotClientCommon = new ModbusTcpClient(ip, port);
+                    break;
                 default:
                     throw new Exception($"类型[{deviceVersion}]暂未实现");
             }
-
+            iotClientCommon.IsLongLivedConnection = isLongLivedConnection;
             iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
-            iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
-            //iotClientCommon.DataFormat = format;
-            //iotClientCommon.IsReverse = isReverse;
             return iotClientCommon;
         }
 
@@ -70,37 +70,6 @@ namespace Wombat.IndustrialCommunication.Adapter
 
 
 
-        /// <summary>
-        /// 创建以太网类型的设备连接
-        /// </summary>
-        /// <param name="deviceVersion">设备类型</param>
-        /// <param name="ip">ip地址</param>
-        /// <param name="port">端口号</param>
-        /// <param name="timeout">超时时间</param>
-        /// <param name="format">大小端设置</param>
-        /// <returns></returns>
-        //public static IModbusEthernetClient CreateModbusEthernetDevice(EthernetDeviceVersion deviceVersion, string ip, int port, int timeout = 1500, EndianFormat format = EndianFormat.ABCD,bool Isreve = false)
-        //{
-        //    IModbusEthernetClient iotClientCommon;
-        //    switch (deviceVersion)
-
-        //    {
-        //        case EthernetDeviceVersion.ModbusTcp:
-        //            iotClientCommon = new ModbusTcpClient(ip, port);
-        //            break;
-        //        case EthernetDeviceVersion.ModbusRtuOverTcp:
-        //            iotClientCommon = new ModbusRtuOverTcpClient(ip, port);
-        //            break;
-        //        default:
-        //            throw new Exception($"类型[{deviceVersion}]暂未实现");
-        //    }
-
-        //    iotClientCommon.ConnectTimeout = TimeSpan.FromMilliseconds(timeout);
-        //    iotClientCommon.DataFormat = format;
-        //    //iotClientCommon.DataFormat = format;
-        //    //iotClientCommon.IsReverse = isReverse;
-        //    return iotClientCommon;
-        //}
 
 
 

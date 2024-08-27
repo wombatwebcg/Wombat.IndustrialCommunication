@@ -38,7 +38,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         ReadInputRegisters = 4,
         WriteSingleCoil = 5,
         WriteSingleRegister = 6,
-        WriteMultipleCoils = 0xf,
+        WriteMultipleCoils = 0xF,
         WriteMultipleRegister = 0x10
 
     }

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.0.25-pre</Version>
+    <Version>2.0.26-pre</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
@@ -18,12 +18,9 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.4" />
+    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.7" />
     <PackageReference Include="System.IO.Ports" Version="7.0.0" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Wombat.Network\Wombat.Network\Wombat.Network\Wombat.Network.csproj" />
+    <PackageReference Include="Wombat.Network" Version="1.0.8" />
   </ItemGroup>
 
   <ItemGroup>

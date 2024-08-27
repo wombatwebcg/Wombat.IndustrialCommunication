@@ -1074,14 +1074,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.Close();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.Close();
             }
             finally
             {
