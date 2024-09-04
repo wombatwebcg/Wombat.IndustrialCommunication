@@ -11,7 +11,7 @@ using Wombat.IndustrialCommunication.Adapter;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace IoTClient.Tests.PLC_Tests
+namespace Wombat.IndustrialCommunicationTestProject
 {
     public class DeviceClientFactory_Tests
     {

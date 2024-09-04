@@ -41,60 +41,76 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns></returns>
         internal override OperationResult<byte[]> Read(string address, int readLength = 1,bool isBit = false)
         {
-            if (!Connected) Connect();
-            var modbusHeader = ModbusAddressParser.Parse(address);
 
             var result = new OperationResult<byte[]>();
-            try
+            if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
             {
-                //获取命令（组装报文）
-                byte[] command = GetReadCommand(address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort) readLength);
-                var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
+                try
+                {
+                    if (!Connected && !IsLongLivedConnection)
+                    {
+                        var connectResult = Connect();
+                        if (!connectResult.IsSuccess)
+                        {
+                            return result.SetInfo(connectResult);
 
-                var finalCommand = new byte[commandLRC.Length + 3];
-                Buffer.BlockCopy(commandLRC, 0, finalCommand, 1, commandLRC.Length);
-                finalCommand[0] = 0x3A;
-                finalCommand[finalCommand.Length - 2] = 0x0D;
-                finalCommand[finalCommand.Length - 1] = 0x0A;
+                        }
+                    }
 
-                result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
+                    //获取命令（组装报文）
+                    byte[] command = GetReadCommand(address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
+                    var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
-                //发送命令并获取响应报文
-                var sendResult = InterpretMessageData(finalCommand);
-                if (!sendResult.IsSuccess)
-                    return result.SetInfo(sendResult).Complete();
-                var responsePackage = sendResult.Value;
+                    var finalCommand = new byte[commandLRC.Length + 3];
+                    Buffer.BlockCopy(commandLRC, 0, finalCommand, 1, commandLRC.Length);
+                    finalCommand[0] = 0x3A;
+                    finalCommand[finalCommand.Length - 2] = 0x0D;
+                    finalCommand[finalCommand.Length - 1] = 0x0A;
 
-                if (!responsePackage.Any())
+                    result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
+
+                    //发送命令并获取响应报文
+                    var sendResult = InterpretMessageData(finalCommand);
+                    if (!sendResult.IsSuccess)
+                        return result.SetInfo(sendResult).Complete();
+                    var responsePackage = sendResult.Value;
+
+                    if (!responsePackage.Any())
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果为空";
+                        return result.Complete();
+                    }
+
+                    byte[] resultLRC = new byte[responsePackage.Length - 3];
+                    Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
+                    var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
+                    if (!LRCHelper.CheckLRC(resultByte))
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "响应结果LRC验证失败";
+                        //return result.Complete();
+                    }
+                    var resultData = new byte[resultByte[2]];
+                    Buffer.BlockCopy(resultByte, 3, resultData, 0, resultData.Length);
+                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
+                    //4 获取响应报文数据（字节数组形式）         
+                    result.Value = resultData.ToArray();
+                }
+                catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = "响应结果为空";
-                    return result.Complete();
+                    result.Message = ex.Message;
                 }
-
-                byte[] resultLRC = new byte[responsePackage.Length - 3];
-                Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
-                if (!LRCHelper.CheckLRC(resultByte))
+                finally
                 {
-                    result.IsSuccess = false;
-                    result.Message = "响应结果LRC验证失败";
-                    //return result.Complete();
+                    if (Connected) Dispose();
                 }
-                var resultData = new byte[resultByte[2]];
-                Buffer.BlockCopy(resultByte, 3, resultData, 0, resultData.Length);
-                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
-                //4 获取响应报文数据（字节数组形式）         
-                result.Value = resultData.ToArray();
             }
-            catch (Exception ex)
+            else
             {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
-            }
-            finally
-            {
-                if (Connected) Dispose();
+                result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
             }
             return result.Complete();
         }
@@ -113,62 +129,70 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
-                if (!Connected && !IsLongLivedConnection)
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var connectResult = Connect();
-                    if (!connectResult.IsSuccess)
+
+                    try
                     {
-                        connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                        return result.SetInfo(connectResult);
+                        if (!Connected && !IsLongLivedConnection)
+                        {
+                            var connectResult = Connect();
+                            if (!connectResult.IsSuccess)
+                            {
+                                connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                        var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
+                        var finalCommand = new byte[commandAscii.Length + 3];
+                        Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
+                        finalCommand[0] = 0x3A;
+                        finalCommand[finalCommand.Length - 2] = 0x0D;
+                        finalCommand[finalCommand.Length - 1] = 0x0A;
+
+                        result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
+                        //发送命令并获取响应报文
+                        var sendResult = InterpretMessageData(finalCommand);
+                        if (!sendResult.IsSuccess)
+                            return result.SetInfo(sendResult).Complete();
+                        var responsePackage = sendResult.Value;
+                        if (!responsePackage.Any())
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果为空";
+                            return result.Complete();
+                        }
+
+                        byte[] resultLRC = new byte[responsePackage.Length - 3];
+                        Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
+                        var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
+                        if (!LRCHelper.CheckLRC(resultByte))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果LRC验证失败";
+                            //return result.Complete();
+                        }
+
+                        result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     }
-                }
-                try
-                {
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
-
-                    var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
-                    var finalCommand = new byte[commandAscii.Length + 3];
-                    Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
-                    finalCommand[0] = 0x3A;
-                    finalCommand[finalCommand.Length - 2] = 0x0D;
-                    finalCommand[finalCommand.Length - 1] = 0x0A;
-
-                    result.Requsts.Add(string.Join(" ", finalCommand.Select(t => t.ToString("X2"))));
-                    //发送命令并获取响应报文
-                    var sendResult = InterpretMessageData(finalCommand);
-                    if (!sendResult.IsSuccess)
-                        return result.SetInfo(sendResult).Complete();
-                    var responsePackage = sendResult.Value;
-                    if (!responsePackage.Any())
+                    catch (Exception ex)
                     {
                         result.IsSuccess = false;
-                        result.Message = "响应结果为空";
-                        return result.Complete();
+                        result.Message = ex.Message;
                     }
-
-                    byte[] resultLRC = new byte[responsePackage.Length - 3];
-                    Array.Copy(responsePackage, 1, resultLRC, 0, resultLRC.Length);
-                    var resultByte = DataTypeExtensions.ASCIIArrayToByteArray(resultLRC);
-                    if (!LRCHelper.CheckLRC(resultByte))
+                    finally
                     {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果LRC验证失败";
-                        //return result.Complete();
+                        if (!IsLongLivedConnection) Disconnect();
                     }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
 
-                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) Disconnect();
-                }
+
                 return result.Complete();
             }
         }
@@ -185,22 +209,21 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
-                if (!Connected && !IsLongLivedConnection)
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var connectResult = Connect();
-                    if (!connectResult.IsSuccess)
+                    try
                     {
-                        connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                        return result.SetInfo(connectResult);
+                    if (!Connected && !IsLongLivedConnection)
+                    {
+                        var connectResult = Connect();
+                        if (!connectResult.IsSuccess)
+                        {
+                            connectResult.Message = $"读取 地址:{address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                            return result.SetInfo(connectResult);
+                        }
                     }
-                }
-
-                try
-                {
                     var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
-
                     var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                     var finalCommand = new byte[commandAscii.Length + 3];
                     Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
@@ -241,6 +264,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     if (!IsLongLivedConnection) Disconnect();
                 }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
+                }
+
                 return result.Complete();
             }
         }

@@ -238,66 +238,70 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (_lock.Lock())
             {
                 var result = new OperationResult<byte[]>();
-
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = Connect();
-                        if (!connectResult.IsSuccess)
+                        if (!Connected && !IsLongLivedConnection)
                         {
-                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                            return result.SetInfo(connectResult);
+                            var connectResult = Connect();
+                            if (!connectResult.IsSuccess)
+                            {
+                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        //1 获取命令（组装报文）
+                        byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+
+                        //获取响应报文
+                        var sendResult = InterpretMessageData(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
+                            if (!IsLongLivedConnection) Disconnect();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        byte[] resultBuffer = new byte[dataPackage.Length - 9];
+                        Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        //4 获取响应报文数据（字节数组形式）             
+                        result.Value = resultBuffer.ToArray();
+
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    //1 获取命令（组装报文）
-                    byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-
-                    //获取响应报文
-                    var sendResult = InterpretMessageData(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
                     {
-                        sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ sendResult.Message}";
+                        result.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
+                        }
+                        else
+                        {
+                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ex.Message}";
+                        }
+                    }
+                    finally
+                    {
                         if (!IsLongLivedConnection) Disconnect();
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-                    byte[] resultBuffer = new byte[dataPackage.Length - 9];
-                    Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    //4 获取响应报文数据（字节数组形式）             
-                    result.Value = resultBuffer.ToArray();
-
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                     }
                 }
-                catch (SocketException ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    //if (ex.SocketErrorCode == SocketError.TimedOut)
-                    //{
-                    //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
-                    //}
-                    //else
-                    //{
-                    //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ ex.Message}";
-                    //}
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) Disconnect();
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
                 }
                 return result.Complete();
             }
@@ -317,66 +321,71 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult<byte[]>();
-
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address,out var modbusHeader))
                 {
-
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = await ConnectAsync();
-                        if (!connectResult.IsSuccess)
+
+                        if (!Connected && !IsLongLivedConnection)
                         {
-                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                            return result.SetInfo(connectResult);
+                            var connectResult = await ConnectAsync();
+                            if (!connectResult.IsSuccess)
+                            {
+                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        //1 获取命令（组装报文）
+                        byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                        //获取响应报文
+                        var sendResult = await InterpretMessageDataAsync(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
+                            if (!IsLongLivedConnection) await DisconnectAsync();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        byte[] resultBuffer = new byte[dataPackage.Length - 9];
+                        Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        //4 获取响应报文数据（字节数组形式）             
+                        result.Value = resultBuffer.ToArray();
+
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    //1 获取命令（组装报文）
-                    byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    //获取响应报文
-                    var sendResult = await InterpretMessageDataAsync(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
                     {
-                        sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ sendResult.Message}";
+                        result.IsSuccess = false;
+                        //if (ex.SocketErrorCode == SocketError.TimedOut)
+                        //{
+                        //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
+                        //}
+                        //else
+                        //{
+                        //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ ex.Message}";
+                        //}
+                    }
+                    finally
+                    {
                         if (!IsLongLivedConnection) await DisconnectAsync();
-                        return result.SetInfo(sendResult).Complete();
                     }
-                    var dataPackage = sendResult.Value;
-                    byte[] resultBuffer = new byte[dataPackage.Length - 9];
-                    Array.Copy(dataPackage, 9, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    //4 获取响应报文数据（字节数组形式）             
-                    result.Value = resultBuffer.ToArray();
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
 
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
-                    }
-                }
-                catch (SocketException ex)
-                {
-                    result.IsSuccess = false;
-                    //if (ex.SocketErrorCode == SocketError.TimedOut)
-                    //{
-                    //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
-                    //}
-                    //else
-                    //{
-                    //    result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ ex.Message}";
-                    //}
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) await DisconnectAsync();
                 }
                 return result.Complete();
             }
@@ -592,12 +601,18 @@ namespace Wombat.IndustrialCommunication.Modbus
                     default:
                         throw new Exception("Message BatchRead 未定义类型 -1");
                 }
-                string splicingAddress = ModbusAddressParser.Parse(new ModbusHeader()
+                if (!ModbusAddressParser.TryParseModbusHeader(new ModbusHeader()
                 {
                     RegisterAddress = minAddress.ToString(),
                     FunctionCode = functionCode,
                     StationNumber = stationNumber
-                });
+                }, out string splicingAddress))
+                {
+                    result.Message="modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址";
+                    result.IsSuccess =true;
+                    return result.Complete();
+
+                }
 
                 var tempOperationResult = Read(splicingAddress, length);
 
@@ -777,12 +792,18 @@ namespace Wombat.IndustrialCommunication.Modbus
                     default:
                         throw new Exception("Message BatchRead 未定义类型 -1");
                 }
-                string splicingAddress = ModbusAddressParser.Parse(new ModbusHeader()
+                if (!ModbusAddressParser.TryParseModbusHeader(new ModbusHeader()
                 {
-                    RegisterAddress = maxAddress.ToString(),
+                    RegisterAddress = minAddress.ToString(),
                     FunctionCode = functionCode,
                     StationNumber = stationNumber
-                });
+                }, out string splicingAddress))
+                {
+                    result.Message = "modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址";
+                    result.IsSuccess = true;
+                    return result.Complete();
+
+                }
                 var tempOperationResult = await ReadAsync(splicingAddress, Convert.ToUInt16(length));
 
                 result.Requsts.Add(tempOperationResult.Requsts.FirstOrDefault());
@@ -880,56 +901,61 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (_lock.Lock())
             {
                 var result = new OperationResult();
-
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = Connect();
-                        if (!connectResult.IsSuccess)
+                        if (!Connected && !IsLongLivedConnection)
                         {
-                            return result.SetInfo(connectResult);
+                            var connectResult = Connect();
+                            if (!connectResult.IsSuccess)
+                            {
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                        var sendResult = InterpretMessageData(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            if (!IsLongLivedConnection) Disconnect();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretMessageData(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
+                    {
+                        result.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result.Message = "连接超时";
+                        }
+                        else
+                        {
+                            result.Message = ex.Message;
+                        }
+                    }
+                    finally
                     {
                         if (!IsLongLivedConnection) Disconnect();
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                     }
                 }
-                catch (SocketException ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = "连接超时";
-                    }
-                    else
-                    {
-                        result.Message = ex.Message;
-                    }
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) Disconnect();
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
                 }
                 return result.Complete();
             }
@@ -949,56 +975,61 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult();
-
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = await ConnectAsync();
-                        if (!connectResult.IsSuccess)
+                        if (!Connected && !IsLongLivedConnection)
                         {
-                            return result.SetInfo(connectResult);
+                            var connectResult = await ConnectAsync();
+                            if (!connectResult.IsSuccess)
+                            {
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                        var sendResult = await InterpretMessageDataAsync(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            if (!IsLongLivedConnection) await DisconnectAsync();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = await InterpretMessageDataAsync(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
+                    {
+                        result.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result.Message = "连接超时";
+                        }
+                        else
+                        {
+                            result.Message = ex.Message;
+                        }
+                    }
+                    finally
                     {
                         if (!IsLongLivedConnection) await DisconnectAsync();
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                     }
                 }
-                catch (SocketException ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = "连接超时";
-                    }
-                    else
-                    {
-                        result.Message = ex.Message;
-                    }
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) await DisconnectAsync();
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
                 }
                 return result.Complete();
             }
@@ -1010,57 +1041,63 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (_lock.Lock())
             {
                 var result = new OperationResult();
-
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = Connect();
-                        if (!connectResult.IsSuccess)
-                        {
-                            return result.SetInfo(connectResult);
 
+                        if (!Connected && !IsLongLivedConnection)
+                        {
+                            var connectResult = Connect();
+                            if (!connectResult.IsSuccess)
+                            {
+                                return result.SetInfo(connectResult);
+
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                        var sendResult = InterpretMessageData(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            if (!IsLongLivedConnection) Disconnect();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = InterpretMessageData(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
+                    {
+                        result.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result.Message = "连接超时";
+                        }
+                        else
+                        {
+                            result.Message = ex.Message;
+                        }
+                    }
+                    finally
                     {
                         if (!IsLongLivedConnection) Disconnect();
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                     }
                 }
-                catch (SocketException ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = "连接超时";
-                    }
-                    else
-                    {
-                        result.Message = ex.Message;
-                    }
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) Disconnect();
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
                 }
                 return result.Complete();
             }
@@ -1071,55 +1108,62 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult();
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var modbusHeader = ModbusAddressParser.Parse(address);
-                    if (!Connected && !IsLongLivedConnection)
+                    try
                     {
-                        var connectResult = await ConnectAsync();
-                        if (!connectResult.IsSuccess)
+                        if (!Connected && !IsLongLivedConnection)
                         {
-                            return result.SetInfo(connectResult);
+                            var connectResult = await ConnectAsync();
+                            if (!connectResult.IsSuccess)
+                            {
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+                        var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
+                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
+                        var sendResult = await InterpretMessageDataAsync(command);
+                        if (!sendResult.IsSuccess)
+                        {
+                            if (!IsLongLivedConnection) await DisconnectAsync();
+                            return result.SetInfo(sendResult).Complete();
+                        }
+                        var dataPackage = sendResult.Value;
+                        result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
+                        if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果校验失败";
+                        }
+                        else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                         }
                     }
-                    var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
-                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                    var sendResult = await InterpretMessageDataAsync(command);
-                    if (!sendResult.IsSuccess)
+                    catch (SocketException ex)
+                    {
+                        result.IsSuccess = false;
+                        if (ex.SocketErrorCode == SocketError.TimedOut)
+                        {
+                            result.Message = "连接超时";
+                            await _socket?.CloseAsync();
+                        }
+                        else
+                        {
+                            result.Message = ex.Message;
+                        }
+                    }
+                    finally
                     {
                         if (!IsLongLivedConnection) await DisconnectAsync();
-                        return result.SetInfo(sendResult).Complete();
-                    }
-                    var dataPackage = sendResult.Value;
-                    result.Responses.Add(string.Join(" ", dataPackage.Select(t => t.ToString("X2"))));
-                    if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
-                    {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果校验失败";
-                    }
-                    else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
-                    {
-                        result.IsSuccess = false;
-                        result.Message = ModbusHelper.ErrMsg(dataPackage[8]);
                     }
                 }
-                catch (SocketException ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    if (ex.SocketErrorCode == SocketError.TimedOut)
-                    {
-                        result.Message = "连接超时";
-                        await _socket?.CloseAsync();
-                    }
-                    else
-                    {
-                        result.Message = ex.Message;
-                    }
-                }
-                finally
-                {
-                    if (!IsLongLivedConnection) await DisconnectAsync();
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
                 }
                 return result.Complete();
             }
@@ -1131,10 +1175,11 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (_lock.Lock())
             {
                 var result = new OperationResult();
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
+                    try
+                    {
 
-                    var modbusHeader = ModbusAddressParser.Parse(address);
                     if (!Connected && !IsLongLivedConnection)
                     {
                         var connectResult = Connect();
@@ -1182,6 +1227,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     if (!IsLongLivedConnection) Disconnect();
                 }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
+                }
+
                 return result.Complete();
             }
         }
@@ -1191,9 +1243,10 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult();
-                try
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var modbusHeader = ModbusAddressParser.Parse(address);
+                    try
+                    {
 
                     if (!Connected && !IsLongLivedConnection)
                     {
@@ -1240,6 +1293,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                 finally
                 {
                     if (!IsLongLivedConnection) await DisconnectAsync();
+                }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
                 }
                 return result.Complete();
             }

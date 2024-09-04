@@ -10,7 +10,7 @@ using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
 
-namespace Wombat.IndustrialCommunicationTest.Modbus_Tests
+namespace Wombat.IndustrialCommunicationTest.Modbus
 {
     public class ModbusRtuOverTcpClient_tests
     {

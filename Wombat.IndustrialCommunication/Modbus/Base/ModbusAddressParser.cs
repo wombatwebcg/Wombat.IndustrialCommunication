@@ -7,76 +7,147 @@ namespace Wombat.IndustrialCommunication.Modbus
 {
     public static class ModbusAddressParser
     {
-        public static ModbusHeader Parse(string message)
+        public static bool TryParseModbusHeader(string header, out ModbusHeader modbusHeader)
         {
-            var modbusMessage = new ModbusHeader();
+            modbusHeader = new ModbusHeader();
 
             // 移除空格并按分号分割
-            message = message.ToLower().Replace(" ", "");
-            var parts = message.Split(';');
-            try
+            header = header.ToLower().Replace(" ", "").Trim();
+            var parts = header.Split(';');
+            bool isIsucess = true;
+            if (parts.Length == 3)
             {
-                if (parts.Length == 3)
+                // 检查是否以 s: 开头
+                if (parts[0].StartsWith("s:") && TryParseNumber(parts[0].Substring(2), out byte s1))
                 {
-                    // 检查是否以 s: 开头
-                    if (parts[0].StartsWith("s:"))
+                    modbusHeader.StationNumber = s1;
+                }
+                else
+                {
+                    if (TryParseNumber(parts[0], out byte s2))
                     {
-                        modbusMessage.StationNumber = (byte)ParseNumber(parts[0].Substring(2));
+                        modbusHeader.StationNumber = s2;
                     }
                     else
                     {
-                        modbusMessage.StationNumber = (byte)ParseNumber(parts[0]);
+                        isIsucess &= false;
+
                     }
-                    // 检查是否以 s: 开头
-                    if (parts[1].StartsWith("f:"))
+                }
+                // 检查是否以 s: 开头
+                if (parts[1].StartsWith("f:") && TryParseNumber(parts[1].Substring(2), out byte f1))
+                {
+                    modbusHeader.FunctionCode = f1;
+                }
+                else
+                {
+                    if (TryParseNumber(parts[1], out byte f2))
                     {
-                        modbusMessage.StationNumber = (byte)ParseNumber(parts[1].Substring(2));
+                        modbusHeader.FunctionCode = f2;
                     }
                     else
                     {
-                        modbusMessage.FunctionCode = (byte)ParseNumber(parts[1]);
+                        isIsucess &= false;
+
                     }
 
-                    modbusMessage.RegisterAddress = ParseNumber(parts[2]).ToString();
                 }
-                else 
+                if (parts[2].StartsWith("a:") && TryParseNumber(parts[1].Substring(2), out ushort a1))
                 {
-                    throw new ArgumentException($"modbus地址参数");
+                    modbusHeader.RegisterAddress = a1.ToString();
                 }
-            }
-            catch(Exception ex)
-            {
-                throw new ArgumentException($"modbus地址参数有误:{ex.Message}");
-            }
-            return modbusMessage;
-        }
-
-        public static string Parse(ModbusHeader modbusHeader)
-        {
-            var header = string.Empty;
-
-            try
-            {
-                if(modbusHeader!=null)
+                else
                 {
-                    header = $"{modbusHeader.StationNumber};{modbusHeader.FunctionCode};{modbusHeader.RegisterAddress}";
+                    if (TryParseNumber(parts[2], out ushort a2))
+                    {
+                        modbusHeader.RegisterAddress = a2.ToString();
+                    }
+                    else
+                    {
+                        isIsucess &= false;
+
+                    }
+
                 }
+
             }
-            catch (Exception ex)
+            else
             {
-                throw new ArgumentException($"modbus地址参数有误:{ex.Message}");
+                isIsucess &= false;
             }
-            return header;
+            return isIsucess;
         }
 
-        private static int ParseNumber(string number)
+        public static ModbusHeader ParseModbusHeader(string header)
         {
-            if (number.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            if (TryParseModbusHeader(header, out ModbusHeader modbusHeader))
             {
-                return int.Parse(number.Substring(2), NumberStyles.HexNumber);
+
+                return modbusHeader;
             }
-            return int.Parse(number);
+            return null;
         }
+
+        public static bool TryParseModbusHeader(ModbusHeader modbusHeader, out string header)
+        {
+            header = string.Empty;
+
+            if (modbusHeader != null&&!string.IsNullOrWhiteSpace(modbusHeader.RegisterAddress))
+            {
+                header = $"{modbusHeader.StationNumber};{modbusHeader.FunctionCode};{modbusHeader.RegisterAddress}";
+                return true;
+
+            }
+            else
+            {
+                return false;
+
+            }
+        }
+
+        public static string ParseModbusHeader(ModbusHeader modbusHeader)
+        {
+            if (TryParseModbusHeader(modbusHeader, out string header))
+            {
+
+                return header;
+            }
+            return string.Empty;
+        }
+
+        private static bool TryParseNumber(string input, out byte number)
+        {
+            bool result = false;
+            number = 0;
+
+            if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                result = byte.TryParse(input.Substring(2), NumberStyles.HexNumber, null, out number);
+            }
+            else
+            {
+                result = byte.TryParse(input, out number);
+            }
+
+            return result;
+        }
+        private static bool TryParseNumber(string input, out ushort number)
+        {
+            bool result = false;
+            number = 0;
+
+            if (input.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+            {
+                result = ushort.TryParse(input.Substring(2), NumberStyles.HexNumber, null, out number);
+            }
+            else
+            {
+                result = ushort.TryParse(input, out number);
+            }
+
+            return result;
+        }
+
     }
 
 }

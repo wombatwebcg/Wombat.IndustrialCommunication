@@ -6,7 +6,7 @@ using System.Net.Sockets;
 using System.Threading.Tasks;
 using Wombat.Network.Sockets;
 using Wombat.Extensions.DataTypeExtensions;
-
+using System.Threading;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -812,9 +812,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (await _lock.LockAsync())
             {
-                if (!Connected&&!IsLongLivedConnection)
+                if (!Connected && !IsLongLivedConnection)
                 {
-                    var connectResult =await ConnectAsync();
+                    var connectResult = await ConnectAsync();
                     if (!connectResult.IsSuccess)
                     {
                         return connectResult.Complete();
@@ -825,13 +825,12 @@ namespace Wombat.IndustrialCommunication.PLC
                 List<byte> bytesContent = new List<byte>();
                 int index = 0;
                 int length = data.Length;
-
                 while (alreadyFinished < length)
                 {
                     ushort readLength = (ushort)Math.Min(length - alreadyFinished, 200);
                     byte[] tempData = new byte[readLength];
                     Array.Copy(data, alreadyFinished, tempData, 0, readLength);
-                    var writeTemp =await internalWriteAsync(address, alreadyFinished, tempData, isBit);
+                    var writeTemp = await internalWriteAsync(address, alreadyFinished, tempData, isBit);
                     if (!writeTemp.IsSuccess) return writeTemp;
                     result.Requsts.Add(writeTemp.Requsts[0]);
                     result.Responses.Add(writeTemp.Responses[0]);

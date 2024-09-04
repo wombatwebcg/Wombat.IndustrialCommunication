@@ -70,12 +70,6 @@ namespace Wombat.IndustrialCommunication.Adapter
 
 
 
-
-
-
-
-
-
         /// <summary>
         /// 创建串口类型的设备连接
         /// </summary>

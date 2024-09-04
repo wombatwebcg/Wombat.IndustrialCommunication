@@ -1529,38 +1529,43 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object value)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnum.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-                case DataTypeEnum.Bool:
-                    return await WriteAsync(address, (bool)value);
-                case DataTypeEnum.Byte:
-                    return await WriteAsync(address, (byte)value);
-                case DataTypeEnum.Int16:
-                    return await WriteAsync(address, (short)value);
-                case DataTypeEnum.UInt16:
-                    return await WriteAsync(address, (int)value);
-                case DataTypeEnum.Int32:
-                    return await WriteAsync(address, (long)value);
-                case DataTypeEnum.UInt32:
-                    return await WriteAsync(address, (ushort)value);
-                case DataTypeEnum.Int64:
-                    return await WriteAsync(address, (uint)value);
-                case DataTypeEnum.UInt64:
-                    return await WriteAsync(address, (ulong)value);
-                case DataTypeEnum.Float:
-                    return await WriteAsync(address, (float)value);
-                case DataTypeEnum.Double:
-                    return await WriteAsync(address, (double)value);
-                case DataTypeEnum.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
-                default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnum.None:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                    case DataTypeEnum.Bool:
+                        return await WriteAsync(address, (bool)value);
+                    case DataTypeEnum.Byte:
+                        return await WriteAsync(address, (byte)value);
+                    case DataTypeEnum.Int16:
+                        return await WriteAsync(address, (short)value);
+                    case DataTypeEnum.UInt16:
+                        return await WriteAsync(address, (int)value);
+                    case DataTypeEnum.Int32:
+                        return await WriteAsync(address, (long)value);
+                    case DataTypeEnum.UInt32:
+                        return await WriteAsync(address, (ushort)value);
+                    case DataTypeEnum.Int64:
+                        return await WriteAsync(address, (uint)value);
+                    case DataTypeEnum.UInt64:
+                        return await WriteAsync(address, (ulong)value);
+                    case DataTypeEnum.Float:
+                        return await WriteAsync(address, (float)value);
+                    case DataTypeEnum.Double:
+                        return await WriteAsync(address, (double)value);
+                    case DataTypeEnum.String:
+                        return OperationResult.CreateFailedResult("string写入未实现");
+                    default:
+                        return OperationResult.CreateFailedResult("数据类型为null");
 
+                }
 
-
-
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult(ex.Message);
             }
         }
 

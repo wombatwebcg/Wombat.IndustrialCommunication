@@ -51,43 +51,43 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     #endregion
                     //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
                     var w1 = client.Write(
-                    ModbusAddressParser.Parse(new ModbusHeader()
+                    ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                         RegisterAddress = "0"
                     }), short_number);
-                    var w2 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w2 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                         RegisterAddress = "4"
                     }), ushort_number);
-                    var w3 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w3 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "8"
                     }), int_number);
-                    var w4 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w4 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "12"
                     }), uint_number);
-                    var w5 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w5 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "16"
                     }), long_number);
-                    var w6 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w6 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "20"
                     }), ulong_number);
-                    var w7 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w7 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
@@ -226,41 +226,41 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     #endregion
                     //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
                     var w1 = client.Write(
-                    ModbusAddressParser.Parse(new ModbusHeader() { 
+                    ModbusAddressParser.ParseModbusHeader(new ModbusHeader() { 
                     StationNumber = 1,
                     FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                     RegisterAddress = "0"}), short_number);
-                    var w2 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w2 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                         RegisterAddress = "4"
                     }), ushort_number);
-                    var w3 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w3 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "8"
                     }), int_number);
-                    var w4 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w4 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "12"
                     }), uint_number);
-                    var w5 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w5 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "16"
                     }), long_number);
-                    var w6 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w6 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "20"
                     }), ulong_number);
-                    var w7 = client.Write(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w7 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
@@ -400,50 +400,50 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     bool coil = int_number % 2 == 0;
                     #endregion
                     //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                    var w1 = client.WriteAsync(
-                    ModbusAddressParser.Parse(new ModbusHeader()
+                    var w1 =await client.WriteAsync(
+                    ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                         RegisterAddress = "0"
                     }), short_number);
-                    var w2 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w2 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
                         RegisterAddress = "4"
                     }), ushort_number);
-                    var w3 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w3 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "8"
                     }), int_number);
-                    var w4 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w4 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "12"
                     }), uint_number);
-                    var w5 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w5 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "16"
                     }), long_number);
-                    var w6 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w6 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "20"
                     }), ulong_number);
-                    var w7 = client.WriteAsync(ModbusAddressParser.Parse(new ModbusHeader()
+                    var w7 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
                         RegisterAddress = "24"
                     }), float_number);
-                    var w8 = client.WriteAsync("1;0x10;28", double_number);
+                    var w8 =await client.WriteAsync("1;0x10;28", double_number);
 
 
 
@@ -480,11 +480,11 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     bool coil = int_number % 2 == 0;
                     #endregion
                     //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
-                    var w1 = client.WriteAsync("1;5;10", !coil);
-                    var w2 = client.WriteAsync("1;5;11", coil);
-                    var w3 = client.WriteAsync("1;5;12", !coil);
-                    var w4 = client.WriteAsync("1;5;13", coil);
-                    var w5 = client.WriteAsync("1;5;14", coil);
+                    var w1 =await client.WriteAsync("1;5;10", !coil);
+                    var w2 =await client.WriteAsync("1;5;11", coil);
+                    var w3 =await client.WriteAsync("1;5;12", !coil);
+                    var w4 =await client.WriteAsync("1;5;13", coil);
+                    var w5 =await client.WriteAsync("1;5;14", coil);
 
 
 

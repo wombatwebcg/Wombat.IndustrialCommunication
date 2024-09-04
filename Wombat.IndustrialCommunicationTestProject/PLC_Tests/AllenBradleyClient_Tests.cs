@@ -3,7 +3,7 @@ using System.Diagnostics;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace IoTClient.Tests.PLC_Tests
+namespace Wombat.IndustrialCommunicationTestProject
 {
     public class AllenBradleyClient_Tests
     {

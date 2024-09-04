@@ -109,20 +109,21 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult<byte[]>();
-
-                if (!Connected && !IsLongLivedConnection)
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var connectResult = Connect();
-                    if (!connectResult.IsSuccess)
+                    try
                     {
-                        connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                        return result.SetInfo(connectResult);
+                    if (!Connected && !IsLongLivedConnection)
+                    {
+                        var connectResult = Connect();
+                        if (!connectResult.IsSuccess)
+                        {
+                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                            return result.SetInfo(connectResult);
+                        }
                     }
-                }
-                try
-                {
+
                     //获取命令（组装报文）
                     byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
@@ -167,6 +168,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     if (!IsLongLivedConnection) Disconnect();
                 }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
+                }
+
                 return result.Complete();
             }
         }
@@ -182,19 +190,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
-                if (!Connected && !IsLongLivedConnection)
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var connectResult = Connect();
-                    if (!connectResult.IsSuccess)
+                    try
                     {
-                        connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                        return result.SetInfo(connectResult);
+                    if (!Connected && !IsLongLivedConnection)
+                    {
+                        var connectResult = Connect();
+                        if (!connectResult.IsSuccess)
+                        {
+                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                            return result.SetInfo(connectResult);
+                        }
                     }
-                }
-                try
-                {
                     var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
@@ -230,6 +239,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     if (!IsLongLivedConnection) Disconnect();
                 }
+                }
+                else
+                {
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
+                }
+
                 return result.Complete();
             }
         }
@@ -246,54 +262,62 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             using (_lock.Lock())
             {
-                var modbusHeader = ModbusAddressParser.Parse(address);
                 var result = new OperationResult();
-                if (!Connected && !IsLongLivedConnection)
+
+                if (ModbusAddressParser.TryParseModbusHeader(address, out var modbusHeader))
                 {
-                    var connectResult = Connect();
-                    if (!connectResult.IsSuccess)
+                    try
                     {
-                        connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{ modbusHeader.StationNumber} 功能码:{ modbusHeader.FunctionCode} 失败。{ connectResult.Message}";
-                        return result.SetInfo(connectResult);
+                        if (!Connected && !IsLongLivedConnection)
+                        {
+                            var connectResult = Connect();
+                            if (!connectResult.IsSuccess)
+                            {
+                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                return result.SetInfo(connectResult);
+                            }
+                        }
+
+                        var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                        var commandCRC16 = CRC16Helper.GetCRC16(command);
+                        result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
+                        var sendResult = SendPackage(commandCRC16, 8);
+                        if (!sendResult.IsSuccess)
+                            return sendResult;
+                        var responsePackage = sendResult.Value;
+
+                        if (!responsePackage.Any())
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果为空";
+                            return result.Complete();
+                        }
+                        else if (!CRC16Helper.CheckCRC16(responsePackage))
+                        {
+                            result.IsSuccess = false;
+                            result.Message = "响应结果CRC16Helper验证失败";
+                            //return result.Complete();
+                        }
+                        byte[] resultBuffer = new byte[responsePackage.Length - 2];
+                        Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
+                        result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                     }
-                }
-                try
-                {
-                    var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
-
-                    var commandCRC16 = CRC16Helper.GetCRC16(command);
-                    result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
-                    //var responsePackage = SendPackage(commandCRC16, 8);
-                    var sendResult = SendPackage(commandCRC16, 8);
-                    if (!sendResult.IsSuccess)
-                        return sendResult;
-                    var responsePackage = sendResult.Value;
-
-                    if (!responsePackage.Any())
+                    catch (Exception ex)
                     {
                         result.IsSuccess = false;
-                        result.Message = "响应结果为空";
-                        return result.Complete();
+                        result.Message = ex.Message;
                     }
-                    else if (!CRC16Helper.CheckCRC16(responsePackage))
+                    finally
                     {
-                        result.IsSuccess = false;
-                        result.Message = "响应结果CRC16Helper验证失败";
-                        //return result.Complete();
+                        if (!IsLongLivedConnection) Disconnect();
                     }
-                    byte[] resultBuffer = new byte[responsePackage.Length - 2];
-                    Array.Copy(responsePackage, 0, resultBuffer, 0, resultBuffer.Length);
-                    result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
                 }
-                catch (Exception ex)
+                else
                 {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
+                    result = OperationResult.CreateFailedResult<byte[]>("modbus地址格式错误,参考格式为:1;3;0,表示1号站，3号功能码，0地址");
+
                 }
-                finally
-                {
-                    if (!IsLongLivedConnection) Disconnect();
-                }
+
                 return result.Complete();
             }
         }
