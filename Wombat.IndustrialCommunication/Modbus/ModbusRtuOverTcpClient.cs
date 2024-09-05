@@ -27,6 +27,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="plcAddresses">PLC地址</param>
         public ModbusRtuOverTcpClient(string ip, int port) : base(ip, port)
         {
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.DCBA;
+            IsReverse = true;
+
         }
 
 
@@ -38,6 +41,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="DataFormat">大小端设置</param>
         public ModbusRtuOverTcpClient(IPEndPoint ipAndPoint) : base(ipAndPoint)
         {
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.DCBA;
+            IsReverse = true;
+
         }
 
         /// <summary>

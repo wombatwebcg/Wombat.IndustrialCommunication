@@ -16,7 +16,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public ModbusRtuClient() : base()
         {
-            this.DataFormat = EndianFormat.ABCD;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.DCBA;
+            IsReverse = true;
 
         }
 
@@ -34,7 +35,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ModbusRtuClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None)
             : base(portName,baudRate,dataBits,stopBits,parity,handshake)
         {
-           this.DataFormat = EndianFormat.ABCD;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.DCBA;
+            IsReverse = true;
 
         }
 

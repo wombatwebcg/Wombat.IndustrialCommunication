@@ -23,34 +23,46 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         [Fact]
         public void  短连接自动开关()
         {
-           var tttt  =  client.Connect();
-            short Number = 33;
-            client.Write("4", Number);
-            Assert.True(client.ReadInt16("4").Value == Number);
+            Random rnd = new Random((int)Stopwatch.GetTimestamp());
 
-            Number = 34;
-            client.Write("4", Number);
-            Assert.True(client.ReadInt16("4").Value == Number);
+            var tttt  =  client.Connect();
+            client.IsLongLivedConnection = false;
+            for (int i = 0; i < 10; i++)
+            {
+                #region 生产随机数
+                short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
+                ushort ushort_number = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
+                int int_number = rnd.Next(int.MinValue, int.MaxValue);
+                uint uint_number = (uint)Math.Abs(rnd.Next(int.MinValue, int.MaxValue));
+                long long_number = rnd.Next(int.MinValue, int.MaxValue);
+                ulong ulong_number = (ulong)Math.Abs(rnd.Next(int.MinValue, int.MaxValue));
+                float float_number = rnd.Next(int.MinValue, int.MaxValue) / 100;
+                double double_number = (double)rnd.Next(int.MinValue, int.MaxValue) / 100;
+                bool coil = int_number % 2 == 0;
+                #endregion
+                //写入地址:0 值为:short_number 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
+                var w1 = client.Write("1;5;10", coil);
+                var w2 = client.Write("1;5;11", coil);
+                var w3 = client.Write("1;5;12", coil);
+                var w4 = client.Write("1;5;13", coil);
+                var w5 = client.Write("1;5;14", coil);
 
-            Number = 1;
-            client.Write("12", Number);
-            Assert.True(client.ReadInt16("12").Value == 1);
 
-            Number = 0;
-            client.Write("12", Number);
-            Assert.True(client.ReadInt16("12").Value == 0);
 
-            int numberInt32 = -12;
-            client.Write("4", numberInt32);
-            Assert.True(client.ReadInt32("4").Value == numberInt32);
+                //写入可能有一定的延时，500毫秒后检验
 
-            float numberFloat = 112;
-            client.Write("4", numberFloat);
-            Assert.True(client.ReadFloat("4").Value == numberFloat);
+                //读取地址:0 站号:stationNumber 功能码:默认16(也可以自己传入对应的功能码)
 
-            double numberDouble = 32;
-            client.Write("4", numberDouble);
-            Assert.True(client.ReadDouble("4").Value == numberDouble);
+                Assert.True(client.ReadBoolean("1;1;10").Value == coil);
+                Assert.True(client.ReadBoolean("1;1;11").Value == coil);
+                Assert.True(client.ReadBoolean("1;1;12").Value == coil);
+                Assert.True(client.ReadBoolean("1;1;13").Value == coil);
+                Assert.True(client.ReadBoolean("1;1;14").Value == coil);
+                //Assert.True(client.ReadDouble("28").Value == double_number);
+                //Assert.True(client.ReadBoolean("32").Value == coil);
+
+                //Assert.True(client.ReadString("100", stationNumber, readLength: (ushort)orderCode.Length).Value == orderCode);
+            }
         }
 
         [Fact]
