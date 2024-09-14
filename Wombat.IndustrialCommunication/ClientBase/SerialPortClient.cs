@@ -9,7 +9,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {
-    public class SerialPortClient:SerialPortDeviceBase
+    public class SerialPortClient:SerialPortClientDeviceBase
     {
         private AsyncLock _lock;
 

@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// 欧姆龙PLC 客户端
     /// https://flat2010.github.io/2020/02/23/Omron-Fins%E5%8D%8F%E8%AE%AE/
     /// </summary>
-    public class OmronFinsClient : EthernetDeviceBase 
+    public class OmronFinsClient : EthernetClientDeviceBase 
     {
 
         /// <summary>
@@ -34,7 +34,6 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         public override string Version => "OmronFins";
 
-        protected Socket _socket;
 
         /// <summary>
         /// 是否是连接的
@@ -80,20 +79,11 @@ namespace Wombat.IndustrialCommunication.PLC
         internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
-            _socket?.SafeClose();
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
+            _socket?.Close();
             try
             {
-                //超时时间设置
-                _socket.ReceiveTimeout = (int)ConnectTimeout.TotalMilliseconds;
-                _socket.SendTimeout = (int)ConnectTimeout.TotalMilliseconds;
 
-                //socket.Connect(IpEndPoint);
-                IAsyncResult connectOperationResult = _socket.BeginConnect(IpEndPoint, null, null);
-                //阻塞当前线程           
-                if (!connectOperationResult.AsyncWaitHandle.WaitOne(ConnectTimeout))
-                    throw new TimeoutException("连接超时");
-                _socket.EndConnect(connectOperationResult);
+                _socket.Connect(IpEndPoint);
 
                 BasicCommand[19] = SA1;
                 result.Requsts.Add(string.Join(" ", BasicCommand.Select(t => t.ToString("X2"))));
@@ -124,7 +114,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             catch (Exception ex)
             {
-                _socket?.SafeClose();
+
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.ErrorCode = 408;
@@ -139,7 +129,7 @@ namespace Wombat.IndustrialCommunication.PLC
             OperationResult result = new OperationResult();
             try
             {
-                _socket?.SafeClose();
+                _socket?.Close();
                 return result;
             }
             catch (Exception ex)
@@ -245,14 +235,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.SafeClose();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.SafeClose();
             }
             finally
             {
@@ -304,14 +292,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.SafeClose();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.SafeClose();
             }
             finally
             {
@@ -327,7 +313,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="dataType"></param> 
         /// <param name="isBit"></param> 
         /// <returns></returns>
-        private OmronFinsAddress ConvertArg(string address, DataTypeEnum dataType = DataTypeEnum.None, bool isBit = false)
+        private OmronFinsAddress ConvertArg(string address, DataTypeEnums dataType = DataTypeEnums.None, bool isBit = false)
         {
             address = address.ToUpper();
             var addressInfo = new OmronFinsAddress()
@@ -541,7 +527,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="addresses"></param>
         /// <param name="batchNumber">此参数设置无实际效果</param>
         /// <returns></returns>
-        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses)
+        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             var result = new OperationResult<Dictionary<string, object>>();
             result.Value = new Dictionary<string, object>();
@@ -569,24 +555,24 @@ namespace Wombat.IndustrialCommunication.PLC
                     var tempMax = tempAddress.OrderByDescending(t => t.BeginAddress).FirstOrDefault();
                     switch (tempMax.DataTypeEnum)
                     {
-                        case DataTypeEnum.Bool:
+                        case DataTypeEnums.Bool:
                             throw new Exception("暂时不支持Bool类型批量读取");
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Byte:
                             throw new Exception("暂时不支持Byte类型批量读取");
                         //readLength = tempMax.BeginAddress + 1 - minAddress;
                         //break;
-                        case DataTypeEnum.Int16:
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.Int16:
+                        case DataTypeEnums.UInt16:
                             readLength = tempMax.BeginAddress * 2 + 2 - minAddress * 2;
                             break;
-                        case DataTypeEnum.Int32:
-                        case DataTypeEnum.UInt32:
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Int32:
+                        case DataTypeEnums.UInt32:
+                        case DataTypeEnums.Float:
                             readLength = tempMax.BeginAddress * 2 + 4 - minAddress * 2;
                             break;
-                        case DataTypeEnum.Int64:
-                        case DataTypeEnum.UInt64:
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Int64:
+                        case DataTypeEnums.UInt64:
+                        case DataTypeEnums.Double:
                             readLength = tempMax.BeginAddress * 2 + 8 - minAddress * 2;
                             break;
                         default:
@@ -611,33 +597,33 @@ namespace Wombat.IndustrialCommunication.PLC
 
                         switch (item.DataTypeEnum)
                         {
-                            case DataTypeEnum.Bool:
+                            case DataTypeEnums.Bool:
                                 tempVaue = ReadBoolean(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.Byte:
+                            case DataTypeEnums.Byte:
                                 throw new Exception("Message BatchRead 未定义类型 -2");
-                            case DataTypeEnum.Int16:
+                            case DataTypeEnums.Int16:
                                 tempVaue = ReadInt16(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.UInt16:
+                            case DataTypeEnums.UInt16:
                                 tempVaue = ReadUInt16(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.Int32:
+                            case DataTypeEnums.Int32:
                                 tempVaue = ReadInt32(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.UInt32:
+                            case DataTypeEnums.UInt32:
                                 tempVaue = ReadUInt32(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.Int64:
+                            case DataTypeEnums.Int64:
                                 tempVaue = ReadInt64(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.UInt64:
+                            case DataTypeEnums.UInt64:
                                 tempVaue = ReadUInt64(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.Float:
+                            case DataTypeEnums.Float:
                                 tempVaue = ReadFloat(minAddress, item.BeginAddress, rValue).Value;
                                 break;
-                            case DataTypeEnum.Double:
+                            case DataTypeEnums.Double:
                                 tempVaue = ReadDouble(minAddress, item.BeginAddress, rValue).Value;
                                 break;
                             default:

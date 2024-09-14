@@ -15,11 +15,9 @@ namespace Wombat.IndustrialCommunication.PLC
     /// (AB)罗克韦尔客户端 Beta
     /// https://blog.csdn.net/lishiming0308/article/details/85243041
     /// </summary>
-    public class AllenBradleyClient : EthernetDeviceBase 
+    public class AllenBradleyClient : EthernetClientDeviceBase 
     {
         public override string Version => "AllenBradley";
-
-        protected Socket _socket;
 
 
         /// <summary>
@@ -66,23 +64,11 @@ namespace Wombat.IndustrialCommunication.PLC
         internal override OperationResult DoConnect()
         {
             var result = new OperationResult();
-            _socket?.SafeClose();
-            _socket = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
             try
             {
-                //超时时间设置
-                _socket.ReceiveTimeout = (int)ConnectTimeout.TotalMilliseconds;
-                _socket.SendTimeout = (int)ConnectTimeout.TotalMilliseconds;
 
-                //连接
-                //socket.Connect(IpEndPoint);
-                IAsyncResult connectResult = _socket.BeginConnect(IpEndPoint, null, null);
-                //阻塞当前线程           
-                if (!connectResult.AsyncWaitHandle.WaitOne(ConnectTimeout))
-                    throw new TimeoutException("连接超时");
-                _socket.EndConnect(connectResult);
-
+                _socket.Connect(IpEndPoint);
                 result.Requsts.Add(string.Join(" ", RegisteredCommand.Select(t => t.ToString("X2"))));
                 _socket.Send(RegisteredCommand);
 
@@ -109,7 +95,6 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             catch (Exception ex)
             {
-                _socket?.SafeClose();
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.ErrorCode = 408;
@@ -125,7 +110,6 @@ namespace Wombat.IndustrialCommunication.PLC
             OperationResult result = new OperationResult();
             try
             {
-                _socket?.SafeClose();
                 return result;
             }
             catch (Exception ex)
@@ -216,14 +200,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.SafeClose();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.SafeClose();
             }
             finally
             {
@@ -269,14 +251,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     result.Message = ex.Message;
                     result.Exception = ex;
                 }
-                _socket?.SafeClose();
             }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
                 result.Exception = ex;
-                _socket?.SafeClose();
             }
             finally
             {
@@ -540,39 +520,39 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        public new OperationResult Write(string address, object value, DataTypeEnum type)
+        public new OperationResult Write(string address, object value, DataTypeEnums type)
         {
             var result = new OperationResult() { IsSuccess = false };
             switch (type)
             {
-                case DataTypeEnum.Bool:
+                case DataTypeEnums.Bool:
                     result = Write(address, Convert.ToBoolean(value));
                     break;
-                case DataTypeEnum.Byte:
+                case DataTypeEnums.Byte:
                     result = Write(address, Convert.ToByte(value));
                     break;
-                case DataTypeEnum.Int16:
+                case DataTypeEnums.Int16:
                     result = Write(address, Convert.ToInt16(value));
                     break;
-                case DataTypeEnum.UInt16:
+                case DataTypeEnums.UInt16:
                     result = Write(address, Convert.ToUInt16(value));
                     break;
-                case DataTypeEnum.Int32:
+                case DataTypeEnums.Int32:
                     result = Write(address, Convert.ToInt32(value));
                     break;
-                case DataTypeEnum.UInt32:
+                case DataTypeEnums.UInt32:
                     result = Write(address, Convert.ToUInt32(value));
                     break;
-                case DataTypeEnum.Int64:
+                case DataTypeEnums.Int64:
                     result = Write(address, Convert.ToInt64(value));
                     break;
-                case DataTypeEnum.UInt64:
+                case DataTypeEnums.UInt64:
                     result = Write(address, Convert.ToUInt64(value));
                     break;
-                case DataTypeEnum.Float:
+                case DataTypeEnums.Float:
                     result = Write(address, Convert.ToSingle(value));
                     break;
-                case DataTypeEnum.Double:
+                case DataTypeEnums.Double:
                     result = Write(address, Convert.ToDouble(value));
                     break;
             }
@@ -735,7 +715,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         }
 
-        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses)
+        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new System.NotImplementedException();
         }

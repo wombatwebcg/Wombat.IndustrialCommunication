@@ -6,12 +6,7 @@ using Wombat.Extensions.DataTypeExtensions;
 namespace Wombat.IndustrialCommunication
 {
 
-    //}
-    /// <summary>
-    /// 日记记录委托定义
-    /// </summary>
-    /// <param name="name"></param>
-    /// <param name="ex"></param>
+
     public delegate void LoggerDelegate(string name, Exception ex = null);
 
     public interface IClient

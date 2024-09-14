@@ -18,7 +18,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses);
+        OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses);
 
 
 
@@ -185,10 +185,10 @@ namespace Wombat.IndustrialCommunication
         OperationResult<string> ReadString(string address, int length);
 
 
-        OperationResult<object>Read(DataTypeEnum dataTypeEnum,string address);
+        OperationResult<object>Read(DataTypeEnums dataTypeEnum,string address);
 
 
-        OperationResult<object[]> Read(DataTypeEnum dataTypeEnum, string address,int length);
+        OperationResult<object[]> Read(DataTypeEnums dataTypeEnum, string address,int length);
 
 
         #endregion
@@ -202,7 +202,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses);
+        ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses);
 
 
 
@@ -369,9 +369,9 @@ namespace Wombat.IndustrialCommunication
 
 
 
-        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnum dataTypeEnum, string address);
+        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address);
 
-        ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnum dataTypeEnum, string address, int length);
+        ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length);
 
         #endregion
 
@@ -580,10 +580,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        OperationResult Write(DataTypeEnum dataTypeEnum, string address, object value);
+        OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value);
 
 
-        OperationResult Write(DataTypeEnum dataTypeEnum, string address, object[] value);
+        OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] value);
 
 
         #endregion
@@ -779,10 +779,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object value);
+        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value);
 
 
-        Task<OperationResult> WriteAsync(DataTypeEnum dataTypeEnum, string address, object[] value);
+        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value);
 
 
 

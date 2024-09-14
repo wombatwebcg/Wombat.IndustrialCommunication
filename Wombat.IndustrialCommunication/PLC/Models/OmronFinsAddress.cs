@@ -41,6 +41,6 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 
         /// </summary>
-        public DataTypeEnum DataTypeEnum { get; set; }
+        public DataTypeEnums DataTypeEnum { get; set; }
     }
 }

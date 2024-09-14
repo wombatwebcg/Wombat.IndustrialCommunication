@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Tcp的方式发送ModbusRtu协议报文 - 客户端
     /// </summary>
-    public class ModbusRtuOverTcpClient : ModbusEthernetBase
+    public class ModbusRtuOverTcpClient : ModbusClientEthernetBase
     {
 
 
@@ -125,13 +125,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                         var connectResult = Connect();
                         if (!connectResult.IsSuccess)
                         {
-                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                            connectResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
                             return result.SetInfo(connectResult);
                         }
                     }
 
                     //获取命令（组装报文）
-                    byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
+                    byte[] command = GetReadCommand(modbusHeader.Address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
 
@@ -206,11 +206,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                         var connectResult = Connect();
                         if (!connectResult.IsSuccess)
                         {
-                            connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                            connectResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
                             return result.SetInfo(connectResult);
                         }
                     }
-                    var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                    var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
                     var commandCRC16 = CRC16Helper.GetCRC16(command);
                     result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                     //发送命令并获取响应报文
@@ -279,12 +279,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                             var connectResult = Connect();
                             if (!connectResult.IsSuccess)
                             {
-                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                connectResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
                                 return result.SetInfo(connectResult);
                             }
                         }
 
-                        var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                        var command = GetWriteCommand(modbusHeader.Address, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
                         var commandCRC16 = CRC16Helper.GetCRC16(command);
                         result.Requsts.Add(string.Join(" ", commandCRC16.Select(t => t.ToString("X2"))));
                         var sendResult = SendPackage(commandCRC16, 8);

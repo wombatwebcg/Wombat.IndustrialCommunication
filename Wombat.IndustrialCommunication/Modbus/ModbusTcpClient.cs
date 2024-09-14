@@ -13,7 +13,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusTcp协议客户端
     /// </summary>
-    public class ModbusTcpClient : ModbusEthernetBase
+    public class ModbusTcpClient : ModbusClientEthernetBase
     {
         public ModbusTcpClient() : base()
         {

@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 地址
         /// </summary>
-        public string RegisterAddress { get; set; }
+        public ushort Address { get; set; }
         /// <summary>
         /// 站号
         /// </summary>
@@ -22,25 +22,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         public byte FunctionCode { get; set; }
     }
 
-    public class ModbusInput:ModbusHeader
+    public class ModbusInput : ModbusHeader
     {
         /// <summary>
         /// 数据类型
         /// </summary>
-        public DataTypeEnum DataType { get; set; }
+        public DataTypeEnums DataType { get; set; }
     }
 
-    public enum ModbusStandardFunctionCode
-    {
-        ReadCoils = 1,
-        ReadDiscreteInputs = 2,
-        ReadHoldingRegisters = 3,
-        ReadInputRegisters = 4,
-        WriteSingleCoil = 5,
-        WriteSingleRegister = 6,
-        WriteMultipleCoils = 0xF,
-        WriteMultipleRegister = 0x10
-
-    }
 
 }

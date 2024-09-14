@@ -37,6 +37,6 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 数据类型
         /// </summary>
-        public DataTypeEnum DataTypeEnum { get; set; }
+        public DataTypeEnums DataTypeEnum { get; set; }
     }
 }

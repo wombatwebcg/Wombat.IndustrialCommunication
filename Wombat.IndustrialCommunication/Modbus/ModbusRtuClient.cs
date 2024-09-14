@@ -10,7 +10,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusRtu协议客户端
     /// </summary>
-    public class ModbusRtuClient : ModbusSerialPortBase
+    public class ModbusRtuClient : ModbusClientSerialPortBase
     {
 
 

@@ -10,7 +10,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// ModbusAscii
     /// </summary>
-    public class ModbusAsciiClient : ModbusSerialPortBase
+    public class ModbusAsciiClient : ModbusClientSerialPortBase
     {
         public override string Version => "ModbusAsciiClient";
 
@@ -58,7 +58,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
 
                     //获取命令（组装报文）
-                    byte[] command = GetReadCommand(address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
+                    byte[] command = GetReadCommand(modbusHeader.Address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength);
                     var commandLRC = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
 
                     var finalCommand = new byte[commandLRC.Length + 3];
@@ -144,7 +144,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 return result.SetInfo(connectResult);
                             }
                         }
-                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                        var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode);
                         var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                         var finalCommand = new byte[commandAscii.Length + 3];
                         Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);
@@ -223,7 +223,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             return result.SetInfo(connectResult);
                         }
                     }
-                    var command = GetWriteCommand(modbusHeader.RegisterAddress, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
+                    var command = GetWriteCommand(modbusHeader.Address, values, modbusHeader.StationNumber, modbusHeader.FunctionCode);
                     var commandAscii = DataTypeExtensions.ByteArrayToASCIIArray(LRCHelper.GetLRC(command));
                     var finalCommand = new byte[commandAscii.Length + 3];
                     Buffer.BlockCopy(commandAscii, 0, finalCommand, 1, commandAscii.Length);

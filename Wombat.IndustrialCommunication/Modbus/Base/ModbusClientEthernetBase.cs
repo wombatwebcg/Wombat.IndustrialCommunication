@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Socket基类
     /// </summary>
-    public abstract class ModbusEthernetBase : ModbusClient, IEthernetClient
+    public abstract class ModbusClientEthernetBase : ModbusClient, IEthernetClient
     {
         public IPEndPoint IpEndPoint { get; set; }
         protected internal SocketClientBase _socket;
@@ -32,7 +32,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusEthernetBase()
+        public ModbusClientEthernetBase()
         {
             _socket = new SocketClientBase();
             _socket.SocketConfiguration.ConnectTimeout = ConnectTimeout;
@@ -52,7 +52,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusEthernetBase(IPEndPoint ipAndPoint) : this()
+        public ModbusClientEthernetBase(IPEndPoint ipAndPoint) : this()
         {
             IpEndPoint = ipAndPoint;
         }
@@ -65,7 +65,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="timeout">超时时间（毫秒）</param>
         /// <param name="format">大小端设置</param>
         /// <param name="plcAddresses">PLC地址</param>
-        public ModbusEthernetBase(string ip, int port) : this()
+        public ModbusClientEthernetBase(string ip, int port) : this()
         {
             if (!IPAddress.TryParse(ip, out IPAddress address))
                 address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
@@ -247,20 +247,20 @@ namespace Wombat.IndustrialCommunication.Modbus
                             var connectResult = Connect();
                             if (!connectResult.IsSuccess)
                             {
-                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                connectResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
                                 return result.SetInfo(connectResult);
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
                         //1 获取命令（组装报文）
-                        byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
+                        byte[] command = GetReadCommand(modbusHeader.Address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
 
                         //获取响应报文
                         var sendResult = InterpretMessageData(command);
                         if (!sendResult.IsSuccess)
                         {
-                            sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
+                            sendResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
                             if (!IsLongLivedConnection) Disconnect();
                             return result.SetInfo(sendResult).Complete();
                         }
@@ -274,7 +274,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                         {
                             result.IsSuccess = false;
-                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
+                            result.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
                         }
                         else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
                         {
@@ -287,11 +287,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                         result.IsSuccess = false;
                         if (ex.SocketErrorCode == SocketError.TimedOut)
                         {
-                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
+                            result.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。连接超时";
                         }
                         else
                         {
-                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ex.Message}";
+                            result.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{ex.Message}";
                         }
                     }
                     finally
@@ -331,19 +331,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                             var connectResult = await ConnectAsync();
                             if (!connectResult.IsSuccess)
                             {
-                                connectResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
+                                connectResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{connectResult.Message}";
                                 return result.SetInfo(connectResult);
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
                         //1 获取命令（组装报文）
-                        byte[] command = GetReadCommand(modbusHeader.RegisterAddress, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
+                        byte[] command = GetReadCommand(modbusHeader.Address, modbusHeader.StationNumber, modbusHeader.FunctionCode, (ushort)readLength, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         //获取响应报文
                         var sendResult = await InterpretMessageDataAsync(command);
                         if (!sendResult.IsSuccess)
                         {
-                            sendResult.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
+                            sendResult.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。{sendResult.Message}";
                             if (!IsLongLivedConnection) await DisconnectAsync();
                             return result.SetInfo(sendResult).Complete();
                         }
@@ -357,7 +357,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         if (chenkHead[0] != dataPackage[0] || chenkHead[1] != dataPackage[1])
                         {
                             result.IsSuccess = false;
-                            result.Message = $"读取 地址:{modbusHeader.RegisterAddress} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
+                            result.Message = $"读取 地址:{modbusHeader.Address} 站号:{modbusHeader.StationNumber} 功能码:{modbusHeader.FunctionCode} 失败。响应结果校验失败";
                         }
                         else if (ModbusHelper.VerifyFunctionCode(modbusHeader.FunctionCode, dataPackage[7]))
                         {
@@ -531,8 +531,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 foreach (var stationNumber in stationNumbers)
                 {
                     var addressList = addresses.Where(t => t.FunctionCode == functionCode && t.StationNumber == stationNumber)
-                        .DistinctBy(t => t.RegisterAddress)
-                        .ToDictionary(t => t.RegisterAddress, t => t.DataType);
+                        .DistinctBy(t => t.Address)
+                        .ToDictionary(t => t.Address, t => t.DataType);
                     var tempOperationResult = BatchReadBase(addressList, stationNumber, functionCode);
                     if (tempOperationResult.IsSuccess)
                     {
@@ -558,12 +558,12 @@ namespace Wombat.IndustrialCommunication.Modbus
             return result.Complete();
         }
 
-        private OperationResult<Dictionary<string, object>> BatchReadBase(Dictionary<string, DataTypeEnum> addressList, byte stationNumber, byte functionCode)
+        private OperationResult<Dictionary<ushort, object>> BatchReadBase(Dictionary<ushort, DataTypeEnums> addressList, byte stationNumber, byte functionCode)
         {
-            var result = new OperationResult<Dictionary<string, object>>();
-            result.Value = new Dictionary<string, object>();
+            var result = new OperationResult<Dictionary<ushort, object>>();
+            result.Value = new Dictionary<ushort, object>();
 
-            var addresses = addressList.Select(t => new KeyValuePair<int, DataTypeEnum>(int.Parse(t.Key), t.Value)).ToList();
+            var addresses = addressList.Select(t => new KeyValuePair<ushort, DataTypeEnums>(t.Key, t.Value)).ToList();
 
             var minAddress = addresses.Select(t => t.Key).Min();
             var maxAddress = addresses.Select(t => t.Key).Max();
@@ -575,27 +575,27 @@ namespace Wombat.IndustrialCommunication.Modbus
                 //如果范围内没有数据。按正确逻辑不存在这种情况。
                 if (!tempAddress.Any())
                 {
-                    minAddress = minAddress + length;
+                    minAddress = (ushort)(minAddress + length);
                     continue;
                 }
 
                 var tempMax = tempAddress.OrderByDescending(t => t.Key).FirstOrDefault();
                 switch (tempMax.Value)
                 {
-                    case DataTypeEnum.Bool:
-                    case DataTypeEnum.Byte:
-                    case DataTypeEnum.Int16:
-                    case DataTypeEnum.UInt16:
+                    case DataTypeEnums.Bool:
+                    case DataTypeEnums.Byte:
+                    case DataTypeEnums.Int16:
+                    case DataTypeEnums.UInt16:
                         length = tempMax.Key + 1 - minAddress;
                         break;
-                    case DataTypeEnum.Int32:
-                    case DataTypeEnum.UInt32:
-                    case DataTypeEnum.Float:
+                    case DataTypeEnums.Int32:
+                    case DataTypeEnums.UInt32:
+                    case DataTypeEnums.Float:
                         length = tempMax.Key + 2 - minAddress;
                         break;
-                    case DataTypeEnum.Int64:
-                    case DataTypeEnum.UInt64:
-                    case DataTypeEnum.Double:
+                    case DataTypeEnums.Int64:
+                    case DataTypeEnums.UInt64:
+                    case DataTypeEnums.Double:
                         length = tempMax.Key + 4 - minAddress;
                         break;
                     default:
@@ -603,7 +603,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 if (!ModbusAddressParser.TryParseModbusHeader(new ModbusHeader()
                 {
-                    RegisterAddress = minAddress.ToString(),
+                    Address = minAddress,
                     FunctionCode = functionCode,
                     StationNumber = stationNumber
                 }, out string splicingAddress))
@@ -634,42 +634,42 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     switch (item.Value)
                     {
-                        case DataTypeEnum.Bool:
+                        case DataTypeEnums.Bool:
                             tempVaue = ReadBoolean(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Byte:
                             throw new Exception("Message BatchRead 未定义类型 -2");
-                        case DataTypeEnum.Int16:
+                        case DataTypeEnums.Int16:
                             tempVaue = ReadInt16(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.UInt16:
                             tempVaue = ReadUInt16(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Int32:
+                        case DataTypeEnums.Int32:
                             tempVaue = ReadInt32(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt32:
+                        case DataTypeEnums.UInt32:
                             tempVaue = ReadUInt32(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Int64:
+                        case DataTypeEnums.Int64:
                             tempVaue = ReadInt64(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt64:
+                        case DataTypeEnums.UInt64:
                             tempVaue = ReadUInt64(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Float:
                             tempVaue = ReadFloat(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Double:
                             tempVaue = ReadDouble(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
                         default:
                             throw new Exception("Message BatchRead 未定义类型 -3");
                     }
 
-                    result.Value.Add(item.Key.ToString(), tempVaue);
+                    result.Value.Add(item.Key, tempVaue);
                 }
-                minAddress = minAddress + length;
+                minAddress = (ushort)(minAddress + length);
 
                 if (addresses.Any(t => t.Key >= minAddress))
                     minAddress = addresses.Where(t => t.Key >= minAddress).OrderBy(t => t.Key).FirstOrDefault().Key;
@@ -722,8 +722,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 foreach (var stationNumber in stationNumbers)
                 {
                     var addressList = addresses.Where(t => t.FunctionCode == functionCode && t.StationNumber == stationNumber)
-                        .DistinctBy(t => t.RegisterAddress)
-                        .ToDictionary(t => t.RegisterAddress, t => t.DataType);
+                        .DistinctBy(t => t.Address)
+                        .ToDictionary(t => t.Address, t => t.DataType);
                     var tempOperationResult = await BatchReadBaseAsync(addressList, stationNumber, functionCode);
                     if (tempOperationResult.IsSuccess)
                     {
@@ -749,12 +749,12 @@ namespace Wombat.IndustrialCommunication.Modbus
             return result.Complete();
         }
 
-        private async Task<OperationResult<Dictionary<string, object>>> BatchReadBaseAsync(Dictionary<string, DataTypeEnum> addressList, byte stationNumber, byte functionCode)
+        private async Task<OperationResult<Dictionary<ushort, object>>> BatchReadBaseAsync(Dictionary<ushort, DataTypeEnums> addressList, byte stationNumber, byte functionCode)
         {
-            var result = new OperationResult<Dictionary<string, object>>();
-            result.Value = new Dictionary<string, object>();
+            var result = new OperationResult<Dictionary<ushort, object>>();
+            result.Value = new Dictionary<ushort, object>();
 
-            var addresses = addressList.Select(t => new KeyValuePair<int, DataTypeEnum>(int.Parse(t.Key), t.Value)).ToList();
+            var addresses = addressList.Select(t => new KeyValuePair<ushort, DataTypeEnums>(t.Key, t.Value)).ToList();
 
             var minAddress = addresses.Select(t => t.Key).Min();
             var maxAddress = addresses.Select(t => t.Key).Max();
@@ -766,27 +766,27 @@ namespace Wombat.IndustrialCommunication.Modbus
                 //如果范围内没有数据。按正确逻辑不存在这种情况。
                 if (!tempAddress.Any())
                 {
-                    minAddress = minAddress + length;
+                    minAddress = (ushort)(minAddress + length);
                     continue;
                 }
 
                 var tempMax = tempAddress.OrderByDescending(t => t.Key).FirstOrDefault();
                 switch (tempMax.Value)
                 {
-                    case DataTypeEnum.Bool:
-                    case DataTypeEnum.Byte:
-                    case DataTypeEnum.Int16:
-                    case DataTypeEnum.UInt16:
+                    case DataTypeEnums.Bool:
+                    case DataTypeEnums.Byte:
+                    case DataTypeEnums.Int16:
+                    case DataTypeEnums.UInt16:
                         length = tempMax.Key + 1 - minAddress;
                         break;
-                    case DataTypeEnum.Int32:
-                    case DataTypeEnum.UInt32:
-                    case DataTypeEnum.Float:
+                    case DataTypeEnums.Int32:
+                    case DataTypeEnums.UInt32:
+                    case DataTypeEnums.Float:
                         length = tempMax.Key + 2 - minAddress;
                         break;
-                    case DataTypeEnum.Int64:
-                    case DataTypeEnum.UInt64:
-                    case DataTypeEnum.Double:
+                    case DataTypeEnums.Int64:
+                    case DataTypeEnums.UInt64:
+                    case DataTypeEnums.Double:
                         length = tempMax.Key + 4 - minAddress;
                         break;
                     default:
@@ -794,7 +794,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 if (!ModbusAddressParser.TryParseModbusHeader(new ModbusHeader()
                 {
-                    RegisterAddress = minAddress.ToString(),
+                    Address = minAddress,
                     FunctionCode = functionCode,
                     StationNumber = stationNumber
                 }, out string splicingAddress))
@@ -824,42 +824,42 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                     switch (item.Value)
                     {
-                        case DataTypeEnum.Bool:
+                        case DataTypeEnums.Bool:
                             tempVaue = ReadBoolean(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Byte:
                             throw new Exception("Message BatchRead 未定义类型 -2");
-                        case DataTypeEnum.Int16:
+                        case DataTypeEnums.Int16:
                             tempVaue = ReadInt16(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.UInt16:
                             tempVaue = ReadUInt16(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Int32:
+                        case DataTypeEnums.Int32:
                             tempVaue = ReadInt32(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt32:
+                        case DataTypeEnums.UInt32:
                             tempVaue = ReadUInt32(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Int64:
+                        case DataTypeEnums.Int64:
                             tempVaue = ReadInt64(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.UInt64:
+                        case DataTypeEnums.UInt64:
                             tempVaue = ReadUInt64(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Float:
                             tempVaue = ReadFloat(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Double:
                             tempVaue = ReadDouble(minAddress.ToString(), item.Key.ToString(), rValue).Value;
                             break;
                         default:
                             throw new Exception("Message BatchRead 未定义类型 -3");
                     }
 
-                    result.Value.Add(item.Key.ToString(), tempVaue);
+                    result.Value.Add(item.Key, tempVaue);
                 }
-                minAddress = minAddress + length;
+                minAddress = (ushort)(minAddress + length);
 
                 if (addresses.Any(t => t.Key >= minAddress))
                     minAddress = addresses.Where(t => t.Key >= minAddress).OrderBy(t => t.Key).FirstOrDefault().Key;
@@ -914,7 +914,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         var sendResult = InterpretMessageData(command);
                         if (!sendResult.IsSuccess)
@@ -988,7 +988,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         var sendResult = await InterpretMessageDataAsync(command);
                         if (!sendResult.IsSuccess)
@@ -1056,7 +1056,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         var sendResult = InterpretMessageData(command);
                         if (!sendResult.IsSuccess)
@@ -1121,7 +1121,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             }
                         }
                         var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                        var command = GetWriteCoilCommand(modbusHeader.RegisterAddress, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                        var command = GetWriteCoilCommand(modbusHeader.Address, value, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                         result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                         var sendResult = await InterpretMessageDataAsync(command);
                         if (!sendResult.IsSuccess)
@@ -1189,7 +1189,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         }
                     }
                     var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCommand(modbusHeader.RegisterAddress, data, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                    var command = GetWriteCommand(modbusHeader.Address, data, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = InterpretMessageData(command);
                     if (!sendResult.IsSuccess)
@@ -1257,7 +1257,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         }
                     }
                     var chenkHead = GetCheckHead(modbusHeader.FunctionCode);
-                    var command = GetWriteCommand(modbusHeader.RegisterAddress, data, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
+                    var command = GetWriteCommand(modbusHeader.Address, data, modbusHeader.StationNumber, modbusHeader.FunctionCode, chenkHead);
                     result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
                     var sendResult = await InterpretMessageDataAsync(command);
                     if (!sendResult.IsSuccess)
@@ -1319,7 +1319,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return new byte[] { (byte)random.Next(255), (byte)random.Next(255) };
         }
 
-        public virtual string TranPLCAddress(string address)
+        public virtual ushort TranPLCAddress(ushort address)
         {
             return address;
         }
@@ -1332,11 +1332,10 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="FunctionCode">功能码</param>
         /// <param name="length">读取长度</param>
         /// <returns></returns>
-        public byte[] GetReadCommand(string address, byte StationNumber, byte FunctionCode, ushort length, byte[] check = null)
+        public byte[] GetReadCommand(ushort address, byte StationNumber, byte FunctionCode, ushort length, byte[] check = null)
         {
             //if (_isPlcAddress) { address = TranPLCAddress(address); }
             address = TranPLCAddress(address);
-            var readAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[12];
             buffer[0] = check?[0] ?? 0x19;
             buffer[1] = check?[1] ?? 0xB2;//Client发出的检验信息
@@ -1347,8 +1346,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             buffer[6] = StationNumber;  //站号
             buffer[7] = FunctionCode;   //功能码
-            buffer[8] = BitConverter.GetBytes(readAddress)[1];
-            buffer[9] = BitConverter.GetBytes(readAddress)[0];//寄存器地址
+            buffer[8] = BitConverter.GetBytes(address)[1];
+            buffer[9] = BitConverter.GetBytes(address)[0];//寄存器地址
             buffer[10] = BitConverter.GetBytes(length)[1];
             buffer[11] = BitConverter.GetBytes(length)[0];//表示request 寄存器的长度(寄存器个数)
             return buffer;
@@ -1390,10 +1389,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="StationNumber">站号</param>
         /// <param name="FunctionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCommand(string address, byte[] values, byte StationNumber, byte FunctionCode, byte[] check = null)
+        public byte[] GetWriteCommand(ushort address, byte[] values, byte StationNumber, byte FunctionCode, byte[] check = null)
         {
             address = TranPLCAddress(address);
-            var writeAddress = ushort.Parse(address?.Trim());
 
             if (values.Length > 2)
             {
@@ -1405,8 +1403,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 buffer[6] = StationNumber; //站号
                 buffer[7] = FunctionCode;  //功能码
-                buffer[8] = BitConverter.GetBytes(writeAddress)[1];
-                buffer[9] = BitConverter.GetBytes(writeAddress)[0];//寄存器地址
+                buffer[8] = BitConverter.GetBytes(address)[1];
+                buffer[9] = BitConverter.GetBytes(address)[0];//寄存器地址
                 buffer[10] = (byte)(values.Length / 2 / 256);
                 buffer[11] = (byte)(values.Length / 2 % 256);//写寄存器数量(除2是两个字节一个寄存器，寄存器16位。除以256是byte最大存储255。)              
                 buffer[12] = (byte)(values.Length);          //写字节的个数
@@ -1424,8 +1422,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 buffer[6] = StationNumber;//站号
                 buffer[7] = FunctionCode; //功能码
-                buffer[8] = BitConverter.GetBytes(writeAddress)[1];
-                buffer[9] = BitConverter.GetBytes(writeAddress)[0];//寄存器地址
+                buffer[8] = BitConverter.GetBytes(address)[1];
+                buffer[9] = BitConverter.GetBytes(address)[0];//寄存器地址
                 buffer[10] = values[0];     //此处只可以是FF表示闭合00表示断开，其他数值非法
                 buffer[11] = values[1];
                 return buffer;
@@ -1441,10 +1439,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="StationNumber">站号</param>
         /// <param name="FunctionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCoilCommand(string address, bool value, byte StationNumber, byte FunctionCode, byte[] check = null)
+        public byte[] GetWriteCoilCommand(ushort address, bool value, byte StationNumber, byte FunctionCode, byte[] check = null)
         {
             address = TranPLCAddress(address);
-            var writeAddress = ushort.Parse(address?.Trim());
             byte[] buffer = new byte[12];
             buffer[0] = check?[0] ?? 0x19;
             buffer[1] = check?[1] ?? 0xB2;//Client发出的检验信息     
@@ -1453,8 +1450,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             buffer[6] = StationNumber;//站号
             buffer[7] = FunctionCode; //功能码
-            buffer[8] = BitConverter.GetBytes(writeAddress)[1];
-            buffer[9] = BitConverter.GetBytes(writeAddress)[0];//寄存器地址
+            buffer[8] = BitConverter.GetBytes(address)[1];
+            buffer[9] = BitConverter.GetBytes(address)[0];//寄存器地址
             buffer[10] = (byte)(value ? 0xFF : 0x00);     //此处只可以是FF表示闭合00表示断开，其他数值非法
             buffer[11] = 0x00;
             return buffer;
@@ -1470,10 +1467,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="StationNumber">站号</param>
         /// <param name="FunctionCode">功能码</param>
         /// <returns></returns>
-        public byte[] GetWriteCoilCommand(string address, bool[] values, byte StationNumber, byte FunctionCode, byte[] check = null)
+        public byte[] GetWriteCoilCommand(ushort address, bool[] values, byte StationNumber, byte FunctionCode, byte[] check = null)
         {
             address = TranPLCAddress(address);
-            var writeAddress = ushort.Parse(address?.Trim());
             int length = (values.Length + 1) / 2;
             byte[] newValue = values.ToByte();
 
@@ -1485,8 +1481,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             buffer[6] = StationNumber; //站号
             buffer[7] = FunctionCode;  //功能码
-            buffer[8] = BitConverter.GetBytes(writeAddress)[1];
-            buffer[9] = BitConverter.GetBytes(writeAddress)[0];//寄存器地址
+            buffer[8] = BitConverter.GetBytes(address)[1];
+            buffer[9] = BitConverter.GetBytes(address)[0];//寄存器地址
             buffer[10] = (byte)(values.Length / 256);
             buffer[11] = (byte)(values.Length % 256);//写寄存器数量(除2是两个字节一个寄存器，寄存器16位。除以256是byte最大存储255。)              
             buffer[12] = (byte)(newValue.Length);          //写字节的个数
@@ -1496,8 +1492,6 @@ namespace Wombat.IndustrialCommunication.Modbus
 
 
         #endregion
-
-
 
         #region 收发命令
         /// <summary>
@@ -1538,7 +1532,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 catch (SocketException ex)
                 {
-                    _socket?.Close();
                     if (ex.SocketErrorCode == SocketError.TimedOut)
                         result.Message = $"连接超时：{ex.Message}";
                     else

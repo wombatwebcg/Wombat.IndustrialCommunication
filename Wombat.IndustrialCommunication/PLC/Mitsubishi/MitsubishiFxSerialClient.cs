@@ -12,7 +12,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// <summary>
     /// 三菱PLC编程串口(rs232)通讯协议(一次最好别读超过10个byte)
     /// </summary>
-    public class MitsubishiFxSerialClient :SerialPortDeviceBase
+    public class MitsubishiFxSerialClient :SerialPortClientDeviceBase
     {
         private AsyncLock _lock;
 

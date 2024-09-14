@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// 西门子客户端
     /// http://www.360doc.cn/mip/763580999.html
     /// </summary>
-    public class SiemensClient : EthernetDeviceBase 
+    public class SiemensClient : EthernetClientDeviceBase 
     {
         //protected TcpRawSocketClient _socket;
         private AsyncLock _lock; 
@@ -914,7 +914,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses)
+        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             int batchNumber = 19;
             var result = new OperationResult<Dictionary<string, object>>();
@@ -952,7 +952,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses"></param>
         /// <returns></returns>
-        private OperationResult<Dictionary<string, object>> BatchReadBase(Dictionary<string, DataTypeEnum> addresses)
+        private OperationResult<Dictionary<string, object>> BatchReadBase(Dictionary<string, DataTypeEnums> addresses)
         {
             if (!Connected&&!IsLongLivedConnection)
             {
@@ -1025,34 +1025,34 @@ namespace Wombat.IndustrialCommunication.PLC
                     cursor += item.ReadWriteLength == 1 ? 2 : item.ReadWriteLength;
                     switch (item.DataType)
                     {
-                        case DataTypeEnum.Bool:
+                        case DataTypeEnums.Bool:
                             value = BitConverter.ToBoolean(readResult, 0) ? 1 : 0;
                             break;
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Byte:
                             value = readResult[0];
                             break;
-                        case DataTypeEnum.Int16:
+                        case DataTypeEnums.Int16:
                             value = BitConverter.ToInt16(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.UInt16:
                             value = BitConverter.ToUInt16(readResult, 0);
                             break;
-                        case DataTypeEnum.Int32:
+                        case DataTypeEnums.Int32:
                             value = BitConverter.ToInt32(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt32:
+                        case DataTypeEnums.UInt32:
                             value = BitConverter.ToUInt32(readResult, 0);
                             break;
-                        case DataTypeEnum.Int64:
+                        case DataTypeEnums.Int64:
                             value = BitConverter.ToInt64(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt64:
+                        case DataTypeEnums.UInt64:
                             value = BitConverter.ToUInt64(readResult, 0);
                             break;
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Float:
                             value = BitConverter.ToSingle(readResult, 0);
                             break;
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Double:
                             value = BitConverter.ToDouble(readResult, 0);
                             break;
                         default:
@@ -1095,7 +1095,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        public override async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnum> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             int batchNumber = 19;
             var result = new OperationResult<Dictionary<string, object>>();
@@ -1133,7 +1133,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses"></param>
         /// <returns></returns>
-        private async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadBaseAsync(Dictionary<string, DataTypeEnum> addresses)
+        private async ValueTask<OperationResult<Dictionary<string, object>>> BatchReadBaseAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             if (!Connected && !IsLongLivedConnection)
             {
@@ -1206,34 +1206,34 @@ namespace Wombat.IndustrialCommunication.PLC
                     cursor += item.ReadWriteLength == 1 ? 2 : item.ReadWriteLength;
                     switch (item.DataType)
                     {
-                        case DataTypeEnum.Bool:
+                        case DataTypeEnums.Bool:
                             value = BitConverter.ToBoolean(readResult, 0) ? 1 : 0;
                             break;
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Byte:
                             value = readResult[0];
                             break;
-                        case DataTypeEnum.Int16:
+                        case DataTypeEnums.Int16:
                             value = BitConverter.ToInt16(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.UInt16:
                             value = BitConverter.ToUInt16(readResult, 0);
                             break;
-                        case DataTypeEnum.Int32:
+                        case DataTypeEnums.Int32:
                             value = BitConverter.ToInt32(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt32:
+                        case DataTypeEnums.UInt32:
                             value = BitConverter.ToUInt32(readResult, 0);
                             break;
-                        case DataTypeEnum.Int64:
+                        case DataTypeEnums.Int64:
                             value = BitConverter.ToInt64(readResult, 0);
                             break;
-                        case DataTypeEnum.UInt64:
+                        case DataTypeEnums.UInt64:
                             value = BitConverter.ToUInt64(readResult, 0);
                             break;
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Float:
                             value = BitConverter.ToSingle(readResult, 0);
                             break;
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Double:
                             value = BitConverter.ToDouble(readResult, 0);
                             break;
                         default:
@@ -1506,7 +1506,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
 
-        private SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnum> addresses,int offest = 0)
+        private SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnums> addresses,int offest = 0)
         {
             return addresses.Select(t =>
             {
@@ -1514,35 +1514,35 @@ namespace Wombat.IndustrialCommunication.PLC
                 item.DataType = t.Value;
                 switch (t.Value)
                 {
-                    case DataTypeEnum.Bool:
+                    case DataTypeEnums.Bool:
                         item.ReadWriteLength = 1;
                         item.ReadWriteBit = true;
                         break;
-                    case DataTypeEnum.Byte:
+                    case DataTypeEnums.Byte:
                         item.ReadWriteLength = 1;
                         break;
-                    case DataTypeEnum.Int16:
+                    case DataTypeEnums.Int16:
                         item.ReadWriteLength = 2;
                         break;
-                    case DataTypeEnum.UInt16:
+                    case DataTypeEnums.UInt16:
                         item.ReadWriteLength = 2;
                         break;
-                    case DataTypeEnum.Int32:
+                    case DataTypeEnums.Int32:
                         item.ReadWriteLength = 4;
                         break;
-                    case DataTypeEnum.UInt32:
+                    case DataTypeEnums.UInt32:
                         item.ReadWriteLength = 4;
                         break;
-                    case DataTypeEnum.Int64:
+                    case DataTypeEnums.Int64:
                         item.ReadWriteLength = 8;
                         break;
-                    case DataTypeEnum.UInt64:
+                    case DataTypeEnums.UInt64:
                         item.ReadWriteLength = 8;
                         break;
-                    case DataTypeEnum.Float:
+                    case DataTypeEnums.Float:
                         item.ReadWriteLength = 4;
                         break;
-                    case DataTypeEnum.Double:
+                    case DataTypeEnums.Double:
                         item.ReadWriteLength = 8;
                         break;
                     default:

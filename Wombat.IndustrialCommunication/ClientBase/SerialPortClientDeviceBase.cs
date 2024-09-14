@@ -14,7 +14,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Wombat.IndustrialCommunication
 {
-   public abstract class SerialPortDeviceBase : DeviceClient, ISerialPortClient
+   public abstract class SerialPortClientDeviceBase : DeviceClient, ISerialPortClient
     {
         public string PortName { get; set; }
         public int BaudRate { get; set; } = 9600;

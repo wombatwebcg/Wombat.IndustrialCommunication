@@ -11,12 +11,13 @@ using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
-   public abstract class EthernetDeviceBase: DeviceClient, IEthernetClient
+   public abstract class EthernetClientDeviceBase: DeviceClient, IEthernetClient
     {
         public  IPEndPoint IpEndPoint { get; set; }
 
+        protected internal SocketClientBase _socket;
 
-        public EthernetDeviceBase()
+        public EthernetClientDeviceBase()
         {
 
             _socket = new SocketClientBase();
@@ -28,7 +29,6 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        protected internal SocketClientBase _socket;
 
 
         /// <summary>

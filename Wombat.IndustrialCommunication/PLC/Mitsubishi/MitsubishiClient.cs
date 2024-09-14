@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.PLC
     /// <summary>
     /// 三菱plc客户端
     /// </summary>
-    public class MitsubishiClient : EthernetDeviceBase 
+    public class MitsubishiClient : EthernetClientDeviceBase 
     {
 
 
@@ -970,7 +970,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="address"></param>
         /// <param name="toUpper"></param>
         /// <returns></returns>
-        private MitsubishiMCAddress ConvertArg_Qna_3E(string address, DataTypeEnum dataType = DataTypeEnum.None, bool toUpper = true)
+        private MitsubishiMCAddress ConvertArg_Qna_3E(string address, DataTypeEnums dataType = DataTypeEnums.None, bool toUpper = true)
         {
             if (toUpper) address = address.ToUpper();
             var addressInfo = new MitsubishiMCAddress()
@@ -1278,7 +1278,7 @@ namespace Wombat.IndustrialCommunication.PLC
         #endregion
 
         #region TODO
-        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnum> addresses)
+        public override OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             var result = new OperationResult<Dictionary<string, object>>();
             result.Value = new Dictionary<string, object>();
@@ -1306,22 +1306,22 @@ namespace Wombat.IndustrialCommunication.PLC
                     var tempMax = tempAddress.OrderByDescending(t => t.BeginAddress).FirstOrDefault();
                     switch (tempMax.DataTypeEnum)
                     {
-                        case DataTypeEnum.Bool:
-                        case DataTypeEnum.Byte:
+                        case DataTypeEnums.Bool:
+                        case DataTypeEnums.Byte:
                             readLength = tempMax.BeginAddress + 1 - minAddress;
                             break;
-                        case DataTypeEnum.Int16:
-                        case DataTypeEnum.UInt16:
+                        case DataTypeEnums.Int16:
+                        case DataTypeEnums.UInt16:
                             readLength = tempMax.BeginAddress * 2 + 2 - minAddress * 2;
                             break;
-                        case DataTypeEnum.Int32:
-                        case DataTypeEnum.UInt32:
-                        case DataTypeEnum.Float:
+                        case DataTypeEnums.Int32:
+                        case DataTypeEnums.UInt32:
+                        case DataTypeEnums.Float:
                             readLength = tempMax.BeginAddress * 4 + 4 - minAddress * 4;
                             break;
-                        case DataTypeEnum.Int64:
-                        case DataTypeEnum.UInt64:
-                        case DataTypeEnum.Double:
+                        case DataTypeEnums.Int64:
+                        case DataTypeEnums.UInt64:
+                        case DataTypeEnums.Double:
                             readLength = tempMax.BeginAddress + 8 - minAddress;
                             break;
                         default:
@@ -1348,12 +1348,12 @@ namespace Wombat.IndustrialCommunication.PLC
 
                         switch (item.DataTypeEnum)
                         {
-                            case DataTypeEnum.Bool:
+                            case DataTypeEnums.Bool:
                             //tempVaue = ReadCoil(minAddress, item.Key, rValue).Value;
                             //break;
-                            case DataTypeEnum.Byte:
+                            case DataTypeEnums.Byte:
                                 throw new Exception("Message BatchRead 未定义类型 -2");
-                            case DataTypeEnum.Int16:
+                            case DataTypeEnums.Int16:
                                 tempVaue = ReadInt16(minAddress, item.BeginAddress, rValue).Value;
                                 break;
                             //case DataTypeEnum.UInt16:
@@ -1371,7 +1371,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             //case DataTypeEnum.UInt64:
                             //    tempVaue = ReadUInt64(minAddress, item.BeginAddress, rValue).Value;
                             //    break;
-                            case DataTypeEnum.Float:
+                            case DataTypeEnums.Float:
                                 tempVaue = ReadFloat(minAddress, item.BeginAddress, rValue).Value;
                                 break;
                             //case DataTypeEnum.Double:

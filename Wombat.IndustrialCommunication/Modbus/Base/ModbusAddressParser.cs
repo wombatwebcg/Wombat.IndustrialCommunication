@@ -54,13 +54,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 if (parts[2].StartsWith("a:") && TryParseNumber(parts[1].Substring(2), out ushort a1))
                 {
-                    modbusHeader.RegisterAddress = a1.ToString();
+                    modbusHeader.Address = a1;
                 }
                 else
                 {
                     if (TryParseNumber(parts[2], out ushort a2))
                     {
-                        modbusHeader.RegisterAddress = a2.ToString();
+                        modbusHeader.Address = a2;
                     }
                     else
                     {
@@ -92,9 +92,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             header = string.Empty;
 
-            if (modbusHeader != null&&!string.IsNullOrWhiteSpace(modbusHeader.RegisterAddress))
+            if (modbusHeader != null)
             {
-                header = $"{modbusHeader.StationNumber};{modbusHeader.FunctionCode};{modbusHeader.RegisterAddress}";
+                header = $"{modbusHeader.StationNumber};{modbusHeader.FunctionCode};{modbusHeader.Address}";
                 return true;
 
             }
