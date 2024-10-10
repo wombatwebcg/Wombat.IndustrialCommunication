@@ -82,7 +82,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             if (TryParseModbusHeader(header, out ModbusHeader modbusHeader))
             {
-
                 return modbusHeader;
             }
             return null;

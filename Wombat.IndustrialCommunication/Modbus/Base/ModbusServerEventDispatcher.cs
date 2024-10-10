@@ -97,6 +97,8 @@ namespace Wombat.IndustrialCommunication.Modbus
             // 解析起始地址和读取数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
             ushort quantity = (ushort)((request[10] << 8) | request[11]);
+
+            var values = _dataStore.CoilDiscretes.Slice(address, quantity).ToArray();
             return ModbusTcpPacketGenerator.GenerateReadCoilsResponse(transactionId, protocolId, unitId,
                 _dataStore.CoilDiscretes.Slice(address, quantity).ToArray());
         }
@@ -110,7 +112,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             // 生成读取保持寄存器的响应报文
             return ModbusTcpPacketGenerator.GenerateReadHoldingRegistersResponse(transactionId, protocolId, unitId,
-                _dataStore.HoldingRegisters.Slice(address, quantity).ToArray());
+                _dataStore.HoldingRegisters.Slice(address, quantity).ToArray().CastToList<ushort>().ToArray());
         }
 
         // 处理读取离散输入的请求
@@ -132,9 +134,14 @@ namespace Wombat.IndustrialCommunication.Modbus
             ushort address = (ushort)((request[8] << 8) | request[9]);
             ushort quantity = (ushort)((request[10] << 8) | request[11]);
 
+            var content = _dataStore.InputRegisters.Slice(address, quantity).ToArray();
+            List<ushort> registers = new List<ushort>();
+            for (int i = 0; i < content.Length; i++) {
+                registers.Add(ushort.Parse(content[i].ToString()));
+            }
             // 生成读取输入寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateReadInputRegistersResponse(transactionId, protocolId, unitId, 
-                _dataStore.InputRegisters.Slice(address, quantity).ToArray());
+            return ModbusTcpPacketGenerator.GenerateReadInputRegistersResponse(transactionId, protocolId, unitId
+                , registers.ToArray());
         }
 
 
@@ -159,7 +166,8 @@ namespace Wombat.IndustrialCommunication.Modbus
             _dataStore.HoldingRegisters[address] = registerValue;
 
             // 生成写单个寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateWriteSingleRegisterResponse(transactionId, protocolId, unitId, address, _dataStore.HoldingRegisters[address]);
+            return ModbusTcpPacketGenerator.GenerateWriteSingleRegisterResponse(transactionId, protocolId, unitId, address,
+                (ushort)_dataStore.HoldingRegisters[address]);
         }
 
         // 处理写多个线圈的请求

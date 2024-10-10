@@ -1,59 +1,36 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.Modbus.Data
 {
 
 
-    public class ModbusDataCollection<TData> :Collection<TData>
+    public class ModbusDataCollection<T>  : MemoryLite<T>
     {
         private bool _allowZeroElement = true;
 
-        public ModbusDataCollection(int capacity)
+
+        public ModbusDataCollection(int capacity):base(capacity)
+        {
+          
+        }
+
+
+        public ModbusDataCollection(T[] data, int start, int length, int numberOfSegments = 4) :base(data,start,length,numberOfSegments)
         {
 
         }
 
-        public ModbusDataCollection(params TData[] data): this((IList<TData>)data)
-        {
-        }
-
-        public ModbusDataCollection(IList<TData> data): base(AddDefault(data.IsReadOnly ? new List<TData>(data) : data))
-        {
-            _allowZeroElement = false;
-        }
 
         internal ModbusDataType ModbusDataType { get; set; }
 
-        private static IList<TData> AddDefault(IList<TData> data)
+        private static IList<T> AddDefault(IList<T> data)
         {
-            data.Insert(0, default(TData));
+            data.Insert(0, default(T));
             return data;
         }
 
-        protected override void InsertItem(int index, TData item)
-        {
-
-            base.InsertItem(index, item);
-        }
-
-        protected override  void SetItem(int index, TData item)
-        {
-           base.SetItem(index, item);
-        }
-
-        protected override void RemoveItem(int index)
-        {
-
-            base.RemoveItem(index);
-        }
-
-        protected override void ClearItems()
-        {
-            _allowZeroElement = true;
-            base.ClearItems();
-            _allowZeroElement = false;
-        }
     }
 }
