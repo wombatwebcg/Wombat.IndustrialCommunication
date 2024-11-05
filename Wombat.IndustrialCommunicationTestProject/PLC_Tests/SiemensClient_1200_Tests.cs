@@ -422,34 +422,34 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
            var w= client.BatchWrite(writeAddresses);
 
-            Dictionary<string, DataTypeEnum> readAddresses = new Dictionary<string, DataTypeEnum>();
+            Dictionary<string, DataTypeEnums> readAddresses = new Dictionary<string, DataTypeEnums>();
 
-            readAddresses.Add("DB23.DBX0.0", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX0.1", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX0.2", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX0.3", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX0.4", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX1.0", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX2.0", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBX3.0", DataTypeEnum.Bool);
-            readAddresses.Add("DB23.DBB4", DataTypeEnum.Byte);
-            readAddresses.Add("DB23.DBB5", DataTypeEnum.Byte);
-            readAddresses.Add("DB23.DBB6", DataTypeEnum.Byte);
-            readAddresses.Add("DB23.DBD10", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD14", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD18", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD30", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD34", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD38", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD50", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD54", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD58", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD70", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD74", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD78", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD90", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD94", DataTypeEnum.Float);
-            readAddresses.Add("DB23.DBD98", DataTypeEnum.Float);
+            readAddresses.Add("DB23.DBX0.0", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX0.1", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX0.2", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX0.3", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX0.4", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX1.0", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX2.0", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBX3.0", DataTypeEnums.Bool);
+            readAddresses.Add("DB23.DBB4", DataTypeEnums.Byte);
+            readAddresses.Add("DB23.DBB5", DataTypeEnums.Byte);
+            readAddresses.Add("DB23.DBB6", DataTypeEnums.Byte);
+            readAddresses.Add("DB23.DBD10", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD14", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD18", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD30", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD34", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD38", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD50", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD54", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD58", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD70", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD74", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD78", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD90", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD94", DataTypeEnums.Float);
+            readAddresses.Add("DB23.DBD98", DataTypeEnums.Float);
 
             var result = client.BatchRead(readAddresses);
 
@@ -491,59 +491,59 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             //test2(address, readNumber);
 
             //TODO 最多只能批量读取 19个？
-            Dictionary<string, DataTypeEnum> addresses = new Dictionary<string, DataTypeEnum>();
+            Dictionary<string, DataTypeEnums> addresses = new Dictionary<string, DataTypeEnums>();
 
-            //addresses.Add("V1000", DataTypeEnum.Float);
-            //addresses.Add("I0.0", DataTypeEnum.Bool);
-            //addresses.Add("V4109", DataTypeEnum.Byte);
-            //addresses.Add("V1004", DataTypeEnum.Float);
+            //addresses.Add("V1000", DataTypeEnums.Float);
+            //addresses.Add("I0.0", DataTypeEnums.Bool);
+            //addresses.Add("V4109", DataTypeEnums.Byte);
+            //addresses.Add("V1004", DataTypeEnums.Float);
 
-            //addresses.Add("V1000", DataTypeEnum.Float);
-            //addresses.Add("V1004", DataTypeEnum.Float);
-            //addresses.Add("V1008", DataTypeEnum.Float);
-            //addresses.Add("V1012", DataTypeEnum.Float);
-            //addresses.Add("V1016", DataTypeEnum.Float);
-            //addresses.Add("V1020", DataTypeEnum.Float);
-            //addresses.Add("V1024", DataTypeEnum.Float);
-            //addresses.Add("V1032", DataTypeEnum.Float);
-            //addresses.Add("V1036", DataTypeEnum.Float);
-            //addresses.Add("V1040", DataTypeEnum.Float);
-            //addresses.Add("V1044", DataTypeEnum.Float);
-            //addresses.Add("V1048", DataTypeEnum.Float);
-            //addresses.Add("V1052", DataTypeEnum.Float);
-            //addresses.Add("V1230", DataTypeEnum.Float);
-            //addresses.Add("V1234", DataTypeEnum.Float);
-            //addresses.Add("V1238", DataTypeEnum.Float);
-            //addresses.Add("V1242", DataTypeEnum.Float);
-            //addresses.Add("V1246", DataTypeEnum.Float);
-            //addresses.Add("V1250", DataTypeEnum.Float);
+            //addresses.Add("V1000", DataTypeEnums.Float);
+            //addresses.Add("V1004", DataTypeEnums.Float);
+            //addresses.Add("V1008", DataTypeEnums.Float);
+            //addresses.Add("V1012", DataTypeEnums.Float);
+            //addresses.Add("V1016", DataTypeEnums.Float);
+            //addresses.Add("V1020", DataTypeEnums.Float);
+            //addresses.Add("V1024", DataTypeEnums.Float);
+            //addresses.Add("V1032", DataTypeEnums.Float);
+            //addresses.Add("V1036", DataTypeEnums.Float);
+            //addresses.Add("V1040", DataTypeEnums.Float);
+            //addresses.Add("V1044", DataTypeEnums.Float);
+            //addresses.Add("V1048", DataTypeEnums.Float);
+            //addresses.Add("V1052", DataTypeEnums.Float);
+            //addresses.Add("V1230", DataTypeEnums.Float);
+            //addresses.Add("V1234", DataTypeEnums.Float);
+            //addresses.Add("V1238", DataTypeEnums.Float);
+            //addresses.Add("V1242", DataTypeEnums.Float);
+            //addresses.Add("V1246", DataTypeEnums.Float);
+            //addresses.Add("V1250", DataTypeEnums.Float);
 
-            //addresses.Add("V1254", DataTypeEnum.Float);
-            //addresses.Add("V1258", DataTypeEnum.Float);
+            //addresses.Add("V1254", DataTypeEnums.Float);
+            //addresses.Add("V1258", DataTypeEnums.Float);
 
 
-            //addresses.Add("V1012", DataTypeEnum.Float);
-            //addresses.Add("V1076 ", DataTypeEnum.UInt32);
-            //addresses.Add("V5056 ", DataTypeEnum.Float);
-            //addresses.Add("V5232 ", DataTypeEnum.Float);         
+            //addresses.Add("V1012", DataTypeEnums.Float);
+            //addresses.Add("V1076 ", DataTypeEnums.UInt32);
+            //addresses.Add("V5056 ", DataTypeEnums.Float);
+            //addresses.Add("V5232 ", DataTypeEnums.Float);         
 
-            //addresses.Add("I0.0 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.1 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.2 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.3 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.4 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.5 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.6 ", DataTypeEnum.Bool);
-            //addresses.Add("I0.7 ", DataTypeEnum.Bool);
+            //addresses.Add("I0.0 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.1 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.2 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.3 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.4 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.5 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.6 ", DataTypeEnums.Bool);
+            //addresses.Add("I0.7 ", DataTypeEnums.Bool);
 
-            //addresses.Add("I1.0 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.1 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.2 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.3 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.4 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.5 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.6 ", DataTypeEnum.Bool);
-            //addresses.Add("I1.7 ", DataTypeEnum.Bool);
+            //addresses.Add("I1.0 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.1 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.2 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.3 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.4 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.5 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.6 ", DataTypeEnums.Bool);
+            //addresses.Add("I1.7 ", DataTypeEnums.Bool);
 
 
             //client.Write("DB4.0", (float)6);

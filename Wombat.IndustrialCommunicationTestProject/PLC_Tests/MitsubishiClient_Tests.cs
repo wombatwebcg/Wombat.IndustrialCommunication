@@ -387,28 +387,28 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             client = new MitsubishiClient(version, ip, port);
 
-            Dictionary<string, DataTypeEnum> readAddresses = new Dictionary<string, DataTypeEnum>();
-            //readAddresses.Add("V2634.0", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.1", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.2", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.3", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.4", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.5", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.6", DataTypeEnum.Bool);
-            //readAddresses.Add("V2634.7", DataTypeEnum.Bool);
-            //readAddresses.Add("V2642", DataTypeEnum.Float);
-            //readAddresses.Add("V2646", DataTypeEnum.Float);
-            //readAddresses.Add("V2650", DataTypeEnum.Float);
-            readAddresses.Add("D100", DataTypeEnum.Float);
-            readAddresses.Add("D102", DataTypeEnum.Float);
-            readAddresses.Add("D104", DataTypeEnum.Float);
-            readAddresses.Add("D263", DataTypeEnum.Int16);
-            readAddresses.Add("D265", DataTypeEnum.Int16);
-            //readAddresses.Add("V2670", DataTypeEnum.Float);
-            //readAddresses.Add("V2674", DataTypeEnum.Float);
-            //readAddresses.Add("V1650", DataTypeEnum.Byte);
-            //readAddresses.Add("V1651", DataTypeEnum.Byte);
-            //readAddresses.Add("V1652", DataTypeEnum.Byte);
+            Dictionary<string, DataTypeEnums> readAddresses = new Dictionary<string, DataTypeEnums>();
+            //readAddresses.Add("V2634.0", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.1", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.2", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.3", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.4", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.5", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.6", DataTypeEnums.Bool);
+            //readAddresses.Add("V2634.7", DataTypeEnums.Bool);
+            //readAddresses.Add("V2642", DataTypeEnums.Float);
+            //readAddresses.Add("V2646", DataTypeEnums.Float);
+            //readAddresses.Add("V2650", DataTypeEnums.Float);
+            readAddresses.Add("D100", DataTypeEnums.Float);
+            readAddresses.Add("D102", DataTypeEnums.Float);
+            readAddresses.Add("D104", DataTypeEnums.Float);
+            readAddresses.Add("D263", DataTypeEnums.Int16);
+            readAddresses.Add("D265", DataTypeEnums.Int16);
+            //readAddresses.Add("V2670", DataTypeEnums.Float);
+            //readAddresses.Add("V2674", DataTypeEnums.Float);
+            //readAddresses.Add("V1650", DataTypeEnums.Byte);
+            //readAddresses.Add("V1651", DataTypeEnums.Byte);
+            //readAddresses.Add("V1652", DataTypeEnums.Byte);
 
             var result = client.BatchRead(readAddresses);
         }

@@ -919,32 +919,35 @@ namespace Wombat.IndustrialCommunication.PLC
             int batchNumber = 19;
             var result = new OperationResult<Dictionary<string, object>>();
             result.Value = new Dictionary<string, object>();
-
-            var batchCount = Math.Ceiling((float)addresses.Count / batchNumber);
-            for (int i = 0; i < batchCount; i++)
+            using (_lock.Lock())
             {
-                var tempAddresses = addresses.Skip(i * batchNumber).Take(batchNumber).ToDictionary(t => t.Key, t => t.Value);
-                var tempResult = BatchReadBase(tempAddresses);
-                if (!tempResult.IsSuccess)
-                {
-                    result.IsSuccess = false;
-                    result.Message = tempResult.Message;
-                    result.Exception = tempResult.Exception;
-                    result.ErrorCode = tempResult.ErrorCode;
-                }
 
-                if (tempResult.Value?.Any() ?? false)
+                var batchCount = Math.Ceiling((float)addresses.Count / batchNumber);
+                for (int i = 0; i < batchCount; i++)
                 {
-                    foreach (var item in tempResult.Value)
+                    var tempAddresses = addresses.Skip(i * batchNumber).Take(batchNumber).ToDictionary(t => t.Key, t => t.Value);
+                    var tempResult = BatchReadBase(tempAddresses);
+                    if (!tempResult.IsSuccess)
                     {
-                        result.Value.Add(item.Key, item.Value);
+                        result.IsSuccess = false;
+                        result.Message = tempResult.Message;
+                        result.Exception = tempResult.Exception;
+                        result.ErrorCode = tempResult.ErrorCode;
                     }
-                }
 
-                result.Requsts = tempResult.Requsts;
-                result.Responses = tempResult.Responses;
+                    if (tempResult.Value?.Any() ?? false)
+                    {
+                        foreach (var item in tempResult.Value)
+                        {
+                            result.Value.Add(item.Key, item.Value);
+                        }
+                    }
+
+                    result.Requsts = tempResult.Requsts;
+                    result.Responses = tempResult.Responses;
+                }
+                return result.Complete();
             }
-            return result.Complete();
         }
 
         /// <summary>
@@ -1100,32 +1103,34 @@ namespace Wombat.IndustrialCommunication.PLC
             int batchNumber = 19;
             var result = new OperationResult<Dictionary<string, object>>();
             result.Value = new Dictionary<string, object>();
-
-            var batchCount = Math.Ceiling((float)addresses.Count / batchNumber);
-            for (int i = 0; i < batchCount; i++)
+            using (await _lock.LockAsync())
             {
-                var tempAddresses = addresses.Skip(i * batchNumber).Take(batchNumber).ToDictionary(t => t.Key, t => t.Value);
-                var tempResult =await BatchReadBaseAsync(tempAddresses);
-                if (!tempResult.IsSuccess)
+                var batchCount = Math.Ceiling((float)addresses.Count / batchNumber);
+                for (int i = 0; i < batchCount; i++)
                 {
-                    result.IsSuccess = false;
-                    result.Message = tempResult.Message;
-                    result.Exception = tempResult.Exception;
-                    result.ErrorCode = tempResult.ErrorCode;
-                }
-
-                if (tempResult.Value?.Any() ?? false)
-                {
-                    foreach (var item in tempResult.Value)
+                    var tempAddresses = addresses.Skip(i * batchNumber).Take(batchNumber).ToDictionary(t => t.Key, t => t.Value);
+                    var tempResult = await BatchReadBaseAsync(tempAddresses);
+                    if (!tempResult.IsSuccess)
                     {
-                        result.Value.Add(item.Key, item.Value);
+                        result.IsSuccess = false;
+                        result.Message = tempResult.Message;
+                        result.Exception = tempResult.Exception;
+                        result.ErrorCode = tempResult.ErrorCode;
                     }
-                }
 
-                result.Requsts = tempResult.Requsts;
-                result.Responses = tempResult.Responses;
+                    if (tempResult.Value?.Any() ?? false)
+                    {
+                        foreach (var item in tempResult.Value)
+                        {
+                            result.Value.Add(item.Key, item.Value);
+                        }
+                    }
+
+                    result.Requsts = tempResult.Requsts;
+                    result.Responses = tempResult.Responses;
+                }
+                return result.Complete();
             }
-            return result.Complete();
         }
 
         /// <summary>

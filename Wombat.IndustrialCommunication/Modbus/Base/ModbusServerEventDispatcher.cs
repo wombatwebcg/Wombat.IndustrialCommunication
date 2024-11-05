@@ -112,7 +112,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             // 生成读取保持寄存器的响应报文
             return ModbusTcpPacketGenerator.GenerateReadHoldingRegistersResponse(transactionId, protocolId, unitId,
-                _dataStore.HoldingRegisters.Slice(address, quantity).ToArray().CastToList<ushort>().ToArray());
+                _dataStore.HoldingRegisters.Slice(address, quantity).ToArray().Select(i => (ushort)i).ToArray());
         }
 
         // 处理读取离散输入的请求

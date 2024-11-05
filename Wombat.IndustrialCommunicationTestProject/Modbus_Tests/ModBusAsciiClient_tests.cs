@@ -23,29 +23,29 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
             var list = new List<ModbusInput>();
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 4,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "5",
-                DataType = DataTypeEnum.Int16,
+                Address = 5,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "199",
-                DataType = DataTypeEnum.Int16,
+                Address = 199,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });

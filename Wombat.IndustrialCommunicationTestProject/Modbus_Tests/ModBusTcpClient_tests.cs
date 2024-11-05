@@ -55,43 +55,43 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                        RegisterAddress = "0"
+                        Address =0
                     }), short_number);
                     var w2 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                        RegisterAddress = "4"
+                        Address =4
                     }), ushort_number);
                     var w3 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "8"
+                        Address =8
                     }), int_number);
                     var w4 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "12"
+                        Address =12
                     }), uint_number);
                     var w5 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "16"
+                        Address =16
                     }), long_number);
                     var w6 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "20"
+                        Address =20
                     }), ulong_number);
                     var w7 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "24"
+                        Address =24
                     }), float_number);
                     var w8 = client.Write("1;0x10;28", double_number);
 
@@ -229,42 +229,42 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     ModbusAddressParser.ParseModbusHeader(new ModbusHeader() { 
                     StationNumber = 1,
                     FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                    RegisterAddress = "0"}), short_number);
+                    Address =0}), short_number);
                     var w2 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                        RegisterAddress = "4"
+                        Address =4
                     }), ushort_number);
                     var w3 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "8"
+                        Address =8
                     }), int_number);
                     var w4 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "12"
+                        Address =12
                     }), uint_number);
                     var w5 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "16"
+                        Address =16
                     }), long_number);
                     var w6 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "20"
+                        Address =20
                     }), ulong_number);
                     var w7 = client.Write(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "24"
+                        Address =24
                     }), float_number);
                     var w8 = client.Write("1;0x10;28", double_number);
 
@@ -405,43 +405,43 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                        RegisterAddress = "0"
+                        Address =0
                     }), short_number);
                     var w2 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteSingleRegister,
-                        RegisterAddress = "4"
+                        Address =4
                     }), ushort_number);
                     var w3 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "8"
+                        Address =8
                     }), int_number);
                     var w4 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "12"
+                        Address =12
                     }), uint_number);
                     var w5 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "16"
+                        Address =16
                     }), long_number);
                     var w6 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "20"
+                        Address =20
                     }), ulong_number);
                     var w7 =await client.WriteAsync(ModbusAddressParser.ParseModbusHeader(new ModbusHeader()
                     {
                         StationNumber = 1,
                         FunctionCode = (byte)ModbusStandardFunctionCode.WriteMultipleRegister,
-                        RegisterAddress = "24"
+                        Address =24
                     }), float_number);
                     var w8 =await client.WriteAsync("1;0x10;28", double_number);
 
@@ -522,92 +522,92 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
             var list = new List<ModbusInput>();
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "5",
-                DataType = DataTypeEnum.Int16,
+                Address = 5,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "19",
-                DataType = DataTypeEnum.Int16,
+                Address = 19,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "20",
-                DataType = DataTypeEnum.Bool,
+                Address = 20,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "21",
-                DataType = DataTypeEnum.Bool,
+                Address = 21,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "22",
-                DataType = DataTypeEnum.Bool,
+                Address = 22,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "23",
-                DataType = DataTypeEnum.Bool,
+                Address =23,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "24",
-                DataType = DataTypeEnum.Bool,
+                Address =24,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "25",
-                DataType = DataTypeEnum.Bool,
+                Address =25,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "26",
-                DataType = DataTypeEnum.Bool,
+                Address =26,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "27",
-                DataType = DataTypeEnum.Bool,
+                Address =27,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "28",
-                DataType = DataTypeEnum.Bool,
+                Address =28,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = (byte)ModbusStandardFunctionCode.ReadCoils,
                 StationNumber = 1
             });

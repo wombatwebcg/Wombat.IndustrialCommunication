@@ -127,92 +127,92 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
             var list = new List<ModbusInput>();
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "2",
-                DataType = DataTypeEnum.Int16,
+                Address = 2,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 4,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "5",
-                DataType = DataTypeEnum.Int16,
+                Address = 5,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "199",
-                DataType = DataTypeEnum.Int16,
+                Address = 199,
+                DataType = DataTypeEnums.Int16,
                 FunctionCode = 3,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "200",
-                DataType = DataTypeEnum.Bool,
+                Address = 200,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "201",
-                DataType = DataTypeEnum.Bool,
+                Address = 201,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "202",
-                DataType = DataTypeEnum.Bool,
+                Address = 202,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "203",
-                DataType = DataTypeEnum.Bool,
+                Address = 203,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "204",
-                DataType = DataTypeEnum.Bool,
+                Address = 204,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "205",
-                DataType = DataTypeEnum.Bool,
+                Address = 205,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "206",
-                DataType = DataTypeEnum.Bool,
+                Address = 206,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "207",
-                DataType = DataTypeEnum.Bool,
+                Address = 207,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });
             list.Add(new ModbusInput()
             {
-                RegisterAddress = "208",
-                DataType = DataTypeEnum.Bool,
+                Address = 208,
+                DataType = DataTypeEnums.Bool,
                 FunctionCode = 2,
                 StationNumber = 1
             });

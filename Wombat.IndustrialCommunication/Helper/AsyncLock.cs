@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// Í¬²½Òì²½Ëø
     /// </summary>
-    internal class AsyncLock
+    public class AsyncLock
     {
         private SemaphoreSlim _reentrancy = new SemaphoreSlim(1, 1);
         private int _reentrances = 0;
@@ -27,7 +27,7 @@ namespace Wombat.IndustrialCommunication
         internal SemaphoreSlim _retry = new SemaphoreSlim(0, 1);
         private const long UnlockedId = 0x00; // "owning" task id when unlocked
         internal long _owningId = UnlockedId;
-        internal int _owningThreadId = (int) UnlockedId;
+        internal int _owningThreadId = (int)UnlockedId;
         private static long AsyncStackCounter = 0;
         // An AsyncLocal<T> is not really the task-based equivalent to a ThreadLocal<T>, in that
         // it does not track the async flow (as the documentation describes) but rather it is
@@ -38,11 +38,13 @@ namespace Wombat.IndustrialCommunication
         private static readonly AsyncLocal<long> _asyncId = new AsyncLocal<long>();
         private static long AsyncId => _asyncId.Value;
 
-        private   bool _isLocking =false;
-
-        public bool IsLocking => _isLocking;
-
+#if NETSTANDARD1_3
+        private static int ThreadCounter = 0x00;
+        private static ThreadLocal<int> LocalThreadId = new ThreadLocal<int>(() => ++ThreadCounter);
+        private static int ThreadId => LocalThreadId.Value;
+#else
         private static int ThreadId => Thread.CurrentThread.ManagedThreadId;
+#endif
 
         public AsyncLock()
         {
@@ -331,12 +333,9 @@ namespace Wombat.IndustrialCommunication
         // the AsyncLocal value.
         public Task<IDisposable> LockAsync(CancellationToken ct = default)
         {
-            _isLocking = true;
             var @lock = new InnerLock(this, _asyncId.Value, ThreadId);
             _asyncId.Value = Interlocked.Increment(ref AsyncLock.AsyncStackCounter);
-            var result = @lock.ObtainLockAsync(ct);
-            _isLocking = false;
-            return result;
+            return @lock.ObtainLockAsync(ct);
         }
 
         // Make sure InnerLock.LockAsync() does not use await, because an async function triggers a snapshot of
@@ -349,9 +348,12 @@ namespace Wombat.IndustrialCommunication
             return @lock.TryObtainLockAsync(timeout)
                 .ContinueWith(state =>
                 {
-                    if (state.Exception is AggregateException)
+                    if (state.Exception is AggregateException ex)
                     {
-                        ExceptionDispatchInfo.Capture(state.Exception).Throw();
+                        if (ex.InnerException != null)
+                        {
+                            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                        }
                     }
                     var disposableLock = state.Result;
                     if (disposableLock is null)
@@ -381,9 +383,12 @@ namespace Wombat.IndustrialCommunication
             return @lock.TryObtainLockAsync(timeout)
                 .ContinueWith(state =>
                 {
-                    if (state.Exception is AggregateException)
+                    if (state.Exception is AggregateException ex1)
                     {
-                        ExceptionDispatchInfo.Capture(state.Exception).Throw();
+                        if (ex1.InnerException != null)
+                        {
+                            ExceptionDispatchInfo.Capture(ex1.InnerException).Throw();
+                        }
                     }
                     var disposableLock = state.Result;
                     if (disposableLock is null)
@@ -396,9 +401,12 @@ namespace Wombat.IndustrialCommunication
                         {
                             disposableLock.Dispose();
 
-                            if (result.Exception is AggregateException)
+                            if (result.Exception is AggregateException ex2)
                             {
-                                ExceptionDispatchInfo.Capture(state.Exception).Throw();
+                                if (ex2.InnerException != null)
+                                {
+                                    ExceptionDispatchInfo.Capture(ex2.InnerException).Throw();
+                                }
                             }
 
                             return true;
@@ -416,9 +424,10 @@ namespace Wombat.IndustrialCommunication
             return @lock.TryObtainLockAsync(cancel)
                 .ContinueWith(state =>
                 {
-                    if (state.Exception is AggregateException)
+                    if (state.Exception is AggregateException ex)
                     {
-                        ExceptionDispatchInfo.Capture(state.Exception).Throw();
+                        if (ex.InnerException != null)
+                            ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
                     }
                     var disposableLock = state.Result;
                     if (disposableLock is null)
@@ -448,9 +457,10 @@ namespace Wombat.IndustrialCommunication
             return @lock.TryObtainLockAsync(cancel)
                 .ContinueWith(state =>
                 {
-                    if (state.Exception is AggregateException)
+                    if (state.Exception is AggregateException ex1)
                     {
-                        ExceptionDispatchInfo.Capture(state.Exception).Throw();
+                        if (ex1.InnerException != null)
+                            ExceptionDispatchInfo.Capture(ex1.InnerException).Throw();
                     }
                     var disposableLock = state.Result;
                     if (disposableLock is null)
@@ -463,9 +473,10 @@ namespace Wombat.IndustrialCommunication
                         {
                             disposableLock.Dispose();
 
-                            if (result.Exception is AggregateException)
+                            if (result.Exception is AggregateException ex2)
                             {
-                                ExceptionDispatchInfo.Capture(result.Exception).Throw();
+                                if (ex2.InnerException != null)
+                                    ExceptionDispatchInfo.Capture(ex2.InnerException).Throw();
                             }
 
                             return true;
@@ -475,14 +486,11 @@ namespace Wombat.IndustrialCommunication
 
         public IDisposable Lock(CancellationToken cancellationToken = default)
         {
-            _isLocking = true;
             var @lock = new InnerLock(this, _asyncId.Value, ThreadId);
             // Increment the async stack counter to prevent a child task from getting
             // the lock at the same time as a child thread.
             _asyncId.Value = Interlocked.Increment(ref AsyncLock.AsyncStackCounter);
-            var result = @lock.ObtainLock(cancellationToken);
-            _isLocking = false;
-            return result;
+            return @lock.ObtainLock(cancellationToken);
         }
 
         public bool TryLock(Action callback, TimeSpan timeout)
