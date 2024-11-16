@@ -11,5 +11,8 @@ namespace Wombat.IndustrialCommunication
         /// IPEndPoint
         /// </summary>
         IPEndPoint IpEndPoint { get; set; }
+
+        string ClientName { get; set; }
+
     }
 }

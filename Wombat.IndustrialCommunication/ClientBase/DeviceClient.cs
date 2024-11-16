@@ -12,6 +12,7 @@ namespace Wombat.IndustrialCommunication
     {
         #region Read
 
+        internal ConcurrentTaskQueue _concurrentTaskQueue = new ConcurrentTaskQueue(1,10);
 
         public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
@@ -1347,12 +1348,12 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public OperationResult<object[]> Read(DataTypeEnums dataTypeEnum, string address, int length)
+        public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object[]>("数据类型为null");
+                    return OperationResult.CreateFailedResult<object>("数据类型为null");
                 case DataTypeEnums.Bool:
                     return ReadBoolean(address, length).ToObject();
                 case DataTypeEnums.Byte:
@@ -1374,9 +1375,9 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return ReadDouble(address, length).ToObject();
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现");
+                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
                 default:
-                    return OperationResult.CreateFailedResult<object[]>();
+                    return OperationResult.CreateFailedResult<object>();
             }
         }
 
@@ -1415,12 +1416,12 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public async ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("数据类型为null"));
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
                 case DataTypeEnums.Bool:
                     return (await ReadBooleanAsync(address, length)).ToObject();
                 case DataTypeEnums.Byte:
@@ -1442,9 +1443,9 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return (await ReadDoubleAsync(address, length)).ToObject();
                 case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现"));
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
                 default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>());
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
             }
         }
 
@@ -1607,6 +1608,60 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
+
+
+        public override void SetQueueOperation(int maxConcurrency, int maxQueueSize)
+        {
+            _concurrentTaskQueue = new ConcurrentTaskQueue(maxConcurrency,maxQueueSize);
+        }
+
+        public async ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address)
+        {
+            return await _concurrentTaskQueue.EnqueueSyncTask(async ()=> {
+               var result = await ReadAsync(dataTypeEnum, address);
+                return result;
+            }, 10);
+        }
+
+        public OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address)
+        {
+            // 使用 Task.WhenAny 来处理超时机制
+            var task = _concurrentTaskQueue.EnqueueSyncTask(async () => {
+                var result = await ReadAsync(dataTypeEnum, address);
+                return result;
+            }, 10);
+
+            // 创建一个延时任务，超时后将任务取消
+            var timeoutTask = Task.Delay(100);
+
+            // 等待任意一个任务完成（同步任务或超时）
+            var completedTask = Task.WhenAny(task, timeoutTask).Result;
+
+            if (completedTask == timeoutTask)
+            {
+                // 超时，返回超时错误
+                return OperationResult.CreateFailedResult<object>("操作超时");
+            }
+
+            // 返回同步任务的结果
+            return task.Result;
+        }
+
+        public async ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        {
+            return await _concurrentTaskQueue.EnqueueSyncTask(async () => {
+                var result = await WriteAsync(dataTypeEnum, address, value);
+                return result;
+            }, 10);
+        }
+
+        public OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value)
+        {
+            return _concurrentTaskQueue.EnqueueSyncTask(async () => {
+                var result = await WriteAsync(dataTypeEnum, address, value);
+                return result;
+            }, 10).Result;
+        }
 
         #endregion
 

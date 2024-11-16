@@ -14,6 +14,7 @@ namespace Wombat.IndustrialCommunication
    public abstract class EthernetClientDeviceBase: DeviceClient, IEthernetClient
     {
         public  IPEndPoint IpEndPoint { get; set; }
+        public string ClientName { get; set; }
 
         protected internal SocketClientBase _socket;
 

@@ -27,9 +27,9 @@ namespace Wombat.IndustrialCommunication
             return result;
         }
 
-        public static OperationResult<object[]> ToObject<T>(this OperationResult<T[]> orgin)
+        public static OperationResult<object> ToObject<T>(this OperationResult<T[]> orgin)
         {
-            var result = new OperationResult<object[]>()
+            var result = new OperationResult<object>()
             {
                 IsSuccess = orgin.IsSuccess,
                 ErrorCode = orgin.ErrorCode,
@@ -41,7 +41,7 @@ namespace Wombat.IndustrialCommunication
             orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
             if (orgin.Value != null && orgin.Value.Length>0)
             {
-                result.Value = orgin.Value.Cast<object>().ToArray();
+                result.Value = orgin.Value;
             }
             return result;
         }

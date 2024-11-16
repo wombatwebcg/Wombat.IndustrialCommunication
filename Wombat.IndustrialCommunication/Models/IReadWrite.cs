@@ -188,7 +188,7 @@ namespace Wombat.IndustrialCommunication
         OperationResult<object>Read(DataTypeEnums dataTypeEnum,string address);
 
 
-        OperationResult<object[]> Read(DataTypeEnums dataTypeEnum, string address,int length);
+        OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address,int length);
 
 
         #endregion
@@ -371,7 +371,7 @@ namespace Wombat.IndustrialCommunication
 
         ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address);
 
-        ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length);
+        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length);
 
         #endregion
 
@@ -788,6 +788,14 @@ namespace Wombat.IndustrialCommunication
 
         #endregion
 
+        ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address);
+
+
+        OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address);
+
+        ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value);
+
+        OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value);
 
 
     }

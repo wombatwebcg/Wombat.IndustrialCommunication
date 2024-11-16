@@ -23,13 +23,15 @@ namespace Wombat.IndustrialCommunication
 
         EndianFormat DataFormat { get; set; }
 
-       bool IsReverse { get; set; }
+        bool IsReverse { get; set; }
 
         TimeSpan WaiteInterval { get; set; }
 
         int OperationReTryTimes { get; set; }
 
         void UseLogger(ILogger logger);
+
+        void SetQueueOperation(int maxConcurrency, int maxQueueSize);
 
 
         bool IsLongLivedConnection { get; set; }

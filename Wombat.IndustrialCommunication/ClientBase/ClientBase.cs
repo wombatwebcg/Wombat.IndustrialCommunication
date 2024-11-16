@@ -153,6 +153,7 @@ namespace Wombat.IndustrialCommunication
             GC.SuppressFinalize(this);
         }
 
+        public abstract void SetQueueOperation(int maxConcurrency, int maxQueueSize);
 
     }
 

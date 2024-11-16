@@ -18,8 +18,11 @@ namespace Wombat.IndustrialCommunication.Modbus
     public abstract class ModbusClientEthernetBase : ModbusClient, IEthernetClient
     {
         public IPEndPoint IpEndPoint { get; set; }
+        public string ClientName { get; set; }
+
         protected internal SocketClientBase _socket;
         public override bool Connected => _socket == null ? false : _socket.Connected;
+
 
 
 

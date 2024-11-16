@@ -1347,12 +1347,12 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public OperationResult<object[]> Read(DataTypeEnums dataTypeEnum, string address, int length)
+        public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object[]>("数据类型为null");
+                    return OperationResult.CreateFailedResult<object>("数据类型为null");
                 case DataTypeEnums.Bool:
                     return ReadBoolean(address, length).ToObject();
                 case DataTypeEnums.Byte:
@@ -1374,9 +1374,9 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return ReadDouble(address, length).ToObject();
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现");
+                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
                 default:
-                    return OperationResult.CreateFailedResult<object[]>();
+                    return OperationResult.CreateFailedResult<object>();
             }
         }
 
@@ -1415,12 +1415,12 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public async ValueTask<OperationResult<object[]>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("数据类型为null"));
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
                 case DataTypeEnums.Bool:
                     return (await ReadBooleanAsync(address, length)).ToObject();
                 case DataTypeEnums.Byte:
@@ -1442,9 +1442,9 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return (await ReadDoubleAsync(address, length)).ToObject();
                 case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>("string泛型读取没有实现"));
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
                 default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object[]>());
+                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
             }
         }
 
@@ -1605,6 +1605,26 @@ namespace Wombat.IndustrialCommunication
 
 
             }
+        }
+
+        public ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address)
+        {
+            throw new NotImplementedException();
+        }
+
+        public OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address)
+        {
+            throw new NotImplementedException();
+        }
+
+        public ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        {
+            throw new NotImplementedException();
+        }
+
+        public OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value)
+        {
+            throw new NotImplementedException();
         }
 
 

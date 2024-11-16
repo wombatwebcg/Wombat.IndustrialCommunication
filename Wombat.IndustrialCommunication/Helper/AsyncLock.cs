@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// Í¬²½Òì²½Ëø
     /// </summary>
-    public class AsyncLock
+    internal class AsyncLock
     {
         private SemaphoreSlim _reentrancy = new SemaphoreSlim(1, 1);
         private int _reentrances = 0;
