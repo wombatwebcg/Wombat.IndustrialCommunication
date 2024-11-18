@@ -1525,10 +1525,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var readLeng = _socket.Receive(receiveBytes, receiveFinish, receiveLength);
                     if (readLeng == 0)
                     {
-                        _socket.Close();
                         result.IsSuccess = false;
                         result.Message = $"连接被断开";
-
                         return result;
                     }
                     receiveFinish += readLeng;
@@ -1577,7 +1575,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var readLeng = await _socket.ReceiveAsync(receiveBytes, receiveFinish, receiveLength);
                     if (readLeng == 0)
                     {
-                        _socket.Close();
                         result.IsSuccess = false;
                         result.Message = $"连接被断开";
 
