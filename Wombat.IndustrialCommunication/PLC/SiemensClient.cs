@@ -1268,7 +1268,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             finally
             {
-                if (!IsLongLivedConnection) DisconnectAsync();
+                if (!IsLongLivedConnection)await DisconnectAsync();
             }
             return result.Complete();
         }

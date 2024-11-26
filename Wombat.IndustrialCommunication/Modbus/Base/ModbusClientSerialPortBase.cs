@@ -704,7 +704,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     return result.Complete();
                 }
 
-                var rValue = tempOperationResult.Value.Reverse().ToArray();
+                var rValue = tempOperationResult.Value.ToArray();
                 foreach (var item in tempAddress)
                 {
                     object tempVaue = null;
@@ -895,7 +895,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     return result.Complete();
                 }
 
-                var rValue = tempOperationResult.Value.Reverse().ToArray();
+                var rValue = tempOperationResult.Value.ToArray();
                 foreach (var item in tempAddress)
                 {
                     object tempVaue = null;

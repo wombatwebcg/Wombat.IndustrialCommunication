@@ -630,7 +630,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     return result.Complete();
                 }
 
-                var rValue = tempOperationResult.Value.Reverse().ToArray();
+                var rValue = tempOperationResult.Value.ToArray();
                 foreach (var item in tempAddress)
                 {
                     object tempVaue = null;
@@ -820,7 +820,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     return result.Complete();
                 }
 
-                var rValue = tempOperationResult.Value.Reverse().ToArray();
+                var rValue = tempOperationResult.Value.ToArray();
                 foreach (var item in tempAddress)
                 {
                     object tempVaue = null;
@@ -881,7 +881,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (!result.IsSuccess)
                 {
                     WarningLog?.Invoke(result.Message, result.Exception);
-                    result = BatchReadBase(addresses);
+                    result = await BatchReadBaseAsync(addresses);
                 }
                 else
                     break;
