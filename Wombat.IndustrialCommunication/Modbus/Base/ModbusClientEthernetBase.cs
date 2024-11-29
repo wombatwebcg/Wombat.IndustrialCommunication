@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             _socket?.Close(); ;
             try
             {
-                _socket.Connect(IpEndPoint);
+                _socket?.Connect(IpEndPoint);
             }
             catch (Exception ex)
             {
@@ -103,7 +103,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = new OperationResult();
             try
             {
-                await _socket.ConnectAsync(IpEndPoint);
+                await _socket?.ConnectAsync(IpEndPoint);
             }
             catch (Exception ex)
             {
