@@ -11,5 +11,6 @@ namespace Wombat.IndustrialCommunication
         TimeSpan ConnectTimeout { get; set; }
         TimeSpan ReceiveTimeout { get; set; }
         TimeSpan SendTimeout { get; set; }
+        TimeSpan ResponseInterval { get; set; }
     }
 }

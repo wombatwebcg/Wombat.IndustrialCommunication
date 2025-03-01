@@ -6,11 +6,11 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusTcp : DeviceDataReaderWriterBase
+    public class ModbusRTU : DeviceDataReaderWriterBase
     {
         private AsyncLock _lock = new AsyncLock();
         private volatile int _transactionId = 0;
-        public ModbusTcp(DeviceMessageTransport transport):base(transport)
+        public ModbusRTU(DeviceMessageTransport transport):base(transport)
         {
             DataFormat = Extensions.DataTypeExtensions.EndianFormat.CDAB;
             IsReverse = true;
@@ -27,12 +27,23 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber,modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
+                    var request = new ModbusRTURequest(modbusAddress.StationNumber,modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
                     var response = await Transport.UnicastReadMessageAsync(request);
                     if (response.IsSuccess)
                     {
                         var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
+                        var modbusTcpResponse = new ModbusRTUResponse(dataPackage);
+                        if (!CRC16Helper.ValidateCRC(dataPackage))
+                            throw new InvalidOperationException("CRC check failed");
+                        // 处理异常响应（功能码最高位为1）
+                        if ((modbusTcpResponse.FunctionCode & 0x80) != 0)
+                        {
+                            result.IsSuccess = false;
+                            result.ErrorCode = dataPackage[2];
+                            result.Message = $"ModbusRTU回复错误码:{result.ErrorCode}";
+                            return OperationResult.CreateFailedResult<byte[]>(result);
+                        }
+
                         return new OperationResult<byte[]>(response, modbusTcpResponse.Data).Complete();
                     }
 
