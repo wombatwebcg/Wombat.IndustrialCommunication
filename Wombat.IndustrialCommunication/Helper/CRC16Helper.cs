@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="poly">多项式码</param>
         /// <param name="crcInit">校验码初始值</param>
         /// <returns></returns>
-        public static bool CheckCRC16(byte[] value, ushort poly = 0xA001, ushort crcInit = 0xFFFF)
+        public static bool ValidateCRC(byte[] value, ushort poly = 0xA001, ushort crcInit = 0xFFFF)
         {
             if (value == null || !value.Any())
                 throw new ArgumentException("生成CRC16Helper的入参有误");

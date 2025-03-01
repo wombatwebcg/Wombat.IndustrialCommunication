@@ -70,25 +70,25 @@ namespace Wombat.IndustrialCommunication.Modbus
                 //            return DataStore.CoilDiscretes[modbusHeader.Address]
 
                 //        case 0x02:  // 读离散输入 (Read Discrete Inputs)
-                //            return HandleReadDiscreteInputsRequest(request, transactionId, protocolId, unitId);
+                //            return HandleReadDiscreteInputsRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x03:  // 读保持寄存器 (Read Holding Registers)
-                //            return HandleReadHoldingRegistersRequest(request, transactionId, protocolId, unitId);
+                //            return HandleReadHoldingRegistersRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x04:  // 读输入寄存器 (Read Input Registers)
-                //            return HandleReadInputRegistersRequest(request, transactionId, protocolId, unitId);
+                //            return HandleReadInputRegistersRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x05:  // 写单个线圈 (Write Single Coil)
-                //            return HandleWriteSingleCoilRequest(request, transactionId, protocolId, unitId);
+                //            return HandleWriteSingleCoilRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x06:  // 写单个寄存器 (Write Single Register)
-                //            return HandleWriteSingleRegisterRequest(request, transactionId, protocolId, unitId);
+                //            return HandleWriteSingleRegisterRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x0F:  // 写多个线圈 (Write Multiple Coils)
-                //            return HandleWriteMultipleCoilsRequest(request, transactionId, protocolId, unitId);
+                //            return HandleWriteMultipleCoilsRequest(request, transactionId, protocolId, Station);
 
                 //        case 0x10:  // 写多个寄存器 (Write Multiple Registers)
-                //            return HandleWriteMultipleRegistersRequest(request, transactionId, protocolId, unitId);
+                //            return HandleWriteMultipleRegistersRequest(request, transactionId, protocolId, Station);
 
                 //        default:
                 //            throw new InvalidOperationException("Unsupported function code.");

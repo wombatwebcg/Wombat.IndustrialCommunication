@@ -788,15 +788,6 @@ namespace Wombat.IndustrialCommunication
 
         #endregion
 
-        ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address);
-
-
-        OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address);
-
-        ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value);
-
-        OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value);
-
 
     }
 }

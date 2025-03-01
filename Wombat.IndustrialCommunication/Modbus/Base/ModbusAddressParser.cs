@@ -7,7 +7,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 {
     public static class ModbusAddressParser
     {
-        public static bool TryParseModbusHeader(string header, out ModbusHeader modbusHeader)
+        public static bool TryParseModbusAddress(string header, out ModbusHeader modbusHeader)
         {
             modbusHeader = new ModbusHeader();
 
@@ -78,16 +78,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             return isIsucess;
         }
 
-        public static ModbusHeader ParseModbusHeader(string header)
+        public static ModbusHeader ParseModbusAddress(string header)
         {
-            if (TryParseModbusHeader(header, out ModbusHeader modbusHeader))
+            if (TryParseModbusAddress(header, out ModbusHeader modbusHeader))
             {
                 return modbusHeader;
             }
             return null;
         }
 
-        public static bool TryParseModbusHeader(ModbusHeader modbusHeader, out string header)
+        public static bool TryParseModbusAddress(ModbusHeader modbusHeader, out string header)
         {
             header = string.Empty;
 
@@ -104,9 +104,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        public static string ParseModbusHeader(ModbusHeader modbusHeader)
+        public static string ParseModbusAddress(ModbusHeader modbusHeader)
         {
-            if (TryParseModbusHeader(modbusHeader, out string header))
+            if (TryParseModbusAddress(modbusHeader, out string header))
             {
 
                 return header;

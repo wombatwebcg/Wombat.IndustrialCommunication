@@ -1,15 +1,30 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {
-    public abstract class DeviceServer : ServerBase, IServer, IReadWrite
+    public abstract class DeviceDataReaderWriterBase : IDisposable, IReadWrite
     {
+
+        private DeviceMessageTransport _transport;
+
+        internal DeviceDataReaderWriterBase(DeviceMessageTransport transport)
+        {
+            _transport = transport;
+        }
+
+        public EndianFormat DataFormat { get; set; } = EndianFormat.ABCD;
+
+        public bool IsReverse { get; set; } = false;
+
+        public DeviceMessageTransport Transport => _transport;
+
+        public abstract string Version { get;  }
+
         #region Read
 
 
@@ -30,7 +45,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="length"></param>
         /// <param name="isBit"></param>
         /// <returns></returns>
-        internal abstract OperationResult<byte[]> Read(string address, int length, bool isBit = false);
+        internal virtual OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        {
+            return ReadAsync(address, length, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
 
 
         /// <summary>
@@ -108,21 +126,20 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual OperationResult<bool[]> ReadBoolean(string address, int length)
         {
-            //int reallength = (int)Math.Ceiling(length*1.0 /8);
             var readResult = Read(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length, false);
             return result.Complete();
         }
 
         public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
-            //int reallength = (int)Math.Ceiling(length*1.0 /8);
-            var readResult = await ReadAsync(address, length, isBit: true);
+            int reallength = (int)Math.Ceiling(length * 1.0 / 8);
+            var readResult = await ReadAsync(address, reallength, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length, false);
             return result.Complete();
         }
 
@@ -839,7 +856,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        internal abstract OperationResult Write(string address, byte[] data, bool isBit = false);
+        internal virtual OperationResult Write(string address, byte[] data, bool isBit = false)
+        {
+            return WriteAsync(address, data, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
+        }
 
         /// <summary>
         /// 写入数据
@@ -881,7 +901,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual OperationResult Write(string address, bool value)
         {
-            return Write(address, value ? new byte[] { 0x01 } : new byte[] { 0x00 }, true);
+            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -904,7 +924,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.ToBytes(), true);
+            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -1456,25 +1476,25 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.None:
                     return OperationResult.CreateFailedResult("数据类型为null");
                 case DataTypeEnums.Bool:
-                    return Write(address, (bool)value);
+                    return Write(address, (bool)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Byte:
-                    return Write(address, (byte)value);
+                    return Write(address, (byte)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Int16:
-                    return Write(address, (short)value);
+                    return Write(address, (short)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.UInt16:
-                    return Write(address, (int)value);
+                    return Write(address, (int)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Int32:
-                    return Write(address, (long)value);
+                    return Write(address, (long)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.UInt32:
-                    return Write(address, (ushort)value);
+                    return Write(address, (ushort)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Int64:
-                    return Write(address, (uint)value);
+                    return Write(address, (uint)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.UInt64:
-                    return Write(address, (ulong)value);
+                    return Write(address, (ulong)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Float:
-                    return Write(address, (float)value);
+                    return Write(address, (float)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Double:
-                    return Write(address, (double)value);
+                    return Write(address, (double)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.String:
                     return OperationResult.CreateFailedResult("string写入未实现");
                 default:
@@ -1536,25 +1556,25 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.None:
                         return OperationResult.CreateFailedResult("数据类型为null");
                     case DataTypeEnums.Bool:
-                        return await WriteAsync(address, (bool)value);
+                        return await WriteAsync(address, (bool)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Byte:
-                        return await WriteAsync(address, (byte)value);
+                        return await WriteAsync(address, (byte)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Int16:
-                        return await WriteAsync(address, (short)value);
+                        return await WriteAsync(address, (short)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.UInt16:
-                        return await WriteAsync(address, (int)value);
+                        return await WriteAsync(address, (int)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Int32:
-                        return await WriteAsync(address, (long)value);
+                        return await WriteAsync(address, (long)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.UInt32:
-                        return await WriteAsync(address, (ushort)value);
+                        return await WriteAsync(address, (ushort)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Int64:
-                        return await WriteAsync(address, (uint)value);
+                        return await WriteAsync(address, (uint)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.UInt64:
-                        return await WriteAsync(address, (ulong)value);
+                        return await WriteAsync(address, (ulong)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Float:
-                        return await WriteAsync(address, (float)value);
+                        return await WriteAsync(address, (float)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Double:
-                        return await WriteAsync(address, (double)value);
+                        return await WriteAsync(address, (double)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.String:
                         return OperationResult.CreateFailedResult("string写入未实现");
                     default:
@@ -1607,28 +1627,40 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address)
-        {
-            throw new NotImplementedException();
-        }
-
-        public OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address)
-        {
-            throw new NotImplementedException();
-        }
-
-        public ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
-        {
-            throw new NotImplementedException();
-        }
-
-        public OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value)
-        {
-            throw new NotImplementedException();
-        }
-
 
         #endregion
 
+
+
+        private bool disposedValue;
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (!disposedValue)
+            {
+                if (disposing)
+                {
+                    // TODO: 释放托管状态(托管对象)
+                }
+
+                // TODO: 释放未托管的资源(未托管的对象)并重写终结器
+                // TODO: 将大型字段设置为 null
+                disposedValue = true;
+            }
+        }
+
+        // // TODO: 仅当“Dispose(bool disposing)”拥有用于释放未托管资源的代码时才替代终结器
+        // ~DeviceClientBase()
+        // {
+        //     // 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
+        //     Dispose(disposing: false);
+        // }
+
+        public void Dispose()
+        {
+            // 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
+            Dispose(disposing: true);
+            GC.SuppressFinalize(this);
+        }
     }
 }

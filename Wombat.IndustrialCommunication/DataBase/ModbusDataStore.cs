@@ -7,7 +7,6 @@ namespace Wombat.IndustrialCommunication.DataBase
 {
     public class ModbusDataStore
     {
-        public ModbusDataCollection<DeviceInternalValueDataUnit<bool>> CoilDiscretes { get; private set; }
 
     }
 }
