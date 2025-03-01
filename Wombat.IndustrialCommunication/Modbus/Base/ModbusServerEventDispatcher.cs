@@ -42,7 +42,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
 
         // 处理接收到的请求报文并返回响应报文
-        private  ModbusTcpResponse HandleRequest(byte[] request)
+        private  ModbusTcpResponseGenerator HandleRequest(byte[] request)
         {
             // 解析事务ID (Transaction ID)
             ushort transactionId = (ushort)((request[0] << 8) | request[1]);
@@ -54,7 +54,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             ushort length = (ushort)((request[4] << 8) | request[5]);
 
             // 解析单元ID (Unit ID)
-            byte unitId = request[6];
+            byte Station = request[6];
 
             // 解析功能码 (Function Code)
             byte functionCode = request[7];
@@ -63,28 +63,28 @@ namespace Wombat.IndustrialCommunication.Modbus
             switch (functionCode)
             {
                 case 0x01:  // 读线圈 (Read Coils)
-                    return HandleReadCoilsRequest(request, transactionId, protocolId, unitId);
+                    return HandleReadCoilsRequest(request, transactionId, protocolId, Station);
 
                 case 0x02:  // 读离散输入 (Read Discrete Inputs)
-                    return HandleReadDiscreteInputsRequest(request, transactionId, protocolId, unitId);
+                    return HandleReadDiscreteInputsRequest(request, transactionId, protocolId, Station);
 
                 case 0x03:  // 读保持寄存器 (Read Holding Registers)
-                    return HandleReadHoldingRegistersRequest(request, transactionId, protocolId, unitId);
+                    return HandleReadHoldingRegistersRequest(request, transactionId, protocolId, Station);
 
                 case 0x04:  // 读输入寄存器 (Read Input Registers)
-                    return HandleReadInputRegistersRequest(request, transactionId, protocolId, unitId);
+                    return HandleReadInputRegistersRequest(request, transactionId, protocolId, Station);
 
                 case 0x05:  // 写单个线圈 (Write Single Coil)
-                    return HandleWriteSingleCoilRequest(request, transactionId, protocolId, unitId);
+                    return HandleWriteSingleCoilRequest(request, transactionId, protocolId, Station);
 
                 case 0x06:  // 写单个寄存器 (Write Single Register)
-                    return HandleWriteSingleRegisterRequest(request, transactionId, protocolId, unitId);
+                    return HandleWriteSingleRegisterRequest(request, transactionId, protocolId, Station);
 
                 case 0x0F:  // 写多个线圈 (Write Multiple Coils)
-                    return HandleWriteMultipleCoilsRequest(request, transactionId, protocolId, unitId);
+                    return HandleWriteMultipleCoilsRequest(request, transactionId, protocolId, Station);
 
                 case 0x10:  // 写多个寄存器 (Write Multiple Registers)
-                    return HandleWriteMultipleRegistersRequest(request, transactionId, protocolId, unitId);
+                    return HandleWriteMultipleRegistersRequest(request, transactionId, protocolId, Station);
 
                 default:
                     throw new InvalidOperationException("Unsupported function code.");
@@ -92,43 +92,43 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
 
         // 处理读取线圈的请求
-        private  ModbusTcpResponse HandleReadCoilsRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleReadCoilsRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和读取数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
             ushort quantity = (ushort)((request[10] << 8) | request[11]);
 
             var values = _dataStore.CoilDiscretes.Slice(address, quantity).ToArray();
-            return ModbusTcpPacketGenerator.GenerateReadCoilsResponse(transactionId, protocolId, unitId,
+            return ModbusTcpPacketGenerator.GenerateReadCoilsResponse(transactionId, protocolId, Station,
                 _dataStore.CoilDiscretes.Slice(address, quantity).ToArray());
         }
 
         // 处理读取保持寄存器的请求
-        private  ModbusTcpResponse HandleReadHoldingRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleReadHoldingRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和读取数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
             ushort quantity = (ushort)((request[10] << 8) | request[11]);
 
             // 生成读取保持寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateReadHoldingRegistersResponse(transactionId, protocolId, unitId,
+            return ModbusTcpPacketGenerator.GenerateReadHoldingRegistersResponse(transactionId, protocolId, Station,
                 _dataStore.HoldingRegisters.Slice(address, quantity).ToArray().Select(i => (ushort)i).ToArray());
         }
 
         // 处理读取离散输入的请求
-        private ModbusTcpResponse HandleReadDiscreteInputsRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleReadDiscreteInputsRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和读取数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
             ushort quantity = (ushort)((request[10] << 8) | request[11]);
 
             // 生成读取离散输入的响应报文
-            return ModbusTcpPacketGenerator.GenerateReadDiscreteInputsResponse(transactionId, protocolId, unitId,
+            return ModbusTcpPacketGenerator.GenerateReadDiscreteInputsResponse(transactionId, protocolId, Station,
                 _dataStore.InputDiscretes.Slice(address, quantity).ToArray());
         }
 
         // 处理读取输入寄存器的请求
-        private ModbusTcpResponse HandleReadInputRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleReadInputRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和读取数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
@@ -140,24 +140,24 @@ namespace Wombat.IndustrialCommunication.Modbus
                 registers.Add(ushort.Parse(content[i].ToString()));
             }
             // 生成读取输入寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateReadInputRegistersResponse(transactionId, protocolId, unitId
+            return ModbusTcpPacketGenerator.GenerateReadInputRegistersResponse(transactionId, protocolId, Station
                 , registers.ToArray());
         }
 
 
         // 处理写单个线圈的请求
-        private ModbusTcpResponse HandleWriteSingleCoilRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleWriteSingleCoilRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析线圈地址和状态
             ushort address = (ushort)((request[8] << 8) | request[9]);
 
             _dataStore.CoilDiscretes[address] = request[10] == 0xFF;
-            return ModbusTcpPacketGenerator.GenerateWriteSingleCoilResponse(transactionId, protocolId, unitId, address, 
+            return ModbusTcpPacketGenerator.GenerateWriteSingleCoilResponse(transactionId, protocolId, Station, address, 
                 _dataStore.CoilDiscretes[address]);
         }
 
         // 处理写单个寄存器的请求
-        private  ModbusTcpResponse HandleWriteSingleRegisterRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleWriteSingleRegisterRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析寄存器地址和值
             ushort address = (ushort)((request[8] << 8) | request[9]);
@@ -166,12 +166,12 @@ namespace Wombat.IndustrialCommunication.Modbus
             _dataStore.HoldingRegisters[address] = registerValue;
 
             // 生成写单个寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateWriteSingleRegisterResponse(transactionId, protocolId, unitId, address,
+            return ModbusTcpPacketGenerator.GenerateWriteSingleRegisterResponse(transactionId, protocolId, Station, address,
                 (ushort)_dataStore.HoldingRegisters[address]);
         }
 
         // 处理写多个线圈的请求
-        private  ModbusTcpResponse HandleWriteMultipleCoilsRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleWriteMultipleCoilsRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和线圈数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
@@ -188,11 +188,11 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
 
             // 生成写多个线圈的响应报文
-            return ModbusTcpPacketGenerator.GenerateWriteMultipleCoilsResponse(transactionId, protocolId, unitId, address, quantity);
+            return ModbusTcpPacketGenerator.GenerateWriteMultipleCoilsResponse(transactionId, protocolId, Station, address, quantity);
         }
 
         // 处理写多个寄存器的请求
-        private  ModbusTcpResponse HandleWriteMultipleRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte unitId)
+        private  ModbusTcpResponseGenerator HandleWriteMultipleRegistersRequest(byte[] request, ushort transactionId, ushort protocolId, byte Station)
         {
             // 解析起始地址和寄存器数量
             ushort address = (ushort)((request[8] << 8) | request[9]);
@@ -212,7 +212,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
 
             // 生成写多个寄存器的响应报文
-            return ModbusTcpPacketGenerator.GenerateWriteMultipleRegistersResponse(transactionId, protocolId, unitId, address, quantity);
+            return ModbusTcpPacketGenerator.GenerateWriteMultipleRegistersResponse(transactionId, protocolId, Station, address, quantity);
         }
 
     }

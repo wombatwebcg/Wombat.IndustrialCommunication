@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Network;
 using Wombat.Network.Sockets;
 
 
@@ -28,7 +29,7 @@ namespace Wombat.IndustrialCommunication
         {
             var tcpSocketServerConfiguration = new TcpSocketServerConfiguration();
             var rawBufferFrameBuilder = new RawBufferFrameBuilder();
-            _tcpSocketServer = new TcpSocketServer(IpEndPoint, serverBaseEventDispatcher, tcpSocketServerConfiguration, rawBufferFrameBuilder);
+            _tcpSocketServer = new TcpSocketServer(IpEndPoint, serverBaseEventDispatcher, tcpSocketServerConfiguration);
 
         }
 

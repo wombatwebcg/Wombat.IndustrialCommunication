@@ -12,7 +12,6 @@ namespace Wombat.IndustrialCommunication
     {
         #region Read
 
-        internal ConcurrentTaskQueue _concurrentTaskQueue = new ConcurrentTaskQueue(1,10);
 
         public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
@@ -51,7 +50,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadByte(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<byte>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<byte>(result).Complete();
         }
@@ -65,7 +64,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadByteAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<byte>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<byte>(result).Complete();
         }
@@ -86,7 +85,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadBoolean(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<bool>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<bool>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<bool>(result).Complete();
         }
@@ -96,7 +95,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadBooleanAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<bool>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<bool>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<bool>(result).Complete();
         }
@@ -113,7 +112,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length);
             return result.Complete();
         }
 
@@ -123,7 +122,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length);
             return result.Complete();
         }
 
@@ -136,7 +135,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 1).Take(1).ToArray();
                 return new OperationResult<bool>
                 {
-                    Value = BitConverter.ToBoolean(byteArry, 0)
+                    ResultValue = BitConverter.ToBoolean(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -159,7 +158,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt16(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<short>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<short>(result).Complete();
         }
@@ -173,7 +172,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<short>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<short>(result).Complete();
         }
@@ -189,7 +188,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 2 * length);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt16(0, length);
             return result.Complete();
         }
 
@@ -203,7 +202,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 2 * length);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt16(0, length);
             return result.Complete();
         }
 
@@ -216,7 +215,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<short>
                 {
-                    Value = BitConverter.ToInt16(byteArry, 0)
+                    ResultValue = BitConverter.ToInt16(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -238,7 +237,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt16(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ushort>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ushort>(result).Complete();
         }
@@ -252,7 +251,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ushort>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ushort>(result).Complete();
         }
@@ -268,7 +267,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt16(0, length);
             return result.Complete();
         }
 
@@ -282,7 +281,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt16(0, length);
             return result.Complete();
         }
 
@@ -295,7 +294,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<ushort>
                 {
-                    Value = BitConverter.ToUInt16(byteArry, 0)
+                    ResultValue = BitConverter.ToUInt16(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -317,7 +316,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<int>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<int>(result).Complete();
 
@@ -332,7 +331,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<int>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<int>(result).Complete();
 
@@ -350,7 +349,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt32(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -365,7 +364,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt32(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -378,7 +377,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.ToInt32(0, DataFormat)
+                    ResultValue = byteArry.ToInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -400,7 +399,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<uint>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<uint>(result).Complete();
         }
@@ -414,7 +413,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<uint>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<uint>(result).Complete();
         }
@@ -430,7 +429,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt32(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -444,7 +443,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt32(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -458,7 +457,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.ToUInt32(0, DataFormat)
+                    ResultValue = byteArry.ToUInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -480,7 +479,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<long>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<long>(result).Complete();
         }
@@ -494,7 +493,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<long>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<long>(result).Complete();
         }
@@ -511,7 +510,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt64(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -525,7 +524,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt64(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -539,7 +538,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.ToInt64(0, DataFormat)
+                    ResultValue = byteArry.ToInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -561,7 +560,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ulong>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ulong>(result).Complete();
         }
@@ -575,7 +574,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ulong>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ulong>(result).Complete();
         }
@@ -591,7 +590,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt64(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -605,7 +604,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt64(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -619,7 +618,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.ToUInt64(0, DataFormat)
+                    ResultValue = byteArry.ToUInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -641,7 +640,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadFloat(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<float>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<float>(result).Complete();
         }
@@ -656,7 +655,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadFloatAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<float>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<float>(result).Complete();
         }
@@ -672,7 +671,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToFloat(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -686,7 +685,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToFloat(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -699,7 +698,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.ToFloat(0, DataFormat)
+                    ResultValue = byteArry.ToFloat(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -721,7 +720,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadDouble(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<double>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<double>(result).Complete();
         }
@@ -735,7 +734,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadDoubleAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<double>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<double>(result).Complete();
         }
@@ -752,7 +751,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToDouble(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToDouble(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -766,7 +765,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToDouble(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToDouble(0, length, DataFormat);
             return result.Complete();
         }
 
@@ -780,7 +779,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.ToDouble(0, DataFormat, IsReverse)
+                    ResultValue = byteArry.ToDouble(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -798,7 +797,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToString(0, length, encoding: Encoding.ASCII);
+                result.ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII);
             return result.Complete();
         }
 
@@ -807,7 +806,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToString(0, length, encoding: Encoding.ASCII);
+                result.ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII);
             return result.Complete();
         }
 
@@ -905,7 +904,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.ToByte(), true);
+            return Write(address, value.ToBytes(), true);
         }
 
         /// <summary>
@@ -916,7 +915,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual async Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            return await WriteAsync(address, value.ToByte(), true);
+            return await WriteAsync(address, value.ToBytes(), true);
         }
 
 
@@ -1023,7 +1022,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, int value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1034,7 +1033,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1046,7 +1045,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1058,7 +1057,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1070,7 +1069,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, uint value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1081,7 +1080,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1093,7 +1092,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1105,7 +1104,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1117,7 +1116,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, long value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1129,7 +1128,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1141,7 +1140,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1152,7 +1151,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1164,7 +1163,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, ulong value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1175,7 +1174,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1188,7 +1187,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1200,7 +1199,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1212,7 +1211,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, float value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1223,7 +1222,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1235,7 +1234,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1246,7 +1245,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1257,7 +1256,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, double value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1268,7 +1267,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1280,7 +1279,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1292,7 +1291,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1608,60 +1607,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
-
-        public override void SetQueueOperation(int maxConcurrency, int maxQueueSize)
-        {
-            _concurrentTaskQueue = new ConcurrentTaskQueue(maxConcurrency,maxQueueSize);
-        }
-
-        public async ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address)
-        {
-            return await _concurrentTaskQueue.EnqueueSyncTask(async ()=> {
-               var result = await ReadAsync(dataTypeEnum, address);
-                return result;
-            }, 10);
-        }
-
-        public OperationResult<object> QueueRead(DataTypeEnums dataTypeEnum, string address)
-        {
-            // 使用 Task.WhenAny 来处理超时机制
-            var task = _concurrentTaskQueue.EnqueueSyncTask(async () => {
-                var result = await ReadAsync(dataTypeEnum, address);
-                return result;
-            }, 10);
-
-            // 创建一个延时任务，超时后将任务取消
-            var timeoutTask = Task.Delay(100);
-
-            // 等待任意一个任务完成（同步任务或超时）
-            var completedTask = Task.WhenAny(task, timeoutTask).Result;
-
-            if (completedTask == timeoutTask)
-            {
-                // 超时，返回超时错误
-                return OperationResult.CreateFailedResult<object>("操作超时");
-            }
-
-            // 返回同步任务的结果
-            return task.Result;
-        }
-
-        public async ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
-        {
-            return await _concurrentTaskQueue.EnqueueSyncTask(async () => {
-                var result = await WriteAsync(dataTypeEnum, address, value);
-                return result;
-            }, 10);
-        }
-
-        public OperationResult QueueWrite(DataTypeEnums dataTypeEnum, string address, object value)
-        {
-            return _concurrentTaskQueue.EnqueueSyncTask(async () => {
-                var result = await WriteAsync(dataTypeEnum, address, value);
-                return result;
-            }, 10).Result;
-        }
 
         #endregion
 

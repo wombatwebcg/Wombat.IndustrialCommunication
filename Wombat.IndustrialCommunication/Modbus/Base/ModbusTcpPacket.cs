@@ -9,7 +9,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public ushort TransactionId { get; private set; }
         public ushort ProtocolId { get; private set; }
         public ushort Length { get; private set; }
-        public byte UnitId { get; private set; }
+        public byte Station { get; private set; }
         public byte FunctionCode { get; private set; }
         public ushort StartingAddress { get; private set; }
         public ushort QuantityOfRegisters { get; private set; }
@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             TransactionId = BitConverter.ToUInt16(new byte[] { data[1], data[0] }, 0); // Transaction ID
             ProtocolId = BitConverter.ToUInt16(new byte[] { data[3], data[2] }, 0);    // Protocol ID
             Length = BitConverter.ToUInt16(new byte[] { data[5], data[4] }, 0);        // Length
-            UnitId = data[6];                                                         // Unit ID
+            Station = data[6];                                                         // Unit ID
             FunctionCode = data[7];                                                    // Function Code
             StartingAddress = BitConverter.ToUInt16(new byte[] { data[9], data[8] }, 0);  // Starting Address
             QuantityOfRegisters = BitConverter.ToUInt16(new byte[] { data[11], data[10] }, 0);  // Quantity of Registers

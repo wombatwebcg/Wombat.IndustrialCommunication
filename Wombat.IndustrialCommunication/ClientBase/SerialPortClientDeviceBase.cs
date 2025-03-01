@@ -187,17 +187,17 @@ namespace Wombat.IndustrialCommunication
                 Thread.Sleep(WaiteInterval);
             }
             byte[] buffer = new byte[_serialPort.BytesToRead];
-            result.Value = new byte[buffer.Length];
+            result.ResultValue = new byte[buffer.Length];
             var receiveFinish = 0;
             while (receiveFinish < buffer.Length)
             {
                 var readLeng = _serialPort.Read(buffer, receiveFinish, buffer.Length);
                 if (readLeng == 0)
                 {
-                    result.Value = null;
+                    result.ResultValue = null;
                     return result.Complete();
                 }
-                Array.Copy(buffer, receiveFinish, result.Value, receiveFinish, readLeng);
+                Array.Copy(buffer, receiveFinish, result.ResultValue, receiveFinish, readLeng);
                 receiveFinish += readLeng;
             }
 
@@ -232,17 +232,17 @@ namespace Wombat.IndustrialCommunication
                await Task.Delay(WaiteInterval);
             }
             byte[] buffer = new byte[_serialPort.BytesToRead];
-            result.Value = new byte[buffer.Length];
+            result.ResultValue = new byte[buffer.Length];
             var receiveFinish = 0;
             while (receiveFinish < buffer.Length)
             {
                 var readLeng =await _serialPort.BaseStream.ReadAsync(buffer, receiveFinish, buffer.Length);
                 if (readLeng == 0)
                 {
-                    result.Value = null;
+                    result.ResultValue = null;
                     return result.Complete();
                 }
-                Array.Copy(buffer, receiveFinish, result.Value, receiveFinish, readLeng);
+                Array.Copy(buffer, receiveFinish, result.ResultValue, receiveFinish, readLeng);
                 receiveFinish += readLeng;
             }
 

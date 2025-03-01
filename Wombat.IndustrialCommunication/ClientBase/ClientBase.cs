@@ -45,7 +45,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public  bool IsLongLivedConnection { get; set; } = true;
+        public  bool IsLongConnection { get; set; } = true;
 
         /// <summary>
         /// 警告日志委托
@@ -72,6 +72,8 @@ namespace Wombat.IndustrialCommunication
         public bool IsReverse { get; set; } = false;
 
         public abstract string Version { get; }
+        public int Retries { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public TimeSpan WaitToRetryMilliseconds { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public OperationResult Connect()
         {

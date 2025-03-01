@@ -69,6 +69,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public double? TimeConsuming { get; private set; }
 
+
         public List<string> Requsts { get; set; } = new List<string>();
 
         /// <summary>
@@ -179,6 +180,8 @@ namespace Wombat.IndustrialCommunication
         }
 
 
+
+
         /// <summary>
         /// 创建并返回一个失败的返回结果对象
         /// </summary>
@@ -209,9 +212,10 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = -1,
                 Message = StringResources.Language.ExceptionMessage,
-                Value = value
+                ResultValue = value
             };
         }
+
 
         /// <summary>
         /// 创建并返回一个失败的结果对象，该对象复制另一个结果对象的错误信息
@@ -223,10 +227,40 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T>()
             {
-                ErrorCode = result.ErrorCode,
-                Message = result.Message,
-            };
+                IsSuccess = false,
+                ErrorCode = -1,
+                Exception = result.Exception,
+                Responses = result.Responses,
+                Requsts = result.Requsts,
+                InitialTime = result.InitialTime,
+                Message = result.Message
+
+            }.Complete();
         }
+
+
+        /// <summary>
+        /// 创建并返回一个失败的结果对象，该对象复制另一个结果对象的错误信息
+        /// </summary>
+        /// <typeparam name="T">目标数据类型</typeparam>
+        /// <param name="result">之前的结果对象</param>
+        /// <returns>带默认泛型对象的失败结果类</returns>
+        public static OperationResult<T> CreateFailedResult<T>(OperationResult result,T value)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Exception = result.Exception,
+                Responses = result.Responses,
+                Requsts = result.Requsts,
+                InitialTime = result.InitialTime,
+                Message = result.Message,
+                ResultValue = value              
+            }.Complete();
+        }
+
+
 
         /// <summary>
         /// 创建并返回一个失败的结果对象，该对象复制另一个结果对象的错误信息
@@ -239,8 +273,13 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T1, T2>()
             {
-                ErrorCode = result.ErrorCode,
-                Message = result.Message,
+                IsSuccess = false,
+                ErrorCode = -1,
+                Exception = result.Exception,
+                Responses = result.Responses,
+                Requsts = result.Requsts,
+                InitialTime = result.InitialTime,
+                Message = result.Message
             };
         }
 
@@ -257,6 +296,7 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T1, T2, T3>()
             {
+                IsSuccess = false,
                 ErrorCode = result.ErrorCode,
                 Message = result.Message,
             };
@@ -276,6 +316,7 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T1, T2, T3, T4>()
             {
+                IsSuccess = false,
                 ErrorCode = result.ErrorCode,
                 Message = result.Message,
             };
@@ -296,6 +337,7 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T1, T2, T3, T4, T5>()
             {
+                IsSuccess = false,
                 ErrorCode = result.ErrorCode,
                 Message = result.Message,
             };
@@ -317,6 +359,7 @@ namespace Wombat.IndustrialCommunication
         {
             return new OperationResult<T1, T2, T3, T4, T5, T6>()
             {
+                IsSuccess = false,
                 ErrorCode = result.ErrorCode,
                 Message = result.Message,
             };
@@ -353,6 +396,21 @@ namespace Wombat.IndustrialCommunication
             };
         }
 
+        /// <summary>
+        /// 创建并返回一个成功的结果对象，并带有一个参数对象
+        /// </summary>
+        /// <typeparam name="T">参数类型</typeparam>
+        /// <param name="value">类型的值对象</param>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult<T> CreateSuccessResult<T>()
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Message = StringResources.Language.SuccessText,
+            }.Complete();
+        }
 
         /// <summary>
         /// 创建并返回一个成功的结果对象，并带有一个参数对象
@@ -367,11 +425,30 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = true,
                 ErrorCode = 0,
                 Message = StringResources.Language.SuccessText,
-                Value = value
-            };
+                ResultValue = value
+            }.Complete();
         }
 
-
+        /// <summary>
+        /// 创建并返回一个成功的结果对象，并带有一个参数对象
+        /// </summary>
+        /// <typeparam name="T">参数类型</typeparam>
+        /// <param name="value">类型的值对象</param>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult<T> CreateSuccessResult<T>(OperationResult result,T value)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Exception = result.Exception,
+                Responses = result.Responses,
+                Requsts = result.Requsts,
+                InitialTime = result.InitialTime,
+                Message = result.Message,
+                ResultValue = value
+            }.Complete();
+        }
         /// <summary>
         /// 创建并返回一个成功的结果对象，并带有两个参数对象
         /// </summary>
@@ -528,7 +605,7 @@ namespace Wombat.IndustrialCommunication
     /// <typeparam name="T">泛型类</typeparam>
     /// 
 
-    public class OperationResult<T> : OperationResult
+    public class OperationResult<T> : OperationResult 
     {
         #region Constructor
 
@@ -537,6 +614,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public OperationResult() : base()
         {
+
         }
 
         /// <summary>
@@ -545,7 +623,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="msg">错误消息</param>
         public OperationResult(T data) 
         {
-            Value = data;
+            ResultValue = data;
         }
 
         /// <summary>
@@ -578,19 +656,17 @@ namespace Wombat.IndustrialCommunication
             result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
             this.Requsts = result.Requsts;
             this.Responses = result.Responses;
-            Value = data;
+            ResultValue = data;
         }
 
-        /// <summary>
-        /// 请求报文
-        /// </summary>
+
 
 
 
         /// <summary>
         /// 用户自定义的泛型数据
         /// </summary>
-        public T Value { get; set; }
+        public T ResultValue { get; set; }
 
 
         /// <summary>
@@ -613,7 +689,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult<T> SetInfo(OperationResult<T> result)
         {
-            Value = result.Value;
+            ResultValue = result.ResultValue;
             base.SetInfo(result);
             return this;
         }
@@ -626,6 +702,18 @@ namespace Wombat.IndustrialCommunication
         public new OperationResult<T> SetInfo(OperationResult result)
         {
             base.SetInfo(result);
+            return this;
+        }
+
+        /// <summary>
+        /// 设置异常信息和Succeed状态
+        /// </summary>
+        /// <param name="result"></param>
+        /// <returns></returns>
+        public  OperationResult<T> SetInfo(OperationResult result,T data)
+        {
+            base.SetInfo(result);
+            ResultValue = data;
             return this;
         }
 

@@ -15,21 +15,22 @@
     <RepositoryUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</RepositoryUrl>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Modbus\Data\MemoryCollection.cs" />
-  </ItemGroup>
+
 
 
 
   <ItemGroup>
     <PackageReference Include="System.IO.Ports" Version="7.0.0" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
-    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.8" />
-    <PackageReference Include="Wombat.Network" Version="1.0.11" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="PLC\Base\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions.csproj" />
+    <ProjectReference Include="..\..\..\Wombat.Network_2.1.0\Wombat.Network\Wombat.Network\Wombat.Network.csproj" />
   </ItemGroup>
 
 </Project>

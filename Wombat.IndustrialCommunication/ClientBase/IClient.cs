@@ -9,32 +9,13 @@ namespace Wombat.IndustrialCommunication
 
     public delegate void LoggerDelegate(string name, Exception ex = null);
 
-    public interface IClient
+    public interface IClient: IClientConfiguration
     {
         string Version { get; }
 
         ILogger Logger { get; set; }
 
-        TimeSpan ConnectTimeout { get; set; }
-
-        TimeSpan ReceiveTimeout { get; set; }
-
-        TimeSpan SendTimeout { get; set; }
-
-        EndianFormat DataFormat { get; set; }
-
-        bool IsReverse { get; set; }
-
-        TimeSpan WaiteInterval { get; set; }
-
-        int OperationReTryTimes { get; set; }
-
-        void UseLogger(ILogger logger);
-
-        void SetQueueOperation(int maxConcurrency, int maxQueueSize);
-
-
-        bool IsLongLivedConnection { get; set; }
+        bool IsLongConnection { get; set; }
 
         bool Connected { get; }
 

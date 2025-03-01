@@ -7,7 +7,6 @@ using System.Net;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication;
-using Wombat.IndustrialCommunication.Adapter;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 

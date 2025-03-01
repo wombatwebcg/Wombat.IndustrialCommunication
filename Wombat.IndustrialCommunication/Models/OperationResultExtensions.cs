@@ -20,9 +20,9 @@ namespace Wombat.IndustrialCommunication
                 Responses = orgin.Responses,
             };
             orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
-            if (orgin.Value != null)
+            if (orgin.ResultValue != null)
             {
-                result.Value = orgin.Value;
+                result.ResultValue = orgin.ResultValue;
             }
             return result;
         }
@@ -39,9 +39,9 @@ namespace Wombat.IndustrialCommunication
                 Responses = orgin.Responses,
             };
             orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
-            if (orgin.Value != null && orgin.Value.Length>0)
+            if (orgin.ResultValue != null && orgin.ResultValue.Length>0)
             {
-                result.Value = orgin.Value;
+                result.ResultValue = orgin.ResultValue;
             }
             return result;
         }
@@ -72,7 +72,7 @@ namespace Wombat.IndustrialCommunication
                 Exception = orgin.Exception,
                 Requsts = orgin.Requsts,
                 Responses = orgin.Responses,
-                Value = orgin.Value
+                ResultValue = orgin.ResultValue
             };
             orgin.OperationInfo.ForEach((message) => { result.OperationInfo.Add(message); });
             return result;
