@@ -51,7 +51,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-
+        public TimeSpan ResponseInterval { get; set; } = TimeSpan.FromMilliseconds(100);
 
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {
@@ -205,6 +205,7 @@ namespace Wombat.IndustrialCommunication
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 if (commandRequest1.IsSuccess)
                 {
+                   await Task.Delay(ResponseInterval);
                     var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
                     if (!response1Result.IsSuccess)
                     {
@@ -238,6 +239,7 @@ namespace Wombat.IndustrialCommunication
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 if (commandRequest1.IsSuccess)
                 {
+                    await Task.Delay(ResponseInterval);
                     var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
                     if (!response1Result.IsSuccess)
                     {

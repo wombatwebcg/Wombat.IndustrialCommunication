@@ -74,6 +74,7 @@ namespace Wombat.IndustrialCommunication
         public abstract string Version { get; }
         public int Retries { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
         public TimeSpan WaitToRetryMilliseconds { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
+        public TimeSpan ResponseInterval { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         public OperationResult Connect()
         {

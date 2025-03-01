@@ -20,8 +20,8 @@ namespace Wombat.IndustrialCommunication
             if (value == null || !value.Any())
                 throw new ArgumentException("生成CRC16Helper的入参有误");
 
-            var crc16 = GetCRC16(value, poly, crcInit);
-            if (crc16[crc16.Length - 2] == crc16[crc16.Length - 1] && crc16[crc16.Length - 1] == 0)
+            var crc16 = GetCRC16(value.AsSpan<byte>(0, value.Length-2).ToArray(), poly, crcInit);
+            if (crc16[0] == value[value.Length-2] && crc16[1] == value[value.Length - 1])
                 return true;
             return false;
         }
@@ -51,10 +51,7 @@ namespace Wombat.IndustrialCommunication
             byte hi = (byte)((crc & 0xFF00) >> 8);  //高位置
             byte lo = (byte)(crc & 0x00FF);         //低位置
 
-            byte[] buffer = new byte[value.Length + 2];
-            value.CopyTo(buffer, 0);
-            buffer[buffer.Length - 1] = hi;
-            buffer[buffer.Length - 2] = lo;
+            byte[] buffer = new byte[2] { lo,hi};
             return buffer;
         }
     }

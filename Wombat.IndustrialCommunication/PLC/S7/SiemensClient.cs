@@ -100,8 +100,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
             }
         }
-
-
         public int Retries
         {
             get
@@ -124,7 +122,6 @@ namespace Wombat.IndustrialCommunication.PLC
 
             }
         }
-
         public TimeSpan WaitToRetryMilliseconds
         {
             get
@@ -147,9 +144,8 @@ namespace Wombat.IndustrialCommunication.PLC
 
             }
         }
-
-
         public bool IsLongConnection { get; set; } = true;
+        public TimeSpan ResponseInterval { get; set; }
 
         public OperationResult Connect()
         {

@@ -9,7 +9,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {
-    //public class SerialPortClient:SerialPortClientDeviceBase
+    //public class SerialPortClient : SerialPortClientDeviceBase
     //{
     //    private AsyncLock _lock;
 
@@ -64,7 +64,7 @@ namespace Wombat.IndustrialCommunication
     //                {
     //                    command = CRC16Helper.GetCRC16(message);
     //                    result.Requsts.Add(string.Join(" ", command.Select(t => t.ToString("X2"))));
-                       
+
     //                }
     //                //发送命令并获取响应报文
     //                var sendResult = InterpretMessageData(command);
@@ -79,7 +79,7 @@ namespace Wombat.IndustrialCommunication
     //                    result.Message = "响应结果为空";
     //                    return result.Complete();
     //                }
-    //                else if (useCRC&!CRC16Helper.CheckCRC16(responsePackage))
+    //                else if (useCRC & !CRC16Helper.CheckCRC16(responsePackage))
     //                {
     //                    result.IsSuccess = false;
     //                    result.Message = "响应结果CRC16Helper验证失败";
@@ -112,7 +112,7 @@ namespace Wombat.IndustrialCommunication
     //            var result = new OperationResult<byte[]>();
     //            if (!_serialPort?.IsOpen ?? true)
     //            {
-    //                var connectResult =await ConnectAsync();
+    //                var connectResult = await ConnectAsync();
     //                if (!connectResult.IsSuccess)
     //                {
     //                    connectResult.Message = $"串口连接失败";
@@ -129,7 +129,7 @@ namespace Wombat.IndustrialCommunication
 
     //                }
     //                //发送命令并获取响应报文
-    //                var sendResult =await InterpretMessageDataAsync(command);
+    //                var sendResult = await InterpretMessageDataAsync(command);
     //                if (!sendResult.IsSuccess)
     //                {
     //                    return result.SetInfo(sendResult).Complete();
@@ -169,14 +169,14 @@ namespace Wombat.IndustrialCommunication
     //    }
 
 
-    //    public  OperationResult<string> MessageExchange(string message, Encoding encoding = null, bool useCRC = false)
+    //    public OperationResult<string> MessageExchange(string message, Encoding encoding = null, bool useCRC = false)
     //    {
     //        using (_lock.Lock())
     //        {
     //            var result = new OperationResult<string>();
     //            if (!_serialPort?.IsOpen ?? true)
     //            {
-    //                var connectResult =  Connect();
+    //                var connectResult = Connect();
     //                if (!connectResult.IsSuccess)
     //                {
     //                    connectResult.Message = $"串口连接失败";
@@ -281,8 +281,8 @@ namespace Wombat.IndustrialCommunication
     //                Array.Copy(responsePackage, 0, resultData, 0, resultData.Length);
     //                result.Responses.Add(string.Join(" ", responsePackage.Select(t => t.ToString("X2"))));
     //                //4 获取响应报文数据（字节数组形式）                
-    //                result.Value = resultData.ToString(0,resultData.Length,encoding);
-                    
+    //                result.Value = resultData.ToString(0, resultData.Length, encoding);
+
     //            }
     //            catch (Exception ex)
     //            {
