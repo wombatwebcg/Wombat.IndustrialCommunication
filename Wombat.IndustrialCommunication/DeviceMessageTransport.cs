@@ -51,7 +51,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public TimeSpan ResponseInterval { get; set; } = TimeSpan.FromMilliseconds(100);
+        public TimeSpan ResponseInterval { get; set; } = TimeSpan.FromMilliseconds(50);
 
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {

@@ -61,13 +61,14 @@ namespace ConsoleApp1
                 ModbusRTU s7Communication = new ModbusRTU(s7EthernetTransport);
                 while (true)
                 {
-                    //var uu2 = s7Communication.Write($"1;15;0",new bool[15] {true,false,true,true,true , true, false, true, true, true, true, false, true, true, true });
+                    //var uu2 = s7Communication.Write($"1;15;0", new bool[15] { true, false, true, true, true, true, false, true, true, true, true, false, true, true, true });
 
                     var read1 = s7Communication.ReadInt16("1;3;0", 50);
 
-                    var uu = s7Communication.WriteAsync("1;16;0", new ushort[5] { 2, 3, 4, 5, 6 });
-                    var uu1 = s7Communication.Write("1;16;1", 123);
-
+                    //var uu = s7Communication.Write("1;16;0", new ushort[5] { 2, 3, 4, 5, 6 });
+                    var uu1 = s7Communication.Write("1;16;1", (ushort)123);
+                    Console.WriteLine(uu1.Requsts[0]+"\r\n");
+                    Console.WriteLine(uu1.Responses[0] + "\r\n");
 
                 }
                 Console.WriteLine("Hello World!");
