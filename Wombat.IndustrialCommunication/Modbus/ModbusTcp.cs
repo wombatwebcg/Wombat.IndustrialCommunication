@@ -52,12 +52,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -74,12 +69,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[1] { (byte)(value ? 0xFF : 0x00) }) ;
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -96,12 +86,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -109,9 +94,21 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
+        internal OperationResult<byte[]> _writeResponseHandle(OperationResult<IDeviceReadWriteMessage> operationResult)
+        {
+            if (operationResult.IsSuccess)
+            {
+                var dataPackage = operationResult.ResultValue.ProtocolMessageFrame;
+                var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
+                return new OperationResult<byte[]>(operationResult, modbusTcpResponse.ProtocolMessageFrame).Complete();
+            }
+            return OperationResult.CreateFailedResult<byte[]>(operationResult);
+
+        }
+
         public ushort GenerateTransactionId()
         {
-            _transactionId = (_transactionId + 1) % 256;  
+            _transactionId = (_transactionId + 1) % 255;  
             return (ushort)_transactionId;
         }
     }

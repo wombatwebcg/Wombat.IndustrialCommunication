@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         }
 
-        public override string Version => throw new NotImplementedException();
+        public override string Version => nameof(ModbusRTU);
 
 
         internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
@@ -61,14 +61,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
+                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -83,14 +78,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[1] { (byte)(value ? 0xFF : 0x00) }) ;
+                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[1] { (byte)(value ? 0xFF : 0x00) }) ;
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -105,14 +95,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
+                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
                     var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.ProtocolMessageFrame).Complete();
-                    }
+                    return _writeResponseHandle(response);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -120,10 +105,29 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        public ushort GenerateTransactionId()
+        internal  OperationResult<byte[]> _writeResponseHandle(OperationResult<IDeviceReadWriteMessage> operationResult)
         {
-            _transactionId = (_transactionId + 1) % 256;  
-            return (ushort)_transactionId;
+            if (operationResult.IsSuccess)
+            {
+                var dataPackage = operationResult.ResultValue.ProtocolMessageFrame;
+                var modbusTcpResponse = new ModbusRTUResponse(dataPackage);
+                if (!CRC16Helper.ValidateCRC(dataPackage))
+                    throw new InvalidOperationException("CRC check failed");
+                // 处理异常响应（功能码最高位为1）
+                if ((modbusTcpResponse.FunctionCode & 0x80) != 0)
+                {
+                    operationResult.IsSuccess = false;
+                    operationResult.ErrorCode = dataPackage[2];
+                    operationResult.Message = $"ModbusRTU回复错误码:{operationResult.ErrorCode}";
+                    return OperationResult.CreateFailedResult<byte[]>(operationResult);
+                }
+
+                return new OperationResult<byte[]>(operationResult, modbusTcpResponse.ProtocolMessageFrame).Complete();
+            }
+            return OperationResult.CreateFailedResult<byte[]>(operationResult);
+
         }
+
+
     }
 }
