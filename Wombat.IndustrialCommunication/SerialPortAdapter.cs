@@ -38,6 +38,9 @@ namespace Wombat.IndustrialCommunication
             StopBits = stopBits;
             _lock = new AsyncLock();
             _serialPort = new SerialPort();
+            _serialPort.WriteTimeout = 100;
+            _serialPort.ReadTimeout = 100;
+
         }
 
         public string Version => nameof(SerialPortAdapter);
@@ -53,12 +56,11 @@ namespace Wombat.IndustrialCommunication
         {
             get
             {
-
                 if (_serialPort != null)
                 {
                     return TimeSpan.FromMilliseconds(_serialPort.ReadTimeout);
                 }
-                return default;
+                return TimeSpan.FromMilliseconds(100);
             }
             set
             {
@@ -66,6 +68,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     _serialPort.ReadTimeout = (int)value.TotalMilliseconds;
                 }
+
             }
         }
         public TimeSpan SendTimeout
@@ -77,7 +80,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     return TimeSpan.FromMilliseconds(_serialPort.WriteTimeout);
                 }
-                return default;
+                return TimeSpan.FromMilliseconds(100);
             }
             set
             {
@@ -176,6 +179,11 @@ namespace Wombat.IndustrialCommunication
             OperationResult connect = new OperationResult();
             _serialPort.Close();
             return Task.FromResult(connect);
+        }
+
+        public void StreamClose()
+        {
+            _serialPort.BaseStream.Close();
         }
     }
 }

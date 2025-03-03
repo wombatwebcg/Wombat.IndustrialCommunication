@@ -14,8 +14,8 @@ namespace Wombat.IndustrialCommunication
     {
         private AsyncLock _asyncLock = new AsyncLock();
         private IStreamResource _streamResource;
-        private int _retries = 1;
-        private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(1000);
+        private int _retries = 2;
+        private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(100);
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
 
 
@@ -28,7 +28,6 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        CancellationToken _cancellationToken = new CancellationToken();
         public IStreamResource StreamResource
         {
             get { return _streamResource; }
@@ -63,50 +62,47 @@ namespace Wombat.IndustrialCommunication
                 {
                     try
                     {
-                        byte[] buffer = new byte[length];
-                        var read = await _streamResource?.Receive(buffer, offset, length,_cancellationToken);
-                        bool readAgain = true;
-                        do
+                        using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
                         {
-                            if (read?.IsSuccess ?? false)
+                            try
                             {
-                                readAgain = false;
-                                success = true;
-                                return OperationResult.CreateSuccessResult(buffer);
-                            }
-                            else
-                            {
-                                read = await _streamResource?.Receive(buffer, offset, length, _cancellationToken);
-                                if (read?.IsSuccess ?? false)
+                                byte[] buffer = new byte[length];
+                                cts.Token.Register(() => _streamResource.StreamClose());
+                                var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
+                                bool readAgain = true;
+                                do
                                 {
-                                    readAgain = false;
-                                    success = true;
-                                    return OperationResult.CreateSuccessResult(buffer);
-                                }
-                                else
-                                {
-                                    if (attempt++ > _retries)
+                                    if (read?.IsSuccess ?? false)
                                     {
-                                        return OperationResult.CreateFailedResult(buffer);
+                                        readAgain = false;
+                                        success = true;
+                                        return OperationResult.CreateSuccessResult(buffer);
                                     }
-                                }
-
+                                    else
+                                    {
+                                        if (attempt++ > _retries)
+                                        {
+                                            return OperationResult.CreateFailedResult<byte[]>($"{GetType().Name}, {_retries - attempt + 1} retries remaining - {nameof(IStreamResource)}");
+                                        }
+                                        // 可选：等待一段时间后重试
+                                        await Task.Delay(WaitToRetryMilliseconds, cts.Token);
+                                    }
+                                } while (readAgain);
                             }
-                        } while (readAgain);
-                    }
-                    catch (DevcieResponseException se)
-                    {
-
-                        //if (se.SlaveExceptionCode != Modbus.SlaveDeviceBusy)
-                        //    throw;
-
-                        //if (SlaveBusyUsesRetryCount && attempt++ > _retries)
-                        //    throw;
-
-                        //Debug.WriteLine(
-                        //    "Received SLAVE_DEVICE_BUSY exception response, waiting {0} milliseconds and resubmitting request.",
-                        //    _waitToRetryMilliseconds);
-                        //Sleep(WaitToRetryMilliseconds);
+                            catch (OperationCanceledException)
+                            {
+                                return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
+                            }
+                            catch (ObjectDisposedException)
+                            {
+                                // 流被关闭引发的异常
+                                return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
+                            }
+                            catch (Exception e)
+                            {
+                                return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
+                            }
+                        }
                     }
                     catch (Exception e)
                     {
@@ -131,53 +127,54 @@ namespace Wombat.IndustrialCommunication
             {
                 int attempt = 1;
                 bool success = false;
+                bool readAgain = true;
                 do
                 {
                     try
                     {
-                        var write = await _streamResource?.Send(request, 0, request.Length, _cancellationToken);
-                        bool readAgain = true;
-                        do
+                        using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                         {
-                            if (write?.IsSuccess ?? false)
+                            var ss = _streamResource.SendTimeout;
+                            cts.Token.Register(() => _streamResource.StreamClose());
+                            var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
+                            do
                             {
-                                readAgain = false;
-                                success = true;
-                                return OperationResult.CreateSuccessResult(write);
-                            }
-                            else
-                            {
-                                write = await _streamResource?.Send(request, 0, request.Length, _cancellationToken);
-                                if (write?.IsSuccess ?? false)
+                                try
                                 {
-                                    readAgain = false;
-                                    success = true;
-                                    return OperationResult.CreateSuccessResult(write);
-                                }
-                                else
-                                {
-                                    if (attempt++ > _retries)
+
+                                    if (write?.IsSuccess ?? false)
                                     {
-                                        return OperationResult.CreateFailedResult(write);
+                                        readAgain = false;
+                                        success = true;
+                                        return OperationResult.CreateSuccessResult(write);
+                                    }
+                                    else
+                                    {
+                                        if (attempt++ > _retries)
+                                        {
+                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"{GetType().Name}, { _retries - attempt + 1} retries remaining - { nameof(IStreamResource)}");
+                                            retryResult.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
+                                            return retryResult;
+                                        }
                                     }
                                 }
+                                catch (OperationCanceledException)
+                                {
+                                    return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
+                                }
+                                catch (ObjectDisposedException)
+                                {
+                                    // 流被关闭引发的异常
+                                    return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
+                                }
+                                catch (Exception e)
+                                {
+                                    return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
+                                }
 
-                            }
-                        } while (readAgain);
-                    }
-                    catch (DevcieResponseException se)
-                    {
+                            } while (readAgain);
 
-                        //if (se.SlaveExceptionCode != Modbus.SlaveDeviceBusy)
-                        //    throw;
-
-                        //if (SlaveBusyUsesRetryCount && attempt++ > _retries)
-                        //    throw;
-
-                        //Debug.WriteLine(
-                        //    "Received SLAVE_DEVICE_BUSY exception response, waiting {0} milliseconds and resubmitting request.",
-                        //    _waitToRetryMilliseconds);
-                        //Sleep(WaitToRetryMilliseconds);
+                        }
                     }
                     catch (Exception e)
                     {
@@ -209,7 +206,7 @@ namespace Wombat.IndustrialCommunication
                     var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
                     if (!response1Result.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                        return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(response1Result);
                     }
                     result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));
                     var package = response1Result.ResultValue;
@@ -220,6 +217,11 @@ namespace Wombat.IndustrialCommunication
                     result.ResultValue.RegisterCount = request.RegisterCount;
 
                     return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest1);
+
                 }
             }
             catch (Exception ex)
@@ -253,6 +255,10 @@ namespace Wombat.IndustrialCommunication
                     result.ResultValue.RegisterAddress = request.RegisterAddress;
                     result.ResultValue.RegisterCount = request.RegisterCount;
                     return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest1);
                 }
             }
             catch (Exception ex)

@@ -19,7 +19,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             Station = station;
             FunctionCode = functionCode;
             RegisterCount = length; // 假设RegisterCount是请求的长度
-
+            int dataBytes = 0;
             byte[] frame = null;
             switch (functionCode)
             {
@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     frame[2] = (byte)(length >> 8);
                     frame[3] = (byte)(length & 0xFF);
                     // 响应长度 = 站号(1) + 功能码(1) + 字节数(1) + 数据(n) + CRC(2)
-                    int dataBytes = (length + 7) / 8;
+                    dataBytes = (length + 7) / 8;
                     ProtocolResponseLength = 1 + 1 + 1 + dataBytes + 2;
                     break;
 
@@ -40,18 +40,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                     frame = new byte[4];
                     frame[0] = (byte)(address >> 8);
                     frame[1] = (byte)(address & 0xFF);
-                    frame[2] = (byte)(length/2 >> 8);
-                    frame[3] = (byte)(length/2& 0xFF);
-                    // 响应长度 = 站号(1) + 功能码(1) + 字节数(1) + 数据(2*length) + CRC(2)
-                    ProtocolResponseLength = 1 + 1 + 1 + (length) + 2;
+                    frame[2] = (byte)(length >> 8);    // 直接使用寄存器数量
+                    frame[3] = (byte)(length & 0xFF);
+                    // 响应数据字节数 = 寄存器数量 × 2
+                    dataBytes = length * 2;
+                    ProtocolResponseLength = 1 + 1 + 1 + dataBytes + 2;
                     break;
 
                 case 0x05: // 写单个线圈
                     frame = new byte[4];
                     frame[0] = (byte)(address >> 8);
                     frame[1] = (byte)(address & 0xFF);
-                    frame[2] = (byte)(length == 0 ? 0xFF00 : 0x0000);
-                    frame[3] = (byte)(length == 0 ? 0x00 : 0xFF);
+                    frame[2] = (byte)(data[0] == 1 ? 0xFF : 0x00);
+                    frame[3] = 00;
                     // 响应长度 = 站号(1) + 功能码(1) + 地址(2) + 数据(2) + CRC(2)
                     ProtocolResponseLength = 1 + 1 + 2 + 2 + 2;
                     break;
@@ -60,8 +61,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                     frame = new byte[4];
                     frame[0] = (byte)(address >> 8);
                     frame[1] = (byte)(address & 0xFF);
-                    frame[2] = (byte)(length >> 8);
-                    frame[3] = (byte)(length & 0xFF);
+                    frame[2] = data[0];
+                    frame[3] = data[1];
                     ProtocolResponseLength = 1 + 1 + 2 + 2 + 2; // 同上，总长度8
                     break;
 

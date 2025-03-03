@@ -12,7 +12,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         private volatile int _transactionId = 0;
         public ModbusRTU(DeviceMessageTransport transport):base(transport)
         {
-            DataFormat = Extensions.DataTypeExtensions.EndianFormat.CDAB;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
             IsReverse = true;
 
         }
@@ -46,6 +46,11 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                         return new OperationResult<byte[]>(response, modbusTcpResponse.Data).Complete();
                     }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>(response);
+
+                    }
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -78,7 +83,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[1] { (byte)(value ? 0xFF : 0x00) }) ;
+                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, BitConverter.GetBytes(value)) ;
                     var response = await Transport.UnicastReadMessageAsync(request);
                     return _writeResponseHandle(response);
 
@@ -88,7 +93,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        public override async Task<OperationResult> WriteAsync(string address, bool[] value)
+        public  override async Task<OperationResult> WriteAsync(string address, bool[] value)
         {
             using (await _lock.LockAsync())
             {
@@ -105,7 +110,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        internal  OperationResult<byte[]> _writeResponseHandle(OperationResult<IDeviceReadWriteMessage> operationResult)
+        internal virtual  OperationResult<byte[]> _writeResponseHandle(OperationResult<IDeviceReadWriteMessage> operationResult)
         {
             if (operationResult.IsSuccess)
             {

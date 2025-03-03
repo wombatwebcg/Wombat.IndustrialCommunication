@@ -5,7 +5,7 @@ using Wombat.IndustrialCommunication.Enums;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    public class S7ReadRequest : AbstractDeviceMessage, IDeviceReadWriteMessage
+    public class S7ReadRequest :  IDeviceReadWriteMessage
     {
         public S7ReadRequest(string address, int length, bool isBit)
         {
