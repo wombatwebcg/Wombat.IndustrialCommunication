@@ -1,22 +1,22 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO.Ports;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Wombat.IndustrialCommunication.PLC
+namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class SiemensClient : S7Communication, IClient
+    public class ModbusRTUClient : ModbusRTU, IClient
     {
-        TcpClientAdapter _tcpClientAdapter;
+        SerialPortAdapter _serialPortAdapter;
         private AsyncLock _lock = new AsyncLock();
 
-        public SiemensClient(string ip, int port, SiemensVersion siemensVersion, byte slot = 0, byte rack = 0):base(new S7EthernetTransport(new TcpClientAdapter(ip, port)))
+        public ModbusRTUClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None
+            ) :base(new DeviceMessageTransport(new SerialPortAdapter(portName, baudRate,dataBits,stopBits,parity,handshake)))
         {
-            _tcpClientAdapter = (TcpClientAdapter)this.Transport.StreamResource;
-            Slot = slot;
-            Rack = rack;
-            SiemensVersion = siemensVersion;
+            _serialPortAdapter = (SerialPortAdapter)this.Transport.StreamResource;
+
         }
 
 
@@ -25,9 +25,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             get 
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                   return _tcpClientAdapter.ConnectTimeout;
+                   return _serialPortAdapter.ConnectTimeout;
                 }
                 else
                 {
@@ -36,9 +36,9 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             set 
             { 
-              if(_tcpClientAdapter!=null)
+              if(_serialPortAdapter!=null)
                 {
-                    _tcpClientAdapter.ConnectTimeout = value;
+                    _serialPortAdapter.ConnectTimeout = value;
                 }
             } 
         }
@@ -46,9 +46,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             get
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                    return _tcpClientAdapter.ReceiveTimeout;
+                    return _serialPortAdapter.ReceiveTimeout;
                 }
                 else
                 {
@@ -57,9 +57,9 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             set
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                    _tcpClientAdapter.ReceiveTimeout = value;
+                    _serialPortAdapter.ReceiveTimeout = value;
                 }
             }
         }
@@ -67,9 +67,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             get
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                    return _tcpClientAdapter.SendTimeout;
+                    return _serialPortAdapter.SendTimeout;
                 }
                 else
                 {
@@ -78,9 +78,9 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             set
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                    _tcpClientAdapter.SendTimeout = value;
+                    _serialPortAdapter.SendTimeout = value;
                 }
 
             }
@@ -89,9 +89,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             get
             {
-                if (_tcpClientAdapter != null)
+                if (_serialPortAdapter != null)
                 {
-                    return _tcpClientAdapter.Connected;
+                    return _serialPortAdapter.Connected;
                 }
                 else
                 {
@@ -154,25 +154,7 @@ namespace Wombat.IndustrialCommunication.PLC
         public async Task<OperationResult> ConnectAsync()
         {
             OperationResult result = new OperationResult();
-            var connect = await _tcpClientAdapter.ConnectAsync();
-            if (connect.IsSuccess)
-            {
-                var init = await this.InitAsync();
-                if (init.IsSuccess)
-                {
-                    return OperationResult.CreateSuccessResult(init);
-                }
-                else
-                {
-                    return OperationResult.CreateFailedResult(init);
-
-                }
-            }
-            else
-            {
-                return OperationResult.CreateFailedResult(connect);
-
-            }
+            return await _serialPortAdapter.ConnectAsync();
         }
 
         public OperationResult Disconnect()
@@ -182,7 +164,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public async Task<OperationResult> DisconnectAsync()
         {
-            return await _tcpClientAdapter.DisconnectAsync();
+            return await _serialPortAdapter.DisconnectAsync();
 
         }
 
@@ -227,7 +209,55 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
+        private async Task<OperationResult<T>> WriteCoreAsync<T>(Func<Task<OperationResult<T>>> writeOperation)
+        {
+            if (IsLongConnection)
+            {
+                if (!Connected)
+                {
+                    return OperationResult.CreateFailedResult<T>("客户端没有连接");
+                }
+                return await writeOperation();
+            }
+
+            if (!Connected)
+            {
+                var connect = await ConnectAsync();
+                if (!connect.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<T>("短连接失败");
+                }
+            }
+
+            try
+            {
+                return await writeOperation();
+            }
+            finally
+            {
+                if (!IsLongConnection)
+                {
+                    await DisconnectAsync();
+                }
+            }
+        }
+
         internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data, isBit));
+        }
+
+        public override async Task<OperationResult> WriteAsync(string address, bool[] data)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data));
+        }
+
+        public override async Task<OperationResult> WriteAsync(string address, bool data)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data));
+        }
+
+        private async Task<OperationResult> HandleWriteAsync(Func<Task<OperationResult>> writeAction)
         {
             if (IsLongConnection)
             {
@@ -235,37 +265,28 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     return OperationResult.CreateFailedResult<byte[]>("客户端没有连接");
                 }
-                else
-                {
-                    return await base.WriteAsync(address, data, isBit);
-                }
-
+                return await writeAction();
             }
             else
             {
                 if (!Connected)
                 {
                     var connect = await ConnectAsync();
-                    if (connect.IsSuccess)
-                    {
-                        return await base.WriteAsync(address, data, isBit);
-
-                    }
-                    else
+                    if (!connect.IsSuccess)
                     {
                         return OperationResult.CreateFailedResult<byte[]>("短连接失败");
-
                     }
                 }
-                else
+
+                var result = await writeAction();
+                if (!IsLongConnection)
                 {
-                    var result = await base.WriteAsync(address, data, isBit);
                     await DisconnectAsync();
-                    return result;
                 }
-
+                return result;
             }
-
         }
+
+
     }
 }

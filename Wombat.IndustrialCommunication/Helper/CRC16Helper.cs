@@ -36,23 +36,21 @@ namespace Wombat.IndustrialCommunication
         public static byte[] GetCRC16(byte[] value, ushort poly = 0xA001, ushort crcInit = 0xFFFF)
         {
             if (value == null || !value.Any())
-                throw new ArgumentException("生成CRC16Helper的入参有误");
+                throw new ArgumentException("生成CRC16的入参有误");
 
-            //运算
             ushort crc = crcInit;
-            for (int i = 0; i < value.Length; i++)
+
+            foreach (byte b in value)
             {
-                crc = (ushort)(crc ^ (value[i]));
-                for (int j = 0; j < 8; j++)
+                crc ^= b;
+                for (int i = 0; i < 8; i++)
                 {
                     crc = (crc & 1) != 0 ? (ushort)((crc >> 1) ^ poly) : (ushort)(crc >> 1);
                 }
             }
-            byte hi = (byte)((crc & 0xFF00) >> 8);  //高位置
-            byte lo = (byte)(crc & 0x00FF);         //低位置
 
-            byte[] buffer = new byte[2] { lo,hi};
-            return buffer;
+            // 小端序：低字节在前，高字节在后
+            return new byte[] { (byte)(crc & 0x00FF), (byte)((crc & 0xFF00) >> 8) };
         }
     }
 }

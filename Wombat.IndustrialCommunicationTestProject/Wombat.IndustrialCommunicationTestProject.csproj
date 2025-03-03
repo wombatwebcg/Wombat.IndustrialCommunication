@@ -26,4 +26,8 @@
     <ProjectReference Include="..\Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="PLC_Tests\" />
+  </ItemGroup>
+
 </Project>

@@ -58,6 +58,9 @@ namespace ConsoleApp1
             {
                 var connect = client.Connect();
                 DeviceMessageTransport s7EthernetTransport = new DeviceMessageTransport(client);
+                s7EthernetTransport.StreamResource.ReceiveTimeout = TimeSpan.FromMilliseconds(100);
+                s7EthernetTransport.StreamResource.SendTimeout = TimeSpan.FromMilliseconds(100);
+
                 ModbusRTU s7Communication = new ModbusRTU(s7EthernetTransport);
                 while (true)
                 {
