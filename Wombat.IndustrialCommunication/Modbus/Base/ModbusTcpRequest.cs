@@ -94,8 +94,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                     pdu[0] = functionCode;
                     pdu[1] = addressBytes[1];
                     pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = (byte)(data[0]==1?0xFF:0x0);
-                    pdu[4] = 0x00;//表示request 寄存器的长度(寄存器个数)
+                    pdu[3] = data[0];
+                    pdu[4] = data[1];//表示request 寄存器的长度(寄存器个数)
                     ProtocolResponseLength = 12; // MBAP + 回显数据
                     break;
 
@@ -105,8 +105,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                     pdu[0] = functionCode;
                     pdu[1] = addressBytes[1];
                     pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = data[1];
-                    pdu[4] = data[0];//表示request 寄存器的长度(寄存器个数)
+                    pdu[3] = data[0];
+                    pdu[4] = data[1];//表示request 寄存器的长度(寄存器个数)
                     ProtocolResponseLength = 12; // MBAP + 回显数据
                     break;
 

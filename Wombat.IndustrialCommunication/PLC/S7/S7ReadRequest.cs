@@ -60,15 +60,15 @@ namespace Wombat.IndustrialCommunication.PLC
             for (int i = 0; i < datas.Length; i++)
             {
                 var data = datas[i];
-                bool isBit = false;
+                bool isBit = data.IsBit;
                 int realLength = data.ReadWriteLength;
-                if (data.IsBit && data.ReadWriteLength >= 2)
-                {
-                    isBit = false;
-                }
                 if (data.IsBit)
                 {
                     realLength = (int)(Math.Ceiling(realLength / 8.0));
+                }
+                if(data.IsBit&& data.ReadWriteLength>1)
+                {
+                    isBit = false;
                 }
                 command[19 + i * 12] = 0x12;//variable specification
                 command[20 + i * 12] = 0x0A;//Length of following address specification

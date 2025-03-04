@@ -82,7 +82,7 @@ namespace Wombat.IndustrialCommunication
                                     {
                                         if (attempt++ > _retries)
                                         {
-                                            return OperationResult.CreateFailedResult<byte[]>($"{GetType().Name}, {_retries - attempt + 1} retries remaining - {nameof(IStreamResource)}");
+                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{ _retries - attempt + 1},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}");
                                         }
                                         // 可选：等待一段时间后重试
                                         await Task.Delay(WaitToRetryMilliseconds, cts.Token);
@@ -152,7 +152,7 @@ namespace Wombat.IndustrialCommunication
                                     {
                                         if (attempt++ > _retries)
                                         {
-                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"{GetType().Name}, { _retries - attempt + 1} retries remaining - { nameof(IStreamResource)}");
+                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"写入设备失败,重试次数:{ _retries - attempt + 1},超时参数:{_streamResource.SendTimeout.TotalMilliseconds}");
                                             retryResult.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
                                             return retryResult;
                                         }
