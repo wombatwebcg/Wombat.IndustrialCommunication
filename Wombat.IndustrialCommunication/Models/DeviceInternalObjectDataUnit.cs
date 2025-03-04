@@ -23,9 +23,12 @@ namespace Wombat.IndustrialCommunication
         public string Name { get; set; }
 
         public int Index { get; set; }
+
         public DataTypeEnums DataTypeEnum { get; set; }
 
+
         volatile bool _isUpdate = false;
+
         public object DataValue
         {
             get => _dataValue;
@@ -41,6 +44,7 @@ namespace Wombat.IndustrialCommunication
                 }
             }
         }
+
 
         public event PropertyChangedEventHandler PropertyChanged;
 

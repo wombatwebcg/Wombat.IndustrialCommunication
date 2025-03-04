@@ -6,13 +6,13 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusTcp : DeviceDataReaderWriterBase
+    public class ModbusTcpClientBase : DeviceDataReaderWriterBase
     {
         private AsyncLock _lock = new AsyncLock();
         private volatile int _transactionId = 0;
-        public ModbusTcp(DeviceMessageTransport transport):base(transport)
+        public ModbusTcpClientBase(DeviceMessageTransport transport):base(transport)
         {
-            DataFormat = Extensions.DataTypeExtensions.EndianFormat.CDAB;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
             IsReverse = true;
 
         }
@@ -51,7 +51,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
-                    var response = await Transport.UnicastReadMessageAsync(request);
+                    var response = await Transport.UnicastWriteMessageAsync(request);
                     return _writeResponseHandle(response);
 
                 }
@@ -67,8 +67,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[1] { (byte)(value ? 0xFF : 0x00) }) ;
-                    var response = await Transport.UnicastReadMessageAsync(request);
+                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[2] { (byte)(value ? 0xFF : 0x00) ,0x00}) ;
+                    var response = await Transport.UnicastWriteMessageAsync(request);
                     return _writeResponseHandle(response);
 
                 }
@@ -85,7 +85,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
-                    var response = await Transport.UnicastReadMessageAsync(request);
+                    var response = await Transport.UnicastWriteMessageAsync(request);
                     return _writeResponseHandle(response);
 
                 }

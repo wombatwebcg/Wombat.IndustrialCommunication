@@ -6,7 +6,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// SerialConfigOptions
     /// </summary>
-    public class SerialConfigOptions
+    public static class SerialConfigOptions
     {
         
         #region Gets the parity method

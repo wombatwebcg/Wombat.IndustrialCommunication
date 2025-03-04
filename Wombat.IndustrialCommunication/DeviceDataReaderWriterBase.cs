@@ -198,8 +198,7 @@ namespace Wombat.IndustrialCommunication
 
         public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
-            int reallength = (int)Math.Ceiling(length * 1.0 / 8);
-            var readResult = await ReadAsync(address, reallength, isBit: true);
+            var readResult = await ReadAsync(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
                 result.ResultValue = readResult.ResultValue.ToBool(0, length, false);

@@ -37,7 +37,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     return _tcpSocketClientBase.TcpSocketClientConfiguration.ConnectTimeout;
                 }
-                return default;
+                return TimeSpan.FromMilliseconds(100);
             }
             set
             {
@@ -56,7 +56,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     return _tcpSocketClientBase.TcpSocketClientConfiguration.ReceiveTimeout;
                 }
-                return default;
+                return TimeSpan.FromMilliseconds(100);
             }
             set
             {
@@ -75,7 +75,7 @@ namespace Wombat.IndustrialCommunication
                 {
                     return _tcpSocketClientBase.TcpSocketClientConfiguration.SendTimeout;
                 }
-                return default;
+                return TimeSpan.FromMilliseconds(100);
             }
             set
             {

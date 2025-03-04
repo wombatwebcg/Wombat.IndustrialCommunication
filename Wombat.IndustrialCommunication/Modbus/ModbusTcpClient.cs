@@ -1,54 +1,33 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.IO.Ports;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusRTUClient : ModbusRTUClientBase, IDeviceClient
+    public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient
     {
-        SerialPortAdapter _serialPortAdapter;
+        TcpClientAdapter _tcpClientAdapter;
         private AsyncLock _lock = new AsyncLock();
 
-        public ModbusRTUClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None
-            ) :base(new DeviceMessageTransport(new SerialPortAdapter(portName, baudRate,dataBits,stopBits,parity,handshake)))
+        public ModbusTcpClient(string ip, int port = 502 )
+            : base(new DeviceMessageTransport(new TcpClientAdapter(ip,  port)))
         {
-            _serialPortAdapter = (SerialPortAdapter)this.Transport.StreamResource;
+            _tcpClientAdapter = (TcpClientAdapter)this.Transport.StreamResource;
 
         }
 
 
         public ILogger Logger { get; set; }
-        public TimeSpan ConnectTimeout 
-        {
-            get 
-            {
-                if (_serialPortAdapter != null)
-                {
-                   return _serialPortAdapter.ConnectTimeout;
-                }
-                else
-                {
-                    return default;
-                }
-            }
-            set 
-            { 
-              if(_serialPortAdapter!=null)
-                {
-                    _serialPortAdapter.ConnectTimeout = value;
-                }
-            } 
-        }
-        public TimeSpan ReceiveTimeout
+        public TimeSpan ConnectTimeout
         {
             get
             {
-                if (_serialPortAdapter != null)
+                if (_tcpClientAdapter != null)
                 {
-                    return _serialPortAdapter.ReceiveTimeout;
+                    return _tcpClientAdapter.ConnectTimeout;
                 }
                 else
                 {
@@ -57,9 +36,30 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             set
             {
-                if (_serialPortAdapter != null)
+                if (_tcpClientAdapter != null)
                 {
-                    _serialPortAdapter.ReceiveTimeout = value;
+                    _tcpClientAdapter.ConnectTimeout = value;
+                }
+            }
+        }
+        public TimeSpan ReceiveTimeout
+        {
+            get
+            {
+                if (_tcpClientAdapter != null)
+                {
+                    return _tcpClientAdapter.ReceiveTimeout;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (_tcpClientAdapter != null)
+                {
+                    _tcpClientAdapter.ReceiveTimeout = value;
                 }
             }
         }
@@ -67,9 +67,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             get
             {
-                if (_serialPortAdapter != null)
+                if (_tcpClientAdapter != null)
                 {
-                    return _serialPortAdapter.SendTimeout;
+                    return _tcpClientAdapter.SendTimeout;
                 }
                 else
                 {
@@ -78,9 +78,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             set
             {
-                if (_serialPortAdapter != null)
+                if (_tcpClientAdapter != null)
                 {
-                    _serialPortAdapter.SendTimeout = value;
+                    _tcpClientAdapter.SendTimeout = value;
                 }
 
             }
@@ -89,9 +89,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             get
             {
-                if (_serialPortAdapter != null)
+                if (_tcpClientAdapter != null)
                 {
-                    return _serialPortAdapter.Connected;
+                    return _tcpClientAdapter.Connected;
                 }
                 else
                 {
@@ -146,6 +146,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         public bool IsLongConnection { get; set; } = true;
         public TimeSpan ResponseInterval { get; set; }
 
+        public override string Version => nameof(ModbusTcpClient);
+
         public OperationResult Connect()
         {
             return ConnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
@@ -154,7 +156,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public async Task<OperationResult> ConnectAsync()
         {
             OperationResult result = new OperationResult();
-            return await _serialPortAdapter.ConnectAsync();
+            return await _tcpClientAdapter.ConnectAsync();
         }
 
         public OperationResult Disconnect()
@@ -164,22 +166,22 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public async Task<OperationResult> DisconnectAsync()
         {
-            return await _serialPortAdapter.DisconnectAsync();
+            return await _tcpClientAdapter.DisconnectAsync();
 
         }
 
 
         internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
         {
-            if(IsLongConnection)
+            if (IsLongConnection)
             {
-                if(!Connected)
+                if (!Connected)
                 {
                     return OperationResult.CreateFailedResult<byte[]>("客户端没有连接");
                 }
                 else
                 {
-                    return await base.ReadAsync(address,length,isBit);
+                    return await base.ReadAsync(address, length, isBit);
                 }
 
             }
@@ -187,8 +189,8 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 if (!Connected)
                 {
-                   var connect = await ConnectAsync();
-                    if(connect.IsSuccess)
+                    var connect = await ConnectAsync();
+                    if (connect.IsSuccess)
                     {
                         return await base.ReadAsync(address, length, isBit);
 
@@ -209,38 +211,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        private async Task<OperationResult<T>> WriteCoreAsync<T>(Func<Task<OperationResult<T>>> writeOperation)
-        {
-            if (IsLongConnection)
-            {
-                if (!Connected)
-                {
-                    return OperationResult.CreateFailedResult<T>("客户端没有连接");
-                }
-                return await writeOperation();
-            }
-
-            if (!Connected)
-            {
-                var connect = await ConnectAsync();
-                if (!connect.IsSuccess)
-                {
-                    return OperationResult.CreateFailedResult<T>("短连接失败");
-                }
-            }
-
-            try
-            {
-                return await writeOperation();
-            }
-            finally
-            {
-                if (!IsLongConnection)
-                {
-                    await DisconnectAsync();
-                }
-            }
-        }
 
         internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
         {
@@ -286,7 +256,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return result;
             }
         }
-
 
     }
 }
