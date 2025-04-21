@@ -146,18 +146,32 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult> ConnectAsync()
         {
-            OperationResult connect = new OperationResult();
-            await _tcpSocketClientBase.Connect();
-            connect.IsSuccess = _tcpSocketClientBase.Connected;
-            return connect.Complete();
+            try
+            {
+                OperationResult connect = new OperationResult();
+                await _tcpSocketClientBase.ConnectAsync();
+                connect.IsSuccess = _tcpSocketClientBase.Connected;
+                return connect.Complete();
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult(ex);
+            }
         }
 
         public async Task<OperationResult> DisconnectAsync()
         {
-            OperationResult disConnect = new OperationResult();
-            await _tcpSocketClientBase.Close();
-            disConnect.IsSuccess = _tcpSocketClientBase.Connected;
-            return disConnect.Complete();
+            try
+            {
+                OperationResult disConnect = new OperationResult();
+                await _tcpSocketClientBase.Close();
+                disConnect.IsSuccess = _tcpSocketClientBase.Connected;
+                return disConnect.Complete();
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult(ex);
+            }
         }
 
         public void StreamClose()

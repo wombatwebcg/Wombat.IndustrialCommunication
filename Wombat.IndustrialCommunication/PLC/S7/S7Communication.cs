@@ -139,47 +139,94 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (await _lock.LockAsync())
             {
-                OperationResult<byte> result = new OperationResult<byte>();
+                OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (Transport is S7EthernetTransport s7Transport)
                 {
-                    var readRequest = new S7ReadRequest(address, length, isBit);
-                    var response = await s7Transport.UnicastReadMessageAsync(readRequest);
-                    if (response.IsSuccess)
+                    int maxCount = 200;
+                    if (length > maxCount)
                     {
-                        int realLength = length;
-                        var dataPackage =  response.ResultValue.ProtocolMessageFrame;
-                        if (isBit) { realLength = (int)(Math.Ceiling(realLength / 8.0)); }
-                        byte[] responseData =new byte[realLength];
-                        Array.Copy(dataPackage, dataPackage.Length- realLength, responseData, 0, realLength);
+                        int alreadyFinished = 0;
+                        List<byte> bytesContent = new List<byte>();
+                        while (alreadyFinished < length)
+                        {
+                            ushort readLength = (ushort)Math.Min(length - alreadyFinished, maxCount);
+
+                            var tempResult = await internalReadAsync(s7Transport, address,alreadyFinished, readLength, isBit);
+                            if (tempResult.IsSuccess)
+                            {
+                                result.Requsts.Add(tempResult.Requsts[0]);
+                                result.Responses.Add(tempResult.Responses[0]);
+                                bytesContent.AddRange(tempResult.ResultValue);
+                                alreadyFinished += readLength;
+                            }
+                        }
+
+                        result.ResultValue = bytesContent.ToArray();
+                        return result.Complete();
+
+
+                    }
+                    else
+                    {
+                        return await internalReadAsync(s7Transport, address,0, length, isBit);
+                    }
+
+                }
+                return OperationResult.CreateFailedResult<byte[]>();
+            }
+
+            async ValueTask<OperationResult<byte[]>> internalReadAsync(S7EthernetTransport transport,string internalAddress,int internalOffest, int internalLength, bool internalIsBit = false)
+            {
+                var tempResult = new OperationResult<byte>();
+                var readRequest = new S7ReadRequest(internalAddress, internalOffest, internalLength, isBit);
+                var response = await transport.UnicastReadMessageAsync(readRequest);
+                if (response.IsSuccess)
+                {
+                    int realLength = internalLength;
+                    var dataPackage = response.ResultValue.ProtocolMessageFrame;
+                    byte[] responseData = new byte[realLength];
+                    try
+                    {
                         //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
                         if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
                         {
                             if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
                             {
-                                result.IsSuccess = false;
-                                result.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
                             {
-                                result.IsSuccess = false;
-                                result.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] != 0xFF)
                             {
-                                result.IsSuccess = false;
-                                result.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                         }
-                        return new OperationResult<byte[]>(response, responseData).Complete();
+                        if (internalIsBit) { realLength = (int)(Math.Ceiling(realLength / 8.0)); }
+                        Array.Copy(dataPackage, dataPackage.Length - realLength, responseData, 0, realLength);
                     }
-                    else
+                    catch (Exception ex)
                     {
-
-                        return OperationResult.CreateFailedResult<byte[]>(response);
+                        tempResult.Exception = ex;
+                        tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} 读取预期长度与返回数据长度不一致";
+                        return OperationResult.CreateFailedResult<byte[]>(tempResult);
                     }
+                    return new OperationResult<byte[]>(response, responseData).Complete();
                 }
-                return OperationResult.CreateFailedResult<byte[]>();
+                else
+                {
+
+                    return OperationResult.CreateFailedResult<byte[]>(response);
+                }
             }
+
         }
 
         internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
