@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -10,15 +12,17 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         TcpClientAdapter _tcpClientAdapter;
         private AsyncLock _lock = new AsyncLock();
-
+        public  IPEndPoint IPEndPoint { get; private set; }
         public SiemensClient(string ip, int port, SiemensVersion siemensVersion, byte slot = 0, byte rack = 0):base(new S7EthernetTransport(new TcpClientAdapter(ip, port)))
         {
             _tcpClientAdapter = (TcpClientAdapter)this.Transport.StreamResource;
             Slot = slot;
             Rack = rack;
             SiemensVersion = siemensVersion;
+            if (!IPAddress.TryParse(ip, out IPAddress address))
+                address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
+            IPEndPoint = new IPEndPoint(address, port);
         }
-
 
         public ILogger Logger { get; set; }
         public TimeSpan ConnectTimeout 

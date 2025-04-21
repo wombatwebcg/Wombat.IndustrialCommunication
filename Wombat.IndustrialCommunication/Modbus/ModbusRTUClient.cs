@@ -153,7 +153,6 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public async Task<OperationResult> ConnectAsync()
         {
-            OperationResult result = new OperationResult();
             return await _serialPortAdapter.ConnectAsync();
         }
 

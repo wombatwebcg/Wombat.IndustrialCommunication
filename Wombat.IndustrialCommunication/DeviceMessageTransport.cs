@@ -58,6 +58,12 @@ namespace Wombat.IndustrialCommunication
             {
                 int attempt = 1;
                 bool success = false;
+                var result = new OperationResult<byte[]>() { };
+                if (!_streamResource.Connected)
+                {
+                    result.Message = "连接失败";
+                    return OperationResult.CreateFailedResult<byte[]>(result);
+                }
                 do
                 {
                     try
@@ -91,16 +97,20 @@ namespace Wombat.IndustrialCommunication
                             }
                             catch (OperationCanceledException)
                             {
-                                return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
+                                result.Message = "操作超时";
+                                return OperationResult.CreateFailedResult<byte[]>();
                             }
                             catch (ObjectDisposedException)
                             {
-                                // 流被关闭引发的异常
-                                return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
+                                result.Message = "连接已关闭";
+                                return OperationResult.CreateFailedResult<byte[]>();
+
                             }
                             catch (Exception e)
                             {
-                                return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
+                                result.Message = $"操作失败：{e.Message}";
+                                return OperationResult.CreateFailedResult<byte[]>();
+
                             }
                         }
                     }
@@ -128,13 +138,19 @@ namespace Wombat.IndustrialCommunication
                 int attempt = 1;
                 bool success = false;
                 bool readAgain = true;
+                var result = new OperationResult<byte[]>() { };
+                result.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
+                if (!_streamResource.Connected)
+                {
+                    result.Message = "连接失败";
+                    return OperationResult.CreateFailedResult(result);
+                }
                 do
                 {
                     try
                     {
                         using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                         {
-                            var ss = _streamResource.SendTimeout;
                             cts.Token.Register(() => _streamResource.StreamClose());
                             var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
                             do
@@ -160,16 +176,20 @@ namespace Wombat.IndustrialCommunication
                                 }
                                 catch (OperationCanceledException)
                                 {
-                                    return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
+                                    result.Message = "操作超时";
+                                    return OperationResult.CreateFailedResult(result);
+
                                 }
                                 catch (ObjectDisposedException)
                                 {
-                                    // 流被关闭引发的异常
-                                    return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
+                                    result.Message = "连接已关闭";
+                                    return OperationResult.CreateFailedResult(result);
+
                                 }
                                 catch (Exception e)
                                 {
-                                    return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
+                                    result.Message = $"操作失败：{e.Message}";
+                                    return OperationResult.CreateFailedResult(result);
                                 }
 
                             } while (readAgain);
@@ -189,7 +209,7 @@ namespace Wombat.IndustrialCommunication
 
                     }
                 } while (!success);
-                return OperationResult.CreateFailedResult();
+                return OperationResult.CreateFailedResult(result);
 
             }
         }
@@ -204,8 +224,10 @@ namespace Wombat.IndustrialCommunication
                 {
                    await Task.Delay(ResponseInterval);
                     var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                    response1Result.Requsts.Add(result.Requsts[0]);
                     if (!response1Result.IsSuccess)
                     {
+                        response1Result.Requsts.Add(result.Requsts[0]);
                         return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(response1Result);
                     }
                     result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));

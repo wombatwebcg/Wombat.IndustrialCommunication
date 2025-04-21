@@ -11,6 +11,7 @@ namespace Wombat.IndustrialCommunication
 
         TimeSpan ReceiveTimeout { get; set; }
         TimeSpan SendTimeout { get; set; }
+        bool Connected { get;}
         Task<OperationResult<int>> Receive(byte[] buffer, int offset, int length, CancellationToken cancellationToken);
         Task<OperationResult> Send(byte[] buffer, int offset, int length, CancellationToken cancellationToken);
         void StreamClose();

@@ -96,8 +96,7 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                operation.Exception = ex;
-                return OperationResult.CreateFailedResult(operation);
+                throw (ex);
             }
         }
 
@@ -112,8 +111,7 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                operation.Exception = ex;
-                return OperationResult.CreateFailedResult(operation, 0);
+                throw (ex);
             }
         }
 
