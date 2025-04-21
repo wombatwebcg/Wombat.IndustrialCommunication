@@ -47,6 +47,32 @@ namespace Wombat.IndustrialCommunication
         public ILogger Logger { get; set; }
         public TimeSpan WaiteInterval { get; set; }
         public bool Connected => _serialPort?.IsOpen ?? false;
+
+        public int BytesToRead
+        {
+            get
+            {
+                if (_serialPort != null)
+                {
+                    return _serialPort.BytesToRead;
+                }
+                return 0;
+
+            }
+        }
+
+        public int BytesToWrite
+        {
+            get
+            {
+                if (_serialPort != null)
+                {
+                    return _serialPort.BytesToWrite;
+                }
+                return 0;
+
+            }
+        }
         public TimeSpan ConnectTimeout
         {
             get;
@@ -103,8 +129,7 @@ namespace Wombat.IndustrialCommunication
                 }
                 catch (Exception ex)
                 {
-                    operation.Exception = ex;
-                    return OperationResult.CreateFailedResult(operation);
+                    throw (ex);
                 }
             }
         }
@@ -123,8 +148,8 @@ namespace Wombat.IndustrialCommunication
                 }
                 catch (Exception ex)
                 {
-                    operation.Exception = ex;
-                    return OperationResult.CreateFailedResult(operation, 0);
+                    throw (ex);
+
                 }
             }
         }
@@ -161,29 +186,48 @@ namespace Wombat.IndustrialCommunication
         public async Task<OperationResult> ConnectAsync()
         {
             OperationResult connect = new OperationResult();
-            _serialPort.PortName = PortName ?? throw new ArgumentNullException(nameof(PortName));
-            _serialPort.BaudRate = BaudRate;
-            _serialPort.Parity = Parity;
-            _serialPort.DataBits = DataBits;
-            _serialPort.StopBits = StopBits;
-            _serialPort.Handshake = Handshake;
-            _serialPort.Close();
-            _serialPort.Open();
-            await  _serialPort.BaseStream.FlushAsync();
-            connect.IsSuccess = _serialPort.IsOpen;
+            try
+            {
+                _serialPort.PortName = PortName ?? throw new ArgumentNullException(nameof(PortName));
+                _serialPort.BaudRate = BaudRate;
+                _serialPort.Parity = Parity;
+                _serialPort.DataBits = DataBits;
+                _serialPort.StopBits = StopBits;
+                _serialPort.Handshake = Handshake;
+
+                _serialPort.Close();
+
+                if (!_serialPort.IsOpen)
+                {
+                    _serialPort.Open();
+                    connect.IsSuccess = _serialPort.IsOpen;
+                    return connect;
+                }
+            }
+            catch (Exception ex)
+            {
+                connect.Message = ex.Message;
+            }
             return connect;
         }
 
-        public  Task<OperationResult> DisconnectAsync()
+
+        public Task<OperationResult> DisconnectAsync()
         {
             OperationResult connect = new OperationResult();
             _serialPort.Close();
+            connect.IsSuccess = !_serialPort.IsOpen;
             return Task.FromResult(connect);
         }
 
         public void StreamClose()
         {
-            _serialPort.BaseStream.Close();
+            if (_serialPort?.IsOpen??false)
+            {
+                _serialPort.BaseStream.Close();
+            }
         }
+
+      
     }
 }

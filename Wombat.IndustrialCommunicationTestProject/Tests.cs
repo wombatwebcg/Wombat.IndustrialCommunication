@@ -17,11 +17,16 @@ namespace Wombat.IndustrialCommunicationTestProject
 
         public void ObservableArrayTest()
         {
-            var array = new ObservableArray<int>(100000)
+            int count = 100_000;
+            var array = new ObservableArray<int>(count)
             {
-                //BatchInterval = TimeSpan.FromMilliseconds(10),
+                ThrottleInterval = TimeSpan.FromMilliseconds(100),
+                MaxThrottleInterval = TimeSpan.FromMilliseconds(500),
+                EnableDynamicThrottling = true
+                //BatchInterval = TimeSpan.FromMilliseconds(200),
                 //EnableBatchNotification = true
             };
+            //array.MarkHighPriority(0);
 
             array.OnElementChanged += (index, oldValue, newValue) =>
             {
@@ -34,21 +39,27 @@ namespace Wombat.IndustrialCommunicationTestProject
             //    Debug.WriteLine($"Batch Update: {batchChanges.Count} elements changed,{DateTime.Now.ToString("HH:mm:ss ffff")}");
             //};
 
-            //Parallel.For(0, 100000, i =>
+            //Parallel.For(0, count, i =>
             //{
             //    array.Set(i, i * 10);
             //    array.Set(i, i * 20);
             //});
-
-            for (int i = 0; i < 100000; i++)
+            Task.Run(() =>
             {
-                array.Set(i, i * 10);
+                while(true)
+                {
+                    Random random = new Random();
+                    for (int i = 0; i < count; i++)
+                    {
+                        //array.Set(i, random.Next(1,count) * 10);
+                    }
 
-            }
-            //Console.WriteLine($"Latest value at index 5: {array.GetLatest(5)}");
-
-            Thread.Sleep(70000);
-            array.StopWatching();
+                }
+            });
+            //array.Set(0, 999);
+            //Thread.Sleep(70000);
+            //array.StopWatching();
+            for (; ; );
         }
     }
 }

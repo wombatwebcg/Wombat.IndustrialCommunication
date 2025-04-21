@@ -221,21 +221,22 @@ namespace Wombat.IndustrialCommunication
         /// 创建并返回一个失败的结果对象，该对象复制另一个结果对象的错误信息
         /// </summary>
         /// <typeparam name="T">目标数据类型</typeparam>
-        /// <param name="result">之前的结果对象</param>
+        /// <param name="orgin">之前的结果对象</param>
         /// <returns>带默认泛型对象的失败结果类</returns>
-        public static OperationResult<T> CreateFailedResult<T>(OperationResult result)
+        public static OperationResult<T> CreateFailedResult<T>(OperationResult orgin)
         {
-            return new OperationResult<T>()
+            var result = new OperationResult<T>()
             {
                 IsSuccess = false,
                 ErrorCode = -1,
-                Exception = result.Exception,
-                Responses = result.Responses,
-                Requsts = result.Requsts,
-                InitialTime = result.InitialTime,
-                Message = result.Message
+                Exception = orgin.Exception,
+                Responses = orgin.Responses,
+                Requsts = orgin.Requsts,
+                InitialTime = orgin.InitialTime,
+                Message = orgin.Message
 
-            }.Complete();
+            };
+            return result.Complete();
         }
 
 
@@ -245,19 +246,20 @@ namespace Wombat.IndustrialCommunication
         /// <typeparam name="T">目标数据类型</typeparam>
         /// <param name="result">之前的结果对象</param>
         /// <returns>带默认泛型对象的失败结果类</returns>
-        public static OperationResult<T> CreateFailedResult<T>(OperationResult result,T value)
+        public static OperationResult<T> CreateFailedResult<T>(OperationResult orgin, T value)
         {
-            return new OperationResult<T>()
+            var result = new OperationResult<T>()
             {
                 IsSuccess = false,
                 ErrorCode = -1,
-                Exception = result.Exception,
-                Responses = result.Responses,
-                Requsts = result.Requsts,
-                InitialTime = result.InitialTime,
-                Message = result.Message,
-                ResultValue = value              
-            }.Complete();
+                Exception = orgin.Exception,
+                Responses = orgin.Responses,
+                Requsts = orgin.Requsts,
+                InitialTime = orgin.InitialTime,
+                Message = orgin.Message,
+                ResultValue = value
+            };
+            return result.Complete();
         }
 
 
