@@ -112,21 +112,22 @@ namespace Wombat.IndustrialCommunication.PLC
             for (int i = 0; i < writes.Length; i++)
             {
                 var write = writes[i];
-                if (write.IsBit & (write.WriteData.Length > 1 | write.WriteData[0] >= 2))
+                bool isBit = write.IsBit;
+                if (write.WriteData.Length > 1 || write.WriteData[0] >= 2)
                 {
-                    write.IsBit = false;
+                    isBit = false;
                 }
                 var writeData = write.WriteData;
-                var coefficient = write.IsBit ? 1 : 8;
+                var coefficient = isBit ? 1 : 8;
 
                 command[1 + index] = 0x00;
-                command[2 + index] = write.IsBit ? (byte)0x03 : (byte)0x04;// 03bit（位）04 byte(字节)
+                command[2 + index] = isBit ? (byte)0x03 : (byte)0x04;// 03bit（位）04 byte(字节)
                 command[3 + index] = (byte)(writeData.Length * coefficient / 256);
                 command[4 + index] = (byte)(writeData.Length * coefficient % 256);//按位计算出的长度
 
                 if (write.WriteData.Length == 1)
                 {
-                    if (write.IsBit)
+                    if (isBit)
                         command[5 + index] = writeData[0] == 0x01 ? (byte)0x01 : (byte)0x00; //True or False 
                     else command[5 + index] = writeData[0];
 

@@ -7,11 +7,11 @@ namespace Wombat.IndustrialCommunication.PLC
 {
     public class S7ReadRequest :  IDeviceReadWriteMessage
     {
-        public S7ReadRequest(string address, int length, bool isBit)
+        public S7ReadRequest(string address,int offest, int length, bool isBit)
         {
             RegisterAddress = address;
             RegisterCount = length;
-            var siemensAddress = ConvertSiemensAddress(address);
+            var siemensAddress = ConvertSiemensAddress(address, offest);
             siemensAddress.IsBit = isBit;
             siemensAddress.ReadWriteLength = length;
             ProtocolMessageFrame = GetReadCommand(siemensAddress);

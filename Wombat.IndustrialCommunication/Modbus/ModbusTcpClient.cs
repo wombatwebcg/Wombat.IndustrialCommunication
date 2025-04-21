@@ -1,6 +1,8 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.Linq;
+using System.Net;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
@@ -11,12 +13,14 @@ namespace Wombat.IndustrialCommunication.Modbus
     {
         TcpClientAdapter _tcpClientAdapter;
         private AsyncLock _lock = new AsyncLock();
-
+        public IPEndPoint IPEndPoint { get; private set; }
         public ModbusTcpClient(string ip, int port = 502 )
             : base(new DeviceMessageTransport(new TcpClientAdapter(ip,  port)))
         {
             _tcpClientAdapter = (TcpClientAdapter)this.Transport.StreamResource;
-
+            if (!IPAddress.TryParse(ip, out IPAddress address))
+                address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
+            IPEndPoint = new IPEndPoint(address, port);
         }
 
 
