@@ -142,7 +142,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (Transport is S7EthernetTransport s7Transport)
                 {
-                    int maxCount = 200;
+                    int maxCount = 180;
                     if (length > maxCount)
                     {
                         int alreadyFinished = 0;

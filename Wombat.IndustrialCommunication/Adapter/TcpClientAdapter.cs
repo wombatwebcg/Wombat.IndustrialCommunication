@@ -165,6 +165,7 @@ namespace Wombat.IndustrialCommunication
             {
                 OperationResult disConnect = new OperationResult();
                 await _tcpSocketClientBase.Close();
+                StreamClose();
                 disConnect.IsSuccess = _tcpSocketClientBase.Connected;
                 return disConnect.Complete();
             }

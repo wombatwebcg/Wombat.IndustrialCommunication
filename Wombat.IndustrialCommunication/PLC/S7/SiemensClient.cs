@@ -158,8 +158,12 @@ namespace Wombat.IndustrialCommunication.PLC
         public async Task<OperationResult> ConnectAsync()
         {
             OperationResult result = new OperationResult();
-            var connect = await _tcpClientAdapter.ConnectAsync();
-            if (connect.IsSuccess)
+            OperationResult connect = OperationResult.CreateFailedResult();
+            if (!_tcpClientAdapter.Connected)
+            {
+                connect = await _tcpClientAdapter.ConnectAsync();
+            }
+            if (_tcpClientAdapter.Connected)
             {
                 var init = await this.InitAsync();
                 if (init.IsSuccess)
@@ -168,6 +172,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else
                 {
+                    init.Message = "指令初始化失败";
                     return OperationResult.CreateFailedResult(init);
 
                 }
@@ -197,7 +202,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if(!Connected)
                 {
-                    return OperationResult.CreateFailedResult<byte[]>("客户端没有连接");
+                    return OperationResult.CreateFailedResult<byte[]>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
                 }
                 else
                 {
@@ -207,27 +212,19 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             else
             {
-                if (!Connected)
-                {
-                   var connect = await ConnectAsync();
-                    if(connect.IsSuccess)
-                    {
-                        return await base.ReadAsync(address, length, isBit);
-
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>("短连接失败");
-
-                    }
-                }
-                else
+                await DisconnectAsync();
+                var connect = await ConnectAsync();
+                if (connect.IsSuccess)
                 {
                     var result = await base.ReadAsync(address, length, isBit);
                     await DisconnectAsync();
                     return result;
                 }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte[]>("短连接失败");
 
+                }
             }
         }
 
@@ -247,25 +244,18 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             else
             {
-                if (!Connected)
-                {
-                    var connect = await ConnectAsync();
-                    if (connect.IsSuccess)
-                    {
-                        return await base.WriteAsync(address, data, isBit);
-
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>("短连接失败");
-
-                    }
-                }
-                else
+                await DisconnectAsync();
+                var connect = await ConnectAsync();
+                if (connect.IsSuccess)
                 {
                     var result = await base.WriteAsync(address, data, isBit);
                     await DisconnectAsync();
                     return result;
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte[]>("短连接失败");
+
                 }
 
             }
