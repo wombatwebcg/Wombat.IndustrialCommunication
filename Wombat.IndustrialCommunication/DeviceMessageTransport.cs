@@ -10,303 +10,299 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication
 {
+    /// <summary>
+    /// 设备消息传输类，负责处理与设备的通信
+    /// </summary>
     public class DeviceMessageTransport : IDeviceMessageTransport, IDisposable
     {
-        private AsyncLock _asyncLock = new AsyncLock();
+        // 异步锁，确保并发安全
+        private readonly AsyncLock _asyncLock = new AsyncLock();
+        // 流资源接口
         private IStreamResource _streamResource;
+        // 重试次数
         private int _retries = 2;
+        // 重试等待时间
         private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(100);
-        private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+        // 字节数组池，用于优化内存使用
+        private static readonly ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
 
-
-
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="streamResource">流资源接口</param>
         public DeviceMessageTransport(IStreamResource streamResource)
         {
-            Debug.Assert(streamResource != null, "Argument streamResource cannot be null.");
-
+            Debug.Assert(streamResource != null, "流资源参数不能为空");
             _streamResource = streamResource;
         }
 
+        /// <summary>
+        /// 获取流资源
+        /// </summary>
+        public IStreamResource StreamResource => _streamResource;
 
-        public IStreamResource StreamResource
-        {
-            get { return _streamResource; }
-        }
-
+        /// <summary>
+        /// 获取或设置重试次数
+        /// </summary>
         public int Retries
         {
-            get { return _retries; }
-            set { _retries = value; }
+            get => _retries;
+            set => _retries = value;
         }
 
+        /// <summary>
+        /// 获取或设置重试等待时间
+        /// </summary>
         public TimeSpan WaitToRetryMilliseconds
         {
-            get { return _waitToRetryMilliseconds; }
-            set
-            {
-
-                _waitToRetryMilliseconds = value;
-            }
+            get => _waitToRetryMilliseconds;
+            set => _waitToRetryMilliseconds = value;
         }
 
-
+        /// <summary>
+        /// 响应间隔时间
+        /// </summary>
         public TimeSpan ResponseInterval { get; set; } = TimeSpan.FromMilliseconds(50);
 
+        /// <summary>
+        /// 异步接收响应
+        /// </summary>
+        /// <param name="offset">偏移量</param>
+        /// <param name="length">长度</param>
+        /// <returns>操作结果</returns>
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {
             using (await _asyncLock.LockAsync())
             {
-                int attempt = 1;
-                bool success = false;
-                var result = new OperationResult<byte[]>() { };
                 if (!_streamResource.Connected)
                 {
-                    result.Message = "连接失败";
-                    return OperationResult.CreateFailedResult<byte[]>(result);
+                    return OperationResult.CreateFailedResult<byte[]>("设备未连接");
                 }
-                do
+
+                int attempt = 1;
+                byte[] buffer = _byteArrayPool.Rent(length);
+                try
                 {
-                    try
+                    using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
                     {
-                        using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
+                        cts.Token.Register(() => _streamResource.StreamClose());
+
+                        while (attempt <= _retries)
                         {
                             try
                             {
-                                byte[] buffer = new byte[length];
-                                cts.Token.Register(() => _streamResource.StreamClose());
                                 var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
-                                bool readAgain = true;
-                                do
+                                if (read?.IsSuccess ?? false)
                                 {
-                                    if (read?.IsSuccess ?? false)
-                                    {
-                                        readAgain = false;
-                                        success = true;
-                                        return OperationResult.CreateSuccessResult(buffer);
-                                    }
-                                    else
-                                    {
-                                        if (attempt++ > _retries)
-                                        {
-                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{ _retries - attempt + 1},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}");
-                                        }
-                                        // 可选：等待一段时间后重试
-                                        await Task.Delay(WaitToRetryMilliseconds, cts.Token);
-                                    }
-                                } while (readAgain);
+                                    var result = new byte[length];
+                                    Array.Copy(buffer, result, length);
+                                    return OperationResult.CreateSuccessResult(result);
+                                }
+
+                                if (attempt++ > _retries)
+                                {
+                                    return OperationResult.CreateFailedResult<byte[]>($"读取设备失败，重试次数：{_retries}，超时参数：{_streamResource.ReceiveTimeout.TotalMilliseconds}ms");
+                                }
+
+                                await Task.Delay(WaitToRetryMilliseconds, cts.Token);
                             }
                             catch (OperationCanceledException)
                             {
-                                result.Message = "操作超时";
-                                return OperationResult.CreateFailedResult<byte[]>();
+                                return OperationResult.CreateFailedResult<byte[]>("操作超时");
                             }
                             catch (ObjectDisposedException)
                             {
-                                result.Message = "连接已关闭";
-                                return OperationResult.CreateFailedResult<byte[]>();
-
+                                return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
                             }
                             catch (Exception e)
                             {
-                                result.Message = $"操作失败：{e.Message}";
-                                return OperationResult.CreateFailedResult<byte[]>();
-
+                                if (attempt > _retries)
+                                {
+                                    return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
+                                }
+                                Debug.WriteLine($"接收异常：{e.GetType().Name}，剩余重试次数：{_retries - attempt + 1}，异常信息：{e}");
                             }
                         }
                     }
-                    catch (Exception e)
-                    {
-                        if (e is FormatException ||
-                            e is NotImplementedException ||
-                            e is TimeoutException ||
-                            e is IOException)
-                        {
-                            Debug.WriteLine("{0}, {1} retries remaining - {2}", e.GetType().Name, _retries - attempt + 1, e);
+                }
+                finally
+                {
+                    _byteArrayPool.Return(buffer);
+                }
 
-                        }
-
-                    }
-                } while (!success);
-                return OperationResult.CreateFailedResult<byte[]>();
-
+                return OperationResult.CreateFailedResult<byte[]>("接收失败");
             }
         }
+
+        /// <summary>
+        /// 异步发送请求
+        /// </summary>
+        /// <param name="request">请求数据</param>
+        /// <returns>操作结果</returns>
         public async Task<OperationResult> SendRequestAsync(byte[] request)
         {
             using (await _asyncLock.LockAsync())
             {
-                int attempt = 1;
-                bool success = false;
-                bool readAgain = true;
-                var result = new OperationResult<byte[]>() { };
-                result.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
                 if (!_streamResource.Connected)
                 {
-                    result.Message = "连接失败";
-                    return OperationResult.CreateFailedResult(result);
+                    return OperationResult.CreateFailedResult("设备未连接");
                 }
-                do
+
+                int attempt = 1;
+                var result = new OperationResult();
+                result.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
+
+                using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                 {
-                    try
+                    cts.Token.Register(() => _streamResource.StreamClose());
+
+                    while (attempt <= _retries)
                     {
-                        using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
+                        try
                         {
-                            cts.Token.Register(() => _streamResource.StreamClose());
-                            var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
-                            do
+                            var write = await _streamResource.Send(request, 0, request.Length, cts.Token);
+                            if (write?.IsSuccess ?? false)
                             {
-                                try
-                                {
+                                return OperationResult.CreateSuccessResult(write);
+                            }
 
-                                    if (write?.IsSuccess ?? false)
-                                    {
-                                        readAgain = false;
-                                        success = true;
-                                        return OperationResult.CreateSuccessResult(write);
-                                    }
-                                    else
-                                    {
-                                        if (attempt++ > _retries)
-                                        {
-                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"写入设备失败,重试次数:{ _retries - attempt + 1},超时参数:{_streamResource.SendTimeout.TotalMilliseconds}");
-                                            retryResult.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
-                                            return retryResult;
-                                        }
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    result.Message = "操作超时";
-                                    return OperationResult.CreateFailedResult(result);
+                            if (attempt++ > _retries)
+                            {
+                                return OperationResult.CreateFailedResult($"写入设备失败，重试次数：{_retries}，超时参数：{_streamResource.SendTimeout.TotalMilliseconds}ms");
+                            }
 
-                                }
-                                catch (ObjectDisposedException)
-                                {
-                                    result.Message = "连接已关闭";
-                                    return OperationResult.CreateFailedResult(result);
-
-                                }
-                                catch (Exception e)
-                                {
-                                    result.Message = $"操作失败：{e.Message}";
-                                    return OperationResult.CreateFailedResult(result);
-                                }
-
-                            } while (readAgain);
-
+                            await Task.Delay(WaitToRetryMilliseconds, cts.Token);
                         }
-                    }
-                    catch (Exception e)
-                    {
-                        if (e is FormatException ||
-                            e is NotImplementedException ||
-                            e is TimeoutException ||
-                            e is IOException)
+                        catch (OperationCanceledException)
                         {
-                            Debug.WriteLine("{0}, {1} retries remaining - {2}", e.GetType().Name, _retries - attempt + 1, e);
-
+                            return OperationResult.CreateFailedResult("操作超时");
                         }
-
+                        catch (ObjectDisposedException)
+                        {
+                            return OperationResult.CreateFailedResult("连接已关闭");
+                        }
+                        catch (Exception e)
+                        {
+                            if (attempt > _retries)
+                            {
+                                return OperationResult.CreateFailedResult($"操作失败：{e.Message}");
+                            }
+                            Debug.WriteLine($"发送异常：{e.GetType().Name}，剩余重试次数：{_retries - attempt + 1}，异常信息：{e}");
+                        }
                     }
-                } while (!success);
-                return OperationResult.CreateFailedResult(result);
+                }
 
+                return OperationResult.CreateFailedResult("发送失败");
             }
         }
+
+        /// <summary>
+        /// 单播读取消息
+        /// </summary>
+        /// <param name="request">读取请求</param>
+        /// <returns>操作结果</returns>
         public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
         {
-            OperationResult<IDeviceReadWriteMessage> result = new OperationResult<IDeviceReadWriteMessage>();
+            var result = new OperationResult<IDeviceReadWriteMessage>();
             try
             {
-                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                if (commandRequest1.IsSuccess)
-                {
-                   await Task.Delay(ResponseInterval);
-                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                    response1Result.Requsts.Add(result.Requsts[0]);
-                    if (!response1Result.IsSuccess)
-                    {
-                        response1Result.Requsts.Add(result.Requsts[0]);
-                        return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(response1Result);
-                    }
-                    result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));
-                    var package = response1Result.ResultValue;
-                    result.ResultValue = new DeviceReadWriteMessage();
-                    result.ResultValue.Initialize(package);
-                    result.ResultValue.ProtocolResponseLength = request.ProtocolResponseLength;
-                    result.ResultValue.RegisterAddress = request.RegisterAddress;
-                    result.ResultValue.RegisterCount = request.RegisterCount;
 
-                    return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
-                }
-                else
+                if (!commandRequest.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest1);
-
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
+
+                await Task.Delay(ResponseInterval);
+                var responseResult = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                responseResult.Requsts.Add(result.Requsts[0]);
+
+                if (!responseResult.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(responseResult);
+                }
+
+                result.Responses.Add(string.Join(" ", responseResult.ResultValue.Select(t => t.ToString("X2"))));
+                result.ResultValue = new DeviceReadWriteMessage
+                {
+                    ProtocolResponseLength = request.ProtocolResponseLength,
+                    RegisterAddress = request.RegisterAddress,
+                    RegisterCount = request.RegisterCount
+                };
+                result.ResultValue.Initialize(responseResult.ResultValue);
+
+                return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
             }
             catch (Exception ex)
             {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>($"读取消息失败：{ex.Message}");
             }
-            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-
         }
+
+        /// <summary>
+        /// 单播写入消息
+        /// </summary>
+        /// <param name="request">写入请求</param>
+        /// <returns>操作结果</returns>
         public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
         {
-            OperationResult<IDeviceReadWriteMessage> result = new OperationResult<IDeviceReadWriteMessage>();
+            var result = new OperationResult<IDeviceReadWriteMessage>();
             try
             {
-                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                if (commandRequest1.IsSuccess)
+
+                if (!commandRequest.IsSuccess)
                 {
-                    await Task.Delay(ResponseInterval);
-                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                    if (!response1Result.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-                    }
-                    result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));
-                    var package = response1Result.ResultValue;
-                    result.ResultValue = new DeviceReadWriteMessage();
-                    result.ResultValue.Initialize(package);
-                    result.ResultValue.ProtocolResponseLength = request.ProtocolResponseLength;
-                    result.ResultValue.RegisterAddress = request.RegisterAddress;
-                    result.ResultValue.RegisterCount = request.RegisterCount;
-                    return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
-                else
+
+                await Task.Delay(ResponseInterval);
+                var responseResult = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+
+                if (!responseResult.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest1);
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(responseResult);
                 }
+
+                result.Responses.Add(string.Join(" ", responseResult.ResultValue.Select(t => t.ToString("X2"))));
+                result.ResultValue = new DeviceReadWriteMessage
+                {
+                    ProtocolResponseLength = request.ProtocolResponseLength,
+                    RegisterAddress = request.RegisterAddress,
+                    RegisterCount = request.RegisterCount
+                };
+                result.ResultValue.Initialize(responseResult.ResultValue);
+
+                return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
             }
             catch (Exception ex)
             {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>($"写入消息失败：{ex.Message}");
             }
-            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-
         }
 
+        /// <summary>
+        /// 释放资源
+        /// </summary>
+        /// <param name="disposing">是否正在释放</param>
         protected virtual void Dispose(bool disposing)
         {
-            if (disposing)
-                if (_streamResource == null)
-                    return;
-
-            _streamResource.Dispose();
-            _streamResource = default;
+            if (disposing && _streamResource != null)
+            {
+                _streamResource.Dispose();
+                _streamResource = null;
+            }
         }
 
+        /// <summary>
+        /// 释放资源
+        /// </summary>
         public void Dispose()
         {
             Dispose(true);
             GC.SuppressFinalize(this);
         }
-
     }
 }

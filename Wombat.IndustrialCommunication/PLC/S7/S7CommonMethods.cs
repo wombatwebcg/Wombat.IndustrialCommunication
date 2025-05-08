@@ -6,8 +6,33 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-   public static class S7CommonMethods
+    public static class S7CommonMethods
     {
+        private static readonly Dictionary<char, byte> TypeCodeMap = new Dictionary<char, byte>
+        {
+            ['I'] = 0x81,
+            ['Q'] = 0x82,
+            ['M'] = 0x83,
+            ['D'] = 0x84,
+            ['T'] = 0x1D,
+            ['C'] = 0x1C,
+            ['V'] = 0x84
+        };
+
+        private static readonly Dictionary<DataTypeEnums, (int Length, bool IsBit)> DataTypeInfo = new Dictionary<DataTypeEnums, (int Length, bool IsBit)>
+        {
+            [DataTypeEnums.Bool] = (1, true),
+            [DataTypeEnums.Byte] = (1, false),
+            [DataTypeEnums.Int16] = (2, false),
+            [DataTypeEnums.UInt16] = (2, false),
+            [DataTypeEnums.Int32] = (4, false),
+            [DataTypeEnums.UInt32] = (4, false),
+            [DataTypeEnums.Int64] = (8, false),
+            [DataTypeEnums.UInt64] = (8, false),
+            [DataTypeEnums.Float] = (4, false),
+            [DataTypeEnums.Double] = (8, false)
+        };
+
         /// <summary>
         /// 获取需要读取的长度
         /// </summary>
@@ -15,10 +40,10 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public static int GetContentLength(byte[] head)
         {
-            if (head?.Length >= 4)
-                return head[2] * 256 + head[3] - 4;
-            else
+            if (head?.Length < 4)
                 throw new ArgumentException("请传入正确的参数");
+            
+            return head[2] * 256 + head[3] - 4;
         }
 
         /// <summary>
@@ -28,16 +53,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public static int GetBeingAddress(string address, int offest)
         {
-            //去掉V1025 前面的V
-            //address = address.Substring(1);
-            //I1.3地址的情况
-            if (address.IndexOf('.') < 0)
+            int dotIndex = address.IndexOf('.');
+            if (dotIndex < 0)
                 return (int.Parse(address) + offest) * 8;
-            else
-            {
-                string[] temp = address.Split('.');
-                return (Convert.ToInt32(temp[0]) + offest) * 8 + Convert.ToInt32(temp[1]);
-            }
+
+            return (Convert.ToInt32(address.Substring(0, dotIndex)) + offest) * 8 + 
+                   Convert.ToInt32(address.Substring(dotIndex + 1));
         }
 
         /// <summary>
@@ -47,134 +68,83 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns></returns>
         public static SiemensAddress ConvertArg(string address, int offest = 0)
         {
-            try
+            if (string.IsNullOrEmpty(address))
+                throw new ArgumentException("地址不能为空");
+
+            address = address.ToUpperInvariant();
+            var addressInfo = new SiemensAddress
             {
-                //转换成大写
-                address = address.ToUpper();
-                var addressInfo = new SiemensAddress()
-                {
-                    Address = address,
-                    DbBlock = 0,
-                };
-                switch (address[0])
-                {
-                    case 'I':
-                        addressInfo.TypeCode = 0x81;
-                        break;
-                    case 'Q':
-                        addressInfo.TypeCode = 0x82;
-                        break;
-                    case 'M':
-                        addressInfo.TypeCode = 0x83;
-                        break;
-                    case 'D':
-                        addressInfo.TypeCode = 0x84;
-                        string[] adds = address.Split('.');
-                        if (address[1] == 'B')
-                            addressInfo.DbBlock = Convert.ToUInt16(adds[0].Substring(2));
-                        else
-                            addressInfo.DbBlock = Convert.ToUInt16(adds[0].Substring(1));
-                        //TODO 
-                        //addressInfo.BeginAddress = GetBeingAddress(address.Substring(address.IndexOf('.') + 1));
-                        break;
-                    case 'T':
-                        addressInfo.TypeCode = 0x1D;
-                        break;
-                    case 'C':
-                        addressInfo.TypeCode = 0x1C;
-                        break;
-                    case 'V':
-                        addressInfo.TypeCode = 0x84;
-                        addressInfo.DbBlock = 1;
-                        break;
-                }
+                Address = address,
+                DbBlock = 0
+            };
 
-                //if (address[0] != 'D' && address[1] != 'B')
-                //    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1));
+            char firstChar = address[0];
+            if (!TypeCodeMap.TryGetValue(firstChar, out byte typeCode))
+                throw new ArgumentException($"不支持的地址类型: {firstChar}");
 
-                //DB块
-                if (address[0] == 'D' && address[1] == 'B')
+            addressInfo.TypeCode = typeCode;
+
+            if (firstChar == 'D' && address.Length > 1 && address[1] == 'B')
+            {
+                int dotIndex = address.IndexOf('.');
+                if (dotIndex > 0)
                 {
-                    //DB1.0.0、DB1.4（非PLC地址）
-                    var indexOfpoint = address.IndexOf('.') + 1;
-                    if (address[indexOfpoint] >= '0' && address[indexOfpoint] <= '9')
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(indexOfpoint), offest);
-                    //DB1.DBX0.0、DB1.DBD4（标准PLC地址）
+                    addressInfo.DbBlock = Convert.ToUInt16(address.Substring(2, dotIndex - 2));
+                    int nextDotIndex = address.IndexOf('.', dotIndex + 1);
+                    
+                    if (nextDotIndex > 0 && address[dotIndex + 1] >= '0' && address[dotIndex + 1] <= '9')
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(dotIndex + 1), offest);
                     else
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(address.IndexOf('.') + 4), offest);
+                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(dotIndex + 4), offest);
                 }
-                //非DB块
+            }
+            else if (firstChar == 'V')
+            {
+                addressInfo.DbBlock = 1;
+                addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+            }
+            else
+            {
+                if (address.Length > 1 && address[1] >= '0' && address[1] <= '9')
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
                 else
-                {
-                    //I0.0、V1004的情况（非PLC地址）
-                    if (address[1] >= '0' && address[1] <= '9')
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
-                    //VB1004的情况（标准PLC地址）
-                    else
-                        addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
-                }
-                return addressInfo;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
             }
-            catch (Exception ex)
-            {
-                throw new Exception($"地址[{address}]解析异常，ConvertArg Message:{ex.Message}");
-            }
-        }
 
+            return addressInfo;
+        }
 
         public static SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnums> addresses, int offest = 0)
         {
+            if (addresses == null || addresses.Count == 0)
+                return Array.Empty<SiemensAddress>();
+
             return addresses.Select(t =>
             {
                 var item = ConvertArg(t.Key, offest);
                 item.DataType = t.Value;
-                switch (t.Value)
+
+                if (DataTypeInfo.TryGetValue(t.Value, out var info))
                 {
-                    case DataTypeEnums.Bool:
-                        item.ReadWriteLength = 1;
-                        item.IsBit = true;
-                        break;
-                    case DataTypeEnums.Byte:
-                        item.ReadWriteLength = 1;
-                        break;
-                    case DataTypeEnums.Int16:
-                        item.ReadWriteLength = 2;
-                        break;
-                    case DataTypeEnums.UInt16:
-                        item.ReadWriteLength = 2;
-                        break;
-                    case DataTypeEnums.Int32:
-                        item.ReadWriteLength = 4;
-                        break;
-                    case DataTypeEnums.UInt32:
-                        item.ReadWriteLength = 4;
-                        break;
-                    case DataTypeEnums.Int64:
-                        item.ReadWriteLength = 8;
-                        break;
-                    case DataTypeEnums.UInt64:
-                        item.ReadWriteLength = 8;
-                        break;
-                    case DataTypeEnums.Float:
-                        item.ReadWriteLength = 4;
-                        break;
-                    case DataTypeEnums.Double:
-                        item.ReadWriteLength = 8;
-                        break;
-                    default:
-                        throw new Exception($"未定义数据类型：{t.Value}");
+                    item.ReadWriteLength = info.Length;
+                    item.IsBit = info.IsBit;
                 }
+                else
+                {
+                    throw new ArgumentException($"未定义数据类型：{t.Value}");
+                }
+
                 return item;
             }).ToArray();
         }
 
         public static SiemensWriteAddress ConvertWriteArg(string address, int offest, byte[] writeData, bool bit)
         {
-            SiemensWriteAddress arg = new SiemensWriteAddress(ConvertArg(address, offest));
-            arg.WriteData = writeData;
-            arg.IsBit = bit;
-            return arg;
+            return new SiemensWriteAddress(ConvertArg(address, offest))
+            {
+                WriteData = writeData,
+                IsBit = bit
+            };
         }
-
     }
 }
