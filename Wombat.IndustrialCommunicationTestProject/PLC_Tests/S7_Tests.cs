@@ -26,7 +26,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void Smart200读写测试()
         {
 
-            client = new SiemensClient("192.168.2.20", 102, SiemensVersion.S7_200Smart);
+            client = new SiemensClient("192.168.11.51", 102, SiemensVersion.S7_200Smart);
             client.Connect();
             ReadWrite();
             client.Disconnect();

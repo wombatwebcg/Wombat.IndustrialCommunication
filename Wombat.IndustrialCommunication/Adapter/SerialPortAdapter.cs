@@ -13,101 +13,99 @@ using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
-    public class SerialPortAdapter : IStreamResource
+    /// <summary>
+    /// 串口通信适配器，提供串口通信的基本功能
+    /// </summary>
+    public class SerialPortAdapter : IStreamResource, IDisposable
     {
-        public string PortName { get; set; }
-        public int BaudRate { get; set; } = 9600;
-        public int DataBits { get; set; } = 8;
-        public StopBits StopBits { get; set; } = StopBits.One;
-        public Parity Parity { get; set; } = Parity.None;
-        public Handshake Handshake { get; set; } = Handshake.None;
-
-        private AsyncLock _lock = new AsyncLock();
+        #region Properties
 
         /// <summary>
-        /// 串行端口对象
+        /// 串口名称
         /// </summary>
-        protected internal SerialPort _serialPort;
-        public SerialPortAdapter(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None)
-        {
-            PortName = portName;
-            BaudRate = baudRate;
-            DataBits = dataBits;
-            Handshake = handshake;
-            Parity = parity;
-            StopBits = stopBits;
-            _lock = new AsyncLock();
-            _serialPort = new SerialPort();
-            _serialPort.WriteTimeout = 100;
-            _serialPort.ReadTimeout = 100;
+        public string PortName { get; set; }
 
-        }
+        /// <summary>
+        /// 波特率
+        /// </summary>
+        public int BaudRate { get; set; } = 9600;
 
+        /// <summary>
+        /// 数据位
+        /// </summary>
+        public int DataBits { get; set; } = 8;
+
+        /// <summary>
+        /// 停止位
+        /// </summary>
+        public StopBits StopBits { get; set; } = StopBits.One;
+
+        /// <summary>
+        /// 校验位
+        /// </summary>
+        public Parity Parity { get; set; } = Parity.None;
+
+        /// <summary>
+        /// 握手协议
+        /// </summary>
+        public Handshake Handshake { get; set; } = Handshake.None;
+
+        /// <summary>
+        /// 版本信息
+        /// </summary>
         public string Version => nameof(SerialPortAdapter);
+
+        /// <summary>
+        /// 日志记录器
+        /// </summary>
         public ILogger Logger { get; set; }
+
+        /// <summary>
+        /// 等待间隔
+        /// </summary>
         public TimeSpan WaiteInterval { get; set; }
+
+        /// <summary>
+        /// 连接状态
+        /// </summary>
         public bool Connected => _serialPort?.IsOpen ?? false;
 
-        public int BytesToRead
-        {
-            get
-            {
-                if (_serialPort != null)
-                {
-                    return _serialPort.BytesToRead;
-                }
-                return 0;
+        /// <summary>
+        /// 可读取的字节数
+        /// </summary>
+        public int BytesToRead => _serialPort?.BytesToRead ?? 0;
 
-            }
-        }
+        /// <summary>
+        /// 待写入的字节数
+        /// </summary>
+        public int BytesToWrite => _serialPort?.BytesToWrite ?? 0;
 
-        public int BytesToWrite
-        {
-            get
-            {
-                if (_serialPort != null)
-                {
-                    return _serialPort.BytesToWrite;
-                }
-                return 0;
+        /// <summary>
+        /// 连接超时时间
+        /// </summary>
+        public TimeSpan ConnectTimeout { get; set; }
 
-            }
-        }
-        public TimeSpan ConnectTimeout
-        {
-            get;
-            set;
-        }
+        /// <summary>
+        /// 接收超时时间
+        /// </summary>
         public TimeSpan ReceiveTimeout
         {
-            get
-            {
-                if (_serialPort != null)
-                {
-                    return TimeSpan.FromMilliseconds(_serialPort.ReadTimeout);
-                }
-                return TimeSpan.FromMilliseconds(100);
-            }
+            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.ReadTimeout) : TimeSpan.FromMilliseconds(100);
             set
             {
                 if (_serialPort != null)
                 {
                     _serialPort.ReadTimeout = (int)value.TotalMilliseconds;
                 }
-
             }
         }
+
+        /// <summary>
+        /// 发送超时时间
+        /// </summary>
         public TimeSpan SendTimeout
         {
-            get
-            {
-
-                if (_serialPort != null)
-                {
-                    return TimeSpan.FromMilliseconds(_serialPort.WriteTimeout);
-                }
-                return TimeSpan.FromMilliseconds(100);
-            }
+            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.WriteTimeout) : TimeSpan.FromMilliseconds(100);
             set
             {
                 if (_serialPort != null)
@@ -117,44 +115,201 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
+        #endregion
+
+        #region Private Fields
+
+        private readonly AsyncLock _lock = new AsyncLock();
+        private SerialPort _serialPort;
+        private bool _disposed;
+
+        #endregion
+
+        #region Constructor
+
+        /// <summary>
+        /// 初始化串口适配器
+        /// </summary>
+        /// <param name="portName">串口名称</param>
+        /// <param name="baudRate">波特率</param>
+        /// <param name="dataBits">数据位</param>
+        /// <param name="stopBits">停止位</param>
+        /// <param name="parity">校验位</param>
+        /// <param name="handshake">握手协议</param>
+        public SerialPortAdapter(
+            string portName,
+            int baudRate = 9600,
+            int dataBits = 8,
+            StopBits stopBits = StopBits.One,
+            Parity parity = Parity.None,
+            Handshake handshake = Handshake.None)
+        {
+            PortName = portName ?? throw new ArgumentNullException(nameof(portName));
+            BaudRate = baudRate;
+            DataBits = dataBits;
+            Handshake = handshake;
+            Parity = parity;
+            StopBits = stopBits;
+
+            _serialPort = new SerialPort
+            {
+                WriteTimeout = 100,
+                ReadTimeout = 100
+            };
+        }
+
+        #endregion
+
+        #region Public Methods
+
+        /// <summary>
+        /// 发送数据
+        /// </summary>
         public async Task<OperationResult> Send(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
+            if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
+            if (offset + size > buffer.Length) throw new ArgumentException("Invalid offset or size");
+
             using (await _lock.LockAsync())
             {
-                OperationResult operation = new OperationResult();
                 try
                 {
                     await _serialPort.BaseStream.WriteAsync(buffer, offset, size, cancellationToken);
-                    return operation.Complete();
+                    return new OperationResult().Complete();
                 }
                 catch (Exception ex)
                 {
-                    throw (ex);
+                    Logger?.LogError(ex, "Error sending data to serial port {PortName}", PortName);
+                    throw;
                 }
             }
         }
 
+        /// <summary>
+        /// 接收数据
+        /// </summary>
         public async Task<OperationResult<int>> Receive(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
+            if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
+            if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+            if (offset < 0) throw new ArgumentOutOfRangeException(nameof(offset));
+            if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
+            if (offset + size > buffer.Length) throw new ArgumentException("Invalid offset or size");
+
             using (await _lock.LockAsync())
             {
-
-                OperationResult<int> operation = new OperationResult<int>();
                 try
                 {
                     var count = await _serialPort.BaseStream.ReadAsync(buffer, offset, size, cancellationToken);
-                    operation.ResultValue = count;
-                    return operation.Complete();
+                    return new OperationResult<int> { ResultValue = count }.Complete();
                 }
                 catch (Exception ex)
                 {
-                    throw (ex);
-
+                    Logger?.LogError(ex, "Error receiving data from serial port {PortName}", PortName);
+                    throw;
                 }
             }
         }
 
+        /// <summary>
+        /// 连接串口
+        /// </summary>
+        public OperationResult Connect() => ConnectAsync().GetAwaiter().GetResult();
 
+        /// <summary>
+        /// 断开串口连接
+        /// </summary>
+        public OperationResult Disconnect() => DisconnectAsync().GetAwaiter().GetResult();
+
+        /// <summary>
+        /// 异步连接串口
+        /// </summary>
+        public async Task<OperationResult> ConnectAsync()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
+
+            var result = new OperationResult();
+            try
+            {
+                _serialPort.PortName = PortName;
+                _serialPort.BaudRate = BaudRate;
+                _serialPort.Parity = Parity;
+                _serialPort.DataBits = DataBits;
+                _serialPort.StopBits = StopBits;
+                _serialPort.Handshake = Handshake;
+
+                if (_serialPort.IsOpen)
+                {
+                    _serialPort.Close();
+                }
+
+                _serialPort.Open();
+                result.IsSuccess = _serialPort.IsOpen;
+                
+                if (result.IsSuccess)
+                {
+                    Logger?.LogInformation("Successfully connected to serial port {PortName}", PortName);
+                }
+            }
+            catch (Exception ex)
+            {
+                result.Message = ex.Message;
+                Logger?.LogError(ex, "Failed to connect to serial port {PortName}", PortName);
+            }
+            return result;
+        }
+
+        /// <summary>
+        /// 异步断开串口连接
+        /// </summary>
+        public Task<OperationResult> DisconnectAsync()
+        {
+            if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
+
+            var result = new OperationResult();
+            try
+            {
+                if (_serialPort.IsOpen)
+                {
+                    _serialPort.Close();
+                    Logger?.LogInformation("Successfully disconnected from serial port {PortName}", PortName);
+                }
+                result.IsSuccess = !_serialPort.IsOpen;
+            }
+            catch (Exception ex)
+            {
+                result.Message = ex.Message;
+                Logger?.LogError(ex, "Failed to disconnect from serial port {PortName}", PortName);
+            }
+            return Task.FromResult(result);
+        }
+
+        /// <summary>
+        /// 关闭流
+        /// </summary>
+        public void StreamClose()
+        {
+            if (_serialPort?.IsOpen ?? false)
+            {
+                _serialPort.BaseStream.Close();
+                Logger?.LogInformation("Stream closed for serial port {PortName}", PortName);
+            }
+        }
+
+        /// <summary>
+        /// 设置日志记录器
+        /// </summary>
+        public void UseLogger(ILogger logger)
+        {
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        }
+
+        #endregion
+
+        #region IDisposable
 
         public void Dispose()
         {
@@ -164,70 +319,20 @@ namespace Wombat.IndustrialCommunication
 
         protected virtual void Dispose(bool disposing)
         {
+            if (_disposed) return;
+
             if (disposing)
-                DisposableUtility.Dispose(ref _serialPort);
-        }
-
-        public void UseLogger(ILogger logger)
-        {
-            throw new NotImplementedException();
-        }
-
-        public OperationResult Connect()
-        {
-            return ConnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
-        public OperationResult Disconnect()
-        {
-            return DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
-        public async Task<OperationResult> ConnectAsync()
-        {
-            OperationResult connect = new OperationResult();
-            try
             {
-                _serialPort.PortName = PortName ?? throw new ArgumentNullException(nameof(PortName));
-                _serialPort.BaudRate = BaudRate;
-                _serialPort.Parity = Parity;
-                _serialPort.DataBits = DataBits;
-                _serialPort.StopBits = StopBits;
-                _serialPort.Handshake = Handshake;
-
-                _serialPort.Close();
-
-                if (!_serialPort.IsOpen)
+                if (_serialPort?.IsOpen ?? false)
                 {
-                    _serialPort.Open();
-                    connect.IsSuccess = _serialPort.IsOpen;
-                    return connect;
+                    _serialPort.Close();
                 }
+                DisposableUtility.Dispose(ref _serialPort);
             }
-            catch (Exception ex)
-            {
-                connect.Message = ex.Message;
-            }
-            return connect;
+
+            _disposed = true;
         }
 
-
-        public Task<OperationResult> DisconnectAsync()
-        {
-            OperationResult connect = new OperationResult();
-            _serialPort.Close();
-            connect.IsSuccess = !_serialPort.IsOpen;
-            return Task.FromResult(connect);
-        }
-
-        public void StreamClose()
-        {
-            if (_serialPort?.IsOpen??false)
-            {
-                _serialPort.BaseStream.Close();
-            }
-        }
-
-      
+        #endregion
     }
 }

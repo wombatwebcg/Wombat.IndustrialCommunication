@@ -9,100 +9,148 @@ using Wombat.IndustrialCommunication.PLC;
 
 namespace Wombat.IndustrialCommunication
 {
+    /// <summary>
+    /// S7以太网通信协议的传输层实现。
+    /// 处理客户端与S7 PLC设备之间的通信。
+    /// </summary>
     public class S7EthernetTransport : DeviceMessageTransport
     {
-        public S7EthernetTransport(IStreamResource streamResource):base(streamResource)
+        /// <summary>
+        /// 初始化S7EthernetTransport类的新实例。
+        /// </summary>
+        /// <param name="streamResource">用于通信的流资源。</param>
+        /// <exception cref="ArgumentNullException">当streamResource为null时抛出。</exception>
+        public S7EthernetTransport(IStreamResource streamResource) : base(streamResource)
         {
-
+            if (streamResource == null)
+                throw new ArgumentNullException(nameof(streamResource));
         }
 
+        /// <summary>
+        /// 向S7 PLC设备发送读取请求并处理响应。
+        /// </summary>
+        /// <param name="request">读取请求消息。</param>
+        /// <returns>包含读取响应消息的操作结果。</returns>
         public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
         {
-            OperationResult<S7ReadResponse> result = new OperationResult<S7ReadResponse>();
-            if (request is S7ReadRequest s7ReadRequest)
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var result = new OperationResult<S7ReadResponse>();
+            
+            if (!(request is S7ReadRequest s7ReadRequest))
             {
-                try
-                {
-                    var commandRequest1 = await SendRequestAsync(s7ReadRequest.ProtocolMessageFrame);
-                    result.Requsts.Add(string.Join(" ", s7ReadRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                    if (commandRequest1.IsSuccess)
-                    {
-                        var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                        if (!response1Result.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-                        }
-                        result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));
-                        var headPackage = response1Result.ResultValue;
-                        var response2Result = await ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(headPackage));
-                        if (!response2Result.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-
-                        }
-                        result.Responses.Add(string.Join(" ", response2Result.ResultValue.Select(t => t.ToString("X2"))));
-                        var dataPackage = response2Result.ResultValue;
-                        result.ResultValue = new S7ReadResponse(dataPackage);
-                        result.ResultValue.RegisterAddress = request.RegisterAddress;
-                        result.ResultValue.RegisterCount = request.RegisterCount;
-
-                        return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result,result.ResultValue);
-                    }
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                }
+                result.IsSuccess = false;
+                result.Message = "无效的请求类型。期望S7ReadRequest类型。";
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
             }
-            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+
+            try
+            {
+                // 发送初始请求
+                var commandRequest = await SendRequestAsync(s7ReadRequest.ProtocolMessageFrame);
+                result.Requsts.Add(string.Join(" ", s7ReadRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+
+                if (!commandRequest.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+
+                // 接收并处理头部数据包
+                var headerResponse = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                if (!headerResponse.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+                result.Responses.Add(string.Join(" ", headerResponse.ResultValue.Select(t => t.ToString("X2"))));
+
+                // 接收并处理数据包
+                var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
+                var dataResponse = await ReceiveResponseAsync(0, dataLength);
+                if (!dataResponse.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+                result.Responses.Add(string.Join(" ", dataResponse.ResultValue.Select(t => t.ToString("X2"))));
+
+                // 创建并配置响应
+                result.ResultValue = new S7ReadResponse(dataResponse.ResultValue)
+                {
+                    RegisterAddress = request.RegisterAddress,
+                    RegisterCount = request.RegisterCount
+                };
+
+                return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = $"读取操作过程中发生错误: {ex.Message}";
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+            }
         }
 
-
+        /// <summary>
+        /// 向S7 PLC设备发送写入请求并处理响应。
+        /// </summary>
+        /// <param name="request">写入请求消息。</param>
+        /// <returns>包含写入响应消息的操作结果。</returns>
         public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
         {
-            OperationResult<S7WriteResponse> result = new OperationResult<S7WriteResponse>();
-            if (request is S7WriteRequest s7WriteRequest)
+            if (request == null)
+                throw new ArgumentNullException(nameof(request));
+
+            var result = new OperationResult<S7WriteResponse>();
+            
+            if (!(request is S7WriteRequest s7WriteRequest))
             {
-                try
-                {
-                    var commandRequest1 = await SendRequestAsync(s7WriteRequest.ProtocolMessageFrame);
-                    result.Requsts.Add(string.Join(" ", s7WriteRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-
-                    if (commandRequest1.IsSuccess)
-                    {
-                        var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                        if (!response1Result.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-                        }
-                        var headPackage = response1Result.ResultValue;
-                        var response2Result = await ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(headPackage));
-                        if (!response2Result.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
-
-                        }
-                        result.Responses.Add(string.Join(" ", response2Result.ResultValue.Select(t => t.ToString("X2"))));
-                        var dataPackage = response2Result.ResultValue;
-                        result.ResultValue = new S7WriteResponse(dataPackage);
-                        result.ResultValue.RegisterAddress = request.RegisterAddress;
-                        result.ResultValue.RegisterCount = request.RegisterCount;
-
-                        return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result,result.ResultValue);
-
-                    }
-                }
-                catch (Exception ex)
-                {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                }
+                result.IsSuccess = false;
+                result.Message = "无效的请求类型。期望S7WriteRequest类型。";
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
             }
-            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+
+            try
+            {
+                // 发送初始请求
+                var commandRequest = await SendRequestAsync(s7WriteRequest.ProtocolMessageFrame);
+                result.Requsts.Add(string.Join(" ", s7WriteRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+
+                if (!commandRequest.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+
+                // 接收并处理头部数据包
+                var headerResponse = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                if (!headerResponse.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+
+                // 接收并处理数据包
+                var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
+                var dataResponse = await ReceiveResponseAsync(0, dataLength);
+                if (!dataResponse.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                }
+                result.Responses.Add(string.Join(" ", dataResponse.ResultValue.Select(t => t.ToString("X2"))));
+
+                // 创建并配置响应
+                result.ResultValue = new S7WriteResponse(dataResponse.ResultValue)
+                {
+                    RegisterAddress = request.RegisterAddress,
+                    RegisterCount = request.RegisterCount
+                };
+
+                return OperationResult.CreateSuccessResult<IDeviceReadWriteMessage>(result, result.ResultValue);
+            }
+            catch (Exception ex)
+            {
+                result.IsSuccess = false;
+                result.Message = $"写入操作过程中发生错误: {ex.Message}";
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+            }
         }
-
-
-
     }
 }

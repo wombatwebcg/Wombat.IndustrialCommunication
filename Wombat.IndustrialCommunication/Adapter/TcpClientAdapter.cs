@@ -12,33 +12,49 @@ using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
-    public class TcpClientAdapter : IStreamResource
+    public class TcpClientAdapter : IStreamResource, IDisposable
     {
         private TcpSocketClientBase _tcpSocketClientBase;
+        private readonly object _lockObject = new object();
+        private bool _disposed;
+        private const int DEFAULT_TIMEOUT_MS = 100;
+        private const int MIN_PORT = 1;
+        private const int MAX_PORT = 65535;
 
-        public TcpClientAdapter(string ip,int port)
+        public TcpClientAdapter(string ip, int port)
         {
+            if (string.IsNullOrEmpty(ip))
+                throw new ArgumentNullException(nameof(ip));
+            
+            if (port < MIN_PORT || port > MAX_PORT)
+                throw new ArgumentOutOfRangeException(nameof(port), $"Port must be between {MIN_PORT} and {MAX_PORT}");
+
             if (!IPAddress.TryParse(ip, out IPAddress address))
-                address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
-           var ipEndPoint = new IPEndPoint(address, port);
+            {
+                try
+                {
+                    address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
+                    if (address == null)
+                        throw new ArgumentException($"Could not resolve host name: {ip}", nameof(ip));
+                }
+                catch (Exception ex)
+                {
+                    throw new ArgumentException($"Invalid IP address or host name: {ip}", nameof(ip), ex);
+                }
+            }
+
+            var ipEndPoint = new IPEndPoint(address, port);
             _tcpSocketClientBase = new TcpSocketClientBase(ipEndPoint);
         }
 
         public string Version => nameof(TcpClientAdapter);
-        public ILogger Logger { get; set; }
+        public ILogger Logger { get; private set; }
         public TimeSpan WaiteInterval { get; set; }
         public bool Connected => _tcpSocketClientBase?.Connected ?? false;
+
         public TimeSpan ConnectTimeout
         {
-            get
-            {
-
-                if (_tcpSocketClientBase != null)
-                {
-                    return _tcpSocketClientBase.TcpSocketClientConfiguration.ConnectTimeout;
-                }
-                return TimeSpan.FromMilliseconds(100);
-            }
+            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.ConnectTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
             set
             {
                 if (_tcpSocketClientBase != null)
@@ -47,17 +63,10 @@ namespace Wombat.IndustrialCommunication
                 }
             }
         }
+
         public TimeSpan ReceiveTimeout
         {
-            get
-            {
-
-                if (_tcpSocketClientBase != null)
-                {
-                    return _tcpSocketClientBase.TcpSocketClientConfiguration.ReceiveTimeout;
-                }
-                return TimeSpan.FromMilliseconds(100);
-            }
+            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.ReceiveTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
             set
             {
                 if (_tcpSocketClientBase != null)
@@ -66,17 +75,10 @@ namespace Wombat.IndustrialCommunication
                 }
             }
         }
+
         public TimeSpan SendTimeout
         {
-            get
-            {
-
-                if (_tcpSocketClientBase != null)
-                {
-                    return _tcpSocketClientBase.TcpSocketClientConfiguration.SendTimeout;
-                }
-                return TimeSpan.FromMilliseconds(100);
-            }
+            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.SendTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
             set
             {
                 if (_tcpSocketClientBase != null)
@@ -88,50 +90,67 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult> Send(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TcpClientAdapter));
+
+            if (!Connected)
+                return OperationResult.CreateFailedResult(new InvalidOperationException("Not connected"));
+
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+
+            if (offset < 0 || size < 0 || offset + size > buffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(offset), "Invalid offset or size");
+
             OperationResult operation = new OperationResult();
             try
             {
+                Logger?.LogDebug("Sending {Size} bytes to {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
                 await _tcpSocketClientBase.SendAsync(buffer, offset, size, cancellationToken);
+                Logger?.LogDebug("Successfully sent {Size} bytes", size);
                 return operation.Complete();
             }
             catch (Exception ex)
             {
-                throw (ex);
+                Logger?.LogError(ex, "Error sending data");
+                return OperationResult.CreateFailedResult(ex);
             }
         }
 
         public async Task<OperationResult<int>> Receive(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TcpClientAdapter));
+
+            if (!Connected)
+                return new OperationResult<int> { IsSuccess = false, Message = "Not connected" };
+
+            if (buffer == null)
+                throw new ArgumentNullException(nameof(buffer));
+
+            if (offset < 0 || size < 0 || offset + size > buffer.Length)
+                throw new ArgumentOutOfRangeException(nameof(offset), "Invalid offset or size");
+
             OperationResult<int> operation = new OperationResult<int>();
             try
             {
+                Logger?.LogDebug("Receiving up to {Size} bytes from {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
                 var count = await _tcpSocketClientBase.ReceiveAsync(buffer, offset, size, cancellationToken);
                 operation.ResultValue = count;
+                Logger?.LogDebug("Successfully received {Count} bytes", count);
                 return operation.Complete();
             }
             catch (Exception ex)
             {
-                throw (ex);
+                Logger?.LogError(ex, "Error receiving data");
+                return new OperationResult<int> { IsSuccess = false, Message = ex.Message, Exception = ex };
             }
-        }
-
-
-
-        public void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
-
-        protected virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-                DisposableUtility.Dispose(ref _tcpSocketClientBase);
         }
 
         public void UseLogger(ILogger logger)
         {
-            throw new NotImplementedException();
+            Logger = logger ?? throw new ArgumentNullException(nameof(logger));
+            Logger.LogInformation("Logger configured for TcpClientAdapter");
         }
 
         public OperationResult Connect()
@@ -146,38 +165,103 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult> ConnectAsync()
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TcpClientAdapter));
+
             try
             {
+                Logger?.LogInformation("Connecting to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
                 OperationResult connect = new OperationResult();
                 await _tcpSocketClientBase.ConnectAsync();
                 connect.IsSuccess = _tcpSocketClientBase.Connected;
+                
+                if (connect.IsSuccess)
+                    Logger?.LogInformation("Successfully connected to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                else
+                    Logger?.LogWarning("Failed to connect to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                
                 return connect.Complete();
             }
             catch (Exception ex)
             {
+                Logger?.LogError(ex, "Error connecting to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
                 return OperationResult.CreateFailedResult(ex);
             }
         }
 
         public async Task<OperationResult> DisconnectAsync()
         {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TcpClientAdapter));
+
             try
             {
+                Logger?.LogInformation("Disconnecting from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
                 OperationResult disConnect = new OperationResult();
                 await _tcpSocketClientBase.Close();
                 StreamClose();
-                disConnect.IsSuccess = _tcpSocketClientBase.Connected;
+                disConnect.IsSuccess = !_tcpSocketClientBase.Connected;
+                
+                if (disConnect.IsSuccess)
+                    Logger?.LogInformation("Successfully disconnected from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                else
+                    Logger?.LogWarning("Failed to disconnect from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                
                 return disConnect.Complete();
             }
             catch (Exception ex)
             {
+                Logger?.LogError(ex, "Error disconnecting from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
                 return OperationResult.CreateFailedResult(ex);
             }
         }
 
         public void StreamClose()
         {
-            _tcpSocketClientBase.Shutdown();
+            if (_disposed)
+                return;
+
+            try
+            {
+                Logger?.LogDebug("Closing stream");
+                _tcpSocketClientBase.Shutdown();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "Error closing stream");
+            }
+        }
+
+        public void Dispose()
+        {
+            Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        protected virtual void Dispose(bool disposing)
+        {
+            if (_disposed)
+                return;
+
+            if (disposing)
+            {
+                try
+                {
+                    Logger?.LogDebug("Disposing TcpClientAdapter");
+                    DisposableUtility.Dispose(ref _tcpSocketClientBase);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "Error during disposal");
+                }
+            }
+
+            _disposed = true;
+        }
+
+        ~TcpClientAdapter()
+        {
+            Dispose(false);
         }
     }
 }

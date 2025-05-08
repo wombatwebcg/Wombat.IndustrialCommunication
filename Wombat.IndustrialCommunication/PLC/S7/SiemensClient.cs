@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    public class SiemensClient : S7Communication, IClient
+    public class SiemensClient : S7Communication, IDeviceClient
     {
         TcpClientAdapter _tcpClientAdapter;
         private AsyncLock _lock = new AsyncLock();

@@ -7,9 +7,11 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {
+    /// <summary>
+    /// 设备数据读写基类
+    /// </summary>
     public abstract class DeviceDataReaderWriterBase : IDisposable, IReadWrite
     {
-
         private DeviceMessageTransport _transport;
 
         internal DeviceDataReaderWriterBase(DeviceMessageTransport transport)
@@ -17,41 +19,71 @@ namespace Wombat.IndustrialCommunication
             _transport = transport;
         }
 
+        /// <summary>
+        /// 数据格式
+        /// </summary>
         public EndianFormat DataFormat { get; set; } = EndianFormat.ABCD;
 
+        /// <summary>
+        /// 是否反转
+        /// </summary>
         public bool IsReverse { get; set; } = false;
 
+        /// <summary>
+        /// 传输对象
+        /// </summary>
         public DeviceMessageTransport Transport => _transport;
 
-        public abstract string Version { get;  }
+        /// <summary>
+        /// 版本信息
+        /// </summary>
+        public abstract string Version { get; }
 
         #region Read
 
+        /// <summary>
+        /// 批量读取数据
+        /// </summary>
         public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             return BatchReadAsync(addresses).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// 读取数据
+        /// </summary>
         internal virtual OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
             return ReadAsync(address, length, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// 读取单个字节
+        /// </summary>
         public OperationResult<byte> ReadByte(string address)
         {
             return ReadByteAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// 读取多个字节
+        /// </summary>
         public OperationResult<byte[]> ReadByte(string address, int length)
         {
             return ReadByteAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// 读取布尔值
+        /// </summary>
         public virtual OperationResult<bool> ReadBoolean(string address)
         {
             return ReadBooleanAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
+        /// <summary>
+        /// 读取布尔数组
+        /// </summary>
         public virtual OperationResult<bool[]> ReadBoolean(string address, int length)
         {
             return ReadBooleanAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -146,65 +178,69 @@ namespace Wombat.IndustrialCommunication
 
         #region ReadAsync
 
-
-
+        /// <summary>
+        /// 异步批量读取数据
+        /// </summary>
         public virtual ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new NotImplementedException();
         }
 
-
-
         /// <summary>
-        /// 读取数据
+        /// 异步读取数据
         /// </summary>
-        /// <param name="address">地址</param>
-        /// <param name="length"></param>
-        /// <param name="isBit"></param>
-
-        /// <returns></returns>
         internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
 
-
-
-
-
+        /// <summary>
+        /// 异步读取单个字节
+        /// </summary>
         public async ValueTask<OperationResult<byte>> ReadByteAsync(string address)
         {
             var result = await ReadByteAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<byte>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<byte>(result).Complete();
+            {
+                return new OperationResult<byte> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<byte> { IsSuccess = false, Message = result.Message };
         }
 
-
-
+        /// <summary>
+        /// 异步读取多个字节
+        /// </summary>
         public async ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length)
         {
             return await ReadAsync(address, length, false);
         }
 
-
+        /// <summary>
+        /// 异步读取布尔值
+        /// </summary>
         public virtual async ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
         {
             var result = await ReadBooleanAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<bool>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<bool>(result).Complete();
+            {
+                return new OperationResult<bool> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<bool> { IsSuccess = false, Message = result.Message };
         }
 
-
+        /// <summary>
+        /// 异步读取布尔数组
+        /// </summary>
         public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
             var readResult = await ReadAsync(address, length, isBit: true);
-            var result = new OperationResult<bool[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToBool(0, length, false);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<bool[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<bool[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToBool(0, length, false) 
+            };
         }
-
 
         public OperationResult<bool> ReadBoolean(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -227,8 +263,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
-
         /// <summary>
         /// 读取Int16
         /// </summary>
@@ -238,11 +272,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<short>(result).Complete();
+            {
+                return new OperationResult<short> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<short> { IsSuccess = false, Message = result.Message };
         }
-
 
         /// <summary>
         /// 读取Int16
@@ -252,12 +286,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 2 * length);
-            var result = new OperationResult<short[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToInt16(0, length, IsReverse);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<short[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<short[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToInt16(0, length, IsReverse) 
+            };
         }
-
 
         public OperationResult<short> ReadInt16(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -280,7 +318,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
         /// <summary>
         /// 读取UInt16
         /// </summary>
@@ -290,11 +327,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<ushort>(result).Complete();
+            {
+                return new OperationResult<ushort> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<ushort> { IsSuccess = false, Message = result.Message };
         }
-
 
         /// <summary>
         /// 读取UInt16
@@ -304,12 +341,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 2 * length);
-            var result = new OperationResult<ushort[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<ushort[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<ushort[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse) 
+            };
         }
-
 
         public OperationResult<ushort> ReadUInt16(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -332,7 +373,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
         /// <summary>
         /// 读取Int32
         /// </summary>
@@ -342,15 +382,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<int>(result).Complete();
-
+            {
+                return new OperationResult<int> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<int> { IsSuccess = false, Message = result.Message };
         }
-
-
-
-
 
         /// <summary>
         /// 读取Int32
@@ -360,10 +396,15 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 4 * length);
-            var result = new OperationResult<int[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToInt32(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<int[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<int[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToInt32(0, length, DataFormat) 
+            };
         }
 
         public OperationResult<int> ReadInt32(int startAddressOffest, int addressIndex, byte[] values)
@@ -388,7 +429,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
         /// <summary>
         /// 读取UInt32
         /// </summary>
@@ -398,12 +438,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<uint>(result).Complete();
+            {
+                return new OperationResult<uint> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<uint> { IsSuccess = false, Message = result.Message };
         }
-
-
 
         /// <summary>
         /// 读取UInt32
@@ -413,12 +452,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 4 * length);
-            var result = new OperationResult<uint[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToUInt32(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<uint[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<uint[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToUInt32(0, length, DataFormat) 
+            };
         }
-
 
         public OperationResult<uint> ReadUInt32(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -451,13 +494,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<long>(result).Complete();
+            {
+                return new OperationResult<long> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<long> { IsSuccess = false, Message = result.Message };
         }
-
-
-
 
         /// <summary>
         /// 读取Int64
@@ -467,12 +508,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 8 * length);
-            var result = new OperationResult<long[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToInt64(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<long[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<long[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToInt64(0, length, DataFormat) 
+            };
         }
-
 
         public OperationResult<long> ReadInt64(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -505,12 +550,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<ulong>(result).Complete();
+            {
+                return new OperationResult<ulong> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<ulong> { IsSuccess = false, Message = result.Message };
         }
-
-
 
         /// <summary>
         /// 读取UInt64
@@ -520,12 +564,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
         {
             var readResult = await ReadAsync(address, 8 * length);
-            var result = new OperationResult<ulong[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToUInt64(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<ulong[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<ulong[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToUInt64(0, length, DataFormat) 
+            };
         }
-
 
         public OperationResult<ulong> ReadUInt64(int startAddressOffest, int addressIndex, byte[] values)
         {
@@ -549,8 +597,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
-
         /// <summary>
         /// 读取Float
         /// </summary>
@@ -560,12 +606,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadFloatAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<float>(result).Complete();
+            {
+                return new OperationResult<float> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<float> { IsSuccess = false, Message = result.Message };
         }
-
-
 
         /// <summary>
         /// 读取Float
@@ -575,10 +620,15 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length)
         {
             var readResult = await ReadAsync(address, 4 * length);
-            var result = new OperationResult<float[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToFloat(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<float[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<float[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToFloat(0, length, DataFormat) 
+            };
         }
 
         public OperationResult<float> ReadFloat(int beginaddressIndex, int addressIndex, byte[] values)
@@ -603,7 +653,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
         /// <summary>
         /// 读取Double
         /// </summary>
@@ -613,13 +662,11 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadDoubleAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { ResultValue = result.ResultValue[0] }.Complete();
-            else
-                return new OperationResult<double>(result).Complete();
+            {
+                return new OperationResult<double> { IsSuccess = true, ResultValue = result.ResultValue[0] };
+            }
+            return new OperationResult<double> { IsSuccess = false, Message = result.Message };
         }
-
-
-
 
         /// <summary>
         /// 读取Double
@@ -629,12 +676,16 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
         {
             var readResult = await ReadAsync(address, 8 * length);
-            var result = new OperationResult<double[]>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToDouble(0, length,DataFormat);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<double[]> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<double[]> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToDouble(0, length, DataFormat) 
+            };
         }
-
 
         public OperationResult<double> ReadDouble(int beginaddressIndex, int addressIndex, byte[] values)
         {
@@ -661,16 +712,18 @@ namespace Wombat.IndustrialCommunication
         public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
         {
             var readResult = await ReadAsync(address, 4 * length);
-            var result = new OperationResult<string>(readResult);
-            if (result.IsSuccess)
-                result.ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII);
-            return result.Complete();
+            if (!readResult.IsSuccess)
+            {
+                return new OperationResult<string> { IsSuccess = false, Message = readResult.Message };
+            }
+            return new OperationResult<string> 
+            { 
+                IsSuccess = true, 
+                ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII) 
+            };
         }
 
-
-
         #endregion
-
 
         #region Write
 
@@ -679,80 +732,65 @@ namespace Wombat.IndustrialCommunication
             return BatchWriteAsync(addresses).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         internal virtual OperationResult Write(string address, byte[] data, bool isBit = false)
         {
             return WriteAsync(address, data, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public virtual OperationResult Write(string address, byte[] value)
         {
             return WriteAsync(address, value, false).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
         
-
         public virtual OperationResult Write(string address, byte value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public virtual OperationResult Write(string address, bool value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
         
-
         public virtual OperationResult Write(string address, bool[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, short value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-        
-
         public OperationResult Write(string address, short[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, ushort value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, ushort[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, int value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, int[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, uint value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, uint[] value)
         {
@@ -769,30 +807,25 @@ namespace Wombat.IndustrialCommunication
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, ulong value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, ulong[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, float value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, float[] value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
-
 
         public OperationResult Write(string address, double value)
         {
@@ -804,7 +837,6 @@ namespace Wombat.IndustrialCommunication
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
-
         public OperationResult Write(string address, string value)
         {
             return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
@@ -812,20 +844,12 @@ namespace Wombat.IndustrialCommunication
 
         #endregion
 
-
         #region WriteAsync
-
-
 
         public Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
         {
             throw new NotImplementedException();
-
         }
-
-
-
-
 
         /// <summary>
         /// 写入数据
@@ -836,24 +860,12 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         internal abstract Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false);
 
-
-
-
-
-
-
-
         public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, false);
 
-
-  
         public virtual async Task<OperationResult> WriteAsync(string address, byte value)
         {
             return await WriteAsync(address, new byte[1] { value });
         }
-
-
-
 
         /// <summary>
         /// 写入数据
@@ -866,8 +878,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value ? new byte[] { 0x01 } : new byte[] { 0x00 }, true);
         }
 
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -878,10 +888,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToBytes(), true);
         }
-
-
-
-
 
         /// <summary>
         /// 写入数据
@@ -894,8 +900,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(IsReverse));
         }
 
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -906,7 +910,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(IsReverse));
         }
-
 
         /// <summary>
         /// 写入数据
@@ -919,8 +922,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(IsReverse));
         }
 
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -931,8 +932,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(IsReverse));
         }
-
-
 
         /// <summary>
         /// 写入数据
@@ -945,8 +944,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -957,8 +954,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
-
-
 
         /// <summary>
         /// 写入数据
@@ -971,9 +966,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -984,7 +976,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
-
 
         /// <summary>
         /// 写入数据
@@ -997,7 +988,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -1008,7 +998,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
-
 
         /// <summary>
         /// 写入数据
@@ -1021,10 +1010,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
-
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -1035,8 +1020,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
-
-
 
         /// <summary>
         /// 写入数据
@@ -1049,7 +1032,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -1060,7 +1042,6 @@ namespace Wombat.IndustrialCommunication
         {
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
-
 
         /// <summary>
         /// 写入数据
@@ -1073,9 +1054,6 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
-
-
         /// <summary>
         /// 写入数据
         /// </summary>
@@ -1087,25 +1065,23 @@ namespace Wombat.IndustrialCommunication
             return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
-
         public async Task<OperationResult> WriteAsync(string address, string value)
         {
             return await WriteAsync(address, value.ToByte(Encoding.ASCII));
         }
 
-
-
-
-
         #endregion
 
         #region object类型操作
+        /// <summary>
+        /// 读取对象类型数据
+        /// </summary>
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object>("数据类型为null");
+                    return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return ReadBoolean(address).ToObject();
                 case DataTypeEnums.Byte:
@@ -1127,19 +1103,18 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return ReadDouble(address).ToObject();
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
+                    return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
                 default:
-                    return OperationResult.CreateFailedResult<object>();
+                    return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
-
 
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object>("数据类型为null");
+                    return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return ReadBoolean(address, length).ToObject();
                 case DataTypeEnums.Byte:
@@ -1161,19 +1136,18 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return ReadDouble(address, length).ToObject();
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
+                    return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
                 default:
-                    return OperationResult.CreateFailedResult<object>();
+                    return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
-
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
+                    return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return (await ReadBooleanAsync(address)).ToObject();
                 case DataTypeEnums.Byte:
@@ -1195,19 +1169,18 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return (await ReadDoubleAsync(address)).ToObject();
                 case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
+                    return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
                 default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                    return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
-
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
+                    return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return (await ReadBooleanAsync(address, length)).ToObject();
                 case DataTypeEnums.Byte:
@@ -1229,19 +1202,18 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return (await ReadDoubleAsync(address, length)).ToObject();
                 case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
+                    return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
                 default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                    return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
-
 
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
+                    return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return Write(address, (bool)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.Byte:
@@ -1263,24 +1235,18 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return Write(address, (double)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
+                    return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
                 default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-
-
-
-
+                    return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
             }
-
         }
-
 
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] values)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
+                    return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return Write(address, values.Cast<bool>().ToArray());
                 case DataTypeEnums.Byte:
@@ -1302,17 +1268,11 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return Write(address, values.Cast<double>().ToArray());
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
+                    return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
                 default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-
-
-
-
+                    return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
-
-
 
         public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
         {
@@ -1321,7 +1281,7 @@ namespace Wombat.IndustrialCommunication
                 switch (dataTypeEnum)
                 {
                     case DataTypeEnums.None:
-                        return OperationResult.CreateFailedResult("数据类型为null");
+                        return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                     case DataTypeEnums.Bool:
                         return await WriteAsync(address, (bool)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Byte:
@@ -1343,12 +1303,10 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.Double:
                         return await WriteAsync(address, (double)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.String:
-                        return OperationResult.CreateFailedResult("string写入未实现");
+                        return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
                     default:
-                        return OperationResult.CreateFailedResult("数据类型为null");
-
+                        return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
                 }
-
             }
             catch (Exception ex)
             {
@@ -1356,13 +1314,12 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-
         public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values)
         {
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
+                    return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
                     return await WriteAsync(address, values.Cast<bool>().ToArray());
                 case DataTypeEnums.Byte:
@@ -1384,48 +1341,38 @@ namespace Wombat.IndustrialCommunication
                 case DataTypeEnums.Double:
                     return await WriteAsync(address, values.Cast<double>().ToArray());
                 case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
+                    return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
                 default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-
-
-
-
+                    return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
             }
         }
 
-
         #endregion
-
-
 
         private bool disposedValue;
 
+        /// <summary>
+        /// 释放资源
+        /// </summary>
         protected virtual void Dispose(bool disposing)
         {
             if (!disposedValue)
             {
                 if (disposing)
                 {
-                    // TODO: 释放托管状态(托管对象)
+                    // 释放托管资源
                 }
 
-                // TODO: 释放未托管的资源(未托管的对象)并重写终结器
-                // TODO: 将大型字段设置为 null
+                // 释放非托管资源
                 disposedValue = true;
             }
         }
 
-        // // TODO: 仅当“Dispose(bool disposing)”拥有用于释放未托管资源的代码时才替代终结器
-        // ~DeviceClientBase()
-        // {
-        //     // 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
-        //     Dispose(disposing: false);
-        // }
-
+        /// <summary>
+        /// 释放资源
+        /// </summary>
         public void Dispose()
         {
-            // 不要更改此代码。请将清理代码放入“Dispose(bool disposing)”方法中
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
         }
