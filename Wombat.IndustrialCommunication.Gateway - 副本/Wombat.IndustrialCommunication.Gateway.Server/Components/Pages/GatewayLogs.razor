@@ -1,0 +1,43 @@
+@page "/gateway/gatewaylogs"
+@attribute [TabItemOption(Text = "网关日志")]
+
+<PageTitle>网关日志</PageTitle>
+
+<div class="container">
+    <h1>网关日志</h1>
+    <div class="row mt-4">
+        <div class="col-12">
+            <Table TItem="LogEntry" Items="@Logs" IsBordered="true" IsStriped="true">
+                <TableColumns>
+                    <TableColumn Field="@nameof(LogEntry.Timestamp)" Title="时间" Format="yyyy-MM-dd HH:mm:ss" />
+                    <TableColumn Field="@nameof(LogEntry.Level)" Title="级别" />
+                    <TableColumn Field="@nameof(LogEntry.Message)" Title="消息" />
+                </TableColumns>
+            </Table>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<LogEntry> Logs { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        // 添加一些示例数据
+        Logs.AddRange(new[]
+        {
+            new LogEntry { Timestamp = DateTime.Now.AddMinutes(-5), Level = "INFO", Message = "网关启动成功" },
+            new LogEntry { Timestamp = DateTime.Now.AddMinutes(-4), Level = "INFO", Message = "正在连接设备..." },
+            new LogEntry { Timestamp = DateTime.Now.AddMinutes(-3), Level = "SUCCESS", Message = "设备连接成功" },
+            new LogEntry { Timestamp = DateTime.Now.AddMinutes(-2), Level = "WARNING", Message = "设备响应超时" },
+            new LogEntry { Timestamp = DateTime.Now.AddMinutes(-1), Level = "ERROR", Message = "数据解析失败" }
+        });
+    }
+
+    private class LogEntry
+    {
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+}

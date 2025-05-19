@@ -1,0 +1,199 @@
+ @page "/gateway/gatewayconfiguration"
+@attribute [TabItemOption(Text = "网关配置")]
+
+<PageTitle>网关配置</PageTitle>
+
+<div class="container">
+    <h1>网关配置</h1>
+    
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">基本配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">网关名称</label>
+                            <input type="text" class="form-control" @bind="config.GatewayName" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">网关ID</label>
+                            <input type="text" class="form-control" @bind="config.GatewayId" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">数据采集间隔(秒)</label>
+                            <input type="number" class="form-control" @bind="config.CollectionInterval" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">数据上传间隔(秒)</label>
+                            <input type="number" class="form-control" @bind="config.UploadInterval" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">通信配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">通信协议</label>
+                            <select class="form-select" @bind="config.Protocol">
+                                <option value="ModbusTCP">Modbus TCP</option>
+                                <option value="ModbusRTU">Modbus RTU</option>
+                                <option value="OPCUA">OPC UA</option>
+                                <option value="MQTT">MQTT</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">服务器地址</label>
+                            <input type="text" class="form-control" @bind="config.ServerAddress" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">端口</label>
+                            <input type="number" class="form-control" @bind="config.Port" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">超时时间(毫秒)</label>
+                            <input type="number" class="form-control" @bind="config.Timeout" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">数据存储配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">数据存储方式</label>
+                            <select class="form-select" @bind="config.StorageType">
+                                <option value="Local">本地存储</option>
+                                <option value="Database">数据库存储</option>
+                                <option value="Cloud">云存储</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">数据保留天数</label>
+                            <input type="number" class="form-control" @bind="config.DataRetentionDays" />
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">存储路径</label>
+                            <input type="text" class="form-control" @bind="config.StoragePath" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">告警配置</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">告警方式</label>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" @bind="config.EnableEmailAlert" id="emailAlert">
+                                <label class="form-check-label" for="emailAlert">邮件告警</label>
+                            </div>
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" @bind="config.EnableSMSAlert" id="smsAlert">
+                                <label class="form-check-label" for="smsAlert">短信告警</label>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">告警级别</label>
+                            <select class="form-select" @bind="config.AlertLevel">
+                                <option value="Info">信息</option>
+                                <option value="Warning">警告</option>
+                                <option value="Error">错误</option>
+                                <option value="Critical">严重</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4 mb-4">
+        <div class="col-12 text-end">
+            <button class="btn btn-primary me-2" @onclick="SaveConfiguration">保存配置</button>
+            <button class="btn btn-secondary" @onclick="ResetConfiguration">重置</button>
+        </div>
+    </div>
+</div>
+
+@code {
+    private GatewayConfig config = new();
+
+    protected override void OnInitialized()
+    {
+        // 加载默认配置
+        config = new GatewayConfig
+        {
+            GatewayName = "工业网关",
+            GatewayId = "GW001",
+            CollectionInterval = 5,
+            UploadInterval = 60,
+            Protocol = "ModbusTCP",
+            ServerAddress = "192.168.1.100",
+            Port = 502,
+            Timeout = 3000,
+            StorageType = "Local",
+            DataRetentionDays = 30,
+            StoragePath = "D:\\GatewayData",
+            EnableEmailAlert = true,
+            EnableSMSAlert = false,
+            AlertLevel = "Warning"
+        };
+    }
+
+    private void SaveConfiguration()
+    {
+        // TODO: 实现配置保存逻辑
+        // 这里可以添加保存到数据库或文件的逻辑
+    }
+
+    private void ResetConfiguration()
+    {
+        OnInitialized();
+    }
+
+    private class GatewayConfig
+    {
+        public string GatewayName { get; set; } = "";
+        public string GatewayId { get; set; } = "";
+        public int CollectionInterval { get; set; }
+        public int UploadInterval { get; set; }
+        public string Protocol { get; set; } = "";
+        public string ServerAddress { get; set; } = "";
+        public int Port { get; set; }
+        public int Timeout { get; set; }
+        public string StorageType { get; set; } = "";
+        public int DataRetentionDays { get; set; }
+        public string StoragePath { get; set; } = "";
+        public bool EnableEmailAlert { get; set; }
+        public bool EnableSMSAlert { get; set; }
+        public string AlertLevel { get; set; } = "";
+    }
+}

@@ -1,0 +1,18 @@
+@inherits LayoutComponentBase
+@layout BaseLayout
+
+<section class="section">
+    <aside class="sidebar">
+        <div class="sidebar-title">
+            <BBLogo></BBLogo>
+            <span class="sidebar-text">Bootstrap Blazor</span>
+        </div>
+        <TutorialsNavMenu></TutorialsNavMenu>
+        <Wwads IsVertical="true"></Wwads>
+        <LayoutSplitBar Min="220" Max="330" ContainerSelector=".section"></LayoutSplitBar>
+    </aside>
+
+    <section class="main">
+        @Body
+    </section>
+</section>

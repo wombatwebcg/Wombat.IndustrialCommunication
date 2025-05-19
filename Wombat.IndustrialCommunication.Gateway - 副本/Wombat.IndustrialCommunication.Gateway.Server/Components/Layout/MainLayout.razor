@@ -1,0 +1,137 @@
+@inherits LayoutComponentBase
+@using Microsoft.AspNetCore.Components.Authorization
+@using Wombat.IndustrialCommunication.Gateway.Server.Services
+@inject NavigationManager NavigationManager
+@inject AuthenticationStateProvider AuthenticationStateProvider
+
+<BootstrapBlazorRoot>
+    <Layout ShowGotoTop="true" ShowCollapseBar="true" ShowFooter="@ShowFooter" SideWidth="0"
+            IsPage="true" IsFullSide="@IsFullSide" IsFixedHeader="@IsFixedHeader" IsFixedFooter="@IsFixedFooter"
+            ShowSplitBar="true" SidebarMinWidth="200" SidebarMaxWidth="350"
+            TabStyle="TabStyle.Chrome" ShowToolbar="true" ShowTabContextMenu="true"
+            ShowTabInHeader="@ShowTabInHeader" ShowTabExtendButtons="false"
+            TabDefaultUrl="/index" UseTabSet="@UseTabSet" IsFixedTabHeader="IsFixedTabHeader"
+            AdditionalAssemblies="new[] { GetType().Assembly }"
+            Menus="@Menus" class="@Theme">
+        <Header>
+            @if (ShowTabInHeader == false)
+            {
+                <span class="ms-3 flex-sm-fill d-none d-sm-block">设备网关系统</span>
+                <div class="flex-fill d-sm-none"></div>
+                <Widget></Widget>
+            }
+            <AuthorizeView>
+                <Authorized>
+                    <Logout ImageUrl="images/Argo-C.png" DisplayName="@context.User.Identity?.Name" UserName="@context.User.Identity?.Name">
+                        <LinkTemplate>
+                            <a href="#"><i class="fa-solid fa-suitcase"></i>个人中心</a>
+                            <a href="#"><i class="fa-solid fa-cog"></i>设置</a>
+                            <a href="#"><i class="fa-solid fa-bell"></i>通知<span class="badge badge-pill badge-success"></span></a>
+                            <a href="#" @onclick="HandleLogout"><i class="fa-solid fa-sign-out-alt"></i>退出登录</a>
+                        </LinkTemplate>
+                    </Logout>
+                </Authorized>
+                <NotAuthorized>
+                    <a href="/login" class="btn btn-outline-primary">登录</a>
+                </NotAuthorized>
+            </AuthorizeView>
+            <div class="layout-drawer" @onclick="@(e => IsOpen = !IsOpen)"><i class="fa fa-gears"></i></div>
+        </Header>
+        <Side>
+            <div class="layout-banner">
+                <img class="layout-logo" src="../images/logo.png" />
+                <div class="layout-title">
+                    <span>设备网关系统</span>
+                </div>
+            </div>
+        </Side>
+        <Main>
+            <CascadingValue Value="this" IsFixed="true">
+                @Body
+            </CascadingValue>
+        </Main>
+        <Footer>
+            <div class="text-center flex-fill">
+                <span>© 2024 设备网关系统. All rights reserved.</span>
+            </div>
+        </Footer>
+    </Layout>
+
+    <Drawer Placement="Placement.Right" @bind-IsOpen="@IsOpen" IsBackdrop="true">
+        <div class="layout-drawer-body">
+            <div class="btn btn-info w-100" @onclick="@(e => IsOpen = false)">点击关闭</div>
+            <GroupBox Title="布局调整">
+                <div class="row">
+                    <div class="col-6">
+                        <LayoutPreview IsFullSide="true" IsActive="IsFullSide" OnClick="OnSideChanged"></LayoutPreview>
+                    </div>
+                    <div class="col-6">
+                        <LayoutPreview IsFullSide="false" IsActive="!IsFullSide" OnClick="OnSideChanged"></LayoutPreview>
+                    </div>
+                </div>
+            </GroupBox>
+
+            <GroupBox Title="固定调整">
+                <div class="row">
+                    <div class="col-6">
+                        <Switch @bind-Value="@IsFixedHeader" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">固定页头</span>
+                    </div>
+                    <div class="col-6">
+                        <Switch @bind-Value="@IsFixedFooter" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">固定页脚</span>
+                    </div>
+                    <div class="col-6">
+                        <Switch @bind-Value="@ShowFooter" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">显示页脚</span>
+                    </div>
+                </div>
+            </GroupBox>
+
+            <GroupBox Title="更多设置">
+                <div class="row">
+                    <div class="col-6">
+                        <Switch @bind-Value="@UseTabSet" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">@(UseTabSet ? "多标签" : "单页")</span>
+                    </div>
+                    <div class="col-6">
+                        <Switch @bind-Value="@IsFixedTabHeader" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">固定标签页</span>
+                    </div>
+                    <div class="col-6">
+                        <Switch @bind-Value="@ShowTabInHeader" OnColor="@Color.Success"></Switch>
+                    </div>
+                    <div class="col-6">
+                        <span class="cell-label">@(ShowTabInHeader ? "顶栏标签" : "正常标签")</span>
+                    </div>
+                </div>
+            </GroupBox>
+        </div>
+    </Drawer>
+</BootstrapBlazorRoot>
+
+<div id="blazor-error-ui">
+    An unhandled error has occurred.
+    <a href="" class="reload">Reload</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+@code {
+    private Task HandleLogout()
+    {
+        var authStateProvider = (CustomAuthStateProvider)AuthenticationStateProvider;
+        authStateProvider.NotifyAuthenticationStateChanged(null);
+        NavigationManager.NavigateTo("/login");
+        return Task.CompletedTask;
+    }
+}
