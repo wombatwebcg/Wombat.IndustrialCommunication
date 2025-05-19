@@ -1,0 +1,88 @@
+﻿@page "/system/systemlogs"
+@attribute [TabItemOption(Text = "后台日志")]
+
+<PageTitle>后台日志</PageTitle>
+
+<div class="container">
+    <h1>后台日志</h1>
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="row align-items-center">
+                        <div class="col">
+                            <h5 class="card-title mb-0">系统日志</h5>
+                        </div>
+                        <div class="col-auto">
+                            <div class="btn-group">
+                                <button class="btn btn-outline-secondary btn-sm">刷新</button>
+                                <button class="btn btn-outline-secondary btn-sm">导出</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>级别</th>
+                                <th>来源</th>
+                                <th>消息</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var log in _systemLogs)
+                            {
+                                <tr>
+                                    <td>@log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                                    <td>
+                                        <span class="badge @GetBadgeClass(log.Level)">
+                                            @log.Level
+                                        </span>
+                                    </td>
+                                    <td>@log.Source</td>
+                                    <td>@log.Message</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<SystemLog> _systemLogs { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        // 添加一些示例数据
+        _systemLogs.AddRange(new[]
+        {
+            new SystemLog { Timestamp = DateTime.Now.AddMinutes(-5), Level = "INFO", Source = "系统", Message = "系统启动成功" },
+            new SystemLog { Timestamp = DateTime.Now.AddMinutes(-4), Level = "WARNING", Source = "数据库", Message = "数据库连接池接近上限" },
+            new SystemLog { Timestamp = DateTime.Now.AddMinutes(-3), Level = "ERROR", Source = "API", Message = "API请求超时" },
+            new SystemLog { Timestamp = DateTime.Now.AddMinutes(-2), Level = "DEBUG", Source = "缓存", Message = "缓存更新完成" },
+            new SystemLog { Timestamp = DateTime.Now.AddMinutes(-1), Level = "INFO", Source = "安全", Message = "用户登录成功" }
+        });
+    }
+
+    private string GetBadgeClass(string level) => level switch
+    {
+        "INFO" => "bg-info",
+        "WARNING" => "bg-warning",
+        "ERROR" => "bg-danger",
+        "DEBUG" => "bg-secondary",
+        _ => "bg-primary"
+    };
+
+    private class SystemLog
+    {
+        public DateTime Timestamp { get; set; }
+        public string Level { get; set; } = "";
+        public string Source { get; set; } = "";
+        public string Message { get; set; } = "";
+    }
+}

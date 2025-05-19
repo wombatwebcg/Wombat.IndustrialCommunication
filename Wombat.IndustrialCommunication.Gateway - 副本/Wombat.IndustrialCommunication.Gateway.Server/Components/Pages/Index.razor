@@ -1,0 +1,111 @@
+﻿@page "/"
+@attribute [TabItemOption(Text = "网关状态", Closable = false)]
+@using Wombat.IndustrialCommunication.Gateway.Server.Services
+@inject SystemMonitorService SystemMonitor
+@implements IDisposable
+
+<PageTitle>系统监控</PageTitle>
+
+<div class="container">
+    <h1>系统资源监控</h1>
+
+    <div class="row mt-4">
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">CPU 使用率</h5>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: @($"{cpuUsage}%")" 
+                             aria-valuenow="@cpuUsage" aria-valuemin="0" aria-valuemax="100">
+                            <span class="progress-text">@cpuUsage%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">内存使用率</h5>
+                    <div class="progress">
+                        <div class="progress-bar" role="progressbar" style="width: @($"{memoryUsage}%")" 
+                             aria-valuenow="@memoryUsage" aria-valuemin="0" aria-valuemax="100">
+                            <span class="progress-text">@memoryUsage%</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">当前IP地址</h5>
+                    <p class="card-text">@clientIP</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private double cpuUsage;
+    private double memoryUsage;
+    private string clientIP;
+    private System.Threading.Timer timer;
+
+    protected override void OnInitialized()
+    {
+        clientIP = SystemMonitor.GetClientIP();
+        UpdateSystemInfo();
+        
+        // 设置定时器，每3秒更新一次系统信息
+        timer = new System.Threading.Timer(_ =>
+        {
+            InvokeAsync(() =>
+            {
+                UpdateSystemInfo();
+                StateHasChanged();
+            });
+        }, null, TimeSpan.Zero, TimeSpan.FromSeconds(3));
+    }
+
+    private void UpdateSystemInfo()
+    {
+        cpuUsage = SystemMonitor.GetCpuUsage();
+        memoryUsage = SystemMonitor.GetMemoryUsage();
+    }
+
+    public void Dispose()
+    {
+        timer?.Dispose();
+    }
+}
+
+<style>
+    .progress {
+        height: 25px;
+        position: relative;
+    }
+    .progress-bar {
+        transition: width 0.3s ease-in-out;
+    }
+    .progress-text {
+        position: absolute;
+        width: 100%;
+        text-align: center;
+        color: #000;
+        font-weight: 500;
+        line-height: 25px;
+        z-index: 1;
+    }
+    .card {
+        margin-bottom: 20px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .card-title {
+        color: #333;
+        margin-bottom: 15px;
+    }
+</style>

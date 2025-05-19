@@ -19,7 +19,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public S7Communication(S7EthernetTransport s7EthernetTransport) :base(s7EthernetTransport)
         {
-            DataFormat = Extensions.DataTypeExtensions.EndianFormat.CDAB;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
             IsReverse = true;
         }
 

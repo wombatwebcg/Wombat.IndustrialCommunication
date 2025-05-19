@@ -1,0 +1,72 @@
+@page "/gateway/gatewayrules"
+@attribute [TabItemOption(Text = "规则引擎")]
+
+<PageTitle>规则引擎</PageTitle>
+
+<div class="container">
+    <h1>规则引擎</h1>
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="card-title mb-0">规则列表</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-bordered table-striped">
+                        <thead>
+                            <tr>
+                                <th>规则名称</th>
+                                <th>状态</th>
+                                <th>触发条件</th>
+                                <th>执行动作</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var rule in Rules)
+                            {
+                                <tr>
+                                    <td>@rule.Name</td>
+                                    <td>
+                                        <span class="badge @(rule.IsEnabled ? "bg-success" : "bg-danger")">
+                                            @(rule.IsEnabled ? "启用" : "禁用")
+                                        </span>
+                                    </td>
+                                    <td>@rule.Condition</td>
+                                    <td>@rule.Action</td>
+                                    <td>
+                                        <button class="btn btn-sm btn-primary me-2">编辑</button>
+                                        <button class="btn btn-sm btn-danger">删除</button>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@code {
+    private List<Rule> Rules { get; set; } = new();
+
+    protected override void OnInitialized()
+    {
+        // 添加一些示例数据
+        Rules.AddRange(new[]
+        {
+            new Rule { Name = "温度过高告警", IsEnabled = true, Condition = "温度 > 80°C", Action = "发送告警通知" },
+            new Rule { Name = "设备离线检测", IsEnabled = true, Condition = "设备离线 > 5分钟", Action = "重启设备" },
+            new Rule { Name = "数据异常检测", IsEnabled = false, Condition = "数据波动 > 20%", Action = "记录日志" }
+        });
+    }
+
+    private class Rule
+    {
+        public string Name { get; set; } = "";
+        public bool IsEnabled { get; set; }
+        public string Condition { get; set; } = "";
+        public string Action { get; set; } = "";
+    }
+}
