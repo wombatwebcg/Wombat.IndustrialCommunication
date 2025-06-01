@@ -10,7 +10,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient, IAutoReconnectClient
+    public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient, IAutoReconnectClient, IModbusClient
     {
         private readonly TcpClientAdapter _tcpClientAdapter;
         private readonly AsyncLock _lock = new AsyncLock();
@@ -557,5 +557,133 @@ namespace Wombat.IndustrialCommunication.Modbus
             Dispose(true);
             GC.SuppressFinalize(this);
         }
+
+        #region IModbusClient 接口实现 - 同步方法
+
+        public OperationResult<bool> ReadCoil(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadCoil(this, stationNumber, address);
+        }
+
+        public OperationResult<bool[]> ReadCoils(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadCoils(this, stationNumber, startAddress, count);
+        }
+
+        public OperationResult<bool> ReadDiscreteInput(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadDiscreteInput(this, stationNumber, address);
+        }
+
+        public OperationResult<bool[]> ReadDiscreteInputs(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadDiscreteInputs(this, stationNumber, startAddress, count);
+        }
+
+        public OperationResult<ushort> ReadHoldingRegister(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadHoldingRegister(this, stationNumber, address);
+        }
+
+        public OperationResult<ushort[]> ReadHoldingRegisters(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadHoldingRegisters(this, stationNumber, startAddress, count);
+        }
+
+        public OperationResult<ushort> ReadInputRegister(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadInputRegister(this, stationNumber, address);
+        }
+
+        public OperationResult<ushort[]> ReadInputRegisters(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadInputRegisters(this, stationNumber, startAddress, count);
+        }
+
+        public OperationResult WriteCoil(byte stationNumber, ushort address, bool value)
+        {
+            return ModbusClientExtensions.WriteCoil(this, stationNumber, address, value);
+        }
+
+        public OperationResult WriteCoils(byte stationNumber, ushort startAddress, bool[] values)
+        {
+            return ModbusClientExtensions.WriteCoils(this, stationNumber, startAddress, values);
+        }
+
+        public OperationResult WriteHoldingRegister(byte stationNumber, ushort address, ushort value)
+        {
+            return ModbusClientExtensions.WriteHoldingRegister(this, stationNumber, address, value);
+        }
+
+        public OperationResult WriteHoldingRegisters(byte stationNumber, ushort startAddress, ushort[] values)
+        {
+            return ModbusClientExtensions.WriteHoldingRegisters(this, stationNumber, startAddress, values);
+        }
+
+        #endregion
+
+        #region IModbusClient 接口实现 - 异步方法
+
+        public Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadCoilAsync(this, stationNumber, address);
+        }
+
+        public Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadCoilsAsync(this, stationNumber, startAddress, count);
+        }
+
+        public Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadDiscreteInputAsync(this, stationNumber, address);
+        }
+
+        public Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadDiscreteInputsAsync(this, stationNumber, startAddress, count);
+        }
+
+        public Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadHoldingRegisterAsync(this, stationNumber, address);
+        }
+
+        public Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadHoldingRegistersAsync(this, stationNumber, startAddress, count);
+        }
+
+        public Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address)
+        {
+            return ModbusClientExtensions.ReadInputRegisterAsync(this, stationNumber, address);
+        }
+
+        public Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            return ModbusClientExtensions.ReadInputRegistersAsync(this, stationNumber, startAddress, count);
+        }
+
+        public Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value)
+        {
+            return ModbusClientExtensions.WriteCoilAsync(this, stationNumber, address, value);
+        }
+
+        public Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values)
+        {
+            return ModbusClientExtensions.WriteCoilsAsync(this, stationNumber, startAddress, values);
+        }
+
+        public Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value)
+        {
+            return ModbusClientExtensions.WriteHoldingRegisterAsync(this, stationNumber, address, value);
+        }
+
+        public Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values)
+        {
+            return ModbusClientExtensions.WriteHoldingRegistersAsync(this, stationNumber, startAddress, values);
+        }
+
+        #endregion
     }
 }
