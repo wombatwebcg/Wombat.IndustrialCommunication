@@ -11,17 +11,17 @@ namespace Wombat.IndustrialCommunication.Modbus
         public byte[] Data { get; private set; }
         public byte[] ResponseFrame { get; private set; }
 
-        public ModbusRTUResponseGenerator(byte Station, byte functionCode, byte[] data)
+        public ModbusRTUResponseGenerator(byte station, byte functionCode, byte[] data)
         {
-            Station = Station;
+            Station = station;
             FunctionCode = functionCode;
             Data = data;
 
             // 根据 Modbus RTU 协议构造完整的响应帧
             byte[] frame = new byte[2 + data.Length]; // Unit ID + Function Code + Data
-            frame[0] = Station;
-            frame[1] = FunctionCode;
-            Array.Copy(Data, 0, frame, 2, Data.Length);
+            frame[0] = station;
+            frame[1] = functionCode;
+            Array.Copy(data, 0, frame, 2, data.Length);
 
             // 计算 CRC 校验
             byte[] crc = CalculateCRC(frame);

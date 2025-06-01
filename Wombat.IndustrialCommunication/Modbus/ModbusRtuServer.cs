@@ -1,8 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Net;
+using System.IO.Ports;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
@@ -11,32 +10,48 @@ using Wombat.IndustrialCommunication.Modbus.Data;
 namespace Wombat.IndustrialCommunication.Modbus
 {
     /// <summary>
-    /// Modbus TCP服务器
+    /// Modbus RTU服务器
     /// </summary>
-    public class ModbusTcpServer : ModbusTcpServerBase, IDeviceServer
+    public class ModbusRtuServer : ModbusRtuServerBase, IDeviceServer
     {
-        private readonly TcpServerAdapter _tcpServerAdapter;
+        private readonly SerialPortServerAdapter _serialPortServerAdapter;
         private readonly ServerMessageTransport _serverTransport;
         private const int DEFAULT_TIMEOUT_MS = 3000;
         
         /// <summary>
-        /// IP终结点
+        /// 串口名称
         /// </summary>
-        public IPEndPoint IPEndPoint { get; private set; }
+        public string PortName { get; private set; }
+        
+        /// <summary>
+        /// 波特率
+        /// </summary>
+        public int BaudRate { get; private set; }
+        
+        /// <summary>
+        /// 数据位
+        /// </summary>
+        public int DataBits { get; private set; }
+        
+        /// <summary>
+        /// 停止位
+        /// </summary>
+        public StopBits StopBits { get; private set; }
+        
+        /// <summary>
+        /// 校验位
+        /// </summary>
+        public Parity Parity { get; private set; }
+        
+        /// <summary>
+        /// 握手协议
+        /// </summary>
+        public Handshake Handshake { get; private set; }
         
         /// <summary>
         /// 是否正在监听
         /// </summary>
         public new bool IsListening => base.IsListening;
-
-        /// <summary>
-        /// 最大连接数
-        /// </summary>
-        public int MaxConnections
-        {
-            get => _tcpServerAdapter.MaxConnections;
-            set => _tcpServerAdapter.MaxConnections = value;
-        }
 
         /// <summary>
         /// 连接超时时间
@@ -48,8 +63,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public TimeSpan ReceiveTimeout
         {
-            get => _tcpServerAdapter.ReceiveTimeout;
-            set => _tcpServerAdapter.ReceiveTimeout = value;
+            get => _serialPortServerAdapter.ReceiveTimeout;
+            set => _serialPortServerAdapter.ReceiveTimeout = value;
         }
 
         /// <summary>
@@ -57,54 +72,58 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public TimeSpan SendTimeout
         {
-            get => _tcpServerAdapter.SendTimeout;
-            set => _tcpServerAdapter.SendTimeout = value;
+            get => _serialPortServerAdapter.SendTimeout;
+            set => _serialPortServerAdapter.SendTimeout = value;
         }
 
         /// <summary>
         /// 构造函数
         /// </summary>
-        public ModbusTcpServer()
-            : this("0.0.0.0", 502)
+        public ModbusRtuServer()
+            : this("COM1", 9600, 8, StopBits.One, Parity.None, Handshake.None)
         {
         }
 
         /// <summary>
         /// 构造函数
         /// </summary>
-        /// <param name="ipEndPoint">IP终结点</param>
-        public ModbusTcpServer(IPEndPoint ipEndPoint)
-            : base(CreateTransport(ipEndPoint))
+        /// <param name="portName">串口名称</param>
+        public ModbusRtuServer(string portName)
+            : this(portName, 9600, 8, StopBits.One, Parity.None, Handshake.None)
         {
-            _tcpServerAdapter = (TcpServerAdapter)base._transport.StreamResource;
+        }
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="portName">串口名称</param>
+        /// <param name="baudRate">波特率</param>
+        public ModbusRtuServer(string portName, int baudRate)
+            : this(portName, baudRate, 8, StopBits.One, Parity.None, Handshake.None)
+        {
+        }
+
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="portName">串口名称</param>
+        /// <param name="baudRate">波特率</param>
+        /// <param name="dataBits">数据位</param>
+        /// <param name="stopBits">停止位</param>
+        /// <param name="parity">校验位</param>
+        /// <param name="handshake">握手协议</param>
+        public ModbusRtuServer(string portName, int baudRate, int dataBits, StopBits stopBits, Parity parity, Handshake handshake)
+            : base(CreateTransport(portName, baudRate, dataBits, stopBits, parity, handshake))
+        {
+            _serialPortServerAdapter = (SerialPortServerAdapter)base._transport.StreamResource;
             _serverTransport = base._transport;
-            IPEndPoint = ipEndPoint;
-        }
-
-        /// <summary>
-        /// 构造函数
-        /// </summary>
-        /// <param name="ip">IP地址</param>
-        /// <param name="port">端口</param>
-        public ModbusTcpServer(string ip, int port)
-            : base(CreateTransport(ip, port))
-        {
-            _tcpServerAdapter = (TcpServerAdapter)base._transport.StreamResource;
-            _serverTransport = base._transport;
-
-            if (!IPAddress.TryParse(ip, out IPAddress address))
-            {
-                if (ip.Equals("0.0.0.0") || ip.Equals("any", StringComparison.OrdinalIgnoreCase))
-                {
-                    address = IPAddress.Any;
-                }
-                else
-                {
-                    address = Dns.GetHostEntry(ip).AddressList?.FirstOrDefault();
-                }
-            }
             
-            IPEndPoint = new IPEndPoint(address, port);
+            PortName = portName;
+            BaudRate = baudRate;
+            DataBits = dataBits;
+            StopBits = stopBits;
+            Parity = parity;
+            Handshake = handshake;
         }
 
         /// <summary>
@@ -132,29 +151,22 @@ namespace Wombat.IndustrialCommunication.Modbus
         public void UseLogger(ILogger logger)
         {
             Logger = logger;
-            _tcpServerAdapter.UseLogger(logger);
+            _serialPortServerAdapter.UseLogger(logger);
         }
 
         /// <summary>
         /// 创建传输
         /// </summary>
-        /// <param name="ipEndPoint">IP终结点</param>
+        /// <param name="portName">串口名称</param>
+        /// <param name="baudRate">波特率</param>
+        /// <param name="dataBits">数据位</param>
+        /// <param name="stopBits">停止位</param>
+        /// <param name="parity">校验位</param>
+        /// <param name="handshake">握手协议</param>
         /// <returns>服务器消息传输</returns>
-        private static ServerMessageTransport CreateTransport(IPEndPoint ipEndPoint)
+        private static ServerMessageTransport CreateTransport(string portName, int baudRate, int dataBits, StopBits stopBits, Parity parity, Handshake handshake)
         {
-            var adapter = new TcpServerAdapter(ipEndPoint);
-            return new ServerMessageTransport(adapter);
-        }
-
-        /// <summary>
-        /// 创建传输
-        /// </summary>
-        /// <param name="ip">IP地址</param>
-        /// <param name="port">端口</param>
-        /// <returns>服务器消息传输</returns>
-        private static ServerMessageTransport CreateTransport(string ip, int port)
-        {
-            var adapter = new TcpServerAdapter(ip, port);
+            var adapter = new SerialPortServerAdapter(portName, baudRate, dataBits, stopBits, parity, handshake);
             return new ServerMessageTransport(adapter);
         }
         
@@ -165,7 +177,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return new OperationResult<T>
             {
                 IsSuccess = false,
-                Message = "Modbus TCP服务器不支持此操作。服务器端不应直接调用读取方法。"
+                Message = "Modbus RTU服务器不支持此操作。服务器端不应直接调用读取方法。"
             };
         }
         
@@ -174,7 +186,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return new OperationResult
             {
                 IsSuccess = false,
-                Message = "Modbus TCP服务器不支持此操作。服务器端不应直接调用写入方法。"
+                Message = "Modbus RTU服务器不支持此操作。服务器端不应直接调用写入方法。"
             };
         }
         
@@ -547,7 +559,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
         
         /// <summary>
-        /// 异步根据类型读取数据
+        /// 根据类型异步读取数据
         /// </summary>
         public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
         {
@@ -555,13 +567,15 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
         
         /// <summary>
-        /// 异步根据类型读取数据
+        /// 根据类型异步读取数据
         /// </summary>
         public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
             return new ValueTask<OperationResult<object>>(CreateNotSupportedResult<object>());
         }
         
+        #endregion
+
         /// <summary>
         /// 分批写入
         /// </summary>
@@ -946,8 +960,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             return Task.FromResult(CreateNotSupportedResult());
         }
         
-        #endregion
-
         /// <summary>
         /// 释放资源
         /// </summary>

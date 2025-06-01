@@ -90,7 +90,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public TimeSpan ReceiveTimeout
         {
-            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.ReadTimeout) : TimeSpan.FromMilliseconds(100);
+            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.ReadTimeout) : TimeSpan.FromMilliseconds(3000);
             set
             {
                 if (_serialPort != null)
@@ -105,7 +105,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public TimeSpan SendTimeout
         {
-            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.WriteTimeout) : TimeSpan.FromMilliseconds(100);
+            get => _serialPort != null ? TimeSpan.FromMilliseconds(_serialPort.WriteTimeout) : TimeSpan.FromMilliseconds(3000);
             set
             {
                 if (_serialPort != null)
@@ -153,8 +153,8 @@ namespace Wombat.IndustrialCommunication
 
             _serialPort = new SerialPort
             {
-                WriteTimeout = 100,
-                ReadTimeout = 100
+                WriteTimeout = 3000,
+                ReadTimeout = 3000
             };
         }
 
@@ -177,13 +177,28 @@ namespace Wombat.IndustrialCommunication
             {
                 try
                 {
+                    Logger?.LogDebug("正在向串口 {PortName} 发送 {Size} 字节数据", PortName, size);
                     await _serialPort.BaseStream.WriteAsync(buffer, offset, size, cancellationToken);
+                    Logger?.LogDebug("成功向串口 {PortName} 发送 {Size} 字节数据", PortName, size);
                     return new OperationResult().Complete();
+                }
+                catch (TimeoutException te)
+                {
+                    string errorMessage = $"向串口 {PortName} 发送数据超时，超时设置: {SendTimeout.TotalMilliseconds}ms";
+                    Logger?.LogError(te, errorMessage);
+                    return OperationResult.CreateFailedResult(errorMessage);
+                }
+                catch (InvalidOperationException ioe)
+                {
+                    string errorMessage = $"向串口 {PortName} 发送数据时操作无效: {ioe.Message}";
+                    Logger?.LogError(ioe, errorMessage);
+                    return OperationResult.CreateFailedResult(errorMessage);
                 }
                 catch (Exception ex)
                 {
-                    Logger?.LogError(ex, "Error sending data to serial port {PortName}", PortName);
-                    throw;
+                    string errorMessage = $"向串口 {PortName} 发送数据时发生错误: {ex.Message}";
+                    Logger?.LogError(ex, errorMessage);
+                    return OperationResult.CreateFailedResult(errorMessage);
                 }
             }
         }
@@ -203,13 +218,28 @@ namespace Wombat.IndustrialCommunication
             {
                 try
                 {
+                    Logger?.LogDebug("正在从串口 {PortName} 接收最多 {Size} 字节数据", PortName, size);
                     var count = await _serialPort.BaseStream.ReadAsync(buffer, offset, size, cancellationToken);
+                    Logger?.LogDebug("成功从串口 {PortName} 接收 {Count} 字节数据", PortName, count);
                     return new OperationResult<int> { ResultValue = count }.Complete();
+                }
+                catch (TimeoutException te)
+                {
+                    string errorMessage = $"从串口 {PortName} 接收数据超时，超时设置: {ReceiveTimeout.TotalMilliseconds}ms";
+                    Logger?.LogError(te, errorMessage);
+                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = te };
+                }
+                catch (InvalidOperationException ioe)
+                {
+                    string errorMessage = $"从串口 {PortName} 接收数据时操作无效: {ioe.Message}";
+                    Logger?.LogError(ioe, errorMessage);
+                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ioe };
                 }
                 catch (Exception ex)
                 {
-                    Logger?.LogError(ex, "Error receiving data from serial port {PortName}", PortName);
-                    throw;
+                    string errorMessage = $"从串口 {PortName} 接收数据时发生错误: {ex.Message}";
+                    Logger?.LogError(ex, errorMessage);
+                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ex };
                 }
             }
         }
@@ -296,6 +326,50 @@ namespace Wombat.IndustrialCommunication
             {
                 _serialPort.BaseStream.Close();
                 Logger?.LogInformation("Stream closed for serial port {PortName}", PortName);
+            }
+        }
+
+        /// <summary>
+        /// 检测连接的健康状态
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>连接是否健康的操作结果</returns>
+        public async Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(SerialPortAdapter));
+
+            if (!Connected)
+                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
+
+            try
+            {
+                // 对于串口连接，我们主要检查端口是否打开并且可以进行简单的读取操作
+                using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000)))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
+                {
+                    Logger?.LogDebug("正在执行串口健康检查: {PortName}", PortName);
+                    
+                    // 检查串口是否有可用的数据
+                    // 只是检查属性而不实际读取数据，因为实际读取可能会阻塞或影响正常通信
+                    var isHealthy = _serialPort.IsOpen && _serialPort.BaseStream.CanRead && _serialPort.BaseStream.CanWrite;
+                    
+                    if (isHealthy)
+                    {
+                        Logger?.LogDebug("串口健康检查成功: {PortName}", PortName);
+                        return new OperationResult<bool> { IsSuccess = true, ResultValue = true };
+                    }
+                    else
+                    {
+                        Logger?.LogWarning("串口健康检查失败: {PortName}", PortName);
+                        return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "串口健康检查异常: {PortName}", PortName);
+                return new OperationResult<bool> { IsSuccess = false, ResultValue = false, Message = ex.Message };
             }
         }
 

@@ -7,7 +7,9 @@ using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
+using Wombat.IndustrialCommunicationTestProject.Helper;
 using Xunit;
+using Xunit.Abstractions;
 
 namespace Wombat.IndustrialCommunicationTest.Modbus
 {
@@ -15,10 +17,17 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
     {
         ModbusTcpClient client;
         byte stationNumber = 1;//站号
-        public ModbusTcpClient_tests()
+        private readonly ITestOutputHelper _output;
+        
+        public ModbusTcpClient_tests(ITestOutputHelper output = null)
         {
+            _output = output;
             var ip = IPAddress.Parse("127.0.0.1");
             client = new ModbusTcpClient("127.0.0.1", 502);
+            // 配置自动重连参数，用于测试
+            client.EnableAutoReconnect = true;
+            client.MaxReconnectAttempts = 3;
+            client.ReconnectDelay = TimeSpan.FromSeconds(1);
         }
 
         [Fact]
@@ -33,7 +42,7 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
         public void 长连接单读写()
         {
             client.IsLongConnection = true;
-            client.Connect();
+           var result= client.Connect();
             singleReadWrite();
             client.Disconnect();
         }
@@ -53,6 +62,241 @@ namespace Wombat.IndustrialCommunicationTest.Modbus
             client.Disconnect();
         }
 
+        [Fact]
+        public async Task 长连接模式下的短线重连测试()
+        {
+            // 1. 配置为长连接模式
+            client.IsLongConnection = true;
+            client.EnableAutoReconnect = true;
+            await client.ConnectAsync();
+            
+            try
+            {
+                // 2. 先执行一次正常读写确认连接工作正常
+                _output?.WriteLine("执行初始读写操作验证连接");
+                Random rnd = new Random((int)Stopwatch.GetTimestamp());
+                short testValue = (short)rnd.Next(short.MinValue, short.MaxValue);
+                
+                // 写入测试值
+                var writeResult = await client.WriteAsync("1;16;0", testValue);
+                Assert.True(writeResult.IsSuccess, $"初始写入失败: {writeResult.Message}");
+                
+                // 读取并验证测试值
+                var readResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(readResult.IsSuccess, $"初始读取失败: {readResult.Message}");
+                Assert.Equal(testValue, readResult.ResultValue);
+                
+                // 3. 模拟网络中断
+                _output?.WriteLine("模拟网络中断");
+                var disruptor = new ConnectionDisruptor();
+                var disruptResult = await disruptor.SimulateConnectionDisruption(client);
+                Assert.True(disruptResult.IsSuccess, $"模拟中断失败: {disruptResult.Message}");
+                
+                // 4. 等待一段时间，让自动重连有机会启动
+                _output?.WriteLine("等待3秒让自动重连启动");
+                await Task.Delay(3000);
+                
+                // 5. 尝试读取数据，这应该触发自动重连
+                _output?.WriteLine("尝试读取数据，这应该触发自动重连");
+                short newTestValue = (short)(testValue + 1);
+                
+                // 尝试写入新的测试值
+                var reconnectWriteResult = await client.WriteAsync("1;16;0", newTestValue);
+                Assert.True(reconnectWriteResult.IsSuccess, $"重连后写入失败: {reconnectWriteResult.Message}");
+                
+                // 读取并验证新的测试值
+                var reconnectReadResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(reconnectReadResult.IsSuccess, $"重连后读取失败: {reconnectReadResult.Message}");
+                Assert.Equal(newTestValue, reconnectReadResult.ResultValue);
+                
+                _output?.WriteLine("自动重连测试成功");
+            }
+            finally
+            {
+                // 6. 清理：断开连接
+                await client.DisconnectAsync();
+            }
+        }
+        
+        [Fact]
+        public async Task 长连接模式下的手动重连测试()
+        {
+            // 1. 配置为长连接模式但禁用自动重连
+            client.IsLongConnection = true;
+            client.EnableAutoReconnect = false;
+            await client.ConnectAsync();
+            
+            try
+            {
+                // 2. 先执行一次正常读写确认连接工作正常
+                _output?.WriteLine("执行初始读写操作验证连接");
+                Random rnd = new Random((int)Stopwatch.GetTimestamp());
+                short testValue = (short)rnd.Next(short.MinValue, short.MaxValue);
+                
+                // 写入测试值
+                var writeResult = await client.WriteAsync("1;16;0", testValue);
+                Assert.True(writeResult.IsSuccess, $"初始写入失败: {writeResult.Message}");
+                
+                // 读取并验证测试值
+                var readResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(readResult.IsSuccess, $"初始读取失败: {readResult.Message}");
+                Assert.Equal(testValue, readResult.ResultValue);
+                
+                // 3. 模拟网络中断
+                _output?.WriteLine("模拟网络中断");
+                var disruptor = new ConnectionDisruptor();
+                var disruptResult = await disruptor.SimulateConnectionDisruption(client);
+                Assert.True(disruptResult.IsSuccess, $"模拟中断失败: {disruptResult.Message}");
+                
+                // 4. 验证连接已断开
+                Assert.False(client.Connected, "客户端应处于断开状态");
+                
+                // 5. 尝试读取数据，应该失败，因为连接断开且禁用了自动重连
+                _output?.WriteLine("尝试读取数据，预期将失败");
+                var failReadResult = await client.ReadInt16Async("1;3;0");
+                Assert.False(failReadResult.IsSuccess, "禁用自动重连时，断线后的读取应该失败");
+                
+                // 6. 手动重连
+                _output?.WriteLine("执行手动重连");
+                var reconnectResult = await client.ConnectAsync();
+                Assert.True(reconnectResult.IsSuccess, $"手动重连失败: {reconnectResult.Message}");
+                
+                // 7. 重连后执行读写操作
+                _output?.WriteLine("重连后执行读写操作");
+                short newTestValue = (short)(testValue + 1);
+                
+                // 尝试写入新的测试值
+                var reconnectWriteResult = await client.WriteAsync("1;16;0", newTestValue);
+                Assert.True(reconnectWriteResult.IsSuccess, $"重连后写入失败: {reconnectWriteResult.Message}");
+                
+                // 读取并验证新的测试值
+                var reconnectReadResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(reconnectReadResult.IsSuccess, $"重连后读取失败: {reconnectReadResult.Message}");
+                Assert.Equal(newTestValue, reconnectReadResult.ResultValue);
+                
+                _output?.WriteLine("手动重连测试成功");
+            }
+            finally
+            {
+                // 8. 清理：断开连接
+                await client.DisconnectAsync();
+            }
+        }
+
+        [Fact]
+        public async Task 短连接模式下的连接中断恢复测试()
+        {
+            // 1. 配置为短连接模式
+            client.IsLongConnection = false;
+            
+            // 2. 确保客户端未连接
+            if (client.Connected)
+            {
+                await client.DisconnectAsync();
+            }
+            
+            try
+            {
+                // 3. 执行初始操作，这会建立一个临时连接
+                _output?.WriteLine("执行初始读写操作");
+                Random rnd = new Random((int)Stopwatch.GetTimestamp());
+                short testValue = (short)rnd.Next(short.MinValue, short.MaxValue);
+                
+                // 写入测试值
+                var writeResult = await client.WriteAsync("1;16;0", testValue);
+                Assert.True(writeResult.IsSuccess, $"初始写入失败: {writeResult.Message}");
+                
+                // 读取并验证测试值
+                var readResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(readResult.IsSuccess, $"初始读取失败: {readResult.Message}");
+                Assert.Equal(testValue, readResult.ResultValue);
+                
+                // 4. 在短连接模式下，每次操作后连接应该自动关闭
+                Assert.False(client.Connected, "短连接模式下，操作完成后客户端应处于断开状态");
+                
+                // 5. 尝试第二次操作，这应该建立一个新的临时连接
+                _output?.WriteLine("执行第二次读写操作");
+                short newTestValue = (short)(testValue + 1);
+                
+                // 写入新的测试值
+                var secondWriteResult = await client.WriteAsync("1;16;0", newTestValue);
+                Assert.True(secondWriteResult.IsSuccess, $"第二次写入失败: {secondWriteResult.Message}");
+                
+                // 读取并验证新的测试值
+                var secondReadResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(secondReadResult.IsSuccess, $"第二次读取失败: {secondReadResult.Message}");
+                Assert.Equal(newTestValue, secondReadResult.ResultValue);
+                
+                // 6. 操作完成后连接应再次自动关闭
+                Assert.False(client.Connected, "短连接模式下，第二次操作完成后客户端应处于断开状态");
+                
+                _output?.WriteLine("短连接模式测试成功");
+            }
+            finally
+            {
+                // 7. 确保连接断开
+                if (client.Connected)
+                {
+                    await client.DisconnectAsync();
+                }
+            }
+        }
+
+        [Fact]
+        public async Task 短连接模式下的连续操作中断测试()
+        {
+            // 1. 配置为短连接模式
+            client.IsLongConnection = false;
+            // 配置短连接重连参数，确保即使在短连接模式下也能进行有限次数的重试
+            client.ShortConnectionReconnectAttempts = 1;
+            
+            try
+            {
+                // 2. 执行初始操作，这会建立一个临时连接
+                _output?.WriteLine("执行初始读写操作");
+                Random rnd = new Random((int)Stopwatch.GetTimestamp());
+                short testValue = (short)rnd.Next(short.MinValue, short.MaxValue);
+                
+                // 写入测试值
+                var writeResult = await client.WriteAsync("1;16;0", testValue);
+                Assert.True(writeResult.IsSuccess, $"初始写入失败: {writeResult.Message}");
+                
+                // 读取并验证测试值
+                var readResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(readResult.IsSuccess, $"初始读取失败: {readResult.Message}");
+                Assert.Equal(testValue, readResult.ResultValue);
+                
+                // 3. 模拟服务器问题（例如，服务器重启或网络暂时中断）
+                _output?.WriteLine("模拟服务器暂时不可用");
+                
+                // 这里我们不直接断开客户端连接，因为在短连接模式下它已经断开了
+                // 相反，我们等待一段时间，模拟服务器不可用的情况
+                await Task.Delay(3000);
+                
+                // 4. 尝试在服务器恢复后执行操作
+                _output?.WriteLine("在服务器恢复后执行读写操作");
+                short newTestValue = (short)(testValue + 1);
+                
+                // 写入新的测试值
+                var recoveryWriteResult = await client.WriteAsync("1;16;0", newTestValue);
+                Assert.True(recoveryWriteResult.IsSuccess, $"恢复后写入失败: {recoveryWriteResult.Message}");
+                
+                // 读取并验证新的测试值
+                var recoveryReadResult = await client.ReadInt16Async("1;3;0");
+                Assert.True(recoveryReadResult.IsSuccess, $"恢复后读取失败: {recoveryReadResult.Message}");
+                Assert.Equal(newTestValue, recoveryReadResult.ResultValue);
+                
+                _output?.WriteLine("短连接模式中断恢复测试成功");
+            }
+            finally
+            {
+                // 5. 确保连接断开
+                if (client.Connected)
+                {
+                    await client.DisconnectAsync();
+                }
+            }
+        }
 
         private void singleReadWrite()
         {
