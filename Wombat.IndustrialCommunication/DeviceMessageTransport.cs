@@ -20,11 +20,94 @@ namespace Wombat.IndustrialCommunication
         // 流资源接口
         private IStreamResource _streamResource;
         // 重试次数
-        private int _retries = 2;
+        private int _retries = 5;
         // 重试等待时间
-        private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(100);
+        private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(500);
         // 字节数组池，用于优化内存使用
         private static readonly ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+
+        #region 性能指标
+        
+        // 总发送请求数
+        private long _totalSendRequests = 0;
+        // 总接收响应数
+        private long _totalReceiveResponses = 0;
+        // 发送成功次数
+        private long _successfulSendRequests = 0;
+        // 接收成功次数
+        private long _successfulReceiveResponses = 0;
+        // 总发送字节数
+        private long _totalSentBytes = 0;
+        // 总接收字节数
+        private long _totalReceivedBytes = 0;
+        // 发送失败次数
+        private long _failedSendRequests = 0;
+        // 接收失败次数
+        private long _failedReceiveResponses = 0;
+        // 重试总次数
+        private long _totalRetries = 0;
+        // 累计发送耗时（毫秒）
+        private long _totalSendTime = 0;
+        // 累计接收耗时（毫秒）
+        private long _totalReceiveTime = 0;
+        // 上次重置指标时间
+        private DateTime _lastMetricsReset = DateTime.Now;
+        // 性能指标收集开关
+        public bool EnableMetricsCollection { get; set; } = true;
+        // 指标重置间隔（默认1小时）
+        public TimeSpan MetricsResetInterval { get; set; } = TimeSpan.FromHours(1);
+        
+        /// <summary>
+        /// 获取当前性能指标
+        /// </summary>
+        /// <returns>性能指标的字典</returns>
+        public Dictionary<string, object> GetPerformanceMetrics()
+        {
+            // 检查是否需要重置指标
+            if (EnableMetricsCollection && (DateTime.Now - _lastMetricsReset) > MetricsResetInterval)
+            {
+                ResetMetrics();
+            }
+            
+            return new Dictionary<string, object>
+            {
+                ["TotalSendRequests"] = _totalSendRequests,
+                ["TotalReceiveResponses"] = _totalReceiveResponses,
+                ["SuccessfulSendRequests"] = _successfulSendRequests,
+                ["SuccessfulReceiveResponses"] = _successfulReceiveResponses,
+                ["FailedSendRequests"] = _failedSendRequests,
+                ["FailedReceiveResponses"] = _failedReceiveResponses,
+                ["TotalSentBytes"] = _totalSentBytes,
+                ["TotalReceivedBytes"] = _totalReceivedBytes,
+                ["TotalRetries"] = _totalRetries,
+                ["SendSuccessRate"] = _totalSendRequests > 0 ? (double)_successfulSendRequests / _totalSendRequests : 0,
+                ["ReceiveSuccessRate"] = _totalReceiveResponses > 0 ? (double)_successfulReceiveResponses / _totalReceiveResponses : 0,
+                ["AverageSendTime"] = _successfulSendRequests > 0 ? (double)_totalSendTime / _successfulSendRequests : 0,
+                ["AverageReceiveTime"] = _successfulReceiveResponses > 0 ? (double)_totalReceiveTime / _successfulReceiveResponses : 0,
+                ["LastMetricsReset"] = _lastMetricsReset
+            };
+        }
+        
+        /// <summary>
+        /// 重置性能指标
+        /// </summary>
+        public void ResetMetrics()
+        {
+            _totalSendRequests = 0;
+            _totalReceiveResponses = 0;
+            _successfulSendRequests = 0;
+            _successfulReceiveResponses = 0;
+            _totalSentBytes = 0;
+            _totalReceivedBytes = 0;
+            _failedSendRequests = 0;
+            _failedReceiveResponses = 0;
+            _totalRetries = 0;
+            _totalSendTime = 0;
+            _totalReceiveTime = 0;
+            _lastMetricsReset = DateTime.Now;
+        }
+        
+        #endregion
 
         /// <summary>
         /// 构造函数
@@ -72,52 +155,114 @@ namespace Wombat.IndustrialCommunication
         /// <returns>操作结果</returns>
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {
+            if (EnableMetricsCollection)
+            {
+                Interlocked.Increment(ref _totalReceiveResponses);
+            }
+            
+            var stopwatch = Stopwatch.StartNew();
+            
             using (await _asyncLock.LockAsync())
             {
                 if (!_streamResource.Connected)
                 {
+                    if (EnableMetricsCollection)
+                    {
+                        Interlocked.Increment(ref _failedReceiveResponses);
+                    }
                     return OperationResult.CreateFailedResult<byte[]>("设备未连接");
                 }
 
                 int attempt = 1;
+                int totalRetries = 0;
                 byte[] buffer = _byteArrayPool.Rent(length);
                 try
                 {
                     using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
                     {
-                        cts.Token.Register(() => _streamResource.StreamClose());
+                        // 避免直接调用StreamClose，改为设置一个标志，防止循环调用
+                        // 原始代码: cts.Token.Register(() => _streamResource.StreamClose());
+                        bool timeoutOccurred = false;
+                        cts.Token.Register(() => { timeoutOccurred = true; });
 
                         while (attempt <= _retries)
                         {
                             try
                             {
+                                // 如果已超时，终止循环
+                                if (timeoutOccurred)
+                                {
+                                    if (EnableMetricsCollection)
+                                    {
+                                        Interlocked.Increment(ref _failedReceiveResponses);
+                                        Interlocked.Add(ref _totalRetries, totalRetries);
+                                    }
+                                    return OperationResult.CreateFailedResult<byte[]>("接收操作超时");
+                                }
+                                
                                 var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
                                 if (read?.IsSuccess ?? false)
                                 {
                                     var result = new byte[length];
                                     Array.Copy(buffer, result, length);
+                                    
+                                    if (EnableMetricsCollection)
+                                    {
+                                        stopwatch.Stop();
+                                        Interlocked.Increment(ref _successfulReceiveResponses);
+                                        Interlocked.Add(ref _totalReceivedBytes, length);
+                                        Interlocked.Add(ref _totalRetries, totalRetries);
+                                        Interlocked.Add(ref _totalReceiveTime, stopwatch.ElapsedMilliseconds);
+                                    }
+                                    
                                     return OperationResult.CreateSuccessResult(result);
                                 }
 
                                 if (attempt++ > _retries)
                                 {
+                                    if (EnableMetricsCollection)
+                                    {
+                                        Interlocked.Increment(ref _failedReceiveResponses);
+                                        Interlocked.Add(ref _totalRetries, totalRetries);
+                                    }
                                     return OperationResult.CreateFailedResult<byte[]>($"读取设备失败，重试次数：{_retries}，超时参数：{_streamResource.ReceiveTimeout.TotalMilliseconds}ms");
                                 }
 
-                                await Task.Delay(WaitToRetryMilliseconds, cts.Token);
+                                totalRetries++;
+                                
+                                // 计算退避等待时间，每次重试增加等待时间
+                                var backoffDelay = TimeSpan.FromMilliseconds(WaitToRetryMilliseconds.TotalMilliseconds * attempt);
+                                await Task.Delay(backoffDelay, cts.Token);
+                                
+                                Debug.WriteLine($"接收操作重试 {attempt}/{_retries}，等待时间：{backoffDelay.TotalMilliseconds}ms");
                             }
                             catch (OperationCanceledException)
                             {
+                                if (EnableMetricsCollection)
+                                {
+                                    Interlocked.Increment(ref _failedReceiveResponses);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                }
                                 return OperationResult.CreateFailedResult<byte[]>("操作超时");
                             }
                             catch (ObjectDisposedException)
                             {
+                                if (EnableMetricsCollection)
+                                {
+                                    Interlocked.Increment(ref _failedReceiveResponses);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                }
                                 return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
                             }
                             catch (Exception e)
                             {
                                 if (attempt > _retries)
                                 {
+                                    if (EnableMetricsCollection)
+                                    {
+                                        Interlocked.Increment(ref _failedReceiveResponses);
+                                        Interlocked.Add(ref _totalRetries, totalRetries);
+                                    }
                                     return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
                                 }
                                 Debug.WriteLine($"接收异常：{e.GetType().Name}，剩余重试次数：{_retries - attempt + 1}，异常信息：{e}");
@@ -130,6 +275,10 @@ namespace Wombat.IndustrialCommunication
                     _byteArrayPool.Return(buffer);
                 }
 
+                if (EnableMetricsCollection)
+                {
+                    Interlocked.Increment(ref _failedReceiveResponses);
+                }
                 return OperationResult.CreateFailedResult<byte[]>("接收失败");
             }
         }
@@ -141,50 +290,111 @@ namespace Wombat.IndustrialCommunication
         /// <returns>操作结果</returns>
         public async Task<OperationResult> SendRequestAsync(byte[] request)
         {
+            if (EnableMetricsCollection)
+            {
+                Interlocked.Increment(ref _totalSendRequests);
+            }
+            
+            var stopwatch = Stopwatch.StartNew();
+            
             using (await _asyncLock.LockAsync())
             {
                 if (!_streamResource.Connected)
                 {
+                    if (EnableMetricsCollection)
+                    {
+                        Interlocked.Increment(ref _failedSendRequests);
+                    }
                     return OperationResult.CreateFailedResult("设备未连接");
                 }
 
                 int attempt = 1;
+                int totalRetries = 0;
                 var result = new OperationResult();
                 result.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
 
                 using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                 {
-                    cts.Token.Register(() => _streamResource.StreamClose());
+                    // 避免直接调用StreamClose，改为设置一个标志，防止循环调用
+                    // 原始代码: cts.Token.Register(() => _streamResource.StreamClose());
+                    bool timeoutOccurred = false;
+                    cts.Token.Register(() => { timeoutOccurred = true; });
 
                     while (attempt <= _retries)
                     {
                         try
                         {
+                            // 如果已超时，终止循环
+                            if (timeoutOccurred)
+                            {
+                                if (EnableMetricsCollection)
+                                {
+                                    Interlocked.Increment(ref _failedSendRequests);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                }
+                                return OperationResult.CreateFailedResult("发送操作超时");
+                            }
+                            
                             var write = await _streamResource.Send(request, 0, request.Length, cts.Token);
                             if (write?.IsSuccess ?? false)
                             {
+                                if (EnableMetricsCollection)
+                                {
+                                    stopwatch.Stop();
+                                    Interlocked.Increment(ref _successfulSendRequests);
+                                    Interlocked.Add(ref _totalSentBytes, request.Length);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                    Interlocked.Add(ref _totalSendTime, stopwatch.ElapsedMilliseconds);
+                                }
+                                
                                 return OperationResult.CreateSuccessResult(write);
                             }
 
                             if (attempt++ > _retries)
                             {
+                                if (EnableMetricsCollection)
+                                {
+                                    Interlocked.Increment(ref _failedSendRequests);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                }
                                 return OperationResult.CreateFailedResult($"写入设备失败，重试次数：{_retries}，超时参数：{_streamResource.SendTimeout.TotalMilliseconds}ms");
                             }
 
-                            await Task.Delay(WaitToRetryMilliseconds, cts.Token);
+                            totalRetries++;
+                            
+                            // 计算退避等待时间，每次重试增加等待时间
+                            var backoffDelay = TimeSpan.FromMilliseconds(WaitToRetryMilliseconds.TotalMilliseconds * attempt);
+                            await Task.Delay(backoffDelay, cts.Token);
+                            
+                            Debug.WriteLine($"发送操作重试 {attempt}/{_retries}，等待时间：{backoffDelay.TotalMilliseconds}ms");
                         }
                         catch (OperationCanceledException)
                         {
+                            if (EnableMetricsCollection)
+                            {
+                                Interlocked.Increment(ref _failedSendRequests);
+                                Interlocked.Add(ref _totalRetries, totalRetries);
+                            }
                             return OperationResult.CreateFailedResult("操作超时");
                         }
                         catch (ObjectDisposedException)
                         {
+                            if (EnableMetricsCollection)
+                            {
+                                Interlocked.Increment(ref _failedSendRequests);
+                                Interlocked.Add(ref _totalRetries, totalRetries);
+                            }
                             return OperationResult.CreateFailedResult("连接已关闭");
                         }
                         catch (Exception e)
                         {
                             if (attempt > _retries)
                             {
+                                if (EnableMetricsCollection)
+                                {
+                                    Interlocked.Increment(ref _failedSendRequests);
+                                    Interlocked.Add(ref _totalRetries, totalRetries);
+                                }
                                 return OperationResult.CreateFailedResult($"操作失败：{e.Message}");
                             }
                             Debug.WriteLine($"发送异常：{e.GetType().Name}，剩余重试次数：{_retries - attempt + 1}，异常信息：{e}");
@@ -192,6 +402,10 @@ namespace Wombat.IndustrialCommunication
                     }
                 }
 
+                if (EnableMetricsCollection)
+                {
+                    Interlocked.Increment(ref _failedSendRequests);
+                }
                 return OperationResult.CreateFailedResult("发送失败");
             }
         }

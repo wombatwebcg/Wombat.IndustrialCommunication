@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunication
         private TcpSocketClientBase _tcpSocketClientBase;
         private readonly object _lockObject = new object();
         private bool _disposed;
-        private const int DEFAULT_TIMEOUT_MS = 100;
+        private const int DEFAULT_TIMEOUT_MS = 3000;
         private const int MIN_PORT = 1;
         private const int MAX_PORT = 65535;
 
@@ -105,15 +105,28 @@ namespace Wombat.IndustrialCommunication
             OperationResult operation = new OperationResult();
             try
             {
-                Logger?.LogDebug("Sending {Size} bytes to {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogDebug("正在发送 {Size} 字节数据到 {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
                 await _tcpSocketClientBase.SendAsync(buffer, offset, size, cancellationToken);
-                Logger?.LogDebug("Successfully sent {Size} bytes", size);
+                Logger?.LogDebug("成功发送 {Size} 字节数据到 {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
                 return operation.Complete();
+            }
+            catch (SocketException se)
+            {
+                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
+                Logger?.LogError(se, errorMessage);
+                return OperationResult.CreateFailedResult(errorMessage);
+            }
+            catch (TimeoutException te)
+            {
+                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 超时，超时设置: {SendTimeout.TotalMilliseconds}ms";
+                Logger?.LogError(te, errorMessage);
+                return OperationResult.CreateFailedResult(errorMessage);
             }
             catch (Exception ex)
             {
-                Logger?.LogError(ex, "Error sending data");
-                return OperationResult.CreateFailedResult(ex);
+                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 时发生错误: {ex.Message}";
+                Logger?.LogError(ex, errorMessage);
+                return OperationResult.CreateFailedResult(errorMessage);
             }
         }
 
@@ -134,16 +147,29 @@ namespace Wombat.IndustrialCommunication
             OperationResult<int> operation = new OperationResult<int>();
             try
             {
-                Logger?.LogDebug("Receiving up to {Size} bytes from {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogDebug("正在从 {EndPoint} 接收最多 {Size} 字节数据", _tcpSocketClientBase.RemoteEndPoint, size);
                 var count = await _tcpSocketClientBase.ReceiveAsync(buffer, offset, size, cancellationToken);
                 operation.ResultValue = count;
-                Logger?.LogDebug("Successfully received {Count} bytes", count);
+                Logger?.LogDebug("成功从 {EndPoint} 接收 {Count} 字节数据", _tcpSocketClientBase.RemoteEndPoint, count);
                 return operation.Complete();
+            }
+            catch (SocketException se)
+            {
+                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
+                Logger?.LogError(se, errorMessage);
+                return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = se };
+            }
+            catch (TimeoutException te)
+            {
+                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据超时，超时设置: {ReceiveTimeout.TotalMilliseconds}ms";
+                Logger?.LogError(te, errorMessage);
+                return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = te };
             }
             catch (Exception ex)
             {
-                Logger?.LogError(ex, "Error receiving data");
-                return new OperationResult<int> { IsSuccess = false, Message = ex.Message, Exception = ex };
+                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据时发生错误: {ex.Message}";
+                Logger?.LogError(ex, errorMessage);
+                return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ex };
             }
         }
 
@@ -229,6 +255,54 @@ namespace Wombat.IndustrialCommunication
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "Error closing stream");
+            }
+        }
+
+        /// <summary>
+        /// 检测连接的健康状态
+        /// </summary>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>连接是否健康的操作结果</returns>
+        public async Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
+        {
+            if (_disposed)
+                throw new ObjectDisposedException(nameof(TcpClientAdapter));
+
+            if (!Connected)
+                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
+
+            try
+            {
+                // 创建一个心跳检测的取消令牌，使用较短的超时时间
+                using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000)))
+                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
+                {
+                    // 创建一个0字节的心跳数据包
+                    byte[] heartbeatPacket = new byte[1] { 0 };
+                    
+                    Logger?.LogDebug("正在执行连接健康检查: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    
+                    // 尝试发送和接收最小数据以检测连接状态
+                    var sendResult = await Send(heartbeatPacket, 0, 1, linkedCts.Token);
+                    if (!sendResult.IsSuccess)
+                    {
+                        Logger?.LogWarning("连接健康检查失败(发送): {Message}", sendResult.Message);
+                        return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
+                    }
+                    
+                    Logger?.LogDebug("连接健康检查成功: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    return new OperationResult<bool> { IsSuccess = true, ResultValue = true };
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                Logger?.LogWarning("连接健康检查超时: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "连接健康检查异常: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                return new OperationResult<bool> { IsSuccess = false, ResultValue = false, Message = ex.Message };
             }
         }
 

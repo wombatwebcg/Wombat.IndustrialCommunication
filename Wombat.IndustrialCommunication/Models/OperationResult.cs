@@ -34,6 +34,10 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public bool IsSuccess { get; set; } = true;
 
+        /// <summary>
+        /// 指示操作是否被取消
+        /// </summary>
+        public bool IsCancelled { get; set; } = false;
 
 
         private string _message;
@@ -67,7 +71,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 耗时（毫秒）
         /// </summary>
-        public double? TimeConsuming { get; private set; }
+        public double? TimeConsuming { get; internal set; }
 
 
         public List<string> Requsts { get; set; } = new List<string>();
