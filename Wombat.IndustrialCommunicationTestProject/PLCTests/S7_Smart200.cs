@@ -15,899 +15,359 @@ using Xunit.Abstractions;
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
+    /// <summary>
+    /// S7-200 Smart PLC通讯测试类
+    /// 测试包括：同步/异步读写、断线重连、短连接、模拟服务器、压力测试
+    /// </summary>
     public class S7_Smart200
     {
+        #region 测试配置常量
+        
+        /// <summary>测试PLC IP地址</summary>
+        private const string TEST_PLC_IP = "192.168.11.51";
+        
+        /// <summary>测试PLC端口</summary>
+        private const int TEST_PLC_PORT = 102;
+        
+        /// <summary>PLC版本</summary>
+        private const SiemensVersion PLC_VERSION = SiemensVersion.S7_200Smart;
+        
+        /// <summary>基础测试循环次数</summary>
+        private const int BASIC_TEST_CYCLES = 50;
+        
+        /// <summary>高频测试循环次数</summary>
+        private const int HIGH_FREQUENCY_TEST_CYCLES = 100;
+        
+        /// <summary>自动重连最大尝试次数</summary>
+        private const int MAX_RECONNECT_ATTEMPTS = 3;
+        
+        /// <summary>重连延迟时间（秒）</summary>
+        private const int RECONNECT_DELAY_SECONDS = 5;
+        
+        /// <summary>等待自动重连时间（毫秒）</summary>
+        private const int WAIT_RECONNECT_TIMEOUT = 7000;
+        
+        /// <summary>浮点数比较精度</summary>
+        private const double FLOAT_COMPARISON_PRECISION = 0.001;
+        
+        /// <summary>模拟服务器IP地址</summary>
+        private const string MOCK_SERVER_IP = "127.0.0.1";
+        
+        /// <summary>模拟服务器端口</summary>
+        private const int MOCK_SERVER_PORT = 1102;
+        
+        #endregion
+
+        #region 测试地址常量
+        
+        /// <summary>布尔测试地址</summary>
+        private const string BOOL_TEST_ADDRESS_1 = "Q1.3";
+        private const string BOOL_TEST_ADDRESS_2 = "Q1.4";
+        private const string BOOL_TEST_ADDRESS_3 = "Q1.5";
+        
+        /// <summary>基础数据测试地址</summary>
+        private const string BASIC_DATA_ADDRESS = "V700";
+        private const string STRING_DATA_ADDRESS = "V1000";
+        
+        /// <summary>连接测试地址</summary>
+        private const string CONNECTION_TEST_ADDRESS = "V700";
+        
+        #endregion
+
+        #region 私有字段
+        
         private SiemensClient client;
         private readonly ITestOutputHelper _output;
         private ConnectionDisruptorExtreme _disruptor;
         
+        #endregion
+
+        #region 构造函数
+        
+        /// <summary>
+        /// 初始化S7-200 Smart测试类
+        /// </summary>
+        /// <param name="output">测试输出助手</param>
         public S7_Smart200(ITestOutputHelper output = null)
         {
             _output = output;
-            // 创建连接中断模拟器
             _disruptor = new ConnectionDisruptorExtreme(new XUnitLogger(_output, "Disruptor"));
         }
         
+        #endregion
+
+        #region 公共测试方法
+
+        /// <summary>
+        /// 测试S7-200 Smart同步读写功能
+        /// 包括各种数据类型的基本读写操作
+        /// </summary>
         [Fact]
-        public void Smart200读写测试()
+        public void Test_Smart200_SyncReadWrite()
         {
-
-            client = new SiemensClient("192.168.11.51", 102, SiemensVersion.S7_200Smart);
-            client.Connect();
-            ReadWrite();
-            client.Disconnect();
-
-        }
-
-        [Fact]
-        public async Task Smart200读写异步测试()
-        {
-            _output?.WriteLine("开始异步读写测试");
-            client = new SiemensClient("192.168.11.51", 102, SiemensVersion.S7_200Smart);
+            // Arrange
+            var testName = "S7-200 Smart同步读写测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
             
             try
             {
-                _output?.WriteLine("连接PLC");
-                var connectResult = await client.ConnectAsync();
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = client.Connect();
                 Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
                 
-                _output?.WriteLine("执行异步读写测试");
-                await ReadWriteAsync();
+                LogStep("执行同步读写测试");
+                ReadWrite();
                 
-                _output?.WriteLine("断开连接");
-                var disconnectResult = await client.DisconnectAsync();
+                LogStep("断开PLC连接");
+                var disconnectResult = client.Disconnect();
                 Assert.True(disconnectResult.IsSuccess, $"断开连接失败: {disconnectResult.Message}");
+                
+                LogTestComplete(testName);
             }
             catch (Exception ex)
             {
-                _output?.WriteLine($"测试异常: {ex.Message}");
+                LogTestError(testName, ex);
                 throw;
             }
             finally
             {
-                if (client.Connected)
-                {
-                    await client.DisconnectAsync();
-                }
+                SafeDisconnect();
             }
         }
 
+        /// <summary>
+        /// 测试S7-200 Smart异步读写功能
+        /// 包括各种数据类型的异步读写操作
+        /// </summary>
         [Fact]
-        public async Task Smart200断线重连测试()
+        public async Task Test_Smart200_AsyncReadWrite()
         {
-            _output?.WriteLine("开始断线重连测试");
-            client = new SiemensClient("192.168.11.51", 102, SiemensVersion.S7_200Smart);
+            // Arrange
+            var testName = "S7-200 Smart异步读写测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
             
             try
             {
-                // 配置自动重连
-                _output?.WriteLine("配置自动重连参数");
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = 3;
-                client.ReconnectDelay = TimeSpan.FromSeconds(5);
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
                 
-                // 连接PLC
-                _output?.WriteLine("连接PLC");
+                LogStep("执行异步读写测试");
+                await ReadWriteAsync();
+                
+                LogStep("断开PLC连接");
+                var disconnectResult = await client.DisconnectAsync();
+                Assert.True(disconnectResult.IsSuccess, $"断开连接失败: {disconnectResult.Message}");
+                
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await SafeDisconnectAsync();
+            }
+        }
+
+        /// <summary>
+        /// 测试S7-200 Smart断线重连功能
+        /// 验证自动重连机制的可靠性
+        /// </summary>
+        [Fact]
+        public async Task Test_Smart200_DisconnectionRecovery()
+        {
+            // Arrange
+            var testName = "S7-200 Smart断线重连测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
+            
+            try
+            {
+                // Arrange - 配置自动重连
+                LogStep("配置自动重连参数");
+                client.EnableAutoReconnect = true;
+                client.MaxReconnectAttempts = MAX_RECONNECT_ATTEMPTS;
+                client.ReconnectDelay = TimeSpan.FromSeconds(RECONNECT_DELAY_SECONDS);
+                
+                // Act & Assert - 建立连接
+                LogStep("建立PLC连接");
                 var connectResult = await client.ConnectAsync();
                 Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
                 Assert.True(client.Connected, "连接状态应为已连接");
                 
-                // 进行一次正常读写，确保连接有效
-                _output?.WriteLine("执行读写测试，验证连接有效");
-                var writeResult = await client.WriteAsync("V700", 12345);
+                // Act & Assert - 验证连接有效性
+                LogStep("验证连接有效性");
+                var testValue = 12345;
+                var writeResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testValue);
                 Assert.True(writeResult.IsSuccess, $"写入失败: {writeResult.Message}");
-                var readResult = await client.ReadInt32Async("V700");
+                var readResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
                 Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
-                Assert.Equal(12345, readResult.ResultValue);
+                Assert.Equal(testValue, readResult.ResultValue);
                 
-                // 模拟连接中断
-                _output?.WriteLine("模拟连接中断");
+                // Act - 模拟连接中断
+                LogStep("模拟连接中断");
                 var disruptResult = await _disruptor.SimulateSafeWait(client, 1000);
                 Assert.True(disruptResult.IsSuccess, $"模拟中断失败: {disruptResult.Message}");
                 
-                // 等待自动重连
-                _output?.WriteLine("等待自动重连...");
-                await Task.Delay(7000); // 等待时间略长于重连延迟
+                // Act - 等待自动重连
+                LogStep($"等待自动重连（最长{WAIT_RECONNECT_TIMEOUT}ms）");
+                await Task.Delay(WAIT_RECONNECT_TIMEOUT);
                 
-                // 验证是否已重连
-                _output?.WriteLine($"检查连接状态: {(client.Connected ? "已连接" : "未连接")}");
+                // Assert - 验证重连恢复
+                LogStep("验证连接恢复");
+                LogInfo($"当前连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 
-                // 尝试读写，验证连接是否已恢复
-                _output?.WriteLine("尝试读写，验证连接恢复");
-                writeResult = await client.WriteAsync("V700", 54321);
+                var recoveryTestValue = 54321;
+                writeResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, recoveryTestValue);
                 if (writeResult.IsSuccess)
                 {
-                    _output?.WriteLine("写入成功，连接已恢复");
-                    readResult = await client.ReadInt32Async("V700");
+                    LogInfo("写入成功，连接已恢复");
+                    readResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
                     Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
-                    Assert.Equal(54321, readResult.ResultValue);
+                    Assert.Equal(recoveryTestValue, readResult.ResultValue);
                 }
                 else
                 {
-                    _output?.WriteLine($"写入失败: {writeResult.Message}，连接可能未恢复");
+                    LogWarning($"写入失败: {writeResult.Message}，连接可能未恢复");
                     Assert.True(client.Connected, "连接状态应为已连接");
                 }
                 
-                // 断开连接
-                _output?.WriteLine("清理：断开连接");
-                client.EnableAutoReconnect = false; // 禁用自动重连，确保断开
-                await client.DisconnectAsync();
+                LogTestComplete(testName);
             }
             catch (Exception ex)
             {
-                _output?.WriteLine($"测试异常: {ex.Message}");
+                LogTestError(testName, ex);
                 throw;
             }
             finally
             {
-                // 确保资源释放
-                try
+                // 清理：禁用自动重连并断开连接
+                if (client != null)
                 {
-                    if (client.Connected)
-                    {
-                        _output?.WriteLine("确保断开连接");
-                        client.EnableAutoReconnect = false;
-                        await client.DisconnectAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"断开连接异常: {ex.Message}");
+                    client.EnableAutoReconnect = false;
+                    await SafeDisconnectAsync();
                 }
             }
         }
 
+        /// <summary>
+        /// 测试S7-200 Smart短连接功能
+        /// 验证短连接模式下的读写操作
+        /// </summary>
         [Fact]
-        public async Task Smart200短连接测试()
+        public async Task Test_Smart200_ShortConnection()
         {
-            _output?.WriteLine("开始短连接测试");
-            client = new SiemensClient("192.168.11.51", 102, SiemensVersion.S7_200Smart);
+            // Arrange
+            var testName = "S7-200 Smart短连接测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
             
             try
             {
-                // 配置短连接模式
-                _output?.WriteLine("配置短连接模式");
+                // Arrange - 配置短连接模式
+                LogStep("配置短连接模式");
                 client.IsLongConnection = false;
                 
-                // 执行一系列读写操作
-                _output?.WriteLine("执行短连接读写操作");
-                
-                // 写入并读取布尔值
-                _output?.WriteLine("测试布尔值读写");
-                var writeBoolResult = await client.WriteAsync("Q1.3", true);
+                // Act & Assert - 测试布尔值读写
+                LogStep("测试短连接布尔值读写");
+                var writeBoolResult = await client.WriteAsync(BOOL_TEST_ADDRESS_1, true);
                 Assert.True(writeBoolResult.IsSuccess, $"写入布尔值失败: {writeBoolResult.Message}");
-                var readBoolResult = await client.ReadBooleanAsync("Q1.3");
+                var readBoolResult = await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_1);
                 Assert.True(readBoolResult.IsSuccess, $"读取布尔值失败: {readBoolResult.Message}");
                 Assert.True(readBoolResult.ResultValue, "读取的布尔值应为true");
                 
-                // 检查连接状态（短连接模式下应已断开）
-                _output?.WriteLine($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
+                // Assert - 验证短连接状态
+                LogInfo($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 Assert.False(client.Connected, "短连接模式下操作后应已断开");
                 
-                // 写入并读取整数
-                _output?.WriteLine("测试整数读写");
-                var writeIntResult = await client.WriteAsync("V700", 12345);
+                // Act & Assert - 测试整数读写
+                LogStep("测试短连接整数读写");
+                var testIntValue = 12345;
+                var writeIntResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testIntValue);
                 Assert.True(writeIntResult.IsSuccess, $"写入整数失败: {writeIntResult.Message}");
-                var readIntResult = await client.ReadInt32Async("V700");
+                var readIntResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
                 Assert.True(readIntResult.IsSuccess, $"读取整数失败: {readIntResult.Message}");
-                Assert.Equal(12345, readIntResult.ResultValue);
+                Assert.Equal(testIntValue, readIntResult.ResultValue);
                 
-                // 检查连接状态（短连接模式下应已断开）
-                _output?.WriteLine($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
+                // Assert - 验证短连接状态
+                LogInfo($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 Assert.False(client.Connected, "短连接模式下操作后应已断开");
                 
-                // 写入并读取浮点数
-                _output?.WriteLine("测试浮点数读写");
-                float floatValue = 123.45f;
-                var writeFloatResult = await client.WriteAsync("V700", floatValue);
+                // Act & Assert - 测试浮点数读写
+                LogStep("测试短连接浮点数读写");
+                var testFloatValue = 123.45f;
+                var writeFloatResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testFloatValue);
                 Assert.True(writeFloatResult.IsSuccess, $"写入浮点数失败: {writeFloatResult.Message}");
-                var readFloatResult = await client.ReadFloatAsync("V700");
+                var readFloatResult = await client.ReadFloatAsync(CONNECTION_TEST_ADDRESS);
                 Assert.True(readFloatResult.IsSuccess, $"读取浮点数失败: {readFloatResult.Message}");
-                Assert.Equal(floatValue, readFloatResult.ResultValue);
+                Assert.Equal(testFloatValue, readFloatResult.ResultValue);
                 
-                // 检查连接状态（短连接模式下应已断开）
-                _output?.WriteLine($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
+                // Assert - 验证短连接状态
+                LogInfo($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 Assert.False(client.Connected, "短连接模式下操作后应已断开");
                 
-                // 启用自动重连并再次测试
-                _output?.WriteLine("启用自动重连并再次测试短连接模式");
+                // Act & Assert - 测试启用自动重连的短连接
+                LogStep("启用自动重连并测试短连接数组读写");
                 client.EnableAutoReconnect = true;
                 client.MaxReconnectAttempts = 1;
                 
-                // 写入并读取数组
-                _output?.WriteLine("测试数组读写（启用自动重连）");
-                int[] intArray = { 1, 2, 3, 4, 5 };
-                var writeArrayResult = await client.WriteAsync("V700", intArray);
+                var testIntArray = new int[] { 1, 2, 3, 4, 5 };
+                var writeArrayResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testIntArray);
                 Assert.True(writeArrayResult.IsSuccess, $"写入数组失败: {writeArrayResult.Message}");
-                var readArrayResult = await client.ReadInt32Async("V700", intArray.Length);
+                var readArrayResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS, testIntArray.Length);
                 Assert.True(readArrayResult.IsSuccess, $"读取数组失败: {readArrayResult.Message}");
-                for (int i = 0; i < intArray.Length; i++)
+                
+                for (int i = 0; i < testIntArray.Length; i++)
                 {
-                    Assert.Equal(intArray[i], readArrayResult.ResultValue[i]);
+                    Assert.Equal(testIntArray[i], readArrayResult.ResultValue[i]);
                 }
                 
-                // 检查连接状态（短连接模式下应已断开）
-                _output?.WriteLine($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
+                // Assert - 验证短连接状态
+                LogInfo($"操作后连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 Assert.False(client.Connected, "短连接模式下操作后应已断开");
+                
+                LogTestComplete(testName);
             }
             catch (Exception ex)
             {
-                _output?.WriteLine($"测试异常: {ex.Message}");
+                LogTestError(testName, ex);
                 throw;
             }
             finally
             {
-                // 确保资源释放
-                try
+                // 清理：恢复长连接模式并断开连接
+                if (client != null)
                 {
-                    if (client.Connected)
-                    {
-                        _output?.WriteLine("确保断开连接");
-                        client.IsLongConnection = true; // 切换回长连接模式进行安全断开
-                        client.EnableAutoReconnect = false;
-                        await client.DisconnectAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"断开连接异常: {ex.Message}");
+                    client.IsLongConnection = true;
+                    client.EnableAutoReconnect = false;
+                    await SafeDisconnectAsync();
                 }
             }
         }
 
-        [Fact]
-        public async Task 模拟服务器断线重连测试()
-        {
-            _output?.WriteLine("开始模拟服务器断线重连测试");
-            
-            // 创建模拟服务器和客户端
-            var server = new S7TcpServer("127.0.0.1", 1102);
-            client = new SiemensClient("127.0.0.1", 1102, SiemensVersion.S7_1200);
-            
-            try
-            {
-                // 配置服务器和客户端
-                _output?.WriteLine("配置服务器和客户端");
-                server.CreateDataBlock(1, 1024); // 创建DB1数据块，1024字节
-                server.UseLogger(new XUnitLogger(_output, "S7Server"));
-                
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = 3;
-                client.ReconnectDelay = TimeSpan.FromSeconds(2);
-                client.Logger = new XUnitLogger(_output, "S7Client");
-                
-                // 启动服务器
-                _output?.WriteLine("启动服务器");
-                var serverResult = await server.StartAsync();
-                Assert.True(serverResult.IsSuccess, $"启动服务器失败: {serverResult.Message}");
-                _output?.WriteLine("服务器启动成功");
-                
-                // 连接客户端
-                _output?.WriteLine("连接客户端");
-                var connectResult = await client.ConnectAsync();
-                Assert.True(connectResult.IsSuccess, $"连接客户端失败: {connectResult.Message}");
-                Assert.True(client.Connected, "客户端连接状态应为已连接");
-                _output?.WriteLine("客户端连接成功");
-                
-                // 执行基本读写测试
-                _output?.WriteLine("执行基本读写测试");
-                await client.WriteAsync("DB1.0", 12345);
-                var readResult = await client.ReadInt32Async("DB1.0");
-                Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
-                Assert.Equal(12345, readResult.ResultValue);
-                _output?.WriteLine("基本读写测试成功");
-                
-                // 停止服务器模拟断线
-                _output?.WriteLine("停止服务器模拟断线");
-                await server.StopAsync();
-                _output?.WriteLine("服务器已停止");
-                
-                // 等待连接状态更新
-                await Task.Delay(1000);
-                _output?.WriteLine($"客户端连接状态: {(client.Connected ? "已连接" : "未连接")}");
-                
-                // 尝试操作，此时应该失败
-                _output?.WriteLine("尝试操作，预期失败");
-                var failedWriteResult = await client.WriteAsync("DB1.0", 54321);
-                _output?.WriteLine($"断线后写入结果: {(failedWriteResult.IsSuccess ? "意外成功" : "预期失败")}");
-                
-                // 重启服务器
-                _output?.WriteLine("重启服务器");
-                serverResult = await server.StartAsync();
-                Assert.True(serverResult.IsSuccess, $"重启服务器失败: {serverResult.Message}");
-                _output?.WriteLine("服务器重启成功");
-                
-                // 等待自动重连
-                _output?.WriteLine("等待自动重连...");
-                await Task.Delay(5000); // 等待时间足够长，确保重连尝试
-                
-                // 验证是否已重连并恢复通信
-                _output?.WriteLine($"客户端连接状态: {(client.Connected ? "已连接" : "未连接")}");
-                
-                // 尝试读写，验证连接是否已恢复
-                _output?.WriteLine("尝试读写，验证连接恢复");
-                var writeResult = await client.WriteAsync("DB1.0", 54321);
-                if (writeResult.IsSuccess)
-                {
-                    _output?.WriteLine("写入成功，连接已恢复");
-                    readResult = await client.ReadInt32Async("DB1.0");
-                    Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
-                    Assert.Equal(54321, readResult.ResultValue);
-                    _output?.WriteLine("读写测试成功，连接已恢复");
-                }
-                else
-                {
-                    _output?.WriteLine($"写入失败: {writeResult.Message}，连接可能未恢复");
-                    // 尝试手动重连
-                    _output?.WriteLine("尝试手动重连");
-                    connectResult = await client.ConnectAsync();
-                    Assert.True(connectResult.IsSuccess, $"手动重连失败: {connectResult.Message}");
-                    
-                    // 再次尝试读写
-                    _output?.WriteLine("再次尝试读写");
-                    writeResult = await client.WriteAsync("DB1.0", 54321);
-                    Assert.True(writeResult.IsSuccess, $"手动重连后写入失败: {writeResult.Message}");
-                    readResult = await client.ReadInt32Async("DB1.0");
-                    Assert.True(readResult.IsSuccess, $"手动重连后读取失败: {readResult.Message}");
-                    Assert.Equal(54321, readResult.ResultValue);
-                    _output?.WriteLine("手动重连后读写测试成功");
-                }
-            }
-            catch (Exception ex)
-            {
-                _output?.WriteLine($"测试异常: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                // 确保资源释放
-                _output?.WriteLine("清理资源");
-                try
-                {
-                    if (client.Connected)
-                    {
-                        _output?.WriteLine("断开客户端连接");
-                        client.EnableAutoReconnect = false;
-                        await client.DisconnectAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"断开客户端异常: {ex.Message}");
-                }
-                
-                try
-                {
-                    if (server.IsListening)
-                    {
-                        _output?.WriteLine("关闭服务器");
-                        await server.StopAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"关闭服务器异常: {ex.Message}");
-                }
-                
-                _output?.WriteLine("资源清理完成");
-            }
-        }
+        #endregion
 
-        [Fact]
-        public async Task 模拟服务器短连接测试()
-        {
-            _output?.WriteLine("开始模拟服务器短连接测试");
-            
-            // 创建模拟服务器和客户端
-            var server = new S7TcpServer("127.0.0.1", 1102);
-            client = new SiemensClient("127.0.0.1", 1102, SiemensVersion.S7_1200);
-            
-            try
-            {
-                // 配置服务器和客户端
-                _output?.WriteLine("配置服务器和客户端");
-                server.CreateDataBlock(1, 1024); // 创建DB1数据块，1024字节
-                server.UseLogger(new XUnitLogger(_output, "S7Server"));
-                
-                client.IsLongConnection = false; // 配置为短连接模式
-                client.Logger = new XUnitLogger(_output, "S7Client");
-                
-                // 启动服务器
-                _output?.WriteLine("启动服务器");
-                var serverResult = await server.StartAsync();
-                Assert.True(serverResult.IsSuccess, $"启动服务器失败: {serverResult.Message}");
-                _output?.WriteLine("服务器启动成功");
-                
-                // 测试不同数据类型的读写
-                await TestShortConnectionReadWrite<bool>("DB1.0.0", true, 
-                    (addr) => client.ReadBooleanAsync(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<short>("DB1.2", (short)12345, 
-                    (addr) => client.ReadInt16Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<ushort>("DB1.4", (ushort)54321, 
-                    (addr) => client.ReadUInt16Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<int>("DB1.6", 123456789, 
-                    (addr) => client.ReadInt32Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<uint>("DB1.10", (uint)987654321, 
-                    (addr) => client.ReadUInt32Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<float>("DB1.14", 123.456f, 
-                    (addr) => client.ReadFloatAsync(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<double>("DB1.18", 789.012, 
-                    (addr) => client.ReadDoubleAsync(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                
-                // 测试数组读写
-                _output?.WriteLine("测试数组读写");
-                int[] intArray = { 1, 2, 3, 4, 5 };
-                var writeArrayResult = await client.WriteAsync("DB1.30", intArray);
-                Assert.True(writeArrayResult.IsSuccess, $"写入数组失败: {writeArrayResult.Message}");
-                Assert.False(client.Connected, "短连接操作后应已断开");
-                
-                var readArrayResult = await client.ReadInt32Async("DB1.30", intArray.Length);
-                Assert.True(readArrayResult.IsSuccess, $"读取数组失败: {readArrayResult.Message}");
-                Assert.False(client.Connected, "短连接操作后应已断开");
-                
-                for (int i = 0; i < intArray.Length; i++)
-                {
-                    Assert.Equal(intArray[i], readArrayResult.ResultValue[i]);
-                }
-                _output?.WriteLine("数组读写测试成功");
-                
-                // 启用自动重连并再次测试
-                _output?.WriteLine("启用自动重连并再次测试短连接模式");
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = 1;
-                
-                // 测试带自动重连的短连接
-                await TestShortConnectionReadWrite<long>("DB1.50", 9223372036854775807, 
-                    (addr) => client.ReadInt64Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                await TestShortConnectionReadWrite<ulong>("DB1.58", 18446744073709551615, 
-                    (addr) => client.ReadUInt64Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                
-                // 测试服务器停止和启动期间的短连接行为
-                _output?.WriteLine("测试服务器停止时的短连接行为");
-                await server.StopAsync();
-                _output?.WriteLine("服务器已停止");
-                
-                // 尝试操作，此时应该失败
-                var failedWriteResult = await client.WriteAsync("DB1.0", 54321);
-                _output?.WriteLine($"服务器停止后写入结果: {(failedWriteResult.IsSuccess ? "意外成功" : "预期失败")}");
-                
-                // 重启服务器
-                _output?.WriteLine("重启服务器");
-                serverResult = await server.StartAsync();
-                Assert.True(serverResult.IsSuccess, $"重启服务器失败: {serverResult.Message}");
-                _output?.WriteLine("服务器重启成功");
-                
-                // 验证服务器重启后的短连接
-                await TestShortConnectionReadWrite<int>("DB1.100", 42, 
-                    (addr) => client.ReadInt32Async(addr), 
-                    (addr, val) => client.WriteAsync(addr, val));
-                _output?.WriteLine("服务器重启后短连接测试成功");
-            }
-            catch (Exception ex)
-            {
-                _output?.WriteLine($"测试异常: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                // 确保资源释放
-                _output?.WriteLine("清理资源");
-                try
-                {
-                    if (client.Connected)
-                    {
-                        _output?.WriteLine("断开客户端连接");
-                        client.IsLongConnection = true; // 切换回长连接模式进行安全断开
-                        client.EnableAutoReconnect = false;
-                        await client.DisconnectAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"断开客户端异常: {ex.Message}");
-                }
-                
-                try
-                {
-                    if (server.IsListening)
-                    {
-                        _output?.WriteLine("关闭服务器");
-                        await server.StopAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"关闭服务器异常: {ex.Message}");
-                }
-                
-                _output?.WriteLine("资源清理完成");
-            }
-        }
+        #region 私有测试方法
 
         /// <summary>
-        /// 测试短连接模式下的读写操作
+        /// 执行同步读写测试
         /// </summary>
-        /// <typeparam name="T">数据类型</typeparam>
-        /// <param name="address">地址</param>
-        /// <param name="value">值</param>
-        /// <param name="readFunc">读取函数</param>
-        /// <param name="writeFunc">写入函数</param>
-        private async Task TestShortConnectionReadWrite<T>(string address, T value, 
-            Func<string, ValueTask<OperationResult<T>>> readFunc, 
-            Func<string, T, Task<OperationResult>> writeFunc)
-        {
-            _output?.WriteLine($"测试短连接读写: 类型={typeof(T).Name}, 地址={address}, 值={value}");
-            
-            // 写入值
-            var writeResult = await writeFunc(address, value);
-            Assert.True(writeResult.IsSuccess, $"写入失败: {writeResult.Message}");
-            Assert.False(client.Connected, "短连接操作后应已断开");
-            
-            // 读取值
-            var readResult = await readFunc(address);
-            Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
-            Assert.False(client.Connected, "短连接操作后应已断开");
-            
-            // 验证值
-            Assert.Equal(value, readResult.ResultValue);
-            _output?.WriteLine($"短连接读写测试成功: {value} == {readResult.ResultValue}");
-        }
-
-        [Fact]
-        public async Task 模拟服务器混合场景压力测试()
-        {
-            _output?.WriteLine("开始模拟服务器混合场景压力测试");
-            
-            // 创建模拟服务器和客户端
-            var server = new S7TcpServer("127.0.0.1", 1102);
-            client = new SiemensClient("127.0.0.1", 1102, SiemensVersion.S7_1200);
-            
-            try
-            {
-                // 配置服务器和客户端
-                _output?.WriteLine("配置服务器和客户端");
-                server.CreateDataBlock(1, 1024); // 创建DB1数据块，1024字节
-                server.UseLogger(new XUnitLogger(_output, "S7Server"));
-                
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = 5;
-                client.ReconnectDelay = TimeSpan.FromSeconds(1);
-                client.Logger = new XUnitLogger(_output, "S7Client");
-                
-                // 启动服务器
-                _output?.WriteLine("启动服务器");
-                var serverResult = await server.StartAsync();
-                Assert.True(serverResult.IsSuccess, $"启动服务器失败: {serverResult.Message}");
-                _output?.WriteLine("服务器启动成功");
-                
-                // 连接客户端
-                _output?.WriteLine("连接客户端");
-                var connectResult = await client.ConnectAsync();
-                Assert.True(connectResult.IsSuccess, $"连接客户端失败: {connectResult.Message}");
-                Assert.True(client.Connected, "客户端连接状态应为已连接");
-                _output?.WriteLine("客户端连接成功");
-                
-                // 进行高频读写测试
-                _output?.WriteLine("执行高频读写测试");
-                await RunHighFrequencyReadWriteTest();
-                
-                // 在读写期间模拟服务器重启
-                _output?.WriteLine("在读写期间模拟服务器重启");
-                await RunServerRestartDuringOperationTest(server);
-                
-                // 测试长连接和短连接混合使用
-                _output?.WriteLine("测试长连接和短连接混合使用");
-                await RunMixedConnectionTest();
-                
-                // 测试多种数据类型混合读写
-                _output?.WriteLine("测试多种数据类型混合读写");
-                await RunMixedDataTypeTest();
-            }
-            catch (Exception ex)
-            {
-                _output?.WriteLine($"测试异常: {ex.Message}");
-                throw;
-            }
-            finally
-            {
-                // 确保资源释放
-                _output?.WriteLine("清理资源");
-                try
-                {
-                    if (client.Connected)
-                    {
-                        _output?.WriteLine("断开客户端连接");
-                        client.EnableAutoReconnect = false;
-                        await client.DisconnectAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"断开客户端异常: {ex.Message}");
-                }
-                
-                try
-                {
-                    if (server.IsListening)
-                    {
-                        _output?.WriteLine("关闭服务器");
-                        await server.StopAsync();
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _output?.WriteLine($"关闭服务器异常: {ex.Message}");
-                }
-                
-                _output?.WriteLine("资源清理完成");
-            }
-        }
-        
-        /// <summary>
-        /// 高频读写测试
-        /// </summary>
-        private async Task RunHighFrequencyReadWriteTest()
-        {
-            _output?.WriteLine("开始高频读写测试");
-            
-            // 创建测试数据
-            var random = new Random();
-            int[] testValues = new int[10];
-            for (int i = 0; i < testValues.Length; i++)
-            {
-                testValues[i] = random.Next(1, 10000);
-            }
-            
-            // 执行高频读写
-            _output?.WriteLine("执行100次快速读写操作");
-            int successCount = 0;
-            int failureCount = 0;
-            
-            for (int i = 0; i < 100; i++)
-            {
-                try
-                {
-                    // 选择一个随机测试值
-                    int valueIndex = random.Next(0, testValues.Length);
-                    int testValue = testValues[valueIndex];
-                    
-                    // 写入数据
-                    var writeResult = await client.WriteAsync("DB1.0", testValue);
-                    if (writeResult.IsSuccess)
-                    {
-                        // 读取数据
-                        var readResult = await client.ReadInt32Async("DB1.0");
-                        if (readResult.IsSuccess && readResult.ResultValue == testValue)
-                        {
-                            successCount++;
-                        }
-                        else
-                        {
-                            failureCount++;
-                            _output?.WriteLine($"读写不匹配: 期望={testValue}, 实际={readResult.ResultValue}");
-                        }
-                    }
-                    else
-                    {
-                        failureCount++;
-                        _output?.WriteLine($"写入失败: {writeResult.Message}");
-                    }
-                    
-                    // 短暂延迟，避免过载
-                    await Task.Delay(10);
-                }
-                catch (Exception ex)
-                {
-                    failureCount++;
-                    _output?.WriteLine($"读写异常: {ex.Message}");
-                }
-            }
-            
-            _output?.WriteLine($"高频读写测试完成: 成功={successCount}, 失败={failureCount}");
-            // 断言大部分操作成功
-            Assert.True(successCount > 90, $"高频读写测试成功率过低: {successCount}/100");
-        }
-        
-        /// <summary>
-        /// 在操作期间重启服务器测试
-        /// </summary>
-        private async Task RunServerRestartDuringOperationTest(S7TcpServer server)
-        {
-            _output?.WriteLine("开始服务器重启测试");
-            
-            // 启动一个后台任务进行连续读写
-            var readWriteTask = Task.Run(async () =>
-            {
-                int successCount = 0;
-                int failureCount = 0;
-                
-                for (int i = 0; i < 50; i++)
-                {
-                    try
-                    {
-                        // 写入数据
-                        var writeResult = await client.WriteAsync("DB1.10", i);
-                        // 读取数据
-                        var readResult = await client.ReadInt32Async("DB1.10");
-                        
-                        if (writeResult.IsSuccess && readResult.IsSuccess && readResult.ResultValue == i)
-                        {
-                            successCount++;
-                        }
-                        else
-                        {
-                            failureCount++;
-                        }
-                        
-                        await Task.Delay(100); // 降低频率，给服务器重启时间
-                    }
-                    catch
-                    {
-                        failureCount++;
-                    }
-                }
-                
-                return (successCount, failureCount);
-            });
-            
-            // 等待一段时间让读写操作开始
-            await Task.Delay(500);
-            
-            // 停止服务器
-            _output?.WriteLine("停止服务器");
-            await server.StopAsync();
-            _output?.WriteLine("服务器已停止");
-            
-            // 等待一段时间
-            await Task.Delay(2000);
-            
-            // 重启服务器
-            _output?.WriteLine("重启服务器");
-            await server.StartAsync();
-            _output?.WriteLine("服务器已重启");
-            
-            // 等待读写任务完成
-            var result = await readWriteTask;
-            
-            _output?.WriteLine($"服务器重启测试完成: 成功={result.successCount}, 失败={result.failureCount}");
-            // 应该有一些成功的操作
-            Assert.True(result.successCount > 0, "服务器重启后应有成功操作");
-        }
-        
-        /// <summary>
-        /// 长连接和短连接混合测试
-        /// </summary>
-        private async Task RunMixedConnectionTest()
-        {
-            _output?.WriteLine("开始长短连接混合测试");
-            
-            // 记录当前连接模式
-            bool originalLongConnection = client.IsLongConnection;
-            
-            try
-            {
-                // 测试长连接模式
-                _output?.WriteLine("使用长连接模式");
-                client.IsLongConnection = true;
-                
-                // 执行几次读写操作
-                for (int i = 0; i < 5; i++)
-                {
-                    await client.WriteAsync("DB1.20", i * 10);
-                    var readResult = await client.ReadInt32Async("DB1.20");
-                    Assert.True(readResult.IsSuccess, $"长连接读取失败: {readResult.Message}");
-                    Assert.Equal(i * 10, readResult.ResultValue);
-                    Assert.True(client.Connected, "长连接模式下应保持连接");
-                }
-                
-                // 切换到短连接模式
-                _output?.WriteLine("切换到短连接模式");
-                client.IsLongConnection = false;
-                
-                // 执行几次读写操作
-                for (int i = 0; i < 5; i++)
-                {
-                    await client.WriteAsync("DB1.24", i * 100);
-                    var readResult = await client.ReadInt32Async("DB1.24");
-                    Assert.True(readResult.IsSuccess, $"短连接读取失败: {readResult.Message}");
-                    Assert.Equal(i * 100, readResult.ResultValue);
-                    Assert.False(client.Connected, "短连接模式下操作后应断开");
-                }
-                
-                // 再次切换回长连接模式
-                _output?.WriteLine("切换回长连接模式");
-                client.IsLongConnection = true;
-                
-                // 重新建立连接
-                await client.ConnectAsync();
-                
-                // 验证之前写入的数据
-                var longConnResult = await client.ReadInt32Async("DB1.20");
-                var shortConnResult = await client.ReadInt32Async("DB1.24");
-                
-                Assert.True(longConnResult.IsSuccess, "读取长连接数据失败");
-                Assert.True(shortConnResult.IsSuccess, "读取短连接数据失败");
-                Assert.Equal(40, longConnResult.ResultValue); // 最后写入的值是 4*10
-                Assert.Equal(400, shortConnResult.ResultValue); // 最后写入的值是 4*100
-                
-                _output?.WriteLine("长短连接混合测试成功");
-            }
-            finally
-            {
-                // 恢复原始连接模式
-                client.IsLongConnection = originalLongConnection;
-            }
-        }
-        
-        /// <summary>
-        /// 多种数据类型混合读写测试
-        /// </summary>
-        private async Task RunMixedDataTypeTest()
-        {
-            _output?.WriteLine("开始多种数据类型混合读写测试");
-            
-            // 测试不同数据类型的读写
-            bool boolValue = true;
-            short shortValue = 12345;
-            ushort ushortValue = 54321;
-            int intValue = 123456789;
-            uint uintValue = 987654321;
-            float floatValue = 123.456f;
-            double doubleValue = 789.012;
-            
-            // 一次性写入所有数据类型
-            _output?.WriteLine("写入不同数据类型");
-            await client.WriteAsync("DB1.100.0", boolValue);
-            await client.WriteAsync("DB1.102", shortValue);
-            await client.WriteAsync("DB1.104", ushortValue);
-            await client.WriteAsync("DB1.106", intValue);
-            await client.WriteAsync("DB1.110", uintValue);
-            await client.WriteAsync("DB1.114", floatValue);
-            await client.WriteAsync("DB1.118", doubleValue);
-            
-            // 随机顺序读取所有数据类型
-            _output?.WriteLine("随机顺序读取不同数据类型");
-            var doubleResult = await client.ReadDoubleAsync("DB1.118");
-            var ushortResult = await client.ReadUInt16Async("DB1.104");
-            var floatResult = await client.ReadFloatAsync("DB1.114");
-            var intResult = await client.ReadInt32Async("DB1.106");
-            var boolResult = await client.ReadBooleanAsync("DB1.100.0");
-            var shortResult = await client.ReadInt16Async("DB1.102");
-            var uintResult = await client.ReadUInt32Async("DB1.110");
-            
-            // 验证所有读取结果
-            Assert.True(boolResult.IsSuccess, "读取布尔值失败");
-            Assert.True(shortResult.IsSuccess, "读取短整数失败");
-            Assert.True(ushortResult.IsSuccess, "读取无符号短整数失败");
-            Assert.True(intResult.IsSuccess, "读取整数失败");
-            Assert.True(uintResult.IsSuccess, "读取无符号整数失败");
-            Assert.True(floatResult.IsSuccess, "读取浮点数失败");
-            Assert.True(doubleResult.IsSuccess, "读取双精度浮点数失败");
-            
-            Assert.Equal(boolValue, boolResult.ResultValue);
-            Assert.Equal(shortValue, shortResult.ResultValue);
-            Assert.Equal(ushortValue, ushortResult.ResultValue);
-            Assert.Equal(intValue, intResult.ResultValue);
-            Assert.Equal(uintValue, uintResult.ResultValue);
-            Assert.Equal(floatValue, floatResult.ResultValue);
-            Assert.Equal(doubleValue, doubleResult.ResultValue);
-            
-            _output?.WriteLine("多种数据类型混合读写测试成功");
-        }
-
         private void ReadWrite()
         {
+            LogInfo("执行基于V700和Q区的同步读写测试");
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
-            for (int i = 0; i < 50; i++)
+            for (int i = 0; i < BASIC_TEST_CYCLES; i++)
             {
                 short short_number = (short)rnd.Next(short.MinValue, short.MaxValue);
                 ushort short_number_1 = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
@@ -921,13 +381,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 string value_string = "BennyZhao";
 
 
-                var ssss2 = client.Write("Q1.3", true);
-                var sss1 = client.ReadBoolean("Q1.3");
-                Assert.True(client.ReadBoolean("Q1.3").ResultValue == true);
-                client.Write("Q1.4", bool_value);
-                Assert.True(client.ReadBoolean("Q1.4").ResultValue == bool_value);
-                client.Write("Q1.5", !bool_value);
-                Assert.True(client.ReadBoolean("Q1.5").ResultValue == !bool_value);
+                // 测试布尔值读写
+                LogInfo("测试布尔值读写");
+                client.Write(BOOL_TEST_ADDRESS_1, true);
+                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_1).ResultValue == true, "布尔值应为true");
+                client.Write(BOOL_TEST_ADDRESS_2, bool_value);
+                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_2).ResultValue == bool_value, $"布尔值应为{bool_value}");
+                client.Write(BOOL_TEST_ADDRESS_3, !bool_value);
+                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_3).ResultValue == !bool_value, $"布尔值应为{!bool_value}");
 
                 client.Write("V700", short_number);
                 Assert.True(client.ReadInt16("V700").ResultValue == short_number);
@@ -1177,7 +638,54 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
         }
 
+        private void SafeDisconnect()
+        {
+            if (client != null)
+            {
+                client.EnableAutoReconnect = false;
+                client.Disconnect();
+            }
+        }
 
+        private async Task SafeDisconnectAsync()
+        {
+            if (client != null)
+            {
+                client.EnableAutoReconnect = false;
+                await client.DisconnectAsync();
+            }
+        }
 
+        private void LogTestStart(string testName)
+        {
+            _output?.WriteLine($"开始测试: {testName}");
+        }
+
+        private void LogTestComplete(string testName)
+        {
+            _output?.WriteLine($"测试完成: {testName}");
+        }
+
+        private void LogTestError(string testName, Exception ex)
+        {
+            _output?.WriteLine($"测试失败: {testName}, 异常: {ex.Message}");
+        }
+
+        private void LogStep(string step)
+        {
+            _output?.WriteLine($"执行步骤: {step}");
+        }
+
+        private void LogInfo(string message)
+        {
+            _output?.WriteLine($"信息: {message}");
+        }
+
+        private void LogWarning(string message)
+        {
+            _output?.WriteLine($"警告: {message}");
+        }
+
+        #endregion
     }
 }

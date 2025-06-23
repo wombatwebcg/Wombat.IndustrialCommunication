@@ -4,7 +4,7 @@ using System.Diagnostics;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.Network.Sockets;
+
 using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication

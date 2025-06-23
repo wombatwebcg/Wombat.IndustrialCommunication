@@ -6,7 +6,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus.Data;
-using Wombat.Network.Sockets;
+
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
