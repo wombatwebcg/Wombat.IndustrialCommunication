@@ -137,7 +137,12 @@ namespace Wombat.IndustrialCommunication
 
         #endregion
 
-        #region Static Method
+
+
+
+
+
+
 
         #region Static Method
 
@@ -441,7 +446,7 @@ namespace Wombat.IndustrialCommunication
         /// <typeparam name="T">参数类型</typeparam>
         /// <param name="value">类型的值对象</param>
         /// <returns>成功的结果对象</returns>
-        public static OperationResult<T> CreateSuccessResult<T>(OperationResult result,T value)
+        public static OperationResult<T> CreateSuccessResult<T>(OperationResult result, T value)
         {
             return new OperationResult<T>()
             {
@@ -587,18 +592,311 @@ namespace Wombat.IndustrialCommunication
             };
         }
 
+        #region Extended Factory Methods - 扩展工厂方法
 
+        /// <summary>
+        /// 从异常对象创建并返回一个失败的结果对象
+        /// </summary>
+        /// <param name="exception">异常对象</param>
+        /// <returns>失败的结果对象</returns>
+        public static OperationResult CreateFailedResult(Exception exception)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
+                Exception = exception
+            };
+        }
 
+        /// <summary>
+        /// 从异常对象创建并返回一个失败的泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="exception">异常对象</param>
+        /// <returns>失败的泛型结果对象</returns>
+        public static OperationResult<T> CreateFailedResult<T>(Exception exception)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
+                Exception = exception
+            };
+        }
 
+        /// <summary>
+        /// 从异常对象创建并返回一个带值的失败泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="exception">异常对象</param>
+        /// <param name="value">结果值</param>
+        /// <returns>失败的泛型结果对象</returns>
+        public static OperationResult<T> CreateFailedResult<T>(Exception exception, T value)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
+                Exception = exception,
+                ResultValue = value
+            };
+        }
 
+        /// <summary>
+        /// 创建并返回一个带自定义错误代码的失败结果对象
+        /// </summary>
+        /// <param name="errorCode">错误代码</param>
+        /// <param name="message">错误消息</param>
+        /// <returns>失败的结果对象</returns>
+        public static OperationResult CreateFailedResult(int errorCode, string message)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = errorCode,
+                Message = message ?? StringResources.Language.ExceptionMessage
+            };
+        }
 
+        /// <summary>
+        /// 创建并返回一个带自定义错误代码的失败泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="errorCode">错误代码</param>
+        /// <param name="message">错误消息</param>
+        /// <param name="value">结果值</param>
+        /// <returns>失败的泛型结果对象</returns>
+        public static OperationResult<T> CreateFailedResult<T>(int errorCode, string message, T value)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = errorCode,
+                Message = message ?? StringResources.Language.ExceptionMessage,
+                ResultValue = value
+            };
+        }
+
+        /// <summary>
+        /// 创建并返回一个带异常和自定义错误代码的失败结果对象
+        /// </summary>
+        /// <param name="exception">异常对象</param>
+        /// <param name="errorCode">错误代码</param>
+        /// <returns>失败的结果对象</returns>
+        public static OperationResult CreateFailedResult(Exception exception, int errorCode)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = errorCode,
+                Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
+                Exception = exception
+            };
+        }
+
+        /// <summary>
+        /// 创建并返回一个带请求响应数据的失败结果对象（适用于通信场景）
+        /// </summary>
+        /// <param name="message">错误消息</param>
+        /// <param name="request">请求数据</param>
+        /// <param name="response">响应数据</param>
+        /// <returns>失败的结果对象</returns>
+        public static OperationResult CreateFailedResult(string message, string request, string response)
+        {
+            var result = new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = message ?? StringResources.Language.ExceptionMessage
+            };
+
+            if (!string.IsNullOrEmpty(request))
+                result.Requsts.Add(request);
+            if (!string.IsNullOrEmpty(response))
+                result.Responses.Add(response);
+
+            return result;
+        }
+
+        /// <summary>
+        /// 创建并返回一个带请求响应数据的失败泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="message">错误消息</param>
+        /// <param name="request">请求数据</param>
+        /// <param name="response">响应数据</param>
+        /// <param name="value">结果值</param>
+        /// <returns>失败的泛型结果对象</returns>
+        public static OperationResult<T> CreateFailedResult<T>(string message, string request, string response, T value)
+        {
+            var result = new OperationResult<T>()
+            {
+                IsSuccess = false,
+                ErrorCode = -1,
+                Message = message ?? StringResources.Language.ExceptionMessage,
+                ResultValue = value
+            };
+
+            if (!string.IsNullOrEmpty(request))
+                result.Requsts.Add(request);
+            if (!string.IsNullOrEmpty(response))
+                result.Responses.Add(response);
+
+            return result;
+        }
+
+        /// <summary>
+        /// 创建并返回一个带请求响应数据的成功结果对象（适用于通信场景）
+        /// </summary>
+        /// <param name="request">请求数据</param>
+        /// <param name="response">响应数据</param>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult CreateSuccessResult(string request, string response)
+        {
+            var result = new OperationResult()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Message = StringResources.Language.SuccessText
+            };
+
+            if (!string.IsNullOrEmpty(request))
+                result.Requsts.Add(request);
+            if (!string.IsNullOrEmpty(response))
+                result.Responses.Add(response);
+
+            return result;
+        }
+
+        /// <summary>
+        /// 创建并返回一个带值和自定义消息的成功泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="value">结果值</param>
+        /// <param name="message">成功消息</param>
+        /// <returns>成功的泛型结果对象</returns>
+        public static OperationResult<T> CreateSuccessResult<T>(T value, string message)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Message = message ?? StringResources.Language.SuccessText,
+                ResultValue = value
+            }.Complete();
+        }
+
+        /// <summary>
+        /// 创建并返回一个带值和请求响应数据的成功泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="value">结果值</param>
+        /// <param name="request">请求数据</param>
+        /// <param name="response">响应数据</param>
+        /// <returns>成功的泛型结果对象</returns>
+        public static OperationResult<T> CreateSuccessResult<T>(T value, string request, string response)
+        {
+            var result = new OperationResult<T>()
+            {
+                IsSuccess = true,
+                ErrorCode = 0,
+                Message = StringResources.Language.SuccessText,
+                ResultValue = value
+            };
+
+            if (!string.IsNullOrEmpty(request))
+                result.Requsts.Add(request);
+            if (!string.IsNullOrEmpty(response))
+                result.Responses.Add(response);
+
+            return result.Complete();
+        }
+
+        /// <summary>
+        /// 创建并返回一个带自定义成功代码的成功结果对象
+        /// </summary>
+        /// <param name="errorCode">成功代码（通常为0或正数）</param>
+        /// <param name="message">成功消息</param>
+        /// <returns>成功的结果对象</returns>
+        public static OperationResult CreateSuccessResult(int errorCode, string message)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = true,
+                ErrorCode = errorCode,
+                Message = message ?? StringResources.Language.SuccessText
+            };
+        }
+
+        /// <summary>
+        /// 根据条件创建成功或失败的结果对象
+        /// </summary>
+        /// <param name="isSuccess">是否成功</param>
+        /// <param name="message">消息</param>
+        /// <returns>结果对象</returns>
+        public static OperationResult CreateResult(bool isSuccess, string message)
+        {
+            return new OperationResult()
+            {
+                IsSuccess = isSuccess,
+                ErrorCode = isSuccess ? 0 : -1,
+                Message = message ?? (isSuccess ? StringResources.Language.SuccessText : StringResources.Language.ExceptionMessage)
+            };
+        }
+
+        /// <summary>
+        /// 根据条件创建成功或失败的泛型结果对象
+        /// </summary>
+        /// <typeparam name="T">泛型类型</typeparam>
+        /// <param name="isSuccess">是否成功</param>
+        /// <param name="value">结果值</param>
+        /// <param name="message">消息</param>
+        /// <returns>泛型结果对象</returns>
+        public static OperationResult<T> CreateResult<T>(bool isSuccess, T value, string message)
+        {
+            return new OperationResult<T>()
+            {
+                IsSuccess = isSuccess,
+                ErrorCode = isSuccess ? 0 : -1,
+                Message = message ?? (isSuccess ? StringResources.Language.SuccessText : StringResources.Language.ExceptionMessage),
+                ResultValue = value
+            };
+        }
+
+        /// <summary>
+        /// 从异常对象智能创建失败结果，自动提取异常信息
+        /// </summary>
+        /// <param name="exception">异常对象</param>
+        /// <returns>失败的结果对象</returns>
+        public static OperationResult CreateFromException(Exception exception)
+        {
+            if (exception == null)
+                return CreateFailedResult(StringResources.Language.ExceptionMessage);
+
+            var result = new OperationResult()
+            {
+                IsSuccess = false,
+                ErrorCode = exception.HResult != 0 ? exception.HResult : -1,
+                Message = exception.Message,
+                Exception = exception
+            };
+
+            // 如果有内部异常，添加到操作信息中
+            if (exception.InnerException != null)
+            {
+                result.OperationInfo.Add($"内部异常: {exception.InnerException.Message}");
+            }
+
+            return result;
+        }
 
         #endregion
 
-
-
-
-
+        #endregion
 
 
 
@@ -1260,7 +1558,7 @@ namespace Wombat.IndustrialCommunication
 
     }
 
-    #endregion
+
 
 }
 
