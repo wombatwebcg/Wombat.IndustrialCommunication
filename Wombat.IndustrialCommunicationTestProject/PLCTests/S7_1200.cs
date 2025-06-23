@@ -52,45 +52,49 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         
         #endregion
 
-        #region 测试地址常量
+        #region 测试地址常量 - 基于实际PLC地址划分
         
-        /// <summary>布尔测试地址</summary>
-        private const string BOOL_TEST_ADDRESS_1 = "DB200.0.0";
-        private const string BOOL_TEST_ADDRESS_2 = "DB200.0.1";
-        private const string BOOL_TEST_ADDRESS_3 = "DB200.0.2";
+        /// <summary>布尔测试地址 - Data0区域 (0.0-3.7)</summary>
+        private const string BOOL_TEST_ADDRESS_1 = "DB200.DBX0.0";            // Data0: Bool数组区域
+        private const string BOOL_TEST_ADDRESS_2 = "DB200.DBX0.1";            // Data0: Bool数组区域
+        private const string BOOL_TEST_ADDRESS_3 = "DB200.DBX0.2";            // Data0: Bool数组区域
         
-        /// <summary>整数测试地址</summary>
-        private const string INT16_TEST_ADDRESS = "DB200.2";
-        private const string UINT16_TEST_ADDRESS = "DB200.4";
-        private const string INT32_TEST_ADDRESS = "DB200.6";
-        private const string UINT32_TEST_ADDRESS = "DB200.10";
-        private const string INT64_TEST_ADDRESS = "DB200.14";
-        private const string UINT64_TEST_ADDRESS = "DB200.22";
+        /// <summary>16位整数测试地址 - Data1区域 (4.0-67.7)</summary>
+        private const string INT16_TEST_ADDRESS = "DB200.DBW4";               // Data1: Word数组区域
+        private const string UINT16_TEST_ADDRESS = "DB200.DBW6";              // Data1: Word数组区域
         
-        /// <summary>浮点数测试地址</summary>
-        private const string FLOAT_TEST_ADDRESS = "DB200.30";
-        private const string DOUBLE_TEST_ADDRESS = "DB200.34";
+        /// <summary>32位整数测试地址 - Data2区域 (68.0-195.7)</summary>
+        private const string INT32_TEST_ADDRESS = "DB200.DBD68";              // Data2: DWord数组区域
+        private const string UINT32_TEST_ADDRESS = "DB200.DBD72";             // Data2: DWord数组区域
         
-        /// <summary>数组测试地址</summary>
-        private const string BOOL_ARRAY_TEST_ADDRESS = "DB200.50";
-        private const string INT_ARRAY_TEST_ADDRESS = "DB200.70";
-        private const string FLOAT_ARRAY_TEST_ADDRESS = "DB200.110";
+        /// <summary>64位整数测试地址 - Data2区域 (68.0-195.7)</summary>
+        private const string INT64_TEST_ADDRESS = "DB200.DBD76";              // Data2: DWord数组区域(占用8字节)
+        private const string UINT64_TEST_ADDRESS = "DB200.DBD84";             // Data2: DWord数组区域(占用8字节)
         
-        /// <summary>连接测试地址</summary>
-        private const string CONNECTION_TEST_ADDRESS = "DB200.100";
-        private const string CONNECTION_TEST_ADDRESS_2 = "DB200.104";
+        /// <summary>浮点数测试地址 - Data3区域 (196.0-323.7)</summary>
+        private const string FLOAT_TEST_ADDRESS = "DB200.DBD196";             // Data3: Real数组区域
+        private const string DOUBLE_TEST_ADDRESS = "DB200.DBD200";            // Data3: Real数组区域(占用8字节)
         
-        /// <summary>综合测试地址</summary>
-        private const string COMPREHENSIVE_BOOL_ADDRESS_1 = "DB200.200.0";
-        private const string COMPREHENSIVE_BOOL_ADDRESS_2 = "DB200.200.1";
-        private const string COMPREHENSIVE_INT16_ADDRESS = "DB200.202";
-        private const string COMPREHENSIVE_UINT16_ADDRESS = "DB200.204";
-        private const string COMPREHENSIVE_INT32_ADDRESS = "DB200.206";
-        private const string COMPREHENSIVE_UINT32_ADDRESS = "DB200.210";
-        private const string COMPREHENSIVE_INT64_ADDRESS = "DB200.214";
-        private const string COMPREHENSIVE_UINT64_ADDRESS = "DB200.222";
-        private const string COMPREHENSIVE_FLOAT_ADDRESS = "DB200.230";
-        private const string COMPREHENSIVE_DOUBLE_ADDRESS = "DB200.234";
+        /// <summary>数组测试地址 - 在各自数据类型区域内</summary>
+        private const string BOOL_ARRAY_TEST_ADDRESS = "DB200.DBX1.0";        // Data0: Bool数组区域 (从字节1开始)
+        private const string INT_ARRAY_TEST_ADDRESS = "DB200.DBD8";           // Data1: Word数组区域 (10个int32需要40字节)
+        private const string FLOAT_ARRAY_TEST_ADDRESS = "DB200.DBD208";       // Data3: Real数组区域 (5个float需要20字节)
+        
+        /// <summary>连接测试地址 - Data2区域安全位置</summary>
+        private const string CONNECTION_TEST_ADDRESS = "DB200.DBD92";          // Data2: DWord数组区域
+        private const string CONNECTION_TEST_ADDRESS_2 = "DB200.DBD96";       // Data2: DWord数组区域
+        
+        /// <summary>综合测试地址 - 基于实际PLC地址划分</summary>
+        private const string COMPREHENSIVE_BOOL_ADDRESS_1 = "DB200.DBX2.0";   // Data0: Bool数组区域
+        private const string COMPREHENSIVE_BOOL_ADDRESS_2 = "DB200.DBX2.1";   // Data0: Bool数组区域
+        private const string COMPREHENSIVE_INT16_ADDRESS = "DB200.DBW48";     // Data1: Word数组区域
+        private const string COMPREHENSIVE_UINT16_ADDRESS = "DB200.DBW50";    // Data1: Word数组区域
+        private const string COMPREHENSIVE_INT32_ADDRESS = "DB200.DBD100";    // Data2: DWord数组区域
+        private const string COMPREHENSIVE_UINT32_ADDRESS = "DB200.DBD104";   // Data2: DWord数组区域
+        private const string COMPREHENSIVE_INT64_ADDRESS = "DB200.DBD108";    // Data2: DWord数组区域(占用8字节)
+        private const string COMPREHENSIVE_UINT64_ADDRESS = "DB200.DBD116";   // Data2: DWord数组区域(占用8字节)
+        private const string COMPREHENSIVE_FLOAT_ADDRESS = "DB200.DBD228";    // Data3: Real数组区域
+        private const string COMPREHENSIVE_DOUBLE_ADDRESS = "DB200.DBD232";   // Data3: Real数组区域(占用8字节)
         
         #endregion
 
@@ -343,9 +347,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 client.MaxReconnectAttempts = 1;
                 
                 var testIntArray = new int[] { 1, 2, 3, 4, 5 };
-                var writeArrayResult = await client.WriteAsync("DB200.110", testIntArray);
+                var writeArrayResult = await client.WriteAsync("DB200.DBD110", testIntArray);
                 Assert.True(writeArrayResult.IsSuccess, $"写入数组失败: {writeArrayResult.Message}");
-                var readArrayResult = await client.ReadInt32Async("DB200.110", testIntArray.Length);
+                var readArrayResult = await client.ReadInt32Async("DB200.DBD110", testIntArray.Length);
                 Assert.True(readArrayResult.IsSuccess, $"读取数组失败: {readArrayResult.Message}");
                 
                 for (int i = 0; i < testIntArray.Length; i++)
@@ -499,45 +503,53 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 float float_number = int_number / 100f;
                 var bool_value = short_number % 2 == 1;
 
-                // 测试布尔值 - 使用DB200的位地址
-                await client.WriteAsync("DB200.0.0", true);
-                Assert.True((await client.ReadBooleanAsync("DB200.0.0")).ResultValue == true);
-                await client.WriteAsync("DB200.0.1", bool_value);
-                Assert.True((await client.ReadBooleanAsync("DB200.0.1")).ResultValue == bool_value);
-                await client.WriteAsync("DB200.0.2", !bool_value);
-                Assert.True((await client.ReadBooleanAsync("DB200.0.2")).ResultValue == !bool_value);
+                // 测试布尔值
+                LogInfo("测试布尔值读写");
+                await client.WriteAsync(BOOL_TEST_ADDRESS_1, true);
+                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_1)).ResultValue == true);
+                await client.WriteAsync(BOOL_TEST_ADDRESS_2, bool_value);
+                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_2)).ResultValue == bool_value);
+                await client.WriteAsync(BOOL_TEST_ADDRESS_3, !bool_value);
+                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_3)).ResultValue == !bool_value);
 
                 // 测试16位整数
-                await client.WriteAsync("DB200.2", short_number);
-                Assert.True((await client.ReadInt16Async("DB200.2")).ResultValue == short_number);
-                await client.WriteAsync("DB200.4", short_number_1);
-                Assert.True((await client.ReadUInt16Async("DB200.4")).ResultValue == short_number_1);
+                LogInfo("测试16位整数读写");
+                await client.WriteAsync(INT16_TEST_ADDRESS, short_number);
+                Assert.True((await client.ReadInt16Async(INT16_TEST_ADDRESS)).ResultValue == short_number);
+                await client.WriteAsync(UINT16_TEST_ADDRESS, short_number_1);
+                Assert.True((await client.ReadUInt16Async(UINT16_TEST_ADDRESS)).ResultValue == short_number_1);
 
                 // 测试32位整数
-                await client.WriteAsync("DB200.6", int_number);
-                Assert.True((await client.ReadInt32Async("DB200.6")).ResultValue == int_number);
-                await client.WriteAsync("DB200.10", int_number_1);
-                Assert.True((await client.ReadUInt32Async("DB200.10")).ResultValue == int_number_1);
+                LogInfo("测试32位整数读写");
+                await client.WriteAsync(INT32_TEST_ADDRESS, int_number);
+                Assert.True((await client.ReadInt32Async(INT32_TEST_ADDRESS)).ResultValue == int_number);
+                await client.WriteAsync(UINT32_TEST_ADDRESS, int_number_1);
+                Assert.True((await client.ReadUInt32Async(UINT32_TEST_ADDRESS)).ResultValue == int_number_1);
 
                 // 测试64位整数
-                await client.WriteAsync("DB200.14", Convert.ToInt64(int_number));
-                Assert.True((await client.ReadInt64Async("DB200.14")).ResultValue == Convert.ToInt64(int_number));
-                await client.WriteAsync("DB200.22", Convert.ToUInt64(int_number_1));
-                Assert.True((await client.ReadUInt64Async("DB200.22")).ResultValue == Convert.ToUInt64(int_number_1));
+                LogInfo("测试64位整数读写");
+                await client.WriteAsync(INT64_TEST_ADDRESS, Convert.ToInt64(int_number));
+                Assert.True((await client.ReadInt64Async(INT64_TEST_ADDRESS)).ResultValue == Convert.ToInt64(int_number));
+                await client.WriteAsync(UINT64_TEST_ADDRESS, Convert.ToUInt64(int_number_1));
+                Assert.True((await client.ReadUInt64Async(UINT64_TEST_ADDRESS)).ResultValue == Convert.ToUInt64(int_number_1));
 
                 // 测试浮点数
-                await client.WriteAsync("DB200.30", float_number);
-                Assert.True((await client.ReadFloatAsync("DB200.30")).ResultValue == float_number);
-                await client.WriteAsync("DB200.34", Convert.ToDouble(float_number));
-                Assert.True((await client.ReadDoubleAsync("DB200.34")).ResultValue == Convert.ToDouble(float_number));
+                LogInfo("测试浮点数读写");
+                await client.WriteAsync(FLOAT_TEST_ADDRESS, float_number);
+                Assert.True((await client.ReadFloatAsync(FLOAT_TEST_ADDRESS)).ResultValue == float_number);
+                await client.WriteAsync(DOUBLE_TEST_ADDRESS, Convert.ToDouble(float_number));
+                Assert.True((await client.ReadDoubleAsync(DOUBLE_TEST_ADDRESS)).ResultValue == Convert.ToDouble(float_number));
             }
             
             await TestArrayReadWriteAsync();
         }
 
+        /// <summary>
+        /// 执行同步数组读写测试
+        /// </summary>
         private void TestArrayReadWrite()
         {
-            _output?.WriteLine("执行数组读写测试 - 使用DB200.50开始");
+            LogInfo("执行数组读写测试 - 基于实际PLC地址划分");
 
             // 布尔数组测试
             bool[] bool_values = { false, true, false, false, false, false, false, false, false, false,
@@ -569,50 +581,57 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             }
         }
 
+        /// <summary>
+        /// 执行异步数组读写测试
+        /// </summary>
         private async Task TestArrayReadWriteAsync()
         {
-            _output?.WriteLine("执行异步数组读写测试 - 使用DB200.50开始");
+            LogInfo("执行异步数组读写测试 - 基于实际PLC地址划分");
 
             // 布尔数组测试
             bool[] bool_values = { false, true, false, false, false, false, false, false, false, false,
                                    false, false, false, false, false, false, false, false, false, true };
-            await client.WriteAsync("DB200.50", bool_values);
-            var bool_values_result = await client.ReadBooleanAsync("DB200.50", bool_values.Length);
+            await client.WriteAsync(BOOL_ARRAY_TEST_ADDRESS, bool_values);
+            var bool_values_result = await client.ReadBooleanAsync(BOOL_ARRAY_TEST_ADDRESS, bool_values.Length);
             for (int j = 0; j < bool_values_result.ResultValue.Length; j++)
             {
-                Assert.True(bool_values_result.ResultValue[j] == bool_values[j]);
+                Assert.True(bool_values_result.ResultValue[j] == bool_values[j], $"布尔数组索引{j}不匹配");
             }
 
             // 整数数组测试
             int[] int_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-            await client.WriteAsync("DB200.70", int_values);
-            var int_values_result = await client.ReadInt32Async("DB200.70", int_values.Length);
+            await client.WriteAsync(INT_ARRAY_TEST_ADDRESS, int_values);
+            var int_values_result = await client.ReadInt32Async(INT_ARRAY_TEST_ADDRESS, int_values.Length);
             for (int j = 0; j < int_values_result.ResultValue.Length; j++)
             {
-                Assert.True(int_values_result.ResultValue[j] == int_values[j]);
+                Assert.True(int_values_result.ResultValue[j] == int_values[j], $"整数数组索引{j}不匹配");
             }
 
             // 浮点数组测试
             float[] float_values = { 1.1f, 2.2f, 3.3f, 4.4f, 5.5f };
-            await client.WriteAsync("DB200.110", float_values);
-            var float_values_result = await client.ReadFloatAsync("DB200.110", float_values.Length);
+            await client.WriteAsync(FLOAT_ARRAY_TEST_ADDRESS, float_values);
+            var float_values_result = await client.ReadFloatAsync(FLOAT_ARRAY_TEST_ADDRESS, float_values.Length);
             for (int j = 0; j < float_values_result.ResultValue.Length; j++)
             {
-                Assert.True(Math.Abs(float_values_result.ResultValue[j] - float_values[j]) < 0.001f);
+                Assert.True(Math.Abs(float_values_result.ResultValue[j] - float_values[j]) < FLOAT_COMPARISON_PRECISION, 
+                    $"浮点数组索引{j}不匹配: 期望={float_values[j]}, 实际={float_values_result.ResultValue[j]}");
             }
         }
 
+        /// <summary>
+        /// 测试所有数据类型
+        /// </summary>
         private async Task TestAllDataTypes()
         {
-            _output?.WriteLine("测试所有数据类型 - 使用DB200地址空间");
+            LogInfo("测试所有数据类型 - 基于实际PLC地址划分");
             
             // 测试布尔类型
-            _output?.WriteLine("测试布尔类型");
+            LogInfo("测试布尔类型");
             await TestDataType(COMPREHENSIVE_BOOL_ADDRESS_1, true, client.ReadBooleanAsync, client.WriteAsync);
             await TestDataType(COMPREHENSIVE_BOOL_ADDRESS_2, false, client.ReadBooleanAsync, client.WriteAsync);
             
             // 测试整数类型
-            _output?.WriteLine("测试整数类型");
+            LogInfo("测试整数类型");
             await TestDataType(COMPREHENSIVE_INT16_ADDRESS, (short)12345, client.ReadInt16Async, client.WriteAsync);
             await TestDataType(COMPREHENSIVE_UINT16_ADDRESS, (ushort)54321, client.ReadUInt16Async, client.WriteAsync);
             await TestDataType(COMPREHENSIVE_INT32_ADDRESS, 123456789, client.ReadInt32Async, client.WriteAsync);
@@ -621,11 +640,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             await TestDataType(COMPREHENSIVE_UINT64_ADDRESS, 18446744073709551615UL, client.ReadUInt64Async, client.WriteAsync);
             
             // 测试浮点类型
-            _output?.WriteLine("测试浮点类型");
+            LogInfo("测试浮点类型");
             await TestDataType(COMPREHENSIVE_FLOAT_ADDRESS, 123.456f, client.ReadFloatAsync, client.WriteAsync);
             await TestDataType(COMPREHENSIVE_DOUBLE_ADDRESS, 789.012345, client.ReadDoubleAsync, client.WriteAsync);
             
-            _output?.WriteLine("所有数据类型测试完成");
+            LogInfo("所有数据类型测试完成");
         }
 
         private async Task TestDataType<T>(string address, T value, 
