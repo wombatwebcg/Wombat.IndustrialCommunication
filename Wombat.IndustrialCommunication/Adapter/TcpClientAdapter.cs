@@ -8,13 +8,16 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
-using Wombat.Network.Sockets;
 
 namespace Wombat.IndustrialCommunication
 {
     public class TcpClientAdapter : IStreamResource, IDisposable
     {
-        private TcpSocketClientBase _tcpSocketClientBase;
+        private Socket _socket;
+        private IPEndPoint _remoteEndPoint;
+        private TimeSpan _connectTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+        private TimeSpan _receiveTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+        private TimeSpan _sendTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private readonly object _lockObject = new object();
         private bool _disposed;
         private const int DEFAULT_TIMEOUT_MS = 3000;
@@ -43,47 +46,45 @@ namespace Wombat.IndustrialCommunication
                 }
             }
 
-            var ipEndPoint = new IPEndPoint(address, port);
-            _tcpSocketClientBase = new TcpSocketClientBase(ipEndPoint);
+            _remoteEndPoint = new IPEndPoint(address, port);
         }
 
         public string Version => nameof(TcpClientAdapter);
         public ILogger Logger { get; private set; }
         public TimeSpan WaiteInterval { get; set; }
-        public bool Connected => _tcpSocketClientBase?.Connected ?? false;
+        public bool Connected => _socket?.Connected ?? false;
 
         public TimeSpan ConnectTimeout
         {
-            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.ConnectTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+            get => _connectTimeout;
             set
             {
-                if (_tcpSocketClientBase != null)
-                {
-                    _tcpSocketClientBase.TcpSocketClientConfiguration.ConnectTimeout = value;
-                }
+                _connectTimeout = value;
             }
         }
 
         public TimeSpan ReceiveTimeout
         {
-            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.ReceiveTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+            get => _receiveTimeout;
             set
             {
-                if (_tcpSocketClientBase != null)
+                _receiveTimeout = value;
+                if (_socket != null)
                 {
-                    _tcpSocketClientBase.TcpSocketClientConfiguration.ReceiveTimeout = value;
+                    _socket.ReceiveTimeout = (int)value.TotalMilliseconds;
                 }
             }
         }
 
         public TimeSpan SendTimeout
         {
-            get => _tcpSocketClientBase?.TcpSocketClientConfiguration.SendTimeout ?? TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+            get => _sendTimeout;
             set
             {
-                if (_tcpSocketClientBase != null)
+                _sendTimeout = value;
+                if (_socket != null)
                 {
-                    _tcpSocketClientBase.TcpSocketClientConfiguration.SendTimeout = value;
+                    _socket.SendTimeout = (int)value.TotalMilliseconds;
                 }
             }
         }
@@ -105,26 +106,43 @@ namespace Wombat.IndustrialCommunication
             OperationResult operation = new OperationResult();
             try
             {
-                Logger?.LogDebug("正在发送 {Size} 字节数据到 {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
-                await _tcpSocketClientBase.SendAsync(buffer, offset, size, cancellationToken);
-                Logger?.LogDebug("成功发送 {Size} 字节数据到 {EndPoint}", size, _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogDebug("正在发送 {Size} 字节数据到 {EndPoint}", size, _remoteEndPoint);
+                
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    cts.CancelAfter(_sendTimeout);
+                    
+                    // 创建发送任务
+                    var sendTask = _socket.SendAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
+                    
+                    // 等待发送完成或取消
+                    await Task.Run(() => sendTask, cts.Token);
+                }
+                
+                Logger?.LogDebug("成功发送 {Size} 字节数据到 {EndPoint}", size, _remoteEndPoint);
                 return operation.Complete();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                string errorMessage = $"发送数据到 {_remoteEndPoint} 被取消";
+                Logger?.LogWarning(errorMessage);
+                return OperationResult.CreateFailedResult(errorMessage);
+            }
+            catch (OperationCanceledException)
+            {
+                string errorMessage = $"发送数据到 {_remoteEndPoint} 超时，超时设置: {SendTimeout.TotalMilliseconds}ms";
+                Logger?.LogError(errorMessage);
+                return OperationResult.CreateFailedResult(new TimeoutException(errorMessage));
             }
             catch (SocketException se)
             {
-                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
+                string errorMessage = $"发送数据到 {_remoteEndPoint} 时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
                 Logger?.LogError(se, errorMessage);
-                return OperationResult.CreateFailedResult(errorMessage);
-            }
-            catch (TimeoutException te)
-            {
-                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 超时，超时设置: {SendTimeout.TotalMilliseconds}ms";
-                Logger?.LogError(te, errorMessage);
                 return OperationResult.CreateFailedResult(errorMessage);
             }
             catch (Exception ex)
             {
-                string errorMessage = $"发送数据到 {_tcpSocketClientBase.RemoteEndPoint} 时发生错误: {ex.Message}";
+                string errorMessage = $"发送数据到 {_remoteEndPoint} 时发生错误: {ex.Message}";
                 Logger?.LogError(ex, errorMessage);
                 return OperationResult.CreateFailedResult(errorMessage);
             }
@@ -147,27 +165,45 @@ namespace Wombat.IndustrialCommunication
             OperationResult<int> operation = new OperationResult<int>();
             try
             {
-                Logger?.LogDebug("正在从 {EndPoint} 接收最多 {Size} 字节数据", _tcpSocketClientBase.RemoteEndPoint, size);
-                var count = await _tcpSocketClientBase.ReceiveAsync(buffer, offset, size, cancellationToken);
+                Logger?.LogDebug("正在从 {EndPoint} 接收最多 {Size} 字节数据", _remoteEndPoint, size);
+                
+                int count;
+                using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken))
+                {
+                    cts.CancelAfter(_receiveTimeout);
+                    
+                    // 创建接收任务
+                    var receiveTask = _socket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
+                    
+                    // 等待接收完成或取消
+                    count = await Task.Run(() => receiveTask, cts.Token);
+                }
+                
                 operation.ResultValue = count;
-                Logger?.LogDebug("成功从 {EndPoint} 接收 {Count} 字节数据", _tcpSocketClientBase.RemoteEndPoint, count);
+                Logger?.LogDebug("成功从 {EndPoint} 接收 {Count} 字节数据", _remoteEndPoint, count);
                 return operation.Complete();
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                string errorMessage = $"从 {_remoteEndPoint} 接收数据被取消";
+                Logger?.LogWarning(errorMessage);
+                return new OperationResult<int> { IsSuccess = false, Message = errorMessage };
+            }
+            catch (OperationCanceledException)
+            {
+                string errorMessage = $"从 {_remoteEndPoint} 接收数据超时，超时设置: {ReceiveTimeout.TotalMilliseconds}ms";
+                Logger?.LogError(errorMessage);
+                return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = new TimeoutException(errorMessage) };
             }
             catch (SocketException se)
             {
-                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
+                string errorMessage = $"从 {_remoteEndPoint} 接收数据时发生Socket错误: {se.SocketErrorCode}, {se.Message}";
                 Logger?.LogError(se, errorMessage);
                 return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = se };
             }
-            catch (TimeoutException te)
-            {
-                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据超时，超时设置: {ReceiveTimeout.TotalMilliseconds}ms";
-                Logger?.LogError(te, errorMessage);
-                return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = te };
-            }
             catch (Exception ex)
             {
-                string errorMessage = $"从 {_tcpSocketClientBase.RemoteEndPoint} 接收数据时发生错误: {ex.Message}";
+                string errorMessage = $"从 {_remoteEndPoint} 接收数据时发生错误: {ex.Message}";
                 Logger?.LogError(ex, errorMessage);
                 return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ex };
             }
@@ -196,21 +232,45 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                Logger?.LogInformation("Connecting to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogInformation("Connecting to {EndPoint}", _remoteEndPoint);
                 OperationResult connect = new OperationResult();
-                await _tcpSocketClientBase.ConnectAsync();
-                connect.IsSuccess = _tcpSocketClientBase.Connected;
+                
+                // 创建新的Socket
+                _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                
+                // 设置Socket选项
+                _socket.NoDelay = true;
+                _socket.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
+                _socket.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
+                
+                // 使用超时进行连接
+                using (var cts = new CancellationTokenSource(_connectTimeout))
+                {
+                    // 创建连接任务
+                    var connectTask = Task.Factory.FromAsync(_socket.BeginConnect, _socket.EndConnect, _remoteEndPoint, null);
+                    
+                    // 等待连接完成或取消
+                    await Task.Run(() => connectTask, cts.Token);
+                }
+                
+                connect.IsSuccess = _socket.Connected;
                 
                 if (connect.IsSuccess)
-                    Logger?.LogInformation("Successfully connected to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogInformation("Successfully connected to {EndPoint}", _remoteEndPoint);
                 else
-                    Logger?.LogWarning("Failed to connect to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogWarning("Failed to connect to {EndPoint}", _remoteEndPoint);
                 
                 return connect.Complete();
             }
+            catch (OperationCanceledException)
+            {
+                string errorMessage = $"连接到 {_remoteEndPoint} 超时，超时设置: {_connectTimeout.TotalMilliseconds}ms";
+                Logger?.LogError(errorMessage);
+                return OperationResult.CreateFailedResult(new TimeoutException(errorMessage));
+            }
             catch (Exception ex)
             {
-                Logger?.LogError(ex, "Error connecting to {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogError(ex, "Error connecting to {EndPoint}", _remoteEndPoint);
                 return OperationResult.CreateFailedResult(ex);
             }
         }
@@ -222,22 +282,27 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                Logger?.LogInformation("Disconnecting from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogInformation("Disconnecting from {EndPoint}", _remoteEndPoint);
                 OperationResult disConnect = new OperationResult();
-                await _tcpSocketClientBase.Close();
-                StreamClose();
-                disConnect.IsSuccess = !_tcpSocketClientBase.Connected;
+                
+                if (_socket != null)
+                {
+                    _socket.Close();
+                    StreamClose();
+                }
+                
+                disConnect.IsSuccess = !(_socket?.Connected ?? false);
                 
                 if (disConnect.IsSuccess)
-                    Logger?.LogInformation("Successfully disconnected from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogInformation("Successfully disconnected from {EndPoint}", _remoteEndPoint);
                 else
-                    Logger?.LogWarning("Failed to disconnect from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogWarning("Failed to disconnect from {EndPoint}", _remoteEndPoint);
                 
                 return disConnect.Complete();
             }
             catch (Exception ex)
             {
-                Logger?.LogError(ex, "Error disconnecting from {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogError(ex, "Error disconnecting from {EndPoint}", _remoteEndPoint);
                 return OperationResult.CreateFailedResult(ex);
             }
         }
@@ -250,7 +315,10 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 Logger?.LogDebug("Closing stream");
-                _tcpSocketClientBase.Shutdown();
+                if (_socket != null && _socket.Connected)
+                {
+                    _socket.Shutdown(SocketShutdown.Send);
+                }
             }
             catch (Exception ex)
             {
@@ -280,7 +348,7 @@ namespace Wombat.IndustrialCommunication
                     // 创建一个0字节的心跳数据包
                     byte[] heartbeatPacket = new byte[1] { 0 };
                     
-                    Logger?.LogDebug("正在执行连接健康检查: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogDebug("正在执行连接健康检查: {EndPoint}", _remoteEndPoint);
                     
                     // 尝试发送和接收最小数据以检测连接状态
                     var sendResult = await Send(heartbeatPacket, 0, 1, linkedCts.Token);
@@ -290,18 +358,18 @@ namespace Wombat.IndustrialCommunication
                         return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
                     }
                     
-                    Logger?.LogDebug("连接健康检查成功: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                    Logger?.LogDebug("连接健康检查成功: {EndPoint}", _remoteEndPoint);
                     return new OperationResult<bool> { IsSuccess = true, ResultValue = true };
                 }
             }
             catch (OperationCanceledException)
             {
-                Logger?.LogWarning("连接健康检查超时: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogWarning("连接健康检查超时: {EndPoint}", _remoteEndPoint);
                 return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
             }
             catch (Exception ex)
             {
-                Logger?.LogError(ex, "连接健康检查异常: {EndPoint}", _tcpSocketClientBase.RemoteEndPoint);
+                Logger?.LogError(ex, "连接健康检查异常: {EndPoint}", _remoteEndPoint);
                 return new OperationResult<bool> { IsSuccess = false, ResultValue = false, Message = ex.Message };
             }
         }
@@ -322,7 +390,12 @@ namespace Wombat.IndustrialCommunication
                 try
                 {
                     Logger?.LogDebug("Disposing TcpClientAdapter");
-                    DisposableUtility.Dispose(ref _tcpSocketClientBase);
+                    if (_socket != null)
+                    {
+                        _socket.Close();
+                        _socket.Dispose();
+                        _socket = null;
+                    }
                 }
                 catch (Exception ex)
                 {
