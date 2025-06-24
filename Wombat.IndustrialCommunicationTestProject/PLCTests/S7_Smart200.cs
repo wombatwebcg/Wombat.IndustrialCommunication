@@ -356,6 +356,84 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             }
         }
 
+        /// <summary>
+        /// 测试S7-200 Smart批量读取功能
+        /// 验证批量读取优化算法的性能和正确性
+        /// </summary>
+        [Fact]
+        public async Task Test_Smart200_BatchRead()
+        {
+            // Arrange
+            var testName = "S7-200 Smart批量读取测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
+            
+            try
+            {
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
+                
+                LogStep("执行S7-200 Smart批量读取测试");
+                await TestSmart200BatchReadPerformance();
+                
+                LogStep("断开PLC连接");
+                await client.DisconnectAsync();
+                
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await SafeDisconnectAsync();
+            }
+        }
+
+        /// <summary>
+        /// 测试S7-200 Smart批量写入功能
+        /// 验证批量写入功能的性能和正确性
+        /// </summary>
+        [Fact]
+        public async Task Test_Smart200_BatchWrite()
+        {
+            // Arrange
+            var testName = "S7-200 Smart批量写入测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
+            
+            try
+            {
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
+                
+                LogStep("执行S7-200 Smart批量写入测试");
+                await TestSmart200BatchWritePerformance();
+                
+                LogStep("断开PLC连接");
+                await client.DisconnectAsync();
+                
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await SafeDisconnectAsync();
+            }
+        }
+
         #endregion
 
         #region 私有测试方法
@@ -636,6 +714,367 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
             }
 
+        }
+
+        /// <summary>
+        /// 测试S7-200 Smart批量读取性能
+        /// </summary>
+        private async Task TestSmart200BatchReadPerformance()
+        {
+            LogInfo("开始S7-200 Smart批量读取性能测试");
+            
+            // 准备测试数据
+            await PrepareSmart200TestData();
+            
+            // 测试场景1：V区连续地址批量读取
+            await TestSmart200ContinuousAddressBatchRead();
+            
+            // 测试场景2：V区分散地址批量读取
+            await TestSmart200ScatteredAddressBatchRead();
+            
+            // 测试场景3：Q区和V区混合批量读取
+            await TestSmart200MixedAreaBatchRead();
+            
+            LogInfo("S7-200 Smart批量读取性能测试完成");
+        }
+
+        /// <summary>
+        /// 测试S7-200 Smart批量写入性能
+        /// </summary>
+        private async Task TestSmart200BatchWritePerformance()
+        {
+            LogInfo("开始S7-200 Smart批量写入性能测试");
+            
+            // 测试场景1：V区连续地址批量写入
+            await TestSmart200ContinuousAddressBatchWrite();
+            
+            // 测试场景2：V区分散地址批量写入
+            await TestSmart200ScatteredAddressBatchWrite();
+            
+            // 测试场景3：Q区和V区混合批量写入
+            await TestSmart200MixedAreaBatchWrite();
+            
+            LogInfo("S7-200 Smart批量写入性能测试完成");
+        }
+
+        /// <summary>
+        /// 准备S7-200 Smart测试数据
+        /// </summary>
+        private async Task PrepareSmart200TestData()
+        {
+            LogInfo("准备S7-200 Smart测试数据");
+            
+            // 写入测试用的布尔值到Q区
+            await client.WriteAsync("Q1.3", true);
+            await client.WriteAsync("Q1.4", false);
+            await client.WriteAsync("Q1.5", true);
+            
+            // 写入测试用的V区数据
+            await client.WriteAsync("V700", (short)12345);
+            await client.WriteAsync("V702", (short)23456);
+            await client.WriteAsync("V704", (short)32767);
+            await client.WriteAsync("V706", 1234567890);
+            await client.WriteAsync("V710", 2345678901);
+            await client.WriteAsync("V714", 123.456f);
+            await client.WriteAsync("V718", 234.567f);
+            
+            LogInfo("S7-200 Smart测试数据准备完成");
+        }
+
+        /// <summary>
+        /// 测试V区连续地址批量读取
+        /// </summary>
+        private async Task TestSmart200ContinuousAddressBatchRead()
+        {
+            LogInfo("=== V区连续地址批量读取测试 ===");
+            
+            // 准备连续V区地址的测试数据
+            var continuousAddresses = new Dictionary<string, object>
+            {
+                ["V700"] = null,
+                ["V702"] = null,
+                ["V704"] = null,
+                ["V706"] = null,
+                ["V710"] = null,
+                ["V714"] = null
+            };
+            
+            await CompareSmart200ReadPerformance("V区连续地址", continuousAddresses);
+        }
+
+        /// <summary>
+        /// 测试V区分散地址批量读取
+        /// </summary>
+        private async Task TestSmart200ScatteredAddressBatchRead()
+        {
+            LogInfo("=== V区分散地址批量读取测试 ===");
+            
+            // 准备分散V区地址的测试数据
+            var scatteredAddresses = new Dictionary<string, object>
+            {
+                ["V700"] = null,
+                ["V720"] = null,
+                ["V740"] = null,
+                ["V760"] = null,
+                ["V780"] = null,
+                ["V800"] = null
+            };
+            
+            await CompareSmart200ReadPerformance("V区分散地址", scatteredAddresses);
+        }
+
+        /// <summary>
+        /// 测试Q区和V区混合批量读取
+        /// </summary>
+        private async Task TestSmart200MixedAreaBatchRead()
+        {
+            LogInfo("=== Q区和V区混合批量读取测试 ===");
+            
+            // 准备混合区域的测试数据
+            var mixedAddresses = new Dictionary<string, object>
+            {
+                ["Q1.3"] = null,
+                ["Q1.4"] = null,
+                ["Q1.5"] = null,
+                ["V700"] = null,
+                ["V702"] = null,
+                ["V706"] = null,
+                ["V714"] = null
+            };
+            
+            await CompareSmart200ReadPerformance("Q区和V区混合", mixedAddresses);
+        }
+
+        /// <summary>
+        /// 比较S7-200 Smart读取性能（批量 vs 单个）
+        /// </summary>
+        private async Task CompareSmart200ReadPerformance(string testType, Dictionary<string, object> addresses)
+        {
+            const int testRounds = 10;
+            
+            LogInfo($"开始 {testType} 性能对比测试，共 {testRounds} 轮");
+            
+            // 测试批量读取性能
+            var batchStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                var batchResult = await client.BatchReadAsync(addresses);
+                Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
+                
+                // 验证读取到的数据
+                foreach (var kvp in batchResult.ResultValue)
+                {
+                    Assert.NotNull(kvp.Value);
+                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value}");
+                }
+            }
+            batchStopwatch.Stop();
+            
+            // 测试单个读取性能
+            var individualStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                foreach (var address in addresses.Keys)
+                {
+                    // 根据地址类型选择合适的读取方法
+                    if (address.StartsWith("Q") && address.Contains("."))
+                    {
+                        var result = await client.ReadBooleanAsync(address);
+                        Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                    }
+                    else if (address.StartsWith("V"))
+                    {
+                        // V区地址可能是不同的数据类型，先尝试读取为int32
+                        var result = await client.ReadInt32Async(address);
+                        Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                    }
+                }
+            }
+            individualStopwatch.Stop();
+            
+            // 计算性能统计
+            var batchTotalTime = batchStopwatch.ElapsedMilliseconds;
+            var individualTotalTime = individualStopwatch.ElapsedMilliseconds;
+            var batchAvgTime = batchTotalTime / (double)testRounds;
+            var individualAvgTime = individualTotalTime / (double)testRounds;
+            var speedupRatio = individualTotalTime / (double)batchTotalTime;
+            var efficiency = ((individualTotalTime - batchTotalTime) / (double)individualTotalTime) * 100;
+            
+            // 打印性能报告
+            LogInfo($"=== {testType} 性能报告 ===");
+            LogInfo($"地址数量: {addresses.Count}");
+            LogInfo($"测试轮数: {testRounds}");
+            LogInfo($"批量读取总时间: {batchTotalTime} ms");
+            LogInfo($"单个读取总时间: {individualTotalTime} ms");
+            LogInfo($"批量读取平均时间: {batchAvgTime:F2} ms/轮");
+            LogInfo($"单个读取平均时间: {individualAvgTime:F2} ms/轮");
+            LogInfo($"性能提升倍数: {speedupRatio:F2}x");
+            LogInfo($"效率提升: {efficiency:F1}%");
+            LogInfo($"时间节省: {individualTotalTime - batchTotalTime} ms");
+            LogInfo("==========================================");
+            
+            // 断言性能提升
+            if (batchTotalTime < individualTotalTime)
+            {
+                LogInfo("✓ 批量读取性能优于单个读取");
+            }
+            else
+            {
+                LogWarning("⚠ 批量读取性能可能未达到预期优化效果");
+            }
+        }
+
+        /// <summary>
+        /// 测试V区连续地址批量写入
+        /// </summary>
+        private async Task TestSmart200ContinuousAddressBatchWrite()
+        {
+            LogInfo("=== V区连续地址批量写入测试 ===");
+            
+            var continuousWriteData = new Dictionary<string, object>
+            {
+                ["V750"] = (short)1111,
+                ["V752"] = (short)2222,
+                ["V754"] = (short)3333,
+                ["V756"] = 4444444,
+                ["V760"] = 5555555f
+            };
+            
+            await CompareSmart200WritePerformance("V区连续地址", continuousWriteData);
+        }
+
+        /// <summary>
+        /// 测试V区分散地址批量写入
+        /// </summary>
+        private async Task TestSmart200ScatteredAddressBatchWrite()
+        {
+            LogInfo("=== V区分散地址批量写入测试 ===");
+            
+            var scatteredWriteData = new Dictionary<string, object>
+            {
+                ["V770"] = (short)1001,
+                ["V800"] = 2002002,
+                ["V850"] = 3003003,
+                ["V900"] = 123.789f,
+                ["V950"] = (short)4004
+            };
+            
+            await CompareSmart200WritePerformance("V区分散地址", scatteredWriteData);
+        }
+
+        /// <summary>
+        /// 测试Q区和V区混合批量写入
+        /// </summary>
+        private async Task TestSmart200MixedAreaBatchWrite()
+        {
+            LogInfo("=== Q区和V区混合批量写入测试 ===");
+            
+            var mixedWriteData = new Dictionary<string, object>
+            {
+                ["Q1.6"] = true,
+                ["Q1.7"] = false,
+                ["V980"] = (short)9999,
+                ["V982"] = 8888888,
+                ["V986"] = 999.123f
+            };
+            
+            await CompareSmart200WritePerformance("Q区和V区混合", mixedWriteData);
+        }
+
+        /// <summary>
+        /// 比较S7-200 Smart写入性能（批量 vs 单个）
+        /// </summary>
+        private async Task CompareSmart200WritePerformance(string testType, Dictionary<string, object> writeData)
+        {
+            const int testRounds = 10;
+            
+            LogInfo($"开始 {testType} 写入性能对比测试，共 {testRounds} 轮");
+            
+            // 测试批量写入性能
+            var batchStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                var batchResult = await client.BatchWriteAsync(writeData);
+                Assert.True(batchResult.IsSuccess, $"批量写入失败: {batchResult.Message}");
+            }
+            batchStopwatch.Stop();
+            
+            // 测试单个写入性能
+            var individualStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                foreach (var kvp in writeData)
+                {
+                    // 直接调用带类型的写入方法
+                    OperationResult result;
+                    if (kvp.Value is bool boolVal)
+                        result = await client.WriteAsync(kvp.Key, boolVal);
+                    else if (kvp.Value is short shortVal)
+                        result = await client.WriteAsync(kvp.Key, shortVal);
+                    else if (kvp.Value is int intVal)
+                        result = await client.WriteAsync(kvp.Key, intVal);
+                    else if (kvp.Value is float floatVal)
+                        result = await client.WriteAsync(kvp.Key, floatVal);
+                    else
+                        throw new ArgumentException($"不支持的数据类型: {kvp.Value.GetType()}");
+                    
+                    Assert.True(result.IsSuccess, $"单个写入失败: {result.Message}");
+                }
+            }
+            individualStopwatch.Stop();
+            
+            // 计算性能统计
+            var batchTotalTime = batchStopwatch.ElapsedMilliseconds;
+            var individualTotalTime = individualStopwatch.ElapsedMilliseconds;
+            var batchAvgTime = batchTotalTime / (double)testRounds;
+            var individualAvgTime = individualTotalTime / (double)testRounds;
+            var speedupRatio = individualTotalTime / (double)batchTotalTime;
+            var efficiency = ((individualTotalTime - batchTotalTime) / (double)individualTotalTime) * 100;
+            
+            // 打印性能报告
+            LogInfo($"=== {testType} 写入性能报告 ===");
+            LogInfo($"地址数量: {writeData.Count}");
+            LogInfo($"测试轮数: {testRounds}");
+            LogInfo($"批量写入总时间: {batchTotalTime} ms");
+            LogInfo($"单个写入总时间: {individualTotalTime} ms");
+            LogInfo($"批量写入平均时间: {batchAvgTime:F2} ms/轮");
+            LogInfo($"单个写入平均时间: {individualAvgTime:F2} ms/轮");
+            LogInfo($"性能提升倍数: {speedupRatio:F2}x");
+            LogInfo($"效率提升: {efficiency:F1}%");
+            LogInfo($"时间节省: {individualTotalTime - batchTotalTime} ms");
+            LogInfo("==========================================");
+            
+            // 验证写入结果
+            await Task.Delay(100); // 等待PLC处理
+            foreach (var kvp in writeData)
+            {
+                // 根据数据类型验证写入结果
+                if (kvp.Value is bool boolValue)
+                {
+                    var result = await client.ReadBooleanAsync(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == boolValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is short shortValue)
+                {
+                    var result = await client.ReadInt16Async(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == shortValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is int intValue)
+                {
+                    var result = await client.ReadInt32Async(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == intValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is float floatValue)
+                {
+                    var result = await client.ReadFloatAsync(kvp.Key);
+                    Assert.True(result.IsSuccess && Math.Abs(result.ResultValue - floatValue) < FLOAT_COMPARISON_PRECISION, 
+                        $"写入验证失败: {kvp.Key}");
+                }
+            }
+            
+            LogInfo($"{testType} 写入验证完成");
         }
 
         private void SafeDisconnect()

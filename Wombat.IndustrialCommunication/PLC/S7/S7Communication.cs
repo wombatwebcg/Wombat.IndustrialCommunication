@@ -1,4 +1,4 @@
-ï»¿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,6 +9,64 @@ using Wombat.IndustrialCommunication.PLC;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
+    /// <summary>
+    /// S7Êı¾İÀàĞÍÃ¶¾Ù
+    /// </summary>
+    public enum S7DataType
+    {
+        // DBÇø£¨Êı¾İ¿é£©
+        DBX,  // DBÎ»
+        DBB,  // DB×Ö½Ú
+        DBW,  // DB×Ö
+        DBD,  // DBË«×Ö
+        
+        // IÇø£¨ÊäÈëÇø£©- Î»µØÖ·Ö±½ÓÔÚ½âÎöÊ±´¦Àí£¬²»ĞèÒªµ¥¶ÀµÄIXÀàĞÍ
+        IB,   // IÇø×Ö½Ú
+        IW,   // IÇø×Ö
+        ID,   // IÇøË«×Ö
+        
+        // QÇø£¨Êä³öÇø£©- Î»µØÖ·Ö±½ÓÔÚ½âÎöÊ±´¦Àí£¬²»ĞèÒªµ¥¶ÀµÄQXÀàĞÍ  
+        QB,   // QÇø×Ö½Ú
+        QW,   // QÇø×Ö
+        QD,   // QÇøË«×Ö
+        
+        // MÇø£¨MerkerÄÚ²¿´æ´¢Çø£©
+        MX,   // MÇøÎ»
+        MB,   // MÇø×Ö½Ú
+        MW,   // MÇø×Ö
+        MD,   // MÇøË«×Ö
+        
+        // VÇø£¨Smart200×¨ÓÃ£¬Ó³Éäµ½DB1£©
+        VB,   // VÇø×Ö½Ú£¨Smart200ÓÃ£©
+        VW,   // VÇø×Ö£¨Smart200ÓÃ£©
+        VD    // VÇøË«×Ö£¨Smart200ÓÃ£©
+    }
+
+    /// <summary>
+    /// S7µØÖ·ĞÅÏ¢½á¹¹Ìå
+    /// </summary>
+    public struct S7AddressInfo
+    {
+        public string OriginalAddress { get; set; }
+        public int DbNumber { get; set; }
+        public int StartByte { get; set; }
+        public int Length { get; set; }
+        public S7DataType DataType { get; set; }
+        public int BitOffset { get; set; }  // Î»Æ«ÒÆ£¬½ö¶ÔDBXÀàĞÍÓĞĞ§
+    }
+
+    /// <summary>
+    /// S7ÓÅ»¯µØÖ·¿é
+    /// </summary>
+    public class S7AddressBlock
+    {
+        public int DbNumber { get; set; }
+        public int StartByte { get; set; }
+        public int TotalLength { get; set; }
+        public List<S7AddressInfo> Addresses { get; set; } = new List<S7AddressInfo>();
+        public double EfficiencyRatio { get; set; }
+    }
+
     public class S7Communication : DeviceDataReaderWriterBase
     {
 
@@ -27,12 +85,12 @@ namespace Wombat.IndustrialCommunication.PLC
         public override string Version => SiemensVersion.ToString();
 
         /// <summary>
-        /// æ’æ§½å· 
+        /// ²å²ÛºÅ 
         /// </summary>
         public byte Slot { get; set; }
 
         /// <summary>
-        /// æœºæ¶å·
+        /// »ú¼ÜºÅ
         /// </summary>
         public byte Rack { get;set; }
 
@@ -99,7 +157,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     result.Requsts.Add(string.Join(" ", command2.Select(t => t.ToString("X2"))));
-                    //ç¬¬äºŒæ¬¡åˆå§‹åŒ–æŒ‡ä»¤äº¤äº’
+                    //µÚ¶ş´Î³õÊ¼»¯Ö¸Áî½»»¥
                     var command2RequestResult = await Transport.SendRequestAsync(command2);
                     if (command2RequestResult.IsSuccess)
                     {
@@ -187,25 +245,25 @@ namespace Wombat.IndustrialCommunication.PLC
                     byte[] responseData = new byte[realLength];
                     try
                     {
-                        //0x04 è¯» 0x01 è¯»å–ä¸€ä¸ªé•¿åº¦ //å¦‚æœæ˜¯æ‰¹é‡è¯»å–ï¼Œæ‰¹é‡è¯»å–æ–¹æ³•é‡Œé¢æœ‰éªŒè¯
+                        //0x04 ¶Á 0x01 ¶ÁÈ¡Ò»¸ö³¤¶È //Èç¹ûÊÇÅúÁ¿¶ÁÈ¡£¬ÅúÁ¿¶ÁÈ¡·½·¨ÀïÃæÓĞÑéÖ¤
                         if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
                         {
                             if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"è¯»å–{address}å¤±è´¥ï¼Œè¯·ç¡®è®¤æ˜¯å¦å­˜åœ¨åœ°å€{address}";
+                                tempResult.Message = $"¶ÁÈ¡{internalAddress}Ê§°Ü£¬ÇëÈ·ÈÏÊÇ·ñ´æÔÚµØÖ·{internalAddress}";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"è¯»å–{address}å¤±è´¥ï¼Œè¯·ç¡®è®¤æ˜¯å¦å­˜åœ¨åœ°å€{address}";
+                                tempResult.Message = $"¶ÁÈ¡{internalAddress}Ê§°Ü£¬ÇëÈ·ÈÏÊÇ·ñ´æÔÚµØÖ·{internalAddress}";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] != 0xFF)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"è¯»å–{address}å¤±è´¥ï¼Œå¼‚å¸¸ä»£ç [{21}]:{dataPackage[21]}";
+                                tempResult.Message = $"¶ÁÈ¡{internalAddress}Ê§°Ü£¬Òì³£´úÂë[{21}]:{dataPackage[21]}";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                         }
@@ -215,7 +273,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     catch (Exception ex)
                     {
                         tempResult.Exception = ex;
-                        tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} è¯»å–é¢„æœŸé•¿åº¦ä¸è¿”å›æ•°æ®é•¿åº¦ä¸ä¸€è‡´";
+                        tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} ¶ÁÈ¡Ô¤ÆÚ³¤¶ÈÓë·µ»ØÊı¾İ³¤¶È²»Ò»ÖÂ";
                         return OperationResult.CreateFailedResult<byte[]>(tempResult);
                     }
                     return new OperationResult<byte[]>(response, responseData).Complete();
@@ -245,17 +303,17 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (dataPackage[offset] == 0x0A)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"å†™å…¥{address}å¤±è´¥ï¼Œè¯·ç¡®è®¤æ˜¯å¦å­˜åœ¨åœ°å€{address}ï¼Œå¼‚å¸¸ä»£ç [{offset}]:{dataPackage[offset]}";
+                            result.Message = $"Ğ´Èë{address}Ê§°Ü£¬ÇëÈ·ÈÏÊÇ·ñ´æÔÚµØÖ·{address}£¬Òì³£´úÂë[{offset}]:{dataPackage[offset]}";
                         }
                         else if (dataPackage[offset] == 0x05)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"å†™å…¥{address}å¤±è´¥ï¼Œè¯·ç¡®è®¤æ˜¯å¦å­˜åœ¨åœ°å€{address}ï¼Œå¼‚å¸¸ä»£ç [{offset}]:{dataPackage[offset]}";
+                            result.Message = $"Ğ´Èë{address}Ê§°Ü£¬ÇëÈ·ÈÏÊÇ·ñ´æÔÚµØÖ·{address}£¬Òì³£´úÂë[{offset}]:{dataPackage[offset]}";
                         }
                         else if (dataPackage[offset] != 0xFF)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"å†™å…¥{address}å¤±è´¥ï¼Œå¼‚å¸¸ä»£ç [{offset}]:{dataPackage[offset]}";
+                            result.Message = $"Ğ´Èë{address}Ê§°Ü£¬Òì³£´úÂë[{offset}]:{dataPackage[offset]}";
                         }
                         return OperationResult.CreateSuccessResult(response);
                     }
@@ -268,6 +326,1026 @@ namespace Wombat.IndustrialCommunication.PLC
                 return OperationResult.CreateFailedResult();
             }
         }
+
+        /// <summary>
+        /// ½âÎöµØÖ·×Ö·û´®Îª½á¹¹»¯ĞÅÏ¢
+        /// </summary>
+        /// <param name="addresses">µØÖ·×Öµä</param>
+        /// <returns>½âÎöºóµÄµØÖ·ĞÅÏ¢ÁĞ±í</returns>
+        private List<S7AddressInfo> ParseAddresses(Dictionary<string, object> addresses)
+        {
+            var addressInfos = new List<S7AddressInfo>();
+            
+            foreach (var kvp in addresses)
+            {
+                try
+                {
+                    var addressInfo = ParseSingleAddress(kvp.Key);
+                    
+                    // ¶ÔÓÚVÇøºÍQÇøµØÖ·£¬³¢ÊÔ¸ù¾İÉÏÏÂÎÄÍÆ¶ÏÊı¾İÀàĞÍºÍ³¤¶È
+                    if (addressInfo.DbNumber == -1 || addressInfo.DbNumber == -2)
+                    {
+                        addressInfo = InferDataTypeAndLength(addressInfo, kvp.Key);
+                    }
+                    
+                    addressInfos.Add(addressInfo);
+                }
+                catch (Exception ex)
+                {
+                    // µØÖ·½âÎöÊ§°Ü£¬Ìø¹ı¸ÃµØÖ·£¬µ«¼ÇÂ¼ÈÕÖ¾
+                    // ÕâÀï¿ÉÒÔÌí¼ÓÈÕÖ¾¼ÇÂ¼
+                    continue;
+                }
+            }
+            
+            return addressInfos;
+        }
+
+        /// <summary>
+        /// ÍÆ¶ÏVÇøºÍQÇøµØÖ·µÄÊı¾İÀàĞÍºÍ³¤¶È
+        /// </summary>
+        /// <param name="addressInfo">Ô­Ê¼µØÖ·ĞÅÏ¢</param>
+        /// <param name="originalAddress">Ô­Ê¼µØÖ·×Ö·û´®</param>
+        /// <returns>ÍÆ¶ÏºóµÄµØÖ·ĞÅÏ¢</returns>
+        private S7AddressInfo InferDataTypeAndLength(S7AddressInfo addressInfo, string originalAddress)
+        {
+            // ¶ÔÓÚVÇøµØÖ·£¬Ä¬ÈÏÍÆ¶ÏÎª32Î»Êı¾İÀàĞÍ£¨ÄÜ¼æÈİ´ó¶àÊıÇé¿ö£©
+            if (addressInfo.DbNumber == -1) // VÇø
+            {
+                addressInfo.DataType = S7DataType.DBD; // Ê¹ÓÃDBÇøµÄË«×ÖÀàĞÍ
+                addressInfo.Length = 4;
+            }
+            // ¶ÔÓÚQÇøµØÖ·£¬Èç¹ûÃ»ÓĞÎ»±êÊ¶£¬Ä¬ÈÏÍÆ¶ÏÎª×ÖÊı¾İ
+            else if (addressInfo.DbNumber == -2 && !originalAddress.Contains(".")) // QÇøÇÒ·ÇÎ»µØÖ·
+            {
+                addressInfo.DataType = S7DataType.DBW; // Ê¹ÓÃDBÇøµÄ×ÖÀàĞÍ
+                addressInfo.Length = 2;
+            }
+            // ¶ÔÓÚIÇøµØÖ·£¬Èç¹ûÃ»ÓĞÎ»±êÊ¶£¬Ä¬ÈÏÍÆ¶ÏÎª×ÖÊı¾İ
+            else if (addressInfo.DbNumber == -3 && !originalAddress.Contains(".")) // IÇøÇÒ·ÇÎ»µØÖ·
+            {
+                addressInfo.DataType = S7DataType.IW; // Ê¹ÓÃIÇøµÄ×ÖÀàĞÍ
+                addressInfo.Length = 2;
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// ½âÎöµ¥¸öµØÖ·×Ö·û´®
+        /// </summary>
+        /// <param name="address">µØÖ·×Ö·û´®£¬Èç "DB1.DBW10", "DB2.DBX5.3", "V700", "Q1.3"</param>
+        /// <returns>µØÖ·ĞÅÏ¢</returns>
+        private S7AddressInfo ParseSingleAddress(string address)
+        {
+            var addressInfo = new S7AddressInfo
+            {
+                OriginalAddress = address
+            };
+
+            // Í³Ò»×ª»»Îª´óĞ´²¢È¥³ı¿Õ¸ñ
+            address = address.ToUpper().Replace(" ", "");
+
+            // ¼ì²éÊÇ·ñÊÇDBµØÖ·¸ñÊ½
+            if (address.StartsWith("DB"))
+            {
+                return ParseDBAddress(address, addressInfo);
+            }
+            // ¼ì²éÊÇ·ñÊÇVÇøµØÖ·¸ñÊ½
+            else if (address.StartsWith("V"))
+            {
+                return ParseVAddress(address, addressInfo);
+            }
+            // ¼ì²éÊÇ·ñÊÇQÇøµØÖ·¸ñÊ½
+            else if (address.StartsWith("Q"))
+            {
+                return ParseQAddress(address, addressInfo);
+            }
+            // ¼ì²éÊÇ·ñÊÇIÇøµØÖ·¸ñÊ½
+            else if (address.StartsWith("I"))
+            {
+                return ParseIAddress(address, addressInfo);
+            }
+            // ¼ì²éÊÇ·ñÊÇMÇøµØÖ·¸ñÊ½
+            else if (address.StartsWith("M"))
+            {
+                return ParseMAddress(address, addressInfo);
+            }
+            else
+            {
+                throw new ArgumentException($"²»Ö§³ÖµÄµØÖ·¸ñÊ½: {address}");
+            }
+        }
+
+        /// <summary>
+        /// ½âÎöDBµØÖ·¸ñÊ½
+        /// </summary>
+        private S7AddressInfo ParseDBAddress(string address, S7AddressInfo addressInfo)
+        {
+            var dbEndIndex = address.IndexOf('.');
+            if (dbEndIndex == -1)
+                throw new ArgumentException($"DBµØÖ·¸ñÊ½´íÎó: {address}");
+
+            var dbNumberStr = address.Substring(2, dbEndIndex - 2);
+            if (!int.TryParse(dbNumberStr, out int dbNumber))
+                throw new ArgumentException($"DBºÅ½âÎöÊ§°Ü: {address}");
+
+            addressInfo.DbNumber = dbNumber;
+
+            // ½âÎöÊı¾İÀàĞÍºÍÆ«ÒÆ
+            var typeAndOffset = address.Substring(dbEndIndex + 1);
+            
+            if (typeAndOffset.StartsWith("DBX"))
+            {
+                // Î»µØÖ·£¬Èç DBX5.3
+                addressInfo.DataType = S7DataType.DBX;
+                addressInfo.Length = 1; // Î»³¤¶ÈÎª1
+
+                var parts = typeAndOffset.Substring(3).Split('.');
+                if (parts.Length != 2)
+                    throw new ArgumentException($"Î»µØÖ·¸ñÊ½´íÎó: {address}");
+
+                if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
+                    throw new ArgumentException($"Î»µØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.StartByte = byteOffset;
+                addressInfo.BitOffset = bitOffset;
+            }
+            else if (typeAndOffset.StartsWith("DBB"))
+            {
+                // ×Ö½ÚµØÖ·
+                addressInfo.DataType = S7DataType.DBB;
+                addressInfo.Length = 1;
+                addressInfo.BitOffset = 0;
+
+                var offsetStr = typeAndOffset.Substring(3);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"×Ö½ÚµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.StartByte = offset;
+            }
+            else if (typeAndOffset.StartsWith("DBW"))
+            {
+                // ×ÖµØÖ·
+                addressInfo.DataType = S7DataType.DBW;
+                addressInfo.Length = 2;
+                addressInfo.BitOffset = 0;
+
+                var offsetStr = typeAndOffset.Substring(3);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"×ÖµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.StartByte = offset;
+            }
+            else if (typeAndOffset.StartsWith("DBD"))
+            {
+                // Ë«×ÖµØÖ·
+                addressInfo.DataType = S7DataType.DBD;
+                addressInfo.Length = 4;
+                addressInfo.BitOffset = 0;
+
+                var offsetStr = typeAndOffset.Substring(3);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"Ë«×ÖµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.StartByte = offset;
+            }
+            else
+            {
+                throw new ArgumentException($"²»Ö§³ÖµÄDBÊı¾İÀàĞÍ: {address}");
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// ½âÎöVÇøµØÖ·¸ñÊ½
+        /// </summary>
+        private S7AddressInfo ParseVAddress(string address, S7AddressInfo addressInfo)
+        {
+            var offsetStr = address.Substring(1); // È¥µôVÇ°×º
+            if (!int.TryParse(offsetStr, out int offset))
+                throw new ArgumentException($"VÇøµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+            // ¶ÔÓÚSmart200£¬VÇøµØÖ·Ó³Éäµ½DB1
+            if (SiemensVersion == SiemensVersion.S7_200Smart)
+            {
+                addressInfo.DbNumber = 1; // Smart200µÄVÇø¶ÔÓ¦DB1
+                addressInfo.DataType = S7DataType.DBB; // Ê¹ÓÃDBÇøÊı¾İÀàĞÍ
+                addressInfo.StartByte = offset;
+                addressInfo.Length = 1; // Ä¬ÈÏ³¤¶È£¬Êµ¼ÊÊ¹ÓÃÊ±»á¸ù¾İĞèÒªµ÷Õû
+                addressInfo.BitOffset = 0;
+            }
+            else
+            {
+                // ÆäËû°æ±¾µÄVÇøµØÖ·Ê¹ÓÃÌØÊâµÄDBºÅ±êÊ¶
+                addressInfo.DbNumber = -1; // Ê¹ÓÃ-1±íÊ¾VÇø
+                addressInfo.DataType = S7DataType.DBB; // Í³Ò»Ê¹ÓÃDBÇøÊı¾İÀàĞÍ
+                addressInfo.StartByte = offset;
+                addressInfo.Length = 1; // Ä¬ÈÏ³¤¶È£¬Êµ¼ÊÊ¹ÓÃÊ±»á¸ù¾İĞèÒªµ÷Õû
+                addressInfo.BitOffset = 0;
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// ½âÎöQÇøµØÖ·¸ñÊ½
+        /// </summary>
+        private S7AddressInfo ParseQAddress(string address, S7AddressInfo addressInfo)
+        {
+            // QÇøµØÖ·ÊôÓÚÊä³öÇø£¬Ê¹ÓÃÌØÊâµÄDBºÅ±êÊ¶
+            addressInfo.DbNumber = -2; // Ê¹ÓÃ-2±íÊ¾QÇø
+
+            if (address.Contains("."))
+            {
+                // QÇøÎ»µØÖ·£¬Èç Q1.3
+                var parts = address.Substring(1).Split('.'); // È¥µôQÇ°×º²¢·Ö¸î
+                if (parts.Length != 2)
+                    throw new ArgumentException($"QÇøÎ»µØÖ·¸ñÊ½´íÎó: {address}");
+
+                if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
+                    throw new ArgumentException($"QÇøÎ»µØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.DBX; // QÇøÎ»µØÖ·Ê¹ÓÃDBÎ»ÀàĞÍ
+                addressInfo.StartByte = byteOffset;
+                addressInfo.BitOffset = bitOffset;
+                addressInfo.Length = 1; // Î»³¤¶ÈÎª1
+            }
+            else
+            {
+                // QÇø×Ö½ÚµØÖ·£¬Èç Q10
+                var offsetStr = address.Substring(1); // È¥µôQÇ°×º
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"QÇøµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.DBW; // QÇø×ÖµØÖ·Ê¹ÓÃDB×ÖÀàĞÍ
+                addressInfo.StartByte = offset;
+                addressInfo.Length = 2;
+                addressInfo.BitOffset = 0;
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// ½âÎöIÇøµØÖ·¸ñÊ½
+        /// </summary>
+        private S7AddressInfo ParseIAddress(string address, S7AddressInfo addressInfo)
+        {
+            // IÇøµØÖ·ÊôÓÚÊäÈëÇø£¬Ê¹ÓÃÌØÊâµÄDBºÅ±êÊ¶
+            addressInfo.DbNumber = -3; // Ê¹ÓÃ-3±íÊ¾IÇø
+
+            if (address.Contains("."))
+            {
+                // IÇøÎ»µØÖ·£¬Èç I1.3
+                var parts = address.Substring(1).Split('.'); // È¥µôIÇ°×º²¢·Ö¸î
+                if (parts.Length != 2)
+                    throw new ArgumentException($"IÇøÎ»µØÖ·¸ñÊ½´íÎó: {address}");
+
+                if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
+                    throw new ArgumentException($"IÇøÎ»µØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.DBX; // IÇøÎ»µØÖ·Ê¹ÓÃDBXÀàĞÍ±íÊ¾
+                addressInfo.StartByte = byteOffset;
+                addressInfo.BitOffset = bitOffset;
+                addressInfo.Length = 1; // Î»³¤¶ÈÎª1
+            }
+            else
+            {
+                // IÇø×Ö½ÚµØÖ·£¬Èç I10
+                var offsetStr = address.Substring(1); // È¥µôIÇ°×º
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"IÇøµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.IW; // Ä¬ÈÏ°´×Ö´¦Àí
+                addressInfo.StartByte = offset;
+                addressInfo.Length = 2;
+                addressInfo.BitOffset = 0;
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// ½âÎöMÇøµØÖ·¸ñÊ½
+        /// </summary>
+        private S7AddressInfo ParseMAddress(string address, S7AddressInfo addressInfo)
+        {
+            // MÇøµØÖ·ÊôÓÚÄÚ²¿´æ´¢Çø£¬Ê¹ÓÃÌØÊâµÄDBºÅ±êÊ¶
+            addressInfo.DbNumber = -4; // Ê¹ÓÃ-4±íÊ¾MÇø
+
+            if (address.Contains("."))
+            {
+                // MÇøÎ»µØÖ·£¬Èç M1.3
+                var parts = address.Substring(1).Split('.'); // È¥µôMÇ°×º²¢·Ö¸î
+                if (parts.Length != 2)
+                    throw new ArgumentException($"MÇøÎ»µØÖ·¸ñÊ½´íÎó: {address}");
+
+                if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
+                    throw new ArgumentException($"MÇøÎ»µØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.MX;
+                addressInfo.StartByte = byteOffset;
+                addressInfo.BitOffset = bitOffset;
+                addressInfo.Length = 1; // Î»³¤¶ÈÎª1
+            }
+            else
+            {
+                // MÇø×Ö½ÚµØÖ·£¬Èç M10
+                var offsetStr = address.Substring(1); // È¥µôMÇ°×º
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"MÇøµØÖ·Æ«ÒÆ½âÎöÊ§°Ü: {address}");
+
+                addressInfo.DataType = S7DataType.MB; // Ä¬ÈÏ°´×Ö½Ú´¦Àí
+                addressInfo.StartByte = offset;
+                addressInfo.Length = 1;
+                addressInfo.BitOffset = 0;
+            }
+
+            return addressInfo;
+        }
+
+        /// <summary>
+        /// »ñÈ¡µØÖ·µÄÇøÓòÀàĞÍ
+        /// </summary>
+        /// <param name="dataType">Êı¾İÀàĞÍ</param>
+        /// <returns>ÇøÓòÀàĞÍ×Ö·û´®</returns>
+        private string GetAreaType(S7DataType dataType)
+        {
+            switch (dataType)
+            {
+                case S7DataType.DBX:
+                case S7DataType.DBB:
+                case S7DataType.DBW:
+                case S7DataType.DBD:
+                    return "DB";
+                case S7DataType.IB:
+                case S7DataType.IW:
+                case S7DataType.ID:
+                    return "I";
+                case S7DataType.QB:
+                case S7DataType.QW:
+                case S7DataType.QD:
+                    return "Q";
+                case S7DataType.MX:
+                case S7DataType.MB:
+                case S7DataType.MW:
+                case S7DataType.MD:
+                    return "M";
+                case S7DataType.VB:
+                case S7DataType.VW:
+                case S7DataType.VD:
+                    return "V";
+                default:
+                    return "UNKNOWN";
+            }
+        }
+
+        /// <summary>
+        /// ¶¯Ì¬´°¿ÚÓÅ»¯Ëã·¨£º½«µØÖ·ºÏ²¢Îª¸ßĞ§µÄ¶ÁÈ¡¿é
+        /// </summary>
+        /// <param name="addressInfos">µØÖ·ĞÅÏ¢ÁĞ±í</param>
+        /// <param name="minEfficiencyRatio">×îĞ¡Ğ§ÂÊ±È£¨ÓĞĞ§Êı¾İ/×Ü¶ÁÈ¡Êı¾İ£©</param>
+        /// <param name="maxBlockSize">×î´ó¿é´óĞ¡£¨×Ö½Ú£©</param>
+        /// <returns>ÓÅ»¯ºóµÄµØÖ·¿éÁĞ±í</returns>
+        private List<S7AddressBlock> OptimizeAddressBlocks(List<S7AddressInfo> addressInfos, double minEfficiencyRatio = 0.7, int maxBlockSize = 180)
+        {
+            var optimizedBlocks = new List<S7AddressBlock>();
+            
+            // °´ÇøÓòÀàĞÍºÍDBºÅ·Ö×é£¨DBµØÖ·°´DBºÅ·Ö×é£¬VÇøºÍQÇø·Ö±ğ¶ÀÁ¢·Ö×é£©
+            var dbGroups = addressInfos.GroupBy(a => new { a.DbNumber, AreaType = GetAreaType(a.DataType) }).ToList();
+            
+            foreach (var dbGroup in dbGroups)
+            {
+                // ÔÚÃ¿¸öÇøÓòÄÚ°´ÆğÊ¼µØÖ·ÅÅĞò
+                var sortedAddresses = dbGroup.OrderBy(a => a.StartByte).ToList();
+                
+                var currentBlock = new S7AddressBlock
+                {
+                    DbNumber = dbGroup.Key.DbNumber,
+                    Addresses = new List<S7AddressInfo>()
+                };
+                
+                foreach (var address in sortedAddresses)
+                {
+                    // Èç¹ûÊÇµÚÒ»¸öµØÖ·£¬Ö±½Ó¼ÓÈëµ±Ç°¿é
+                    if (currentBlock.Addresses.Count == 0)
+                    {
+                        currentBlock.StartByte = address.StartByte;
+                        currentBlock.TotalLength = address.Length;
+                        currentBlock.Addresses.Add(address);
+                        continue;
+                    }
+                    
+                    // ¼ÆËãÈç¹û¼ÓÈë´ËµØÖ·ºóµÄĞÂ¿é²ÎÊı
+                    var newStartByte = Math.Min(currentBlock.StartByte, address.StartByte);
+                    var currentEndByte = currentBlock.StartByte + currentBlock.TotalLength;
+                    var addressEndByte = address.StartByte + address.Length;
+                    var newEndByte = Math.Max(currentEndByte, addressEndByte);
+                    var newTotalLength = newEndByte - newStartByte;
+                    
+                    // ¼ì²é¿é´óĞ¡ÏŞÖÆ
+                    if (newTotalLength > maxBlockSize)
+                    {
+                        // ³¬¹ı×î´ó¿é´óĞ¡£¬Íê³Éµ±Ç°¿é²¢¿ªÊ¼ĞÂ¿é
+                        currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                        optimizedBlocks.Add(currentBlock);
+                        
+                        currentBlock = new S7AddressBlock
+                        {
+                            DbNumber = dbGroup.Key.DbNumber,
+                            StartByte = address.StartByte,
+                            TotalLength = address.Length,
+                            Addresses = new List<S7AddressInfo> { address }
+                        };
+                        continue;
+                    }
+                    
+                    // ¼ÆËã¼ÓÈëºóµÄĞ§ÂÊ±È
+                    var testBlock = new S7AddressBlock
+                    {
+                        DbNumber = dbGroup.Key.DbNumber,
+                        StartByte = newStartByte,
+                        TotalLength = newTotalLength,
+                        Addresses = new List<S7AddressInfo>(currentBlock.Addresses) { address }
+                    };
+                    
+                    var newEfficiencyRatio = CalculateEfficiencyRatio(testBlock);
+                    
+                    // ¼ì²éĞ§ÂÊ±ÈÊÇ·ñÂú×ãÒªÇó
+                    if (newEfficiencyRatio >= minEfficiencyRatio)
+                    {
+                        // Ğ§ÂÊ±ÈÂú×ãÒªÇó£¬ºÏ²¢µØÖ·
+                        currentBlock.StartByte = newStartByte;
+                        currentBlock.TotalLength = newTotalLength;
+                        currentBlock.Addresses.Add(address);
+                    }
+                    else
+                    {
+                        // Ğ§ÂÊ±È²»Âú×ãÒªÇó£¬Íê³Éµ±Ç°¿é²¢¿ªÊ¼ĞÂ¿é
+                        currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                        optimizedBlocks.Add(currentBlock);
+                        
+                        currentBlock = new S7AddressBlock
+                        {
+                            DbNumber = dbGroup.Key.DbNumber,
+                            StartByte = address.StartByte,
+                            TotalLength = address.Length,
+                            Addresses = new List<S7AddressInfo> { address }
+                        };
+                    }
+                }
+                
+                // Ìí¼Ó×îºóÒ»¸ö¿é
+                if (currentBlock.Addresses.Count > 0)
+                {
+                    currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                    optimizedBlocks.Add(currentBlock);
+                }
+            }
+            
+            return optimizedBlocks;
+        }
+
+        /// <summary>
+        /// ¼ÆËãµØÖ·¿éµÄĞ§ÂÊ±È
+        /// </summary>
+        /// <param name="block">µØÖ·¿é</param>
+        /// <returns>Ğ§ÂÊ±È£¨0-1Ö®¼ä£©</returns>
+        private double CalculateEfficiencyRatio(S7AddressBlock block)
+        {
+            if (block.TotalLength == 0) return 0;
+            
+            var effectiveDataLength = block.Addresses.Sum(a => a.Length);
+            return (double)effectiveDataLength / block.TotalLength;
+        }
+
+        /// <summary>
+        /// Ö´ĞĞÅúÁ¿¶ÁÈ¡²Ù×÷
+        /// </summary>
+        /// <param name="blocks">ÓÅ»¯ºóµÄµØÖ·¿éÁĞ±í</param>
+        /// <returns>¶ÁÈ¡½á¹û£¬¼üÎª¿é±êÊ¶£¬ÖµÎª¶ÁÈ¡µÄ×Ö½ÚÊı¾İ</returns>
+        private async Task<OperationResult<Dictionary<string, byte[]>>> ExecuteBatchRead(List<S7AddressBlock> blocks)
+        {
+            var result = new OperationResult<Dictionary<string, byte[]>>();
+            var blockDataDict = new Dictionary<string, byte[]>();
+            var errors = new List<string>();
+
+            foreach (var block in blocks)
+            {
+                try
+                {
+                    // ¹¹Ôì¿éµÄµØÖ·×Ö·û´®£¬¸ù¾İµØÖ·ÀàĞÍÑ¡ÔñºÏÊÊµÄ¸ñÊ½
+                    string blockAddress = "";
+                    string blockKey = "";
+                    
+                    if (block.Addresses.Count > 0)
+                    {
+                        var firstAddress = block.Addresses[0];
+                        var areaType = GetAreaType(firstAddress.DataType);
+                        
+                        switch (areaType)
+                        {
+                            case "DB":
+                                blockAddress = $"DB{block.DbNumber}.DBB{block.StartByte}";
+                                blockKey = $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
+                                break;
+                            case "I":
+                                blockAddress = $"I{block.StartByte}";
+                                blockKey = $"I_{block.StartByte}_{block.TotalLength}";
+                                break;
+                            default:
+                                errors.Add($"²»Ö§³ÖµÄµØÖ·ÀàĞÍ: {areaType}");
+                                continue;
+                        }
+                    }
+                    else
+                    {
+                        errors.Add($"¿éÖĞÃ»ÓĞµØÖ·ĞÅÏ¢");
+                        continue;
+                    }
+                    
+                    // Ê¹ÓÃÏÖÓĞµÄReadAsync·½·¨¶ÁÈ¡Õû¸ö¿é
+                    var readResult = await ReadAsync(blockAddress, block.TotalLength, false);
+                    
+                    if (readResult.IsSuccess)
+                    {
+                        blockDataDict[blockKey] = readResult.ResultValue;
+                        
+                        // ºÏ²¢ÇëÇóºÍÏìÓ¦ÈÕÖ¾
+                        result.Requsts.AddRange(readResult.Requsts);
+                        result.Responses.AddRange(readResult.Responses);
+                    }
+                    else
+                    {
+                        var areaType = GetAreaType(block.Addresses[0].DataType);
+                        errors.Add($"¶ÁÈ¡¿é {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} Ê§°Ü: {readResult.Message}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    var areaType = block.Addresses.Count > 0 ? GetAreaType(block.Addresses[0].DataType) : "UNKNOWN";
+                    errors.Add($"¶ÁÈ¡¿é {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} Òì³£: {ex.Message}");
+                }
+            }
+
+            if (errors.Count > 0)
+            {
+                result.IsSuccess = blockDataDict.Count > 0; // ²¿·Ö³É¹¦
+                result.Message = string.Join("; ", errors);
+            }
+            else
+            {
+                result.IsSuccess = true;
+            }
+
+            result.ResultValue = blockDataDict;
+            return result.Complete();
+        }
+
+        /// <summary>
+        /// ´Ó¶ÁÈ¡µÄ¿éÊı¾İÖĞÌáÈ¡¸÷¸öµØÖ·¶ÔÓ¦µÄÊı¾İ
+        /// </summary>
+        /// <param name="blockData">¿éÊı¾İ×Öµä</param>
+        /// <param name="blocks">µØÖ·¿éĞÅÏ¢</param>
+        /// <param name="originalAddresses">Ô­Ê¼µØÖ·ĞÅÏ¢</param>
+        /// <returns>µØÖ·µ½Êı¾İÖµµÄÓ³Éä</returns>
+        private Dictionary<string, object> ExtractDataFromBlocks(Dictionary<string, byte[]> blockData, List<S7AddressBlock> blocks, List<S7AddressInfo> originalAddresses)
+        {
+            var result = new Dictionary<string, object>();
+
+            foreach (var block in blocks)
+            {
+                // ¸ù¾İµØÖ·ÀàĞÍÉú³ÉÕıÈ·µÄ¿é¼ü
+                string blockKey = "";
+                if (block.Addresses.Count > 0)
+                {
+                    var firstAddress = block.Addresses[0];
+                    var areaType = GetAreaType(firstAddress.DataType);
+                    
+                    switch (areaType)
+                    {
+                        case "DB":
+                            blockKey = $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
+                            break;
+                        case "I":
+                            blockKey = $"I_{block.StartByte}_{block.TotalLength}";
+                            break;
+                        default:
+                            // ÎŞ·¨Ê¶±ğµÄµØÖ·ÀàĞÍ£¬Ìø¹ı
+                            foreach (var address in block.Addresses)
+                            {
+                                result[address.OriginalAddress] = null;
+                            }
+                            continue;
+                    }
+                }
+                else
+                {
+                    // ¿éÖĞÃ»ÓĞµØÖ·£¬Ìø¹ı
+                    continue;
+                }
+                
+                if (!blockData.TryGetValue(blockKey, out byte[] data))
+                {
+                    // ¸Ã¿é¶ÁÈ¡Ê§°Ü£¬½«Æä°üº¬µÄËùÓĞµØÖ·±ê¼ÇÎªnull
+                    foreach (var address in block.Addresses)
+                    {
+                        result[address.OriginalAddress] = null;
+                    }
+                    continue;
+                }
+
+                // ´Ó¿éÊı¾İÖĞÌáÈ¡¸÷¸öµØÖ·µÄÖµ
+                foreach (var address in block.Addresses)
+                {
+                    try
+                    {
+                        var relativeOffset = address.StartByte - block.StartByte;
+                        
+                        if (relativeOffset < 0 || relativeOffset + address.Length > data.Length)
+                        {
+                            result[address.OriginalAddress] = null;
+                            continue;
+                        }
+
+                        object value = ExtractValueFromBytes(data, relativeOffset, address);
+                        result[address.OriginalAddress] = value;
+                    }
+                    catch (Exception)
+                    {
+                        result[address.OriginalAddress] = null;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        /// <summary>
+        /// ´Ó×Ö½ÚÊı×éÖĞÌáÈ¡Ö¸¶¨ÀàĞÍµÄÖµ
+        /// </summary>
+        /// <param name="data">×Ö½ÚÊı×é</param>
+        /// <param name="offset">Æ«ÒÆÁ¿</param>
+        /// <param name="addressInfo">µØÖ·ĞÅÏ¢</param>
+        /// <returns>ÌáÈ¡µÄÖµ</returns>
+        private object ExtractValueFromBytes(byte[] data, int offset, S7AddressInfo addressInfo)
+        {
+            switch (addressInfo.DataType)
+            {
+                case S7DataType.DBX:
+                    // Î»Êı¾İ£¨°üÀ¨IÇøºÍQÇøµÄÎ»µØÖ·£©
+                    if (offset < data.Length)
+                    {
+                        var byteValue = data[offset];
+                        return (byteValue & (1 << addressInfo.BitOffset)) != 0;
+                    }
+                    return false;
+
+                case S7DataType.DBB:
+                case S7DataType.IB:
+                    // ×Ö½ÚÊı¾İ
+                    if (offset < data.Length)
+                    {
+                        return data[offset];
+                    }
+                    return (byte)0;
+
+                case S7DataType.DBW:
+                case S7DataType.IW:
+                    // ×ÖÊı¾İ (2×Ö½Ú)
+                    if (offset + 1 < data.Length)
+                    {
+                        if (IsReverse)
+                        {
+                            return (ushort)(data[offset] << 8 | data[offset + 1]);
+                        }
+                        else
+                        {
+                            return (ushort)(data[offset + 1] << 8 | data[offset]);
+                        }
+                    }
+                    return (ushort)0;
+
+                case S7DataType.DBD:
+                case S7DataType.ID:
+                    // Ë«×ÖÊı¾İ (4×Ö½Ú)
+                    if (offset + 3 < data.Length)
+                    {
+                        if (IsReverse)
+                        {
+                            return (uint)(data[offset] << 24 | data[offset + 1] << 16 | data[offset + 2] << 8 | data[offset + 3]);
+                        }
+                        else
+                        {
+                            return (uint)(data[offset + 3] << 24 | data[offset + 2] << 16 | data[offset + 1] << 8 | data[offset]);
+                        }
+                    }
+                    return (uint)0;
+
+                default:
+                    return null;
+            }
+        }
+
+
+        public override async Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult<Dictionary<string, object>>();
+                
+                try
+                {
+                    // ²ÎÊıÑéÖ¤
+                    if (addresses == null || addresses.Count == 0)
+                    {
+                        result.ResultValue = new Dictionary<string, object>();
+                        return result.Complete();
+                    }
+
+                    // ²½Öè1: ½âÎöµØÖ·
+                    var addressInfos = ParseAddresses(addresses);
+                    if (addressInfos.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "ËùÓĞµØÖ·½âÎöÊ§°Ü";
+                        result.ResultValue = new Dictionary<string, object>();
+                        return result.Complete();
+                    }
+
+                    // ²½Öè2: ÓÅ»¯µØÖ·¿é
+                    var optimizedBlocks = OptimizeAddressBlocks(addressInfos);
+                    if (optimizedBlocks.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "µØÖ·ÓÅ»¯Ê§°Ü";
+                        result.ResultValue = new Dictionary<string, object>();
+                        return result.Complete();
+                    }
+
+                    // ²½Öè3: Ö´ĞĞÅúÁ¿¶ÁÈ¡
+                    var batchReadResult = await ExecuteBatchRead(optimizedBlocks);
+                    
+                    // ºÏ²¢ÇëÇóÏìÓ¦ÈÕÖ¾
+                    result.Requsts.AddRange(batchReadResult.Requsts);
+                    result.Responses.AddRange(batchReadResult.Responses);
+
+                    if (!batchReadResult.IsSuccess)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = batchReadResult.Message;
+                        result.ResultValue = new Dictionary<string, object>();
+                        return result.Complete();
+                    }
+
+                    // ²½Öè4: ÌáÈ¡¸÷µØÖ·µÄÊı¾İ
+                    var extractedData = ExtractDataFromBlocks(batchReadResult.ResultValue, optimizedBlocks, addressInfos);
+                    
+                    result.ResultValue = extractedData;
+                    result.IsSuccess = true;
+                    
+                    // Í³¼ÆĞÅÏ¢
+                    var totalAddresses = addresses.Count;
+                    var successfulAddresses = extractedData.Count(kvp => kvp.Value != null);
+                    var totalBlocks = optimizedBlocks.Count;
+                    
+                    if (successfulAddresses < totalAddresses)
+                    {
+                        result.Message = $"ÅúÁ¿¶ÁÈ¡²¿·Ö³É¹¦: {successfulAddresses}/{totalAddresses} ¸öµØÖ·³É¹¦£¬Ê¹ÓÃÁË {totalBlocks} ¸öÓÅ»¯¿é";
+                    }
+                    else
+                    {
+                        result.Message = $"ÅúÁ¿¶ÁÈ¡³É¹¦: {successfulAddresses} ¸öµØÖ·£¬Ê¹ÓÃÁË {totalBlocks} ¸öÓÅ»¯¿é";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"ÅúÁ¿¶ÁÈ¡Òì³£: {ex.Message}";
+                    result.Exception = ex;
+                    result.ResultValue = new Dictionary<string, object>();
+                }
+
+                return result.Complete();
+            }
+        }
+
+        public override async Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                var errors = new List<string>();
+                var successCount = 0;
+                
+                try
+                {
+                    // ²ÎÊıÑéÖ¤
+                    if (addresses == null || addresses.Count == 0)
+                    {
+                        return result.Complete();
+                    }
+
+                    // ÅúÁ¿Ğ´ÈëÔİÊ±²ÉÓÃÖğ¸öĞ´ÈëµÄ·½Ê½
+                    // ÒòÎªĞ´Èë²Ù×÷µÄÓÅ»¯±È¶ÁÈ¡¸ü¸´ÔÓ£¬ĞèÒª¿¼ÂÇÊı¾İ¸²¸ÇÎÊÌâ
+                    foreach (var kvp in addresses)
+                    {
+                        try
+                        {
+                            var address = kvp.Key;
+                            var value = kvp.Value;
+                            
+                            // ½«Öµ×ª»»Îª×Ö½ÚÊı×é
+                            byte[] data = ConvertValueToBytes(value, address);
+                            if (data == null)
+                            {
+                                errors.Add($"µØÖ· {address} µÄÖµ×ª»»Ê§°Ü");
+                                continue;
+                            }
+
+                            // Ö´ĞĞĞ´Èë
+                            var writeResult = await WriteAsync(address, data, false);
+                            
+                            // ºÏ²¢ÇëÇóÏìÓ¦ÈÕÖ¾
+                            result.Requsts.AddRange(writeResult.Requsts);
+                            result.Responses.AddRange(writeResult.Responses);
+                            
+                            if (writeResult.IsSuccess)
+                            {
+                                successCount++;
+                            }
+                            else
+                            {
+                                errors.Add($"Ğ´ÈëµØÖ· {address} Ê§°Ü: {writeResult.Message}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"Ğ´ÈëµØÖ· {kvp.Key} Òì³£: {ex.Message}");
+                        }
+                    }
+
+                    // ÉèÖÃ½á¹û×´Ì¬
+                    var totalCount = addresses.Count;
+                    if (successCount == totalCount)
+                    {
+                        result.IsSuccess = true;
+                        result.Message = $"ÅúÁ¿Ğ´Èë³É¹¦: {successCount} ¸öµØÖ·";
+                    }
+                    else if (successCount > 0)
+                    {
+                        result.IsSuccess = true;
+                        result.Message = $"ÅúÁ¿Ğ´Èë²¿·Ö³É¹¦: {successCount}/{totalCount} ¸öµØÖ·³É¹¦";
+                        if (errors.Count > 0)
+                        {
+                            result.Message += $"£¬´íÎó: {string.Join("; ", errors)}";
+                        }
+                    }
+                    else
+                    {
+                        result.IsSuccess = false;
+                        result.Message = $"ÅúÁ¿Ğ´ÈëÊ§°Ü: {string.Join("; ", errors)}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"ÅúÁ¿Ğ´ÈëÒì³£: {ex.Message}";
+                    result.Exception = ex;
+                }
+
+                return result.Complete();
+            }
+        }
+
+        /// <summary>
+        /// ¸ù¾İµØÖ·ÀàĞÍ½«Öµ×ª»»Îª×Ö½ÚÊı×é
+        /// </summary>
+        /// <param name="value">ÒªĞ´ÈëµÄÖµ</param>
+        /// <param name="address">Ä¿±êµØÖ·</param>
+        /// <returns>×ª»»ºóµÄ×Ö½ÚÊı×é</returns>
+        private byte[] ConvertValueToBytes(object value, string address)
+        {
+            try
+            {
+                // ½âÎöµØÖ·ÒÔÈ·¶¨Êı¾İÀàĞÍ
+                var addressInfo = ParseSingleAddress(address);
+                
+                switch (addressInfo.DataType)
+                {
+                    case S7DataType.DBX:
+                    // IÇøºÍQÇøÎ»µØÖ·¶¼Ê¹ÓÃDBX±íÊ¾
+                    
+                    case S7DataType.MX:
+                        // Î»Êı¾İ
+                        if (value is bool boolValue)
+                        {
+                            return new byte[] { (byte)(boolValue ? 1 : 0) };
+                        }
+                        else if (value is int intValue)
+                        {
+                            return new byte[] { (byte)(intValue != 0 ? 1 : 0) };
+                        }
+                        break;
+
+                    case S7DataType.DBB:
+                    case S7DataType.IB:
+                    case S7DataType.QB:
+                    case S7DataType.MB:
+                    case S7DataType.VB:
+                        // ×Ö½ÚÊı¾İ
+                        if (value is byte byteValue)
+                        {
+                            return new byte[] { byteValue };
+                        }
+                        else if (value is int intValue && intValue >= 0 && intValue <= 255)
+                        {
+                            return new byte[] { (byte)intValue };
+                        }
+                        break;
+
+                    case S7DataType.DBW:
+                    case S7DataType.IW:
+                    case S7DataType.QW:
+                    case S7DataType.MW:
+                    case S7DataType.VW:
+                        // ×ÖÊı¾İ
+                        ushort ushortValue = 0;
+                        if (value is ushort us)
+                            ushortValue = us;
+                        else if (value is int intValue && intValue >= 0 && intValue <= 65535)
+                            ushortValue = (ushort)intValue;
+                        else if (value is short shortValue && shortValue >= 0)
+                            ushortValue = (ushort)shortValue;
+                        else
+                            break;
+
+                        if (IsReverse)
+                        {
+                            return new byte[] { (byte)(ushortValue >> 8), (byte)(ushortValue & 0xFF) };
+                        }
+                        else
+                        {
+                            return new byte[] { (byte)(ushortValue & 0xFF), (byte)(ushortValue >> 8) };
+                        }
+
+                    case S7DataType.DBD:
+                    case S7DataType.ID:
+                    case S7DataType.QD:
+                    case S7DataType.MD:
+                    case S7DataType.VD:
+                        // Ë«×ÖÊı¾İ
+                        uint uintValue = 0;
+                        if (value is uint ui)
+                            uintValue = ui;
+                        else if (value is int intValue && intValue >= 0)
+                            uintValue = (uint)intValue;
+                        else if (value is long longValue && longValue >= 0 && longValue <= uint.MaxValue)
+                            uintValue = (uint)longValue;
+                        else if (value is float floatValue)
+                        {
+                            // ½«float×ª»»Îªuint
+                            var floatBytes = BitConverter.GetBytes(floatValue);
+                            if (BitConverter.IsLittleEndian && IsReverse)
+                            {
+                                Array.Reverse(floatBytes);
+                            }
+                            return floatBytes;
+                        }
+                        else
+                            break;
+
+                        if (IsReverse)
+                        {
+                            return new byte[] 
+                            { 
+                                (byte)(uintValue >> 24), 
+                                (byte)((uintValue >> 16) & 0xFF), 
+                                (byte)((uintValue >> 8) & 0xFF), 
+                                (byte)(uintValue & 0xFF) 
+                            };
+                        }
+                        else
+                        {
+                            return new byte[] 
+                            { 
+                                (byte)(uintValue & 0xFF), 
+                                (byte)((uintValue >> 8) & 0xFF), 
+                                (byte)((uintValue >> 16) & 0xFF), 
+                                (byte)(uintValue >> 24) 
+                            };
+                        }
+                }
+            }
+            catch (Exception)
+            {
+                // µØÖ·½âÎö»ò×ª»»Ê§°Ü
+            }
+
+            return null;
+        } 
 
     }
 }

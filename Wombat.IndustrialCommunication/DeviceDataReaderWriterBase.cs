@@ -44,7 +44,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 批量读取数据
         /// </summary>
-        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
+        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
         {
             return BatchReadAsync(addresses).ConfigureAwait(false).GetAwaiter().GetResult();
         }
@@ -181,7 +181,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 异步批量读取数据
         /// </summary>
-        public virtual ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public virtual Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
         {
             throw new NotImplementedException();
         }
@@ -846,7 +846,7 @@ namespace Wombat.IndustrialCommunication
 
         #region WriteAsync
 
-        public Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        public virtual Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
         {
             throw new NotImplementedException();
         }
