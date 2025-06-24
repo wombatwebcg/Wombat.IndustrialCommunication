@@ -13,12 +13,12 @@ namespace Wombat.IndustrialCommunication
         #region Read
 
 
-        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
+        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
         {
             throw new NotImplementedException();
         }
 
-        public virtual ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public virtual Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
         {
             throw new NotImplementedException();
         }

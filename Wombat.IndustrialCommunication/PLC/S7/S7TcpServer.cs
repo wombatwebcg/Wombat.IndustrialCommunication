@@ -515,7 +515,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchRead
-        public OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
+        public OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
         {
             return CreateNotSupportedResult<Dictionary<string, object>>();
         }
@@ -659,9 +659,9 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchReadAsync
-        public ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
         {
-            return new ValueTask<OperationResult<Dictionary<string, object>>>(CreateNotSupportedResult<Dictionary<string, object>>());
+            return Task.FromResult(CreateNotSupportedResult<Dictionary<string, object>>());
         }
         
         // ReadByteAsync

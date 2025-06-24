@@ -181,7 +181,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 分批读取
         /// </summary>
-        public OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
+        public OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
         {
             return CreateNotSupportedResult<Dictionary<string, object>>();
         }
@@ -373,9 +373,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步分批读取
         /// </summary>
-        public ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
         {
-            return new ValueTask<OperationResult<Dictionary<string, object>>>(CreateNotSupportedResult<Dictionary<string, object>>());
+            return Task.FromResult(CreateNotSupportedResult<Dictionary<string, object>>());
         }
         
         /// <summary>

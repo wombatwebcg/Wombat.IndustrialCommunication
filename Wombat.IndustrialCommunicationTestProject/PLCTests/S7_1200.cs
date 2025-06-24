@@ -419,6 +419,84 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             }
         }
 
+        /// <summary>
+        /// 测试S7-1200批量读取功能
+        /// 验证批量读取优化算法的性能和正确性
+        /// </summary>
+        [Fact]
+        public async Task Test_S7_1200_BatchRead()
+        {
+            // Arrange
+            var testName = "S7-1200批量读取测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
+            
+            try
+            {
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
+                
+                LogStep("执行批量读取测试");
+                await TestBatchReadPerformance();
+                
+                LogStep("断开PLC连接");
+                await client.DisconnectAsync();
+                
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await SafeDisconnectAsync();
+            }
+        }
+
+        /// <summary>
+        /// 测试S7-1200批量写入功能
+        /// 验证批量写入功能的性能和正确性
+        /// </summary>
+        [Fact]
+        public async Task Test_S7_1200_BatchWrite()
+        {
+            // Arrange
+            var testName = "S7-1200批量写入测试";
+            LogTestStart(testName);
+            
+            client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
+            
+            try
+            {
+                // Act & Assert
+                LogStep("建立PLC连接");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
+                
+                LogStep("执行批量写入测试");
+                await TestBatchWritePerformance();
+                
+                LogStep("断开PLC连接");
+                await client.DisconnectAsync();
+                
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await SafeDisconnectAsync();
+            }
+        }
+
         #endregion
 
         #region 私有测试方法
@@ -645,6 +723,396 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             await TestDataType(COMPREHENSIVE_DOUBLE_ADDRESS, 789.012345, client.ReadDoubleAsync, client.WriteAsync);
             
             LogInfo("所有数据类型测试完成");
+        }
+
+        /// <summary>
+        /// 测试批量读取性能
+        /// </summary>
+        private async Task TestBatchReadPerformance()
+        {
+            LogInfo("开始批量读取性能测试");
+            
+            // 准备测试数据
+            await PrepareTestData();
+            
+            // 测试场景1：连续地址批量读取
+            await TestContinuousAddressBatchRead();
+            
+            // 测试场景2：分散地址批量读取
+            await TestScatteredAddressBatchRead();
+            
+            // 测试场景3：混合数据类型批量读取
+            await TestMixedDataTypeBatchRead();
+            
+            LogInfo("批量读取性能测试完成");
+        }
+
+        /// <summary>
+        /// 测试批量写入性能
+        /// </summary>
+        private async Task TestBatchWritePerformance()
+        {
+            LogInfo("开始批量写入性能测试");
+            
+            // 测试场景1：连续地址批量写入
+            await TestContinuousAddressBatchWrite();
+            
+            // 测试场景2：分散地址批量写入
+            await TestScatteredAddressBatchWrite();
+            
+            // 测试场景3：混合数据类型批量写入
+            await TestMixedDataTypeBatchWrite();
+            
+            LogInfo("批量写入性能测试完成");
+        }
+
+        /// <summary>
+        /// 准备测试数据
+        /// </summary>
+        private async Task PrepareTestData()
+        {
+            LogInfo("准备测试数据");
+            
+            // 写入测试用的布尔值
+            await client.WriteAsync("DB200.DBX124.0", true);
+            await client.WriteAsync("DB200.DBX124.1", false);
+            await client.WriteAsync("DB200.DBX124.2", true);
+            
+            // 写入测试用的整数
+            await client.WriteAsync("DB200.DBW124", (short)12345);
+            await client.WriteAsync("DB200.DBW126", (short)23456);
+            await client.WriteAsync("DB200.DBW128", (short)32767);
+            
+            // 写入测试用的双字
+            await client.WriteAsync("DB200.DBD130", 1234567890);
+            await client.WriteAsync("DB200.DBD134", 2345678901);
+            await client.WriteAsync("DB200.DBD138", 3456789012);
+            
+            // 写入测试用的浮点数
+            await client.WriteAsync("DB200.DBD250", 123.456f);
+            await client.WriteAsync("DB200.DBD254", 234.567f);
+            await client.WriteAsync("DB200.DBD258", 345.678f);
+            
+            LogInfo("测试数据准备完成");
+        }
+
+        /// <summary>
+        /// 测试连续地址批量读取
+        /// </summary>
+        private async Task TestContinuousAddressBatchRead()
+        {
+            LogInfo("=== 连续地址批量读取测试 ===");
+            
+            // 准备连续地址的测试数据
+            var continuousAddresses = new Dictionary<string, object>
+            {
+                ["DB200.DBW124"] = null,
+                ["DB200.DBW126"] = null,
+                ["DB200.DBW128"] = null,
+                ["DB200.DBD130"] = null,
+                ["DB200.DBD134"] = null,
+                ["DB200.DBD138"] = null
+            };
+            
+            await CompareReadPerformance("连续地址", continuousAddresses);
+        }
+
+        /// <summary>
+        /// 测试分散地址批量读取
+        /// </summary>
+        private async Task TestScatteredAddressBatchRead()
+        {
+            LogInfo("=== 分散地址批量读取测试 ===");
+            
+            // 准备分散地址的测试数据
+            var scatteredAddresses = new Dictionary<string, object>
+            {
+                ["DB200.DBW4"] = null,
+                ["DB200.DBD68"] = null,
+                ["DB200.DBD100"] = null,
+                ["DB200.DBD196"] = null,
+                ["DB200.DBD250"] = null,
+                ["DB200.DBW50"] = null
+            };
+            
+            await CompareReadPerformance("分散地址", scatteredAddresses);
+        }
+
+        /// <summary>
+        /// 测试混合数据类型批量读取
+        /// </summary>
+        private async Task TestMixedDataTypeBatchRead()
+        {
+            LogInfo("=== 混合数据类型批量读取测试 ===");
+            
+            // 准备混合数据类型的测试数据
+            var mixedAddresses = new Dictionary<string, object>
+            {
+                ["DB200.DBX124.0"] = null,
+                ["DB200.DBX124.1"] = null,
+                ["DB200.DBX124.2"] = null,
+                ["DB200.DBW124"] = null,
+                ["DB200.DBW126"] = null,
+                ["DB200.DBD130"] = null,
+                ["DB200.DBD250"] = null,
+                ["DB200.DBD254"] = null
+            };
+            
+            await CompareReadPerformance("混合数据类型", mixedAddresses);
+        }
+
+        /// <summary>
+        /// 比较读取性能（批量 vs 单个）
+        /// </summary>
+        private async Task CompareReadPerformance(string testType, Dictionary<string, object> addresses)
+        {
+            const int testRounds = 5;
+            
+            LogInfo($"开始 {testType} 性能对比测试，共 {testRounds} 轮");
+            
+            // 测试批量读取性能
+            var batchStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                var batchResult = await client.BatchReadAsync(addresses);
+                Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
+                
+                // 验证读取到的数据
+                foreach (var kvp in batchResult.ResultValue)
+                {
+                    Assert.NotNull(kvp.Value);
+                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value}");
+                }
+            }
+            batchStopwatch.Stop();
+            
+            // 测试单个读取性能
+            var individualStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                foreach (var address in addresses.Keys)
+                {
+                    // 根据地址类型选择合适的读取方法
+                    if (address.Contains("DBX"))
+                    {
+                        var result = await client.ReadBooleanAsync(address);
+                        Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                    }
+                    else if (address.Contains("DBW"))
+                    {
+                        var result = await client.ReadInt16Async(address);
+                        Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                    }
+                    else if (address.Contains("DBD"))
+                    {
+                        // 尝试读取为int32，如果地址在浮点数范围则读取为float
+                        if (address.Contains("250") || address.Contains("254") || address.Contains("258"))
+                        {
+                            var result = await client.ReadFloatAsync(address);
+                            Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                            LogInfo($"单个读取 {address}: {result.ResultValue}");
+                        }
+                        else
+                        {
+                            var result = await client.ReadInt32Async(address);
+                            Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                            LogInfo($"单个读取 {address}: {result.ResultValue}");
+                        }
+                    }
+                }
+            }
+            individualStopwatch.Stop();
+            
+            // 计算性能统计
+            var batchTotalTime = batchStopwatch.ElapsedMilliseconds;
+            var individualTotalTime = individualStopwatch.ElapsedMilliseconds;
+            var batchAvgTime = batchTotalTime / (double)testRounds;
+            var individualAvgTime = individualTotalTime / (double)testRounds;
+            var speedupRatio = individualTotalTime / (double)batchTotalTime;
+            var efficiency = ((individualTotalTime - batchTotalTime) / (double)individualTotalTime) * 100;
+            
+            // 打印性能报告
+            LogInfo($"=== {testType} 性能报告 ===");
+            LogInfo($"地址数量: {addresses.Count}");
+            LogInfo($"测试轮数: {testRounds}");
+            LogInfo($"批量读取总时间: {batchTotalTime} ms");
+            LogInfo($"单个读取总时间: {individualTotalTime} ms");
+            LogInfo($"批量读取平均时间: {batchAvgTime:F2} ms/轮");
+            LogInfo($"单个读取平均时间: {individualAvgTime:F2} ms/轮");
+            LogInfo($"性能提升倍数: {speedupRatio:F2}x");
+            LogInfo($"效率提升: {efficiency:F1}%");
+            LogInfo($"时间节省: {individualTotalTime - batchTotalTime} ms");
+            LogInfo("==========================================");
+            
+            // 断言性能结果（对于分散地址，可能没有明显性能提升）
+            if (testType == "连续地址" || testType == "混合数据类型")
+            {
+                Assert.True(batchTotalTime < individualTotalTime, $"{testType}批量读取应该比单个读取更快");
+                Assert.True(speedupRatio > 1.0, $"{testType}批量读取应该有性能提升");
+            }
+            else if (testType == "分散地址")
+            {
+                // 对于分散地址，批量读取可能没有明显优势，但不应该显著更慢
+                Assert.True(speedupRatio >= 0.8, "分散地址批量读取性能不应该显著差于单个读取");
+                LogInfo($"注意: 分散地址优化效果有限，这是正常的。当地址过于分散时，批量读取的优化算法会选择不合并，以避免读取过多无用数据。");
+            }
+            else
+            {
+                Assert.True(batchTotalTime <= individualTotalTime * 1.1, "批量读取性能不应该显著差于单个读取");
+            }
+        }
+
+        /// <summary>
+        /// 测试连续地址批量写入
+        /// </summary>
+        private async Task TestContinuousAddressBatchWrite()
+        {
+            LogInfo("=== 连续地址批量写入测试 ===");
+            
+            var continuousWriteData = new Dictionary<string, object>
+            {
+                ["DB200.DBW140"] = (short)1111,
+                ["DB200.DBW142"] = (short)2222,
+                ["DB200.DBW144"] = (short)3333,
+                ["DB200.DBD146"] = 4444444,
+                ["DB200.DBD150"] = 5555555
+            };
+            
+            await CompareWritePerformance("连续地址", continuousWriteData);
+        }
+
+        /// <summary>
+        /// 测试分散地址批量写入
+        /// </summary>
+        private async Task TestScatteredAddressBatchWrite()
+        {
+            LogInfo("=== 分散地址批量写入测试 ===");
+            
+            var scatteredWriteData = new Dictionary<string, object>
+            {
+                ["DB200.DBW10"] = (short)1001,
+                ["DB200.DBD80"] = 2002002,
+                ["DB200.DBD110"] = 3003003,
+                ["DB200.DBD260"] = 123.789f,
+                ["DB200.DBW52"] = (short)4004
+            };
+            
+            await CompareWritePerformance("分散地址", scatteredWriteData);
+        }
+
+        /// <summary>
+        /// 测试混合数据类型批量写入
+        /// </summary>
+        private async Task TestMixedDataTypeBatchWrite()
+        {
+            LogInfo("=== 混合数据类型批量写入测试 ===");
+            
+            var mixedWriteData = new Dictionary<string, object>
+            {
+                ["DB200.DBX125.0"] = true,
+                ["DB200.DBX125.1"] = false,
+                ["DB200.DBW154"] = (short)9999,
+                ["DB200.DBD156"] = 8888888,
+                ["DB200.DBD262"] = 999.123f
+            };
+            
+            await CompareWritePerformance("混合数据类型", mixedWriteData);
+        }
+
+        /// <summary>
+        /// 比较写入性能（批量 vs 单个）
+        /// </summary>
+        private async Task CompareWritePerformance(string testType, Dictionary<string, object> writeData)
+        {
+            const int testRounds = 5;
+            
+            LogInfo($"开始 {testType} 写入性能对比测试，共 {testRounds} 轮");
+            
+            // 测试批量写入性能
+            var batchStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                var batchResult = await client.BatchWriteAsync(writeData);
+                Assert.True(batchResult.IsSuccess, $"批量写入失败: {batchResult.Message}");
+            }
+            batchStopwatch.Stop();
+            
+            // 测试单个写入性能
+            var individualStopwatch = Stopwatch.StartNew();
+            for (int i = 0; i < testRounds; i++)
+            {
+                foreach (var kvp in writeData)
+                {
+                    // 直接调用带类型的写入方法
+                    OperationResult result;
+                    if (kvp.Value is bool boolVal)
+                        result = await client.WriteAsync(kvp.Key, boolVal);
+                    else if (kvp.Value is short shortVal)
+                        result = await client.WriteAsync(kvp.Key, shortVal);
+                    else if (kvp.Value is int intVal)
+                        result = await client.WriteAsync(kvp.Key, intVal);
+                    else if (kvp.Value is float floatVal)
+                        result = await client.WriteAsync(kvp.Key, floatVal);
+                    else
+                        throw new ArgumentException($"不支持的数据类型: {kvp.Value.GetType()}");
+                    
+                    Assert.True(result.IsSuccess, $"单个写入失败: {result.Message}");
+                }
+            }
+            individualStopwatch.Stop();
+            
+            // 计算性能统计
+            var batchTotalTime = batchStopwatch.ElapsedMilliseconds;
+            var individualTotalTime = individualStopwatch.ElapsedMilliseconds;
+            var batchAvgTime = batchTotalTime / (double)testRounds;
+            var individualAvgTime = individualTotalTime / (double)testRounds;
+            var speedupRatio = individualTotalTime / (double)batchTotalTime;
+            var efficiency = ((individualTotalTime - batchTotalTime) / (double)individualTotalTime) * 100;
+            
+            // 打印性能报告
+            LogInfo($"=== {testType} 写入性能报告 ===");
+            LogInfo($"地址数量: {writeData.Count}");
+            LogInfo($"测试轮数: {testRounds}");
+            LogInfo($"批量写入总时间: {batchTotalTime} ms");
+            LogInfo($"单个写入总时间: {individualTotalTime} ms");
+            LogInfo($"批量写入平均时间: {batchAvgTime:F2} ms/轮");
+            LogInfo($"单个写入平均时间: {individualAvgTime:F2} ms/轮");
+            LogInfo($"性能提升倍数: {speedupRatio:F2}x");
+            LogInfo($"效率提升: {efficiency:F1}%");
+            LogInfo($"时间节省: {individualTotalTime - batchTotalTime} ms");
+            LogInfo("==========================================");
+            
+            // 验证写入结果
+            await Task.Delay(100); // 等待PLC处理
+            foreach (var kvp in writeData)
+            {
+                // 根据数据类型验证写入结果
+                if (kvp.Value is bool boolValue)
+                {
+                    var result = await client.ReadBooleanAsync(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == boolValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is short shortValue)
+                {
+                    var result = await client.ReadInt16Async(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == shortValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is int intValue)
+                {
+                    var result = await client.ReadInt32Async(kvp.Key);
+                    Assert.True(result.IsSuccess && result.ResultValue == intValue, $"写入验证失败: {kvp.Key}");
+                }
+                else if (kvp.Value is float floatValue)
+                {
+                    var result = await client.ReadFloatAsync(kvp.Key);
+                    Assert.True(result.IsSuccess && Math.Abs(result.ResultValue - floatValue) < FLOAT_COMPARISON_PRECISION, 
+                        $"写入验证失败: {kvp.Key}");
+                }
+            }
+            
+            LogInfo($"{testType} 写入验证完成");
         }
 
         private async Task TestDataType<T>(string address, T value, 
