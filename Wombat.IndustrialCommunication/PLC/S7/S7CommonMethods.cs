@@ -136,6 +136,26 @@ namespace Wombat.IndustrialCommunication.PLC
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
                 }
             }
+            else if (firstChar == 'Q' || firstChar == 'I' || firstChar == 'M')
+            {
+                // Q区、I区、M区地址格式解析
+                if (address.Contains('.'))
+                {
+                    // Q2.0、I1.3、M5.7格式：位地址
+                    addressInfo.DataType = DataTypeEnums.Bool;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = true;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
+                else
+                {
+                    // Q2、I1、M5格式：字节地址
+                    addressInfo.DataType = DataTypeEnums.Byte;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
+            }
             else
             {
                 if (address.Length > 1 && address[1] >= '0' && address[1] <= '9')

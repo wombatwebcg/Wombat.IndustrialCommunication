@@ -167,10 +167,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="cancellationToken">取消令牌</param>
         /// <param name="timeout">超时时间(毫秒)，-1表示不设置超时</param>
         /// <returns>操作结果</returns>
-        public static async Task<OperationResult<Dictionary<string, object>>> ExecuteBatchReadAsync(
+        public static async Task<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> ExecuteBatchReadAsync(
             this IDeviceClient client,
-            Func<CancellationToken, Task<OperationResult<Dictionary<string, object>>>> batchReadOperation,
-            Dictionary<string, string> addresses,
+            Func<CancellationToken, Task<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>> batchReadOperation,
+            Dictionary<string, DataTypeEnums> addresses,
             CancellationToken cancellationToken = default,
             int timeout = -1)
         {
@@ -186,12 +186,12 @@ namespace Wombat.IndustrialCommunication
                     var reconnectResult = await autoReconnectClient.CheckAndReconnectAsync();
                     if (!reconnectResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult<Dictionary<string, object>>($"客户端自动重连失败，无法执行批量读取操作 [{contextInfo}]");
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"客户端自动重连失败，无法执行批量读取操作 [{contextInfo}]");
                     }
                 }
                 else
                 {
-                    return OperationResult.CreateFailedResult<Dictionary<string, object>>($"客户端没有连接 [{contextInfo}]");
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"客户端没有连接 [{contextInfo}]");
                 }
             }
             
@@ -213,10 +213,10 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址列表</param>
         /// <param name="cancellationToken">取消令牌</param>
         /// <returns>操作结果</returns>
-        public static Task<OperationResult<Dictionary<string, object>>> ExecuteBatchReadAsync(
+        public static Task<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> ExecuteBatchReadAsync(
             this IDeviceClient client,
-            Func<Task<OperationResult<Dictionary<string, object>>>> batchReadOperation,
-            Dictionary<string, string> addresses,
+            Func<Task<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>> batchReadOperation,
+            Dictionary<string, DataTypeEnums> addresses,
             CancellationToken cancellationToken = default)
         {
             return ExecuteBatchReadAsync(
@@ -238,7 +238,7 @@ namespace Wombat.IndustrialCommunication
         public static async Task<OperationResult> ExecuteBatchWriteAsync(
             this IDeviceClient client,
             Func<CancellationToken, Task<OperationResult>> batchWriteOperation,
-            Dictionary<string, object> addresses,
+            Dictionary<string, (DataTypeEnums, object)> addresses,
             CancellationToken cancellationToken = default,
             int timeout = -1)
         {
@@ -284,7 +284,7 @@ namespace Wombat.IndustrialCommunication
         public static Task<OperationResult> ExecuteBatchWriteAsync(
             this IDeviceClient client,
             Func<Task<OperationResult>> batchWriteOperation,
-            Dictionary<string, object> addresses,
+            Dictionary<string, (DataTypeEnums, object)> addresses,
             CancellationToken cancellationToken = default)
         {
             return ExecuteBatchWriteAsync(

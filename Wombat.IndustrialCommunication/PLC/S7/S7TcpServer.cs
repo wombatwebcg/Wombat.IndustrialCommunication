@@ -515,9 +515,9 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchRead
-        public OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
+        public OperationResult<Dictionary<string, (DataTypeEnums, object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
-            return CreateNotSupportedResult<Dictionary<string, object>>();
+            return CreateNotSupportedResult<Dictionary<string, (DataTypeEnums, object)>>();
         }
         
         // ReadByte
@@ -659,9 +659,9 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchReadAsync
-        public Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
+        public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
-            return Task.FromResult(CreateNotSupportedResult<Dictionary<string, object>>());
+            return new ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>(CreateNotSupportedResult<Dictionary<string, (DataTypeEnums, object)>>());
         }
         
         // ReadByteAsync
@@ -803,7 +803,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchWrite
-        public OperationResult BatchWrite(Dictionary<string, object> addresses)
+        public OperationResult BatchWrite(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             return CreateNotSupportedResult();
         }
@@ -947,9 +947,9 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchWriteAsync
-        public Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return new ValueTask<OperationResult>(CreateNotSupportedResult());
         }
         
         // WriteAsync

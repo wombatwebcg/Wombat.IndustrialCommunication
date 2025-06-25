@@ -13,12 +13,12 @@ namespace Wombat.IndustrialCommunication
         #region Read
 
 
-        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses)
+        public virtual OperationResult<Dictionary<string, (DataTypeEnums, object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new NotImplementedException();
         }
 
-        public virtual Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
+        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new NotImplementedException();
         }
@@ -816,13 +816,13 @@ namespace Wombat.IndustrialCommunication
 
         #region Write
 
-        public virtual OperationResult BatchWrite(Dictionary<string, object> addresses)
+        public virtual OperationResult BatchWrite(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             throw new NotImplementedException();
 
         }
 
-        public Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             throw new NotImplementedException();
 

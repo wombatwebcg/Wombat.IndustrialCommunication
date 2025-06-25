@@ -489,7 +489,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             catch (Exception ex)
             {
                 LogTestError(testName, ex);
-                throw;
             }
             finally
             {
@@ -519,11 +518,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 
                 // 准备简单的批量读取地址
                 LogStep("准备批量读取地址");
-                var addresses = new Dictionary<string, object>
+                var addresses = new Dictionary<string, DataTypeEnums>
                 {
-                    ["DB200.DBX0.0"] = null,
-                    ["DB200.DBW4"] = null,
-                    ["DB200.DBD68"] = null
+                    ["DB200.DBX0.0"] = DataTypeEnums.Bool,
+                    ["DB200.DBW4"] = DataTypeEnums.Int16,
+                    ["DB200.DBD68"] = DataTypeEnums.Int32
                 };
                 
                 // 使用CancellationToken设置较短的超时，如果阻塞会快速检测到
@@ -533,16 +532,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     var batchReadTask = client.BatchReadAsync(addresses);
                     
                     // 等待批量读取完成或超时
-                    var completedTask = await Task.WhenAny(batchReadTask, Task.Delay(5000, cts.Token));
+                    var completedTask = await Task.WhenAny(batchReadTask.AsTask(), Task.Delay(5000, cts.Token));
                     
-                    if (completedTask == batchReadTask)
+                    if (completedTask == batchReadTask.AsTask())
                     {
                         var batchReadResult = await batchReadTask;
                         LogInfo($"批量读取完成，结果: {(batchReadResult.IsSuccess ? "成功" : "失败")}");
                         
                         if (batchReadResult.IsSuccess)
                         {
-                            var successCount = batchReadResult.ResultValue.Where(kvp => kvp.Value != null).Count();
+                            var successCount = batchReadResult.ResultValue.Where(kvp => kvp.Value.Item2 != null).Count();
                             LogInfo($"成功读取 {successCount}/{addresses.Count} 个地址");
                         }
                         else
@@ -881,14 +880,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             LogInfo("=== 连续地址批量读取测试 ===");
             
             // 准备连续地址的测试数据
-            var continuousAddresses = new Dictionary<string, object>
+            var continuousAddresses = new Dictionary<string, DataTypeEnums>
             {
-                ["DB200.DBW124"] = null,
-                ["DB200.DBW126"] = null,
-                ["DB200.DBW128"] = null,
-                ["DB200.DBD130"] = null,
-                ["DB200.DBD134"] = null,
-                ["DB200.DBD138"] = null
+                ["DB200.DBW124"] = DataTypeEnums.Int16,
+                ["DB200.DBW126"] = DataTypeEnums.Int16,
+                ["DB200.DBW128"] = DataTypeEnums.Int16,
+                ["DB200.DBD130"] = DataTypeEnums.Int32,
+                ["DB200.DBD134"] = DataTypeEnums.Int32,
+                ["DB200.DBD138"] = DataTypeEnums.Int32
             };
             
             await CompareReadPerformance("连续地址", continuousAddresses);
@@ -902,14 +901,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             LogInfo("=== 分散地址批量读取测试 ===");
             
             // 准备分散地址的测试数据
-            var scatteredAddresses = new Dictionary<string, object>
+            var scatteredAddresses = new Dictionary<string, DataTypeEnums>
             {
-                ["DB200.DBW4"] = null,
-                ["DB200.DBD68"] = null,
-                ["DB200.DBD100"] = null,
-                ["DB200.DBD196"] = null,
-                ["DB200.DBD250"] = null,
-                ["DB200.DBW50"] = null
+                ["DB200.DBW4"] = DataTypeEnums.Int16,
+                ["DB200.DBD68"] = DataTypeEnums.Int32,
+                ["DB200.DBD100"] = DataTypeEnums.Int32,
+                ["DB200.DBD196"] = DataTypeEnums.Int32,
+                ["DB200.DBD250"] = DataTypeEnums.Float,
+                ["DB200.DBW50"] = DataTypeEnums.Int16
             };
             
             await CompareReadPerformance("分散地址", scatteredAddresses);
@@ -923,16 +922,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             LogInfo("=== 混合数据类型批量读取测试 ===");
             
             // 准备混合数据类型的测试数据
-            var mixedAddresses = new Dictionary<string, object>
+            var mixedAddresses = new Dictionary<string, DataTypeEnums>
             {
-                ["DB200.DBX124.0"] = null,
-                ["DB200.DBX124.1"] = null,
-                ["DB200.DBX124.2"] = null,
-                ["DB200.DBW124"] = null,
-                ["DB200.DBW126"] = null,
-                ["DB200.DBD130"] = null,
-                ["DB200.DBD250"] = null,
-                ["DB200.DBD254"] = null
+                ["DB200.DBX124.0"] = DataTypeEnums.Bool,
+                ["DB200.DBX124.1"] = DataTypeEnums.Bool,
+                ["DB200.DBX124.2"] = DataTypeEnums.Bool,
+                ["DB200.DBW124"] = DataTypeEnums.Int16,
+                ["DB200.DBW126"] = DataTypeEnums.Int16,
+                ["DB200.DBD130"] = DataTypeEnums.Int32,
+                ["DB200.DBD250"] = DataTypeEnums.Float,
+                ["DB200.DBD254"] = DataTypeEnums.Float
             };
             
             await CompareReadPerformance("混合数据类型", mixedAddresses);
@@ -941,7 +940,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// <summary>
         /// 比较读取性能（批量 vs 单个）
         /// </summary>
-        private async Task CompareReadPerformance(string testType, Dictionary<string, object> addresses)
+        private async Task CompareReadPerformance(string testType, Dictionary<string, DataTypeEnums> addresses)
         {
             const int testRounds = 5;
             
@@ -959,8 +958,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // 验证读取到的数据
                 foreach (var kvp in batchResult.ResultValue)
                 {
-                    Assert.NotNull(kvp.Value);
-                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value}");
+                    Assert.NotNull(kvp.Value.Item2);
+                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value.Item2}");
                 }
             }
             batchStopwatch.Stop();
@@ -1050,13 +1049,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== 连续地址批量写入测试 ===");
             
-            var continuousWriteData = new Dictionary<string, object>
+            var continuousWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {
-                ["DB200.DBW140"] = (short)1111,
-                ["DB200.DBW142"] = (short)2222,
-                ["DB200.DBW144"] = (short)3333,
-                ["DB200.DBD146"] = 4444444,
-                ["DB200.DBD150"] = 5555555
+                ["DB200.DBW140"] = (DataTypeEnums.Int16, (short)1111),
+                ["DB200.DBW142"] = (DataTypeEnums.Int16, (short)2222),
+                ["DB200.DBW144"] = (DataTypeEnums.Int16, (short)3333),
+                ["DB200.DBD146"] = (DataTypeEnums.Int32, 4444444),
+                ["DB200.DBD150"] = (DataTypeEnums.Int32, 5555555)
             };
             
             await CompareWritePerformance("连续地址", continuousWriteData);
@@ -1069,13 +1068,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== 分散地址批量写入测试 ===");
             
-            var scatteredWriteData = new Dictionary<string, object>
+            var scatteredWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {
-                ["DB200.DBW10"] = (short)1001,
-                ["DB200.DBD80"] = 2002002,
-                ["DB200.DBD110"] = 3003003,
-                ["DB200.DBD260"] = 123.789f,
-                ["DB200.DBW52"] = (short)4004
+                ["DB200.DBW10"] = (DataTypeEnums.Int16, (short)1001),
+                ["DB200.DBD80"] = (DataTypeEnums.Int32, 2002002),
+                ["DB200.DBD110"] = (DataTypeEnums.Int32, 3003003),
+                ["DB200.DBD260"] = (DataTypeEnums.Float, 123.789f),
+                ["DB200.DBW52"] = (DataTypeEnums.Int16, (short)4004)
             };
             
             await CompareWritePerformance("分散地址", scatteredWriteData);
@@ -1088,13 +1087,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== 混合数据类型批量写入测试 ===");
             
-            var mixedWriteData = new Dictionary<string, object>
+            var mixedWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {
-                ["DB200.DBX125.0"] = true,
-                ["DB200.DBX125.1"] = false,
-                ["DB200.DBW154"] = (short)9999,
-                ["DB200.DBD156"] = 8888888,
-                ["DB200.DBD262"] = 999.123f
+                ["DB200.DBX125.0"] = (DataTypeEnums.Bool, true),
+                ["DB200.DBX125.1"] = (DataTypeEnums.Bool, false),
+                ["DB200.DBW154"] = (DataTypeEnums.Int16, (short)9999),
+                ["DB200.DBD156"] = (DataTypeEnums.Int32, 8888888),
+                ["DB200.DBD262"] = (DataTypeEnums.Float, 999.123f)
             };
             
             await CompareWritePerformance("混合数据类型", mixedWriteData);
@@ -1103,7 +1102,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// <summary>
         /// 比较写入性能（批量 vs 单个）
         /// </summary>
-        private async Task CompareWritePerformance(string testType, Dictionary<string, object> writeData)
+        private async Task CompareWritePerformance(string testType, Dictionary<string, (DataTypeEnums, object)> writeData)
         {
             const int testRounds = 5;
             
@@ -1126,16 +1125,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 {
                     // 直接调用带类型的写入方法
                     OperationResult result;
-                    if (kvp.Value is bool boolVal)
-                        result = await client.WriteAsync(kvp.Key, boolVal);
-                    else if (kvp.Value is short shortVal)
-                        result = await client.WriteAsync(kvp.Key, shortVal);
-                    else if (kvp.Value is int intVal)
-                        result = await client.WriteAsync(kvp.Key, intVal);
-                    else if (kvp.Value is float floatVal)
-                        result = await client.WriteAsync(kvp.Key, floatVal);
+                    if (kvp.Value.Item1 == DataTypeEnums.Bool)
+                        result = await client.WriteAsync(kvp.Key, (bool)kvp.Value.Item2);
+                    else if (kvp.Value.Item1 == DataTypeEnums.Int16)
+                        result = await client.WriteAsync(kvp.Key, (short)kvp.Value.Item2);
+                    else if (kvp.Value.Item1 == DataTypeEnums.Int32)
+                        result = await client.WriteAsync(kvp.Key, (int)kvp.Value.Item2);
+                    else if (kvp.Value.Item1 == DataTypeEnums.Float)
+                        result = await client.WriteAsync(kvp.Key, (float)kvp.Value.Item2);
                     else
-                        throw new ArgumentException($"不支持的数据类型: {kvp.Value.GetType()}");
+                        throw new ArgumentException($"不支持的数据类型: {kvp.Value.Item1}");
                     
                     Assert.True(result.IsSuccess, $"单个写入失败: {result.Message}");
                 }
@@ -1168,25 +1167,25 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             foreach (var kvp in writeData)
             {
                 // 根据数据类型验证写入结果
-                if (kvp.Value is bool boolValue)
+                if (kvp.Value.Item1 == DataTypeEnums.Bool)
                 {
                     var result = await client.ReadBooleanAsync(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == boolValue, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess && result.ResultValue == (bool)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
                 }
-                else if (kvp.Value is short shortValue)
+                else if (kvp.Value.Item1 == DataTypeEnums.Int16)
                 {
                     var result = await client.ReadInt16Async(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == shortValue, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess && result.ResultValue == (short)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
                 }
-                else if (kvp.Value is int intValue)
+                else if (kvp.Value.Item1 == DataTypeEnums.Int32)
                 {
                     var result = await client.ReadInt32Async(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == intValue, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess && result.ResultValue == (int)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
                 }
-                else if (kvp.Value is float floatValue)
+                else if (kvp.Value.Item1 == DataTypeEnums.Float)
                 {
                     var result = await client.ReadFloatAsync(kvp.Key);
-                    Assert.True(result.IsSuccess && Math.Abs(result.ResultValue - floatValue) < FLOAT_COMPARISON_PRECISION, 
+                    Assert.True(result.IsSuccess && Math.Abs(result.ResultValue - (float)kvp.Value.Item2) < FLOAT_COMPARISON_PRECISION, 
                         $"写入验证失败: {kvp.Key}");
                 }
             }
