@@ -18,7 +18,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, object> addresses);
+        OperationResult<Dictionary<string,(DataTypeEnums,object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses);
 
 
 
@@ -202,7 +202,8 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses);
+        /// 
+        ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses);
 
 
 
@@ -383,7 +384,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
 
-        OperationResult BatchWrite(Dictionary<string, object> addresses);
+        OperationResult BatchWrite(Dictionary<string, (DataTypeEnums,object)> addresses);
 
 
 
@@ -597,7 +598,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses);
+        ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses);
 
 
         /// <summary>
