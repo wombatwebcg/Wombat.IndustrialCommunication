@@ -777,19 +777,19 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("准备S7-200 Smart测试数据");
             
-            // 写入测试用的布尔值到Q区
-            await client.WriteAsync("Q1.3", true);
-            await client.WriteAsync("Q1.4", false);
-            await client.WriteAsync("Q1.5", true);
+            // 写入测试用的布尔值到Q区 - 使用不同的Q区地址避免冲突
+            await client.WriteAsync("Q1.6", true);
+            await client.WriteAsync("Q1.7", false);
+            await client.WriteAsync("Q2.0", true);
             
-            // 写入测试用的V区数据 - 使用正确的地址格式
-            await client.WriteAsync(WORD_TEST_ADDRESS, (short)12345);
-            await client.WriteAsync("VW702", (short)23456);
-            await client.WriteAsync("VW704", (short)32767);
-            await client.WriteAsync(DWORD_TEST_ADDRESS, 1234567890);
-            await client.WriteAsync("VD710", (int)123456789);
-            await client.WriteAsync("VD714", 123.456f);
-            await client.WriteAsync("VD718", 234.567f);
+            // 写入测试用的V区数据 - 使用不同的地址范围避免冲突
+            await client.WriteAsync("VW720", (short)12345);  // 使用720+范围
+            await client.WriteAsync("VW722", (short)23456);
+            await client.WriteAsync("VW724", (short)32767);
+            await client.WriteAsync("VD726", 1234567890);
+            await client.WriteAsync("VD730", (int)123456789);
+            await client.WriteAsync("VD734", 123.456f);
+            await client.WriteAsync("VD738", 234.567f);
             
             LogInfo("S7-200 Smart测试数据准备完成");
         }
@@ -801,13 +801,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== V区连续地址批量读取测试 ===");
             
-            // 准备连续V区地址的测试数据
+            // 准备连续V区地址的测试数据 - 使用连续的地址范围
             var continuousAddresses = new Dictionary<string, object>
             {
-                [WORD_TEST_ADDRESS] = null,
+                ["VW700"] = null,  // 使用已定义的常量
                 ["VW702"] = null,
                 ["VW704"] = null,
-                [DWORD_TEST_ADDRESS] = null,
+                ["VD706"] = null,  // 使用连续的VD地址
                 ["VD710"] = null,
                 ["VD714"] = null
             };
@@ -822,15 +822,15 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== V区分散地址批量读取测试 ===");
             
-            // 准备分散V区地址的测试数据
+            // 准备分散V区地址的测试数据 - 使用不同的地址范围避免冲突
             var scatteredAddresses = new Dictionary<string, object>
             {
-                ["VW720"] = null,
-                ["VW740"] = null,
-                ["VW760"] = null,
-                ["VD780"] = null,
-                ["VD800"] = null,
-                ["VD820"] = null
+                ["VW800"] = null,  // 使用800+范围避免与连续测试冲突
+                ["VW850"] = null,
+                ["VW900"] = null,
+                ["VD950"] = null,
+                ["VD1000"] = null,
+                ["VD1050"] = null
             };
             
             await CompareSmart200ReadPerformance("V区分散地址", scatteredAddresses);
@@ -843,16 +843,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== Q区和V区混合批量读取测试 ===");
             
-            // 准备混合区域的测试数据
+            // 准备混合区域的测试数据 - 使用不同的Q区地址避免冲突
             var mixedAddresses = new Dictionary<string, object>
             {
-                ["Q1.3"] = null,
-                ["Q1.4"] = null,
-                ["Q1.5"] = null,
-                [WORD_TEST_ADDRESS] = null,
-                ["VW702"] = null,
-                [DWORD_TEST_ADDRESS] = null,
-                ["VD714"] = null
+                ["Q1.6"] = null,   // 使用不同的Q区地址
+                ["Q1.7"] = null,
+                ["Q2.0"] = null,
+                ["VW720"] = null,  // 使用不同的V区地址
+                ["VW722"] = null,
+                ["VD724"] = null,
+                ["VD728"] = null
             };
             
             await CompareSmart200ReadPerformance("Q区和V区混合", mixedAddresses);
@@ -867,18 +867,41 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             
             LogInfo($"开始 {testType} 性能对比测试，共 {testRounds} 轮");
             
+            // 转换地址字典为新的格式
+            var newAddresses = new Dictionary<string, DataTypeEnums>();
+            foreach (var kvp in addresses)
+            {
+                // 根据地址类型推断数据类型
+                if (kvp.Key.StartsWith("Q") && kvp.Key.Contains("."))
+                {
+                    newAddresses[kvp.Key] = DataTypeEnums.Bool;
+                }
+                else if (kvp.Key.StartsWith("VW"))
+                {
+                    newAddresses[kvp.Key] = DataTypeEnums.Int16;
+                }
+                else if (kvp.Key.StartsWith("VD"))
+                {
+                    newAddresses[kvp.Key] = DataTypeEnums.Int32;
+                }
+                else
+                {
+                    newAddresses[kvp.Key] = DataTypeEnums.Int32; // 默认类型
+                }
+            }
+            
             // 测试批量读取性能
             var batchStopwatch = Stopwatch.StartNew();
             for (int i = 0; i < testRounds; i++)
             {
-                var batchResult = await client.BatchReadAsync(addresses);
+                var batchResult = await client.BatchReadAsync(newAddresses);
                 Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
                 
                 // 验证读取到的数据
                 foreach (var kvp in batchResult.ResultValue)
                 {
-                    Assert.NotNull(kvp.Value);
-                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value}");
+                    Assert.NotNull(kvp.Value.Item2);
+                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value.Item2}");
                 }
             }
             batchStopwatch.Stop();
@@ -896,9 +919,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                         Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
                         LogInfo($"单个读取 {address}: {result.ResultValue}");
                     }
-                    else if (address.StartsWith("V"))
+                    else if (address.StartsWith("VW"))
                     {
-                        // V区地址可能是不同的数据类型，先尝试读取为int32
+                        var result = await client.ReadInt16Async(address);
+                        Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
+                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                    }
+                    else if (address.StartsWith("VD"))
+                    {
                         var result = await client.ReadInt32Async(address);
                         Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
                         LogInfo($"单个读取 {address}: {result.ResultValue}");
@@ -946,6 +974,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== V区连续地址批量写入测试 ===");
             
+            // 使用连续的地址范围，避免地址冲突
             var continuousWriteData = new Dictionary<string, object>
             {
                 ["VW750"] = (short)1111,
@@ -965,13 +994,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== V区分散地址批量写入测试 ===");
             
+            // 使用不同的地址范围避免与连续测试冲突
             var scatteredWriteData = new Dictionary<string, object>
             {
-                ["VW770"] = (short)1001,
-                ["VD800"] = (int)2002002,
-                ["VD850"] = (int)3003003,
-                ["VD900"] = 123.789f,
-                ["VW950"] = (short)4004
+                ["VW850"] = (short)1001,  // 使用850+范围
+                ["VD900"] = (int)2002002,
+                ["VD950"] = (int)3003003,
+                ["VD1000"] = 123.789f,
+                ["VW1050"] = (short)4004
             };
             
             await CompareSmart200WritePerformance("V区分散地址", scatteredWriteData);
@@ -984,13 +1014,15 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("=== Q区和V区混合批量写入测试 ===");
             
+            // 使用不同的Q区地址避免冲突
             var mixedWriteData = new Dictionary<string, object>
             {
-                ["Q1.6"] = true,
-                ["Q1.7"] = false,
-                ["VW980"] = (short)9999,
-                ["VD982"] = (int)8888888,
-                ["VD986"] = 999.123f
+                ["Q2.0"] = true,   // 使用Q2区避免与读取测试冲突
+                ["Q2.1"] = false,
+                ["Q2.2"] = true,
+                ["VW1100"] = (short)9999,  // 使用1100+范围
+                ["VD1102"] = (int)8888888,
+                ["VD1106"] = 999.123f
             };
             
             await CompareSmart200WritePerformance("Q区和V区混合", mixedWriteData);
@@ -1005,11 +1037,39 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             
             LogInfo($"开始 {testType} 写入性能对比测试，共 {testRounds} 轮");
             
+            // 转换写入数据为新的格式
+            var newWriteData = new Dictionary<string, (DataTypeEnums, object)>();
+            foreach (var kvp in writeData)
+            {
+                DataTypeEnums dataType;
+                if (kvp.Value is bool)
+                {
+                    dataType = DataTypeEnums.Bool;
+                }
+                else if (kvp.Value is short)
+                {
+                    dataType = DataTypeEnums.Int16;
+                }
+                else if (kvp.Value is int)
+                {
+                    dataType = DataTypeEnums.Int32;
+                }
+                else if (kvp.Value is float)
+                {
+                    dataType = DataTypeEnums.Float;
+                }
+                else
+                {
+                    dataType = DataTypeEnums.Int32; // 默认类型
+                }
+                newWriteData[kvp.Key] = (dataType, kvp.Value);
+            }
+            
             // 测试批量写入性能
             var batchStopwatch = Stopwatch.StartNew();
             for (int i = 0; i < testRounds; i++)
             {
-                var batchResult = await client.BatchWriteAsync(writeData);
+                var batchResult = await client.BatchWriteAsync(newWriteData);
                 Assert.True(batchResult.IsSuccess, $"批量写入失败: {batchResult.Message}");
             }
             batchStopwatch.Stop();

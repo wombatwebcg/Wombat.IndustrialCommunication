@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -528,27 +529,93 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         private S7AddressInfo ParseVAddress(string address, S7AddressInfo addressInfo)
         {
-            var offsetStr = address.Substring(1); // 去掉V前缀
-            if (!int.TryParse(offsetStr, out int offset))
-                throw new ArgumentException($"V区地址偏移解析失败: {address}");
-
-            // 对于Smart200，V区地址映射到DB1
-            if (SiemensVersion == SiemensVersion.S7_200Smart)
+            // 检查是否是复合地址格式（VW、VD等）
+            if (address.Length > 2 && (address[1] == 'W' || address[1] == 'D' || address[1] == 'B'))
             {
-                addressInfo.DbNumber = 1; // Smart200的V区对应DB1
-                addressInfo.DataType = S7DataType.DBB; // 使用DB区数据类型
-                addressInfo.StartByte = offset;
-                addressInfo.Length = 1; // 默认长度，实际使用时会根据需要调整
-                addressInfo.BitOffset = 0;
+                var dataType = address[1];
+                var offsetStr = address.Substring(2); // 去掉VW、VD、VB前缀
+                
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"V区地址偏移解析失败: {address}");
+
+                // 对于Smart200，V区地址映射到DB1
+                if (SiemensVersion == SiemensVersion.S7_200Smart)
+                {
+                    addressInfo.DbNumber = 1; // Smart200的V区对应DB1
+                    addressInfo.StartByte = offset;
+                    addressInfo.BitOffset = 0;
+
+                    // 根据数据类型设置相应的DB类型
+                    switch (dataType)
+                    {
+                        case 'B':
+                            addressInfo.DataType = S7DataType.DBB;
+                            addressInfo.Length = 1;
+                            break;
+                        case 'W':
+                            addressInfo.DataType = S7DataType.DBW;
+                            addressInfo.Length = 2;
+                            break;
+                        case 'D':
+                            addressInfo.DataType = S7DataType.DBD;
+                            addressInfo.Length = 4;
+                            break;
+                        default:
+                            throw new ArgumentException($"不支持的V区数据类型: {dataType}");
+                    }
+                }
+                else
+                {
+                    // 其他版本的V区地址使用特殊的DB号标识
+                    addressInfo.DbNumber = -1; // 使用-1表示V区
+                    addressInfo.StartByte = offset;
+                    addressInfo.BitOffset = 0;
+
+                    // 根据数据类型设置相应的V类型
+                    switch (dataType)
+                    {
+                        case 'B':
+                            addressInfo.DataType = S7DataType.VB;
+                            addressInfo.Length = 1;
+                            break;
+                        case 'W':
+                            addressInfo.DataType = S7DataType.VW;
+                            addressInfo.Length = 2;
+                            break;
+                        case 'D':
+                            addressInfo.DataType = S7DataType.VD;
+                            addressInfo.Length = 4;
+                            break;
+                        default:
+                            throw new ArgumentException($"不支持的V区数据类型: {dataType}");
+                    }
+                }
             }
             else
             {
-                // 其他版本的V区地址使用特殊的DB号标识
-                addressInfo.DbNumber = -1; // 使用-1表示V区
-                addressInfo.DataType = S7DataType.DBB; // 统一使用DB区数据类型
-                addressInfo.StartByte = offset;
-                addressInfo.Length = 1; // 默认长度，实际使用时会根据需要调整
-                addressInfo.BitOffset = 0;
+                // 简单V区地址格式（如V700）
+                var offsetStr = address.Substring(1); // 去掉V前缀
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"V区地址偏移解析失败: {address}");
+
+                // 对于Smart200，V区地址映射到DB1
+                if (SiemensVersion == SiemensVersion.S7_200Smart)
+                {
+                    addressInfo.DbNumber = 1; // Smart200的V区对应DB1
+                    addressInfo.DataType = S7DataType.DBB; // 使用DB区数据类型
+                    addressInfo.StartByte = offset;
+                    addressInfo.Length = 1; // 默认长度，实际使用时会根据需要调整
+                    addressInfo.BitOffset = 0;
+                }
+                else
+                {
+                    // 其他版本的V区地址使用特殊的DB号标识
+                    addressInfo.DbNumber = -1; // 使用-1表示V区
+                    addressInfo.DataType = S7DataType.VB; // 使用V区字节类型
+                    addressInfo.StartByte = offset;
+                    addressInfo.Length = 1; // 默认长度，实际使用时会根据需要调整
+                    addressInfo.BitOffset = 0;
+                }
             }
 
             return addressInfo;
@@ -559,8 +626,8 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         private S7AddressInfo ParseQAddress(string address, S7AddressInfo addressInfo)
         {
-            // Q区地址属于输出区，使用特殊的DB号标识
-            addressInfo.DbNumber = -2; // 使用-2表示Q区
+            // Q区地址的DbNumber始终为0
+            addressInfo.DbNumber = 0;
 
             if (address.Contains("."))
             {
@@ -598,8 +665,8 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         private S7AddressInfo ParseIAddress(string address, S7AddressInfo addressInfo)
         {
-            // I区地址属于输入区，使用特殊的DB号标识
-            addressInfo.DbNumber = -3; // 使用-3表示I区
+            // I区地址的DbNumber始终为0
+            addressInfo.DbNumber = 0;
 
             if (address.Contains("."))
             {
@@ -723,91 +790,171 @@ namespace Wombat.IndustrialCommunication.PLC
             
             foreach (var dbGroup in dbGroups)
             {
-                // 在每个区域内按起始地址排序
-                var sortedAddresses = dbGroup.OrderBy(a => a.StartByte).ToList();
+                var areaType = dbGroup.Key.AreaType;
                 
-                var currentBlock = new S7AddressBlock
+                // 特殊处理Q区和I区的位地址
+                if ((areaType == "Q" || areaType == "I") && dbGroup.Any(a => a.DataType == S7DataType.DBX))
                 {
-                    DbNumber = dbGroup.Key.DbNumber,
-                    Addresses = new List<S7AddressInfo>()
+                    // 对于Q区和I区的位地址，按字节边界进行优化
+                    var bitAddresses = dbGroup.Where(a => a.DataType == S7DataType.DBX).ToList();
+                    var nonBitAddresses = dbGroup.Where(a => a.DataType != S7DataType.DBX).ToList();
+                    
+                    // 处理位地址
+                    if (bitAddresses.Count > 0)
+                    {
+                        var bitBlocks = OptimizeBitAddresses(bitAddresses, areaType, maxBlockSize);
+                        optimizedBlocks.AddRange(bitBlocks);
+                    }
+                    
+                    // 处理非位地址
+                    if (nonBitAddresses.Count > 0)
+                    {
+                        var nonBitBlocks = OptimizeNonBitAddresses(nonBitAddresses, minEfficiencyRatio, maxBlockSize);
+                        optimizedBlocks.AddRange(nonBitBlocks);
+                    }
+                }
+                else
+                {
+                    // 其他区域的地址使用原有逻辑
+                    var sortedAddresses = dbGroup.OrderBy(a => a.StartByte).ToList();
+                    var blocks = OptimizeNonBitAddresses(sortedAddresses, minEfficiencyRatio, maxBlockSize);
+                    optimizedBlocks.AddRange(blocks);
+                }
+            }
+            
+            return optimizedBlocks;
+        }
+
+        /// <summary>
+        /// 优化位地址（Q区和I区）
+        /// </summary>
+        /// <param name="bitAddresses">位地址列表</param>
+        /// <param name="areaType">区域类型</param>
+        /// <param name="maxBlockSize">最大块大小</param>
+        /// <returns>优化后的地址块列表</returns>
+        private List<S7AddressBlock> OptimizeBitAddresses(List<S7AddressInfo> bitAddresses, string areaType, int maxBlockSize)
+        {
+            var optimizedBlocks = new List<S7AddressBlock>();
+            
+            // 按字节地址分组
+            var byteGroups = bitAddresses.GroupBy(a => a.StartByte).ToList();
+            
+            foreach (var byteGroup in byteGroups)
+            {
+                var byteOffset = byteGroup.Key;
+                var addresses = byteGroup.ToList();
+                
+                // 每个字节作为一个块
+                var block = new S7AddressBlock
+                {
+                    DbNumber = addresses[0].DbNumber,
+                    StartByte = byteOffset,
+                    TotalLength = 1, // 按字节读取
+                    Addresses = addresses,
+                    EfficiencyRatio = 1.0 // 位地址的效率比总是1.0
                 };
                 
-                foreach (var address in sortedAddresses)
+                optimizedBlocks.Add(block);
+            }
+            
+            return optimizedBlocks;
+        }
+
+        /// <summary>
+        /// 优化非位地址
+        /// </summary>
+        /// <param name="addresses">地址列表</param>
+        /// <param name="minEfficiencyRatio">最小效率比</param>
+        /// <param name="maxBlockSize">最大块大小</param>
+        /// <returns>优化后的地址块列表</returns>
+        private List<S7AddressBlock> OptimizeNonBitAddresses(List<S7AddressInfo> addresses, double minEfficiencyRatio, int maxBlockSize)
+        {
+            var optimizedBlocks = new List<S7AddressBlock>();
+            
+            // 按起始地址排序
+            var sortedAddresses = addresses.OrderBy(a => a.StartByte).ToList();
+            
+            var currentBlock = new S7AddressBlock
+            {
+                DbNumber = addresses[0].DbNumber,
+                Addresses = new List<S7AddressInfo>()
+            };
+            
+            foreach (var address in sortedAddresses)
+            {
+                // 如果是第一个地址，直接加入当前块
+                if (currentBlock.Addresses.Count == 0)
                 {
-                    // 如果是第一个地址，直接加入当前块
-                    if (currentBlock.Addresses.Count == 0)
-                    {
-                        currentBlock.StartByte = address.StartByte;
-                        currentBlock.TotalLength = address.Length;
-                        currentBlock.Addresses.Add(address);
-                        continue;
-                    }
-                    
-                    // 计算如果加入此地址后的新块参数
-                    var newStartByte = Math.Min(currentBlock.StartByte, address.StartByte);
-                    var currentEndByte = currentBlock.StartByte + currentBlock.TotalLength;
-                    var addressEndByte = address.StartByte + address.Length;
-                    var newEndByte = Math.Max(currentEndByte, addressEndByte);
-                    var newTotalLength = newEndByte - newStartByte;
-                    
-                    // 检查块大小限制
-                    if (newTotalLength > maxBlockSize)
-                    {
-                        // 超过最大块大小，完成当前块并开始新块
-                        currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
-                        optimizedBlocks.Add(currentBlock);
-                        
-                        currentBlock = new S7AddressBlock
-                        {
-                            DbNumber = dbGroup.Key.DbNumber,
-                            StartByte = address.StartByte,
-                            TotalLength = address.Length,
-                            Addresses = new List<S7AddressInfo> { address }
-                        };
-                        continue;
-                    }
-                    
-                    // 计算加入后的效率比
-                    var testBlock = new S7AddressBlock
-                    {
-                        DbNumber = dbGroup.Key.DbNumber,
-                        StartByte = newStartByte,
-                        TotalLength = newTotalLength,
-                        Addresses = new List<S7AddressInfo>(currentBlock.Addresses) { address }
-                    };
-                    
-                    var newEfficiencyRatio = CalculateEfficiencyRatio(testBlock);
-                    
-                    // 检查效率比是否满足要求
-                    if (newEfficiencyRatio >= minEfficiencyRatio)
-                    {
-                        // 效率比满足要求，合并地址
-                        currentBlock.StartByte = newStartByte;
-                        currentBlock.TotalLength = newTotalLength;
-                        currentBlock.Addresses.Add(address);
-                    }
-                    else
-                    {
-                        // 效率比不满足要求，完成当前块并开始新块
-                        currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
-                        optimizedBlocks.Add(currentBlock);
-                        
-                        currentBlock = new S7AddressBlock
-                        {
-                            DbNumber = dbGroup.Key.DbNumber,
-                            StartByte = address.StartByte,
-                            TotalLength = address.Length,
-                            Addresses = new List<S7AddressInfo> { address }
-                        };
-                    }
+                    currentBlock.StartByte = address.StartByte;
+                    currentBlock.TotalLength = address.Length;
+                    currentBlock.Addresses.Add(address);
+                    continue;
                 }
                 
-                // 添加最后一个块
-                if (currentBlock.Addresses.Count > 0)
+                // 计算如果加入此地址后的新块参数
+                var newStartByte = Math.Min(currentBlock.StartByte, address.StartByte);
+                var currentEndByte = currentBlock.StartByte + currentBlock.TotalLength;
+                var addressEndByte = address.StartByte + address.Length;
+                var newEndByte = Math.Max(currentEndByte, addressEndByte);
+                var newTotalLength = newEndByte - newStartByte;
+                
+                // 检查块大小限制
+                if (newTotalLength > maxBlockSize)
                 {
+                    // 超过最大块大小，完成当前块并开始新块
                     currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
                     optimizedBlocks.Add(currentBlock);
+                    
+                    currentBlock = new S7AddressBlock
+                    {
+                        DbNumber = address.DbNumber,
+                        StartByte = address.StartByte,
+                        TotalLength = address.Length,
+                        Addresses = new List<S7AddressInfo> { address }
+                    };
+                    continue;
                 }
+                
+                // 计算加入后的效率比
+                var testBlock = new S7AddressBlock
+                {
+                    DbNumber = address.DbNumber,
+                    StartByte = newStartByte,
+                    TotalLength = newTotalLength,
+                    Addresses = new List<S7AddressInfo>(currentBlock.Addresses) { address }
+                };
+                
+                var newEfficiencyRatio = CalculateEfficiencyRatio(testBlock);
+                
+                // 检查效率比是否满足要求
+                if (newEfficiencyRatio >= minEfficiencyRatio)
+                {
+                    // 效率比满足要求，合并地址
+                    currentBlock.StartByte = newStartByte;
+                    currentBlock.TotalLength = newTotalLength;
+                    currentBlock.Addresses.Add(address);
+                }
+                else
+                {
+                    // 效率比不满足要求，完成当前块并开始新块
+                    currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                    optimizedBlocks.Add(currentBlock);
+                    
+                    currentBlock = new S7AddressBlock
+                    {
+                        DbNumber = address.DbNumber,
+                        StartByte = address.StartByte,
+                        TotalLength = address.Length,
+                        Addresses = new List<S7AddressInfo> { address }
+                    };
+                }
+            }
+            
+            // 添加最后一个块
+            if (currentBlock.Addresses.Count > 0)
+            {
+                currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                optimizedBlocks.Add(currentBlock);
             }
             
             return optimizedBlocks;
@@ -850,6 +997,24 @@ namespace Wombat.IndustrialCommunication.PLC
                         var firstAddress = block.Addresses[0];
                         var areaType = GetAreaType(firstAddress.DataType);
                         
+                        // 根据DbNumber的特殊值来确定区域类型
+                        if (block.DbNumber == -2) // Q区
+                        {
+                            areaType = "Q";
+                        }
+                        else if (block.DbNumber == -3) // I区
+                        {
+                            areaType = "I";
+                        }
+                        else if (block.DbNumber == -4) // M区
+                        {
+                            areaType = "M";
+                        }
+                        else if (block.DbNumber == -1) // V区
+                        {
+                            areaType = "V";
+                        }
+                        
                         switch (areaType)
                         {
                             case "DB":
@@ -857,8 +1022,20 @@ namespace Wombat.IndustrialCommunication.PLC
                                 blockKey = $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
                                 break;
                             case "I":
-                                blockAddress = $"I{block.StartByte}";
+                                blockAddress = $"IB{block.StartByte}";
                                 blockKey = $"I_{block.StartByte}_{block.TotalLength}";
+                                break;
+                            case "Q":
+                                blockAddress = $"QB{block.StartByte}";
+                                blockKey = $"Q_{block.StartByte}_{block.TotalLength}";
+                                break;
+                            case "M":
+                                blockAddress = $"MB{block.StartByte}";
+                                blockKey = $"M_{block.StartByte}_{block.TotalLength}";
+                                break;
+                            case "V":
+                                blockAddress = $"VB{block.StartByte}";
+                                blockKey = $"V_{block.StartByte}_{block.TotalLength}";
                                 break;
                             default:
                                 errors.Add($"不支持的地址类型: {areaType}");
@@ -991,6 +1168,24 @@ namespace Wombat.IndustrialCommunication.PLC
                     var firstAddress = block.Addresses[0];
                     var areaType = GetAreaType(firstAddress.DataType);
                     
+                    // 根据DbNumber的特殊值来确定区域类型
+                    if (block.DbNumber == -2) // Q区
+                    {
+                        areaType = "Q";
+                    }
+                    else if (block.DbNumber == -3) // I区
+                    {
+                        areaType = "I";
+                    }
+                    else if (block.DbNumber == -4) // M区
+                    {
+                        areaType = "M";
+                    }
+                    else if (block.DbNumber == -1) // V区
+                    {
+                        areaType = "V";
+                    }
+                    
                     switch (areaType)
                     {
                         case "DB":
@@ -998,6 +1193,15 @@ namespace Wombat.IndustrialCommunication.PLC
                             break;
                         case "I":
                             blockKey = $"I_{block.StartByte}_{block.TotalLength}";
+                            break;
+                        case "Q":
+                            blockKey = $"Q_{block.StartByte}_{block.TotalLength}";
+                            break;
+                        case "M":
+                            blockKey = $"M_{block.StartByte}_{block.TotalLength}";
+                            break;
+                        case "V":
+                            blockKey = $"V_{block.StartByte}_{block.TotalLength}";
                             break;
                         default:
                             // 无法识别的地址类型，跳过
@@ -1072,6 +1276,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 case S7DataType.DBB:
                 case S7DataType.IB:
+                case S7DataType.VB:
                     // 字节数据
                     if (offset < data.Length)
                     {
@@ -1081,6 +1286,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 case S7DataType.DBW:
                 case S7DataType.IW:
+                case S7DataType.VW:
                     // 字数据 (2字节)
                     if (offset + 1 < data.Length)
                     {
@@ -1097,6 +1303,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 case S7DataType.DBD:
                 case S7DataType.ID:
+                case S7DataType.VD:
                     // 双字数据 (4字节)
                     if (offset + 3 < data.Length)
                     {
@@ -1116,96 +1323,352 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
+        /// <summary>
+        /// 将值转换为字节数组
+        /// </summary>
+        /// <param name="value">要转换的值</param>
+        /// <param name="addressInfo">地址信息</param>
+        /// <returns>字节数组</returns>
+        private byte[] ConvertValueToBytes(object value, S7AddressInfo addressInfo)
+        {
+            try
+            {
+                switch (addressInfo.DataType)
+                {
+                    case S7DataType.DBX:
+                        // 位数据
+                        if (value is bool boolValue)
+                        {
+                            var byteArray = new byte[1];
+                            if (boolValue)
+                            {
+                                byteArray[0] = (byte)(1 << addressInfo.BitOffset);
+                            }
+                            return byteArray;
+                        }
+                        return null;
 
-        public override async Task<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, object> addresses)
+                    case S7DataType.DBB:
+                    case S7DataType.IB:
+                    case S7DataType.VB:
+                        // 字节数据
+                        if (value is byte byteValue)
+                        {
+                            return new byte[] { byteValue };
+                        }
+                        else if (value is int intValue)
+                        {
+                            return new byte[] { (byte)intValue };
+                        }
+                        return null;
+
+                    case S7DataType.DBW:
+                    case S7DataType.IW:
+                    case S7DataType.VW:
+                        // 字数据 (2字节)
+                        if (value is short shortValue)
+                        {
+                            var bytes = new byte[2];
+                            if (IsReverse)
+                            {
+                                bytes[0] = (byte)(shortValue >> 8);
+                                bytes[1] = (byte)(shortValue & 0xFF);
+                            }
+                            else
+                            {
+                                bytes[0] = (byte)(shortValue & 0xFF);
+                                bytes[1] = (byte)(shortValue >> 8);
+                            }
+                            return bytes;
+                        }
+                        else if (value is ushort ushortValue)
+                        {
+                            var bytes = new byte[2];
+                            if (IsReverse)
+                            {
+                                bytes[0] = (byte)(ushortValue >> 8);
+                                bytes[1] = (byte)(ushortValue & 0xFF);
+                            }
+                            else
+                            {
+                                bytes[0] = (byte)(ushortValue & 0xFF);
+                                bytes[1] = (byte)(ushortValue >> 8);
+                            }
+                            return bytes;
+                        }
+                        return null;
+
+                    case S7DataType.DBD:
+                    case S7DataType.ID:
+                        // 双字数据 (4字节)
+                        if (value is int int32Value)
+                        {
+                            var bytes = new byte[4];
+                            if (IsReverse)
+                            {
+                                bytes[0] = (byte)(int32Value >> 24);
+                                bytes[1] = (byte)(int32Value >> 16);
+                                bytes[2] = (byte)(int32Value >> 8);
+                                bytes[3] = (byte)(int32Value & 0xFF);
+                            }
+                            else
+                            {
+                                bytes[0] = (byte)(int32Value & 0xFF);
+                                bytes[1] = (byte)(int32Value >> 8);
+                                bytes[2] = (byte)(int32Value >> 16);
+                                bytes[3] = (byte)(int32Value >> 24);
+                            }
+                            return bytes;
+                        }
+                        else if (value is uint uint32Value)
+                        {
+                            var bytes = new byte[4];
+                            if (IsReverse)
+                            {
+                                bytes[0] = (byte)(uint32Value >> 24);
+                                bytes[1] = (byte)(uint32Value >> 16);
+                                bytes[2] = (byte)(uint32Value >> 8);
+                                bytes[3] = (byte)(uint32Value & 0xFF);
+                            }
+                            else
+                            {
+                                bytes[0] = (byte)(uint32Value & 0xFF);
+                                bytes[1] = (byte)(uint32Value >> 8);
+                                bytes[2] = (byte)(uint32Value >> 16);
+                                bytes[3] = (byte)(uint32Value >> 24);
+                            }
+                            return bytes;
+                        }
+                        else if (value is float floatValue)
+                        {
+                            var intBytes = BitConverter.GetBytes(floatValue);
+                            if (IsReverse)
+                            {
+                                Array.Reverse(intBytes);
+                            }
+                            return intBytes;
+                        }
+                        return null;
+
+                    default:
+                        return null;
+                }
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 构造写入地址
+        /// </summary>
+        /// <param name="addressInfo">地址信息</param>
+        /// <returns>写入地址字符串</returns>
+        private string ConstructWriteAddress(S7AddressInfo addressInfo)
+        {
+            try
+            {
+                var areaType = GetAreaType(addressInfo.DataType);
+                
+                switch (areaType)
+                {
+                    case "DB":
+                        if (addressInfo.DataType == S7DataType.DBX)
+                        {
+                            return $"DB{addressInfo.DbNumber}.DBX{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.DBB)
+                        {
+                            return $"DB{addressInfo.DbNumber}.DBB{addressInfo.StartByte}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.DBW)
+                        {
+                            return $"DB{addressInfo.DbNumber}.DBW{addressInfo.StartByte}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.DBD)
+                        {
+                            return $"DB{addressInfo.DbNumber}.DBD{addressInfo.StartByte}";
+                        }
+                        break;
+
+                    case "I":
+                        if (addressInfo.DataType == S7DataType.DBX)
+                        {
+                            return $"I{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.IW)
+                        {
+                            return $"IW{addressInfo.StartByte}";
+                        }
+                        break;
+
+                    case "Q":
+                        if (addressInfo.DataType == S7DataType.DBX)
+                        {
+                            return $"Q{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.DBW)
+                        {
+                            return $"QW{addressInfo.StartByte}";
+                        }
+                        break;
+
+                    case "M":
+                        if (addressInfo.DataType == S7DataType.MX)
+                        {
+                            return $"M{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                        }
+                        else if (addressInfo.DataType == S7DataType.MB)
+                        {
+                            return $"MB{addressInfo.StartByte}";
+                        }
+                        break;
+
+                    case "V":
+                        // V区地址（Smart200）
+                        if (SiemensVersion == SiemensVersion.S7_200Smart)
+                        {
+                            if (addressInfo.DataType == S7DataType.DBX)
+                            {
+                                return $"DB1.DBX{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                            }
+                            else if (addressInfo.DataType == S7DataType.DBB)
+                            {
+                                return $"DB1.DBB{addressInfo.StartByte}";
+                            }
+                            else if (addressInfo.DataType == S7DataType.DBW)
+                            {
+                                return $"DB1.DBW{addressInfo.StartByte}";
+                            }
+                            else if (addressInfo.DataType == S7DataType.DBD)
+                            {
+                                return $"DB1.DBD{addressInfo.StartByte}";
+                            }
+                        }
+                        else
+                        {
+                            // 非Smart200的V区地址
+                            if (addressInfo.DataType == S7DataType.VB)
+                            {
+                                return $"VB{addressInfo.StartByte}";
+                            }
+                            else if (addressInfo.DataType == S7DataType.VW)
+                            {
+                                return $"VW{addressInfo.StartByte}";
+                            }
+                            else if (addressInfo.DataType == S7DataType.VD)
+                            {
+                                return $"VD{addressInfo.StartByte}";
+                            }
+                        }
+                        break;
+                }
+
+                return null;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             using (await _lock.LockAsync())
             {
-                var result = new OperationResult<Dictionary<string, object>>();
+                var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
                 
                 try
                 {
                     // 参数验证
                     if (addresses == null || addresses.Count == 0)
                     {
-                        result.ResultValue = new Dictionary<string, object>();
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // 步骤1: 解析地址
-                    var addressInfos = ParseAddresses(addresses);
+                    // 将地址字典转换为内部格式
+                    var internalAddresses = new Dictionary<string, object>();
+                    foreach (var kvp in addresses)
+                    {
+                        internalAddresses[kvp.Key] = null; // 读取时值为null
+                    }
+
+                    // 解析地址信息
+                    var addressInfos = ParseAddresses(internalAddresses);
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = "所有地址解析失败";
-                        result.ResultValue = new Dictionary<string, object>();
+                        result.Message = "没有有效的地址可以读取";
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // 步骤2: 优化地址块
+                    // 优化地址块
                     var optimizedBlocks = OptimizeAddressBlocks(addressInfos);
                     if (optimizedBlocks.Count == 0)
                     {
                         result.IsSuccess = false;
                         result.Message = "地址优化失败";
-                        result.ResultValue = new Dictionary<string, object>();
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // 步骤3: 执行批量读取
-                    var batchReadResult = await ExecuteBatchRead(optimizedBlocks);
-                    
-                    // 合并请求响应日志
-                    result.Requsts.AddRange(batchReadResult.Requsts);
-                    result.Responses.AddRange(batchReadResult.Responses);
-
-                    if (!batchReadResult.IsSuccess)
+                    // 执行批量读取
+                    var blockReadResult = await ExecuteBatchRead(optimizedBlocks);
+                    if (!blockReadResult.IsSuccess && blockReadResult.ResultValue.Count == 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = batchReadResult.Message;
-                        result.ResultValue = new Dictionary<string, object>();
+                        result.Message = blockReadResult.Message;
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // 步骤4: 提取各地址的数据
-                    var extractedData = ExtractDataFromBlocks(batchReadResult.ResultValue, optimizedBlocks, addressInfos);
-                    
-                    result.ResultValue = extractedData;
+                    // 从块数据中提取各个地址的值
+                    var extractedData = ExtractDataFromBlocks(blockReadResult.ResultValue, optimizedBlocks, addressInfos);
+
+                    // 转换为新的返回格式
+                    var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
+                    foreach (var kvp in addresses)
+                    {
+                        var address = kvp.Key;
+                        var dataType = kvp.Value;
+                        
+                        if (extractedData.TryGetValue(address, out var value))
+                        {
+                            finalResult[address] = (dataType, value);
+                        }
+                        else
+                        {
+                            finalResult[address] = (dataType, null);
+                        }
+                    }
+
+                    result.ResultValue = finalResult;
                     result.IsSuccess = true;
                     
-                    // 统计信息
-                    var totalAddresses = addresses.Count;
-                    var successfulAddresses = extractedData.Count(kvp => kvp.Value != null);
-                    var totalBlocks = optimizedBlocks.Count;
-                    
-                    if (successfulAddresses < totalAddresses)
-                    {
-                        result.Message = $"批量读取部分成功: {successfulAddresses}/{totalAddresses} 个地址成功，使用了 {totalBlocks} 个优化块";
-                    }
-                    else
-                    {
-                        result.Message = $"批量读取成功: {successfulAddresses} 个地址，使用了 {totalBlocks} 个优化块";
-                    }
+                    // 合并请求和响应日志
+                    result.Requsts.AddRange(blockReadResult.Requsts);
+                    result.Responses.AddRange(blockReadResult.Responses);
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
                     result.Message = $"批量读取异常: {ex.Message}";
                     result.Exception = ex;
-                    result.ResultValue = new Dictionary<string, object>();
+                    result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                 }
 
                 return result.Complete();
             }
         }
 
-        public override async Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult();
-                var errors = new List<string>();
-                var successCount = 0;
                 
                 try
                 {
@@ -1215,65 +1678,88 @@ namespace Wombat.IndustrialCommunication.PLC
                         return result.Complete();
                     }
 
-                    // 批量写入暂时采用逐个写入的方式
-                    // 因为写入操作的优化比读取更复杂，需要考虑数据覆盖问题
+                    // 将地址字典转换为内部格式
+                    var internalAddresses = new Dictionary<string, object>();
                     foreach (var kvp in addresses)
+                    {
+                        internalAddresses[kvp.Key] = kvp.Value.Item2; // 写入时使用实际值
+                    }
+
+                    // 解析地址信息
+                    var addressInfos = ParseAddresses(internalAddresses);
+                    if (addressInfos.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "没有有效的地址可以写入";
+                        return result.Complete();
+                    }
+
+                    // 执行批量写入
+                    var writeErrors = new List<string>();
+                    var successCount = 0;
+
+                    foreach (var addressInfo in addressInfos)
                     {
                         try
                         {
-                            var address = kvp.Key;
-                            var value = kvp.Value;
-                            
-                            // 将值转换为字节数组
-                            byte[] data = ConvertValueToBytes(value, address);
-                            if (data == null)
+                            // 获取对应的值
+                            if (!internalAddresses.TryGetValue(addressInfo.OriginalAddress, out var value))
                             {
-                                errors.Add($"地址 {address} 的值转换失败");
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
                                 continue;
                             }
 
-                            // 执行写入
-                            var writeResult = await WriteAsync(address, data, false);
-                            
-                            // 合并请求响应日志
-                            result.Requsts.AddRange(writeResult.Requsts);
-                            result.Responses.AddRange(writeResult.Responses);
-                            
+                            // 将值转换为字节数组
+                            byte[] data = ConvertValueToBytes(value, addressInfo);
+                            if (data == null)
+                            {
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 的值转换失败");
+                                continue;
+                            }
+
+                            // 构造写入地址
+                            string writeAddress = ConstructWriteAddress(addressInfo);
+                            if (string.IsNullOrEmpty(writeAddress))
+                            {
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
+                                continue;
+                            }
+
+                            // 执行单个写入
+                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.DataType == S7DataType.DBX);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;
+                                // 合并请求和响应日志
+                                result.Requsts.AddRange(writeResult.Requsts);
+                                result.Responses.AddRange(writeResult.Responses);
                             }
                             else
                             {
-                                errors.Add($"写入地址 {address} 失败: {writeResult.Message}");
+                                writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            errors.Add($"写入地址 {kvp.Key} 异常: {ex.Message}");
+                            writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
                         }
                     }
 
-                    // 设置结果状态
-                    var totalCount = addresses.Count;
-                    if (successCount == totalCount)
+                    // 设置结果
+                    if (successCount == addressInfos.Count)
                     {
                         result.IsSuccess = true;
-                        result.Message = $"批量写入成功: {successCount} 个地址";
+                        result.Message = $"成功写入 {successCount} 个地址";
                     }
                     else if (successCount > 0)
                     {
-                        result.IsSuccess = true;
-                        result.Message = $"批量写入部分成功: {successCount}/{totalCount} 个地址成功";
-                        if (errors.Count > 0)
-                        {
-                            result.Message += $"，错误: {string.Join("; ", errors)}";
-                        }
+                        result.IsSuccess = false;
+                        result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
                     }
                     else
                     {
                         result.IsSuccess = false;
-                        result.Message = $"批量写入失败: {string.Join("; ", errors)}";
+                        result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
                     }
                 }
                 catch (Exception ex)
@@ -1286,133 +1772,5 @@ namespace Wombat.IndustrialCommunication.PLC
                 return result.Complete();
             }
         }
-
-        /// <summary>
-        /// 根据地址类型将值转换为字节数组
-        /// </summary>
-        /// <param name="value">要写入的值</param>
-        /// <param name="address">目标地址</param>
-        /// <returns>转换后的字节数组</returns>
-        private byte[] ConvertValueToBytes(object value, string address)
-        {
-            try
-            {
-                // 解析地址以确定数据类型
-                var addressInfo = ParseSingleAddress(address);
-                
-                switch (addressInfo.DataType)
-                {
-                    case S7DataType.DBX:
-                    // I区和Q区位地址都使用DBX表示
-                    
-                    case S7DataType.MX:
-                        // 位数据
-                        if (value is bool boolValue)
-                        {
-                            return new byte[] { (byte)(boolValue ? 1 : 0) };
-                        }
-                        else if (value is int intValue)
-                        {
-                            return new byte[] { (byte)(intValue != 0 ? 1 : 0) };
-                        }
-                        break;
-
-                    case S7DataType.DBB:
-                    case S7DataType.IB:
-                    case S7DataType.QB:
-                    case S7DataType.MB:
-                    case S7DataType.VB:
-                        // 字节数据
-                        if (value is byte byteValue)
-                        {
-                            return new byte[] { byteValue };
-                        }
-                        else if (value is int intValue && intValue >= 0 && intValue <= 255)
-                        {
-                            return new byte[] { (byte)intValue };
-                        }
-                        break;
-
-                    case S7DataType.DBW:
-                    case S7DataType.IW:
-                    case S7DataType.QW:
-                    case S7DataType.MW:
-                    case S7DataType.VW:
-                        // 字数据
-                        ushort ushortValue = 0;
-                        if (value is ushort us)
-                            ushortValue = us;
-                        else if (value is int intValue && intValue >= 0 && intValue <= 65535)
-                            ushortValue = (ushort)intValue;
-                        else if (value is short shortValue && shortValue >= 0)
-                            ushortValue = (ushort)shortValue;
-                        else
-                            break;
-
-                        if (IsReverse)
-                        {
-                            return new byte[] { (byte)(ushortValue >> 8), (byte)(ushortValue & 0xFF) };
-                        }
-                        else
-                        {
-                            return new byte[] { (byte)(ushortValue & 0xFF), (byte)(ushortValue >> 8) };
-                        }
-
-                    case S7DataType.DBD:
-                    case S7DataType.ID:
-                    case S7DataType.QD:
-                    case S7DataType.MD:
-                    case S7DataType.VD:
-                        // 双字数据
-                        uint uintValue = 0;
-                        if (value is uint ui)
-                            uintValue = ui;
-                        else if (value is int intValue && intValue >= 0)
-                            uintValue = (uint)intValue;
-                        else if (value is long longValue && longValue >= 0 && longValue <= uint.MaxValue)
-                            uintValue = (uint)longValue;
-                        else if (value is float floatValue)
-                        {
-                            // 将float转换为uint
-                            var floatBytes = BitConverter.GetBytes(floatValue);
-                            if (BitConverter.IsLittleEndian && IsReverse)
-                            {
-                                Array.Reverse(floatBytes);
-                            }
-                            return floatBytes;
-                        }
-                        else
-                            break;
-
-                        if (IsReverse)
-                        {
-                            return new byte[] 
-                            { 
-                                (byte)(uintValue >> 24), 
-                                (byte)((uintValue >> 16) & 0xFF), 
-                                (byte)((uintValue >> 8) & 0xFF), 
-                                (byte)(uintValue & 0xFF) 
-                            };
-                        }
-                        else
-                        {
-                            return new byte[] 
-                            { 
-                                (byte)(uintValue & 0xFF), 
-                                (byte)((uintValue >> 8) & 0xFF), 
-                                (byte)((uintValue >> 16) & 0xFF), 
-                                (byte)(uintValue >> 24) 
-                            };
-                        }
-                }
-            }
-            catch (Exception)
-            {
-                // 地址解析或转换失败
-            }
-
-            return null;
-        } 
-
     }
 }

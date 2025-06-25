@@ -8,10 +8,10 @@ namespace Wombat.IndustrialCommunication.PLC
 {
     public class S7WriteRequest : IDeviceReadWriteMessage
     {
-        public S7WriteRequest(string address,int offest, byte[] writeData, bool isBit)
+        public S7WriteRequest(string address, int offest, byte[] writeData, bool isBit)
         {
             RegisterAddress = address;
-            var siemensWriteAddress= S7CommonMethods.ConvertWriteArg(address, offest, writeData, isBit);
+            var siemensWriteAddress = S7CommonMethods.ConvertWriteArg(address, offest, writeData, isBit);
             ProtocolMessageFrame = GetWriteCommand(siemensWriteAddress);
 
         }
