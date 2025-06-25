@@ -65,12 +65,18 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private const string BOOL_TEST_ADDRESS_2 = "Q1.4";
         private const string BOOL_TEST_ADDRESS_3 = "Q1.5";
         
-        /// <summary>基础数据测试地址</summary>
-        private const string BASIC_DATA_ADDRESS = "V700";
+        /// <summary>基础数据测试地址 - 使用双字地址支持32位数据</summary>
+        private const string BASIC_DATA_ADDRESS = "VD700";
         private const string STRING_DATA_ADDRESS = "V1000";
         
-        /// <summary>连接测试地址</summary>
-        private const string CONNECTION_TEST_ADDRESS = "V700";
+        /// <summary>连接测试地址 - 使用双字地址</summary>
+        private const string CONNECTION_TEST_ADDRESS = "VD700";
+        
+        /// <summary>不同数据类型的测试地址</summary>
+        private const string BYTE_TEST_ADDRESS = "V700";      // 字节地址（用于布尔数组）
+        private const string WORD_TEST_ADDRESS = "VW700";      // 字地址（16位）
+        private const string DWORD_TEST_ADDRESS = "VD700";     // 双字地址（32位）
+        private const string BOOL_BIT_TEST_ADDRESS = "V700.0"; // 位地址
         
         #endregion
 
@@ -207,10 +213,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 
                 // Act & Assert - 验证连接有效性
                 LogStep("验证连接有效性");
-                var testValue = 12345;
-                var writeResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testValue);
+                short testValue = 12345;
+                var writeResult = await client.WriteAsync(WORD_TEST_ADDRESS, testValue);
                 Assert.True(writeResult.IsSuccess, $"写入失败: {writeResult.Message}");
-                var readResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
+                var readResult = await client.ReadInt16Async(WORD_TEST_ADDRESS);
                 Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
                 Assert.Equal(testValue, readResult.ResultValue);
                 
@@ -227,12 +233,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 LogStep("验证连接恢复");
                 LogInfo($"当前连接状态: {(client.Connected ? "已连接" : "未连接")}");
                 
-                var recoveryTestValue = 54321;
-                writeResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, recoveryTestValue);
+                short recoveryTestValue = 22222;
+                writeResult = await client.WriteAsync(WORD_TEST_ADDRESS, recoveryTestValue);
                 if (writeResult.IsSuccess)
                 {
                     LogInfo("写入成功，连接已恢复");
-                    readResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
+                    readResult = await client.ReadInt16Async(WORD_TEST_ADDRESS);
                     Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
                     Assert.Equal(recoveryTestValue, readResult.ResultValue);
                 }
@@ -293,10 +299,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 
                 // Act & Assert - 测试整数读写
                 LogStep("测试短连接整数读写");
-                var testIntValue = 12345;
-                var writeIntResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testIntValue);
+                short testIntValue = 12345;
+                var writeIntResult = await client.WriteAsync(WORD_TEST_ADDRESS, testIntValue);
                 Assert.True(writeIntResult.IsSuccess, $"写入整数失败: {writeIntResult.Message}");
-                var readIntResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS);
+                var readIntResult = await client.ReadInt16Async(WORD_TEST_ADDRESS);
                 Assert.True(readIntResult.IsSuccess, $"读取整数失败: {readIntResult.Message}");
                 Assert.Equal(testIntValue, readIntResult.ResultValue);
                 
@@ -307,9 +313,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // Act & Assert - 测试浮点数读写
                 LogStep("测试短连接浮点数读写");
                 var testFloatValue = 123.45f;
-                var writeFloatResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testFloatValue);
+                var writeFloatResult = await client.WriteAsync(DWORD_TEST_ADDRESS, testFloatValue);
                 Assert.True(writeFloatResult.IsSuccess, $"写入浮点数失败: {writeFloatResult.Message}");
-                var readFloatResult = await client.ReadFloatAsync(CONNECTION_TEST_ADDRESS);
+                var readFloatResult = await client.ReadFloatAsync(DWORD_TEST_ADDRESS);
                 Assert.True(readFloatResult.IsSuccess, $"读取浮点数失败: {readFloatResult.Message}");
                 Assert.Equal(testFloatValue, readFloatResult.ResultValue);
                 
@@ -323,9 +329,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 client.MaxReconnectAttempts = 1;
                 
                 var testIntArray = new int[] { 1, 2, 3, 4, 5 };
-                var writeArrayResult = await client.WriteAsync(CONNECTION_TEST_ADDRESS, testIntArray);
+                var writeArrayResult = await client.WriteAsync(DWORD_TEST_ADDRESS, testIntArray);
                 Assert.True(writeArrayResult.IsSuccess, $"写入数组失败: {writeArrayResult.Message}");
-                var readArrayResult = await client.ReadInt32Async(CONNECTION_TEST_ADDRESS, testIntArray.Length);
+                var readArrayResult = await client.ReadInt32Async(DWORD_TEST_ADDRESS, testIntArray.Length);
                 Assert.True(readArrayResult.IsSuccess, $"读取数组失败: {readArrayResult.Message}");
                 
                 for (int i = 0; i < testIntArray.Length; i++)
@@ -387,7 +393,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             catch (Exception ex)
             {
                 LogTestError(testName, ex);
-                throw;
             }
             finally
             {
@@ -443,7 +448,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private void ReadWrite()
         {
-            LogInfo("执行基于V700和Q区的同步读写测试");
+            LogInfo("执行基于VD700和Q区的同步读写测试");
             Random rnd = new Random((int)Stopwatch.GetTimestamp());
             for (int i = 0; i < BASIC_TEST_CYCLES; i++)
             {
@@ -468,25 +473,29 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 client.Write(BOOL_TEST_ADDRESS_3, !bool_value);
                 Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_3).ResultValue == !bool_value, $"布尔值应为{!bool_value}");
 
-                client.Write("V700", short_number);
-                Assert.True(client.ReadInt16("V700").ResultValue == short_number);
-                client.Write("V700", short_number_1);
-                Assert.True(client.ReadUInt16("V700").ResultValue == short_number_1);
+                // 测试16位整数读写 - 使用字地址
+                client.Write(WORD_TEST_ADDRESS, short_number);
+                Assert.True(client.ReadInt16(WORD_TEST_ADDRESS).ResultValue == short_number);
+                client.Write(WORD_TEST_ADDRESS, short_number_1);
+                Assert.True(client.ReadUInt16(WORD_TEST_ADDRESS).ResultValue == short_number_1);
 
-                client.Write("V700", int_number);
-                Assert.True(client.ReadInt32("V700").ResultValue == int_number);
-                client.Write("V700", int_number_1);
-                Assert.True(client.ReadUInt32("V700").ResultValue == int_number_1);
+                // 测试32位整数读写 - 使用双字地址
+                client.Write(DWORD_TEST_ADDRESS, int_number);
+                Assert.True(client.ReadInt32(DWORD_TEST_ADDRESS).ResultValue == int_number);
+                client.Write(DWORD_TEST_ADDRESS, int_number_1);
+                Assert.True(client.ReadUInt32(DWORD_TEST_ADDRESS).ResultValue == int_number_1);
 
-                client.Write("V700", Convert.ToInt64(int_number));
-                Assert.True(client.ReadInt64("V700").ResultValue == Convert.ToInt64(int_number));
-                client.Write("V700", Convert.ToUInt64(int_number_1));
-                Assert.True(client.ReadUInt64("V700").ResultValue == Convert.ToUInt64(int_number_1));
+                // 测试64位整数读写 - 使用双字地址（占用8字节）
+                client.Write(DWORD_TEST_ADDRESS, Convert.ToInt64(int_number));
+                Assert.True(client.ReadInt64(DWORD_TEST_ADDRESS).ResultValue == Convert.ToInt64(int_number));
+                client.Write(DWORD_TEST_ADDRESS, Convert.ToUInt64(int_number_1));
+                Assert.True(client.ReadUInt64(DWORD_TEST_ADDRESS).ResultValue == Convert.ToUInt64(int_number_1));
 
-                client.Write("V700", float_number);
-                Assert.True(client.ReadFloat("V700").ResultValue == float_number);
-                client.Write("V700", Convert.ToDouble(float_number));
-                Assert.True(client.ReadDouble("V700").ResultValue == Convert.ToDouble(float_number));
+                // 测试浮点数读写 - 使用双字地址
+                client.Write(DWORD_TEST_ADDRESS, float_number);
+                Assert.True(client.ReadFloat(DWORD_TEST_ADDRESS).ResultValue == float_number);
+                client.Write(DWORD_TEST_ADDRESS, Convert.ToDouble(float_number));
+                Assert.True(client.ReadDouble(DWORD_TEST_ADDRESS).ResultValue == Convert.ToDouble(float_number));
 
                 //var rrr =  client.Write("V1000", value_string);
                 //  var ttttt = client.ReadString("V1000", value_string.Length);
@@ -494,8 +503,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 bool[] bool_values = { false, true, false, false, false, false, false, false, false, false
                         , false, false, false,false,false,false,false,false,false, true };
-                client.Write("V700", bool_values);
-                var bool_values_result = client.ReadBoolean("V700", bool_values.Length);
+                client.Write(BYTE_TEST_ADDRESS, bool_values);
+                var bool_values_result = client.ReadBoolean(BYTE_TEST_ADDRESS, bool_values.Length);
                 for (int j = 0; j < bool_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(bool_values_result.ResultValue[j] == bool_values[j]);
@@ -503,8 +512,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 short[] short_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", short_values);
-                var short_values_result = client.ReadInt16("V700", short_values.Length);
+                client.Write(WORD_TEST_ADDRESS, short_values);
+                var short_values_result = client.ReadInt16(WORD_TEST_ADDRESS, short_values.Length);
                 for (int j = 0; j < short_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(short_values_result.ResultValue[j] == short_values[j]);
@@ -512,8 +521,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 ushort[] ushort_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", ushort_values);
-                var ushort_values_result = client.ReadInt16("V700", ushort_values.Length);
+                client.Write(WORD_TEST_ADDRESS, ushort_values);
+                var ushort_values_result = client.ReadInt16(WORD_TEST_ADDRESS, ushort_values.Length);
                 for (int j = 0; j < ushort_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(ushort_values_result.ResultValue[j] == ushort_values[j]);
@@ -521,8 +530,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 int[] int_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", int_values);
-                var int_values_result = client.ReadInt32("V700", int_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, int_values);
+                var int_values_result = client.ReadInt32(DWORD_TEST_ADDRESS, int_values.Length);
                 for (int j = 0; j < int_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(int_values_result.ResultValue[j] == int_values[j]);
@@ -530,8 +539,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 uint[] uint_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", uint_values);
-                var uint_values_result = client.ReadUInt32("V700", uint_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, uint_values);
+                var uint_values_result = client.ReadUInt32(DWORD_TEST_ADDRESS, uint_values.Length);
                 for (int j = 0; j < uint_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(uint_values_result.ResultValue[j] == uint_values[j]);
@@ -539,8 +548,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 long[] long_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", long_values);
-                var long_values_result = client.ReadInt64("V700", long_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, long_values);
+                var long_values_result = client.ReadInt64(DWORD_TEST_ADDRESS, long_values.Length);
                 for (long j = 0; j < long_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(long_values_result.ResultValue[j] == long_values[j]);
@@ -548,8 +557,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 ulong[] ulong_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", ulong_values);
-                var ulong_values_result = client.ReadUInt64("V700", ulong_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, ulong_values);
+                var ulong_values_result = client.ReadUInt64(DWORD_TEST_ADDRESS, ulong_values.Length);
                 for (int j = 0; j < ulong_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(ulong_values_result.ResultValue[j] == ulong_values[j]);
@@ -557,16 +566,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 float[] float_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", float_values);
-                var float_values_result = client.ReadFloat("V700", float_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, float_values);
+                var float_values_result = client.ReadFloat(DWORD_TEST_ADDRESS, float_values.Length);
                 for (int j = 0; j < float_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(float_values_result.ResultValue[j] == float_values[j]);
 
                 }
                 double[] double_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                client.Write("V700", double_values);
-                var double_values_result = client.ReadDouble("V700", double_values.Length);
+                client.Write(DWORD_TEST_ADDRESS, double_values);
+                var double_values_result = client.ReadDouble(DWORD_TEST_ADDRESS, double_values.Length);
                 for (int j = 0; j < double_values_result.ResultValue.Length; j++)
                 {
                     Assert.True(double_values_result.ResultValue[j] == double_values[j]);
@@ -604,26 +613,30 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 await client.WriteAsync("Q1.5", !bool_value);
                 Assert.True(client.ReadBooleanAsync("Q1.5").Result.ResultValue == !bool_value);
 
-                var ssss = await client.WriteAsync("V700", short_number);
-                var tttt = client.ReadInt16Async("V700");
-                Assert.True(client.ReadInt16Async("V700").Result.ResultValue == short_number);
-                await client.WriteAsync("V700", short_number_1);
-                Assert.True(client.ReadUInt16Async("V700").Result.ResultValue == short_number_1);
+                // 测试16位整数读写 - 使用字地址
+                var ssss = await client.WriteAsync(WORD_TEST_ADDRESS, short_number);
+                var tttt = client.ReadInt16Async(WORD_TEST_ADDRESS);
+                Assert.True(client.ReadInt16Async(WORD_TEST_ADDRESS).Result.ResultValue == short_number);
+                await client.WriteAsync(WORD_TEST_ADDRESS, short_number_1);
+                Assert.True(client.ReadUInt16Async(WORD_TEST_ADDRESS).Result.ResultValue == short_number_1);
 
-                await client.WriteAsync("V700", int_number);
-                Assert.True(client.ReadInt32Async("V700").Result.ResultValue == int_number);
-                await client.WriteAsync("V700", int_number_1);
-                Assert.True(client.ReadUInt32Async("V700").Result.ResultValue == int_number_1);
+                // 测试32位整数读写 - 使用双字地址
+                await client.WriteAsync(DWORD_TEST_ADDRESS, int_number);
+                Assert.True(client.ReadInt32Async(DWORD_TEST_ADDRESS).Result.ResultValue == int_number);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, int_number_1);
+                Assert.True(client.ReadUInt32Async(DWORD_TEST_ADDRESS).Result.ResultValue == int_number_1);
 
-                await client.WriteAsync("V700", Convert.ToInt64(int_number));
-                Assert.True(client.ReadInt64Async("V700").Result.ResultValue == Convert.ToInt64(int_number));
-                await client.WriteAsync("V700", Convert.ToUInt64(int_number_1));
-                Assert.True(client.ReadUInt64Async("V700").Result.ResultValue == Convert.ToUInt64(int_number_1));
+                // 测试64位整数读写 - 使用双字地址（占用8字节）
+                await client.WriteAsync(DWORD_TEST_ADDRESS, Convert.ToInt64(int_number));
+                Assert.True(client.ReadInt64Async(DWORD_TEST_ADDRESS).Result.ResultValue == Convert.ToInt64(int_number));
+                await client.WriteAsync(DWORD_TEST_ADDRESS, Convert.ToUInt64(int_number_1));
+                Assert.True(client.ReadUInt64Async(DWORD_TEST_ADDRESS).Result.ResultValue == Convert.ToUInt64(int_number_1));
 
-                await client.WriteAsync("V700", float_number);
-                Assert.True(client.ReadFloatAsync("V700").Result.ResultValue == float_number);
-                await client.WriteAsync("V700", Convert.ToDouble(float_number));
-                Assert.True(client.ReadDoubleAsync("V700").Result.ResultValue == Convert.ToDouble(float_number));
+                // 测试浮点数读写 - 使用双字地址
+                await client.WriteAsync(DWORD_TEST_ADDRESS, float_number);
+                Assert.True(client.ReadFloatAsync(DWORD_TEST_ADDRESS).Result.ResultValue == float_number);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, Convert.ToDouble(float_number));
+                Assert.True(client.ReadDoubleAsync(DWORD_TEST_ADDRESS).Result.ResultValue == Convert.ToDouble(float_number));
 
                 //var rrr =  await client.WriteAsync("V1000", value_string);
                 //  var ttttt = client.ReadString("V1000", value_string.Length);
@@ -631,8 +644,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 bool[] bool_values = { false, true, false, false, false, false, false, false, false, false
                         , false, false, false,false,false,false,false,false,false, true };
-                await client.WriteAsync("V700", bool_values);
-                var bool_values_result = client.ReadBooleanAsync("V700", bool_values.Length);
+                await client.WriteAsync(BYTE_TEST_ADDRESS, bool_values);
+                var bool_values_result = client.ReadBooleanAsync(BYTE_TEST_ADDRESS, bool_values.Length);
                 for (int j = 0; j < bool_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(bool_values_result.Result.ResultValue[j] == bool_values[j]);
@@ -640,8 +653,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 short[] short_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", short_values);
-                var short_values_result = client.ReadInt16Async("V700", short_values.Length);
+                await client.WriteAsync(WORD_TEST_ADDRESS, short_values);
+                var short_values_result = client.ReadInt16Async(WORD_TEST_ADDRESS, short_values.Length);
                 for (int j = 0; j < short_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(short_values_result.Result.ResultValue[j] == short_values[j]);
@@ -649,8 +662,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 ushort[] ushort_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", ushort_values);
-                var ushort_values_result = client.ReadInt16Async("V700", ushort_values.Length);
+                await client.WriteAsync(WORD_TEST_ADDRESS, ushort_values);
+                var ushort_values_result = client.ReadInt16Async(WORD_TEST_ADDRESS, ushort_values.Length);
                 for (int j = 0; j < ushort_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(ushort_values_result.Result.ResultValue[j] == ushort_values[j]);
@@ -658,8 +671,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 int[] int_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", int_values);
-                var int_values_result = client.ReadInt32Async("V700", int_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, int_values);
+                var int_values_result = client.ReadInt32Async(DWORD_TEST_ADDRESS, int_values.Length);
                 for (int j = 0; j < int_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(int_values_result.Result.ResultValue[j] == int_values[j]);
@@ -667,8 +680,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 uint[] uint_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", uint_values);
-                var uint_values_result = client.ReadUInt32Async("V700", uint_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, uint_values);
+                var uint_values_result = client.ReadUInt32Async(DWORD_TEST_ADDRESS, uint_values.Length);
                 for (int j = 0; j < uint_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(uint_values_result.Result.ResultValue[j] == uint_values[j]);
@@ -676,8 +689,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 long[] long_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", long_values);
-                var long_values_result = client.ReadInt64Async("V700", long_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, long_values);
+                var long_values_result = client.ReadInt64Async(DWORD_TEST_ADDRESS, long_values.Length);
                 for (long j = 0; j < long_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(long_values_result.Result.ResultValue[j] == long_values[j]);
@@ -685,8 +698,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 ulong[] ulong_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", ulong_values);
-                var ulong_values_result = client.ReadUInt64Async("V700", ulong_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, ulong_values);
+                var ulong_values_result = client.ReadUInt64Async(DWORD_TEST_ADDRESS, ulong_values.Length);
                 for (int j = 0; j < ulong_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(ulong_values_result.Result.ResultValue[j] == ulong_values[j]);
@@ -694,16 +707,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
 
                 float[] float_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", float_values);
-                var float_values_result = client.ReadFloatAsync("V700", float_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, float_values);
+                var float_values_result = client.ReadFloatAsync(DWORD_TEST_ADDRESS, float_values.Length);
                 for (int j = 0; j < float_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(float_values_result.Result.ResultValue[j] == float_values[j]);
 
                 }
                 double[] double_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
-                await client.WriteAsync("V700", double_values);
-                var double_values_result = client.ReadDoubleAsync("V700", double_values.Length);
+                await client.WriteAsync(DWORD_TEST_ADDRESS, double_values);
+                var double_values_result = client.ReadDoubleAsync(DWORD_TEST_ADDRESS, double_values.Length);
                 for (int j = 0; j < double_values_result.Result.ResultValue.Length; j++)
                 {
                     Assert.True(double_values_result.Result.ResultValue[j] == double_values[j]);
@@ -769,14 +782,14 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             await client.WriteAsync("Q1.4", false);
             await client.WriteAsync("Q1.5", true);
             
-            // 写入测试用的V区数据
-            await client.WriteAsync("V700", (short)12345);
-            await client.WriteAsync("V702", (short)23456);
-            await client.WriteAsync("V704", (short)32767);
-            await client.WriteAsync("V706", 1234567890);
-            await client.WriteAsync("V710", 2345678901);
-            await client.WriteAsync("V714", 123.456f);
-            await client.WriteAsync("V718", 234.567f);
+            // 写入测试用的V区数据 - 使用正确的地址格式
+            await client.WriteAsync(WORD_TEST_ADDRESS, (short)12345);
+            await client.WriteAsync("VW702", (short)23456);
+            await client.WriteAsync("VW704", (short)32767);
+            await client.WriteAsync(DWORD_TEST_ADDRESS, 1234567890);
+            await client.WriteAsync("VD710", (int)123456789);
+            await client.WriteAsync("VD714", 123.456f);
+            await client.WriteAsync("VD718", 234.567f);
             
             LogInfo("S7-200 Smart测试数据准备完成");
         }
@@ -791,12 +804,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             // 准备连续V区地址的测试数据
             var continuousAddresses = new Dictionary<string, object>
             {
-                ["V700"] = null,
-                ["V702"] = null,
-                ["V704"] = null,
-                ["V706"] = null,
-                ["V710"] = null,
-                ["V714"] = null
+                [WORD_TEST_ADDRESS] = null,
+                ["VW702"] = null,
+                ["VW704"] = null,
+                [DWORD_TEST_ADDRESS] = null,
+                ["VD710"] = null,
+                ["VD714"] = null
             };
             
             await CompareSmart200ReadPerformance("V区连续地址", continuousAddresses);
@@ -812,12 +825,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             // 准备分散V区地址的测试数据
             var scatteredAddresses = new Dictionary<string, object>
             {
-                ["V700"] = null,
-                ["V720"] = null,
-                ["V740"] = null,
-                ["V760"] = null,
-                ["V780"] = null,
-                ["V800"] = null
+                ["VW720"] = null,
+                ["VW740"] = null,
+                ["VW760"] = null,
+                ["VD780"] = null,
+                ["VD800"] = null,
+                ["VD820"] = null
             };
             
             await CompareSmart200ReadPerformance("V区分散地址", scatteredAddresses);
@@ -836,10 +849,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 ["Q1.3"] = null,
                 ["Q1.4"] = null,
                 ["Q1.5"] = null,
-                ["V700"] = null,
-                ["V702"] = null,
-                ["V706"] = null,
-                ["V714"] = null
+                [WORD_TEST_ADDRESS] = null,
+                ["VW702"] = null,
+                [DWORD_TEST_ADDRESS] = null,
+                ["VD714"] = null
             };
             
             await CompareSmart200ReadPerformance("Q区和V区混合", mixedAddresses);
@@ -935,11 +948,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             
             var continuousWriteData = new Dictionary<string, object>
             {
-                ["V750"] = (short)1111,
-                ["V752"] = (short)2222,
-                ["V754"] = (short)3333,
-                ["V756"] = 4444444,
-                ["V760"] = 5555555f
+                ["VW750"] = (short)1111,
+                ["VW752"] = (short)2222,
+                ["VW754"] = (short)3333,
+                ["VD756"] = (int)4444444,
+                ["VD760"] = 5555555f
             };
             
             await CompareSmart200WritePerformance("V区连续地址", continuousWriteData);
@@ -954,11 +967,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             
             var scatteredWriteData = new Dictionary<string, object>
             {
-                ["V770"] = (short)1001,
-                ["V800"] = 2002002,
-                ["V850"] = 3003003,
-                ["V900"] = 123.789f,
-                ["V950"] = (short)4004
+                ["VW770"] = (short)1001,
+                ["VD800"] = (int)2002002,
+                ["VD850"] = (int)3003003,
+                ["VD900"] = 123.789f,
+                ["VW950"] = (short)4004
             };
             
             await CompareSmart200WritePerformance("V区分散地址", scatteredWriteData);
@@ -975,9 +988,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             {
                 ["Q1.6"] = true,
                 ["Q1.7"] = false,
-                ["V980"] = (short)9999,
-                ["V982"] = 8888888,
-                ["V986"] = 999.123f
+                ["VW980"] = (short)9999,
+                ["VD982"] = (int)8888888,
+                ["VD986"] = 999.123f
             };
             
             await CompareSmart200WritePerformance("Q区和V区混合", mixedWriteData);

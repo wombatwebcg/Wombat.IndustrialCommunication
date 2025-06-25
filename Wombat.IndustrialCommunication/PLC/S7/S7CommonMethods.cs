@@ -101,7 +101,40 @@ namespace Wombat.IndustrialCommunication.PLC
             else if (firstChar == 'V')
             {
                 addressInfo.DbBlock = 1;
-                addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                
+                // V地址格式解析：V1.0（位）、V1（字节）、VW1（字）、VD1（双字）
+                if (address.Length >= 3 && address[1] == 'W')
+                {
+                    // VW格式：字地址
+                    addressInfo.DataType = DataTypeEnums.Int16;
+                    addressInfo.ReadWriteLength = 2;
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
+                }
+                else if (address.Length >= 3 && address[1] == 'D')
+                {
+                    // VD格式：双字地址
+                    addressInfo.DataType = DataTypeEnums.Int32;
+                    addressInfo.ReadWriteLength = 4;
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
+                }
+                else if (address.Contains('.'))
+                {
+                    // V1.0格式：位地址
+                    addressInfo.DataType = DataTypeEnums.Bool;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = true;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
+                else
+                {
+                    // V1格式：字节地址
+                    addressInfo.DataType = DataTypeEnums.Byte;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
             }
             else
             {

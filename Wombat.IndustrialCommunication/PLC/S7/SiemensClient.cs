@@ -11,7 +11,6 @@ namespace Wombat.IndustrialCommunication.PLC
     public class SiemensClient : S7Communication, IDeviceClient, IAutoReconnectClient
     {
         TcpClientAdapter _tcpClientAdapter;
-        private readonly AsyncLock _lock = new AsyncLock();
         
         public IPEndPoint IPEndPoint { get; private set; }
         

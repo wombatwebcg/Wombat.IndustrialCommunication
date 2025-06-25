@@ -70,7 +70,7 @@ namespace Wombat.IndustrialCommunication.PLC
     public class S7Communication : DeviceDataReaderWriterBase
     {
 
-        private AsyncLock _lock = new AsyncLock();
+        internal AsyncLock _lock = new AsyncLock();
 
 
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
@@ -216,6 +216,11 @@ namespace Wombat.IndustrialCommunication.PLC
                                 result.Responses.Add(tempResult.Responses[0]);
                                 bytesContent.AddRange(tempResult.ResultValue);
                                 alreadyFinished += readLength;
+                            }
+                            else
+                            {
+                                // 读取失败，直接返回失败结果，避免无限循环
+                                return tempResult;
                             }
                         }
 
@@ -866,8 +871,8 @@ namespace Wombat.IndustrialCommunication.PLC
                         continue;
                     }
                     
-                    // 使用现有的ReadAsync方法读取整个块
-                    var readResult = await ReadAsync(blockAddress, block.TotalLength, false);
+                    // 直接调用底层读取方法，避免重复加锁
+                    var readResult = await InternalReadAsync(blockAddress, block.TotalLength, false);
                     
                     if (readResult.IsSuccess)
                     {
@@ -902,6 +907,68 @@ namespace Wombat.IndustrialCommunication.PLC
 
             result.ResultValue = blockDataDict;
             return result.Complete();
+        }
+
+        /// <summary>
+        /// 内部读取方法，不加锁，供批量读取使用
+        /// </summary>
+        private async ValueTask<OperationResult<byte[]>> InternalReadAsync(string address, int length, bool isBit = false)
+        {
+            if (Transport is S7EthernetTransport s7Transport)
+            {
+                var tempResult = new OperationResult<byte>();
+                var readRequest = new S7ReadRequest(address, 0, length, isBit);
+                var response = await s7Transport.UnicastReadMessageAsync(readRequest);
+                if (response.IsSuccess)
+                {
+                    int realLength = length;
+                    var dataPackage = response.ResultValue.ProtocolMessageFrame;
+                    byte[] responseData = new byte[realLength];
+                    try
+                    {
+                        //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
+                        if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
+                        {
+                            if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
+                            {
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                            }
+                            else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
+                            {
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                            }
+                            else if (dataPackage[21] != 0xFF)
+                            {
+                                tempResult.IsSuccess = false;
+                                tempResult.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
+                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                            }
+                        }
+                        if (isBit) { realLength = (int)(Math.Ceiling(realLength / 8.0)); }
+                        Array.Copy(dataPackage, dataPackage.Length - realLength, responseData, 0, realLength);
+                    }
+                    catch (Exception ex)
+                    {
+                        tempResult.Exception = ex;
+                        tempResult.Message = $"{address} 0 {length} 读取预期长度与返回数据长度不一致";
+                        return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                    }
+                    
+                    var result = new OperationResult<byte[]>(response, responseData);
+                    result.Requsts.Add(string.Join(" ", readRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                    result.Responses.Add(string.Join(" ", response.ResultValue.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                    return result.Complete();
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(response);
+                }
+            }
+            return OperationResult.CreateFailedResult<byte[]>();
         }
 
         /// <summary>

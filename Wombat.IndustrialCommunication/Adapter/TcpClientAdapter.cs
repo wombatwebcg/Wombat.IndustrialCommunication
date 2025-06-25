@@ -69,10 +69,6 @@ namespace Wombat.IndustrialCommunication
             set
             {
                 _receiveTimeout = value;
-                if (_socket != null)
-                {
-                    _socket.ReceiveTimeout = (int)value.TotalMilliseconds;
-                }
             }
         }
 
@@ -82,10 +78,6 @@ namespace Wombat.IndustrialCommunication
             set
             {
                 _sendTimeout = value;
-                if (_socket != null)
-                {
-                    _socket.SendTimeout = (int)value.TotalMilliseconds;
-                }
             }
         }
 
@@ -112,11 +104,20 @@ namespace Wombat.IndustrialCommunication
                 {
                     cts.CancelAfter(_sendTimeout);
                     
-                    // 创建发送任务
+                    // 直接使用SendAsync，避免双重包装
                     var sendTask = _socket.SendAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
                     
-                    // 等待发送完成或取消
-                    await Task.Run(() => sendTask, cts.Token);
+                    // 使用Task.WhenAny进行超时控制
+                    var completedTask = await Task.WhenAny(sendTask, Task.Delay(_sendTimeout, cts.Token));
+                    
+                    if (completedTask == sendTask)
+                    {
+                        await sendTask; // 确保任务完成
+                    }
+                    else
+                    {
+                        throw new OperationCanceledException("发送操作超时");
+                    }
                 }
                 
                 Logger?.LogDebug("成功发送 {Size} 字节数据到 {EndPoint}", size, _remoteEndPoint);
@@ -172,11 +173,20 @@ namespace Wombat.IndustrialCommunication
                 {
                     cts.CancelAfter(_receiveTimeout);
                     
-                    // 创建接收任务
+                    // 直接使用ReceiveAsync，避免双重包装
                     var receiveTask = _socket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
                     
-                    // 等待接收完成或取消
-                    count = await Task.Run(() => receiveTask, cts.Token);
+                    // 使用Task.WaitAsync (对于.NET Framework，使用自定义超时处理)
+                    var completedTask = await Task.WhenAny(receiveTask, Task.Delay(_receiveTimeout, cts.Token));
+                    
+                    if (completedTask == receiveTask)
+                    {
+                        count = await receiveTask;
+                    }
+                    else
+                    {
+                        throw new OperationCanceledException("接收操作超时");
+                    }
                 }
                 
                 operation.ResultValue = count;
@@ -240,8 +250,9 @@ namespace Wombat.IndustrialCommunication
                 
                 // 设置Socket选项
                 _socket.NoDelay = true;
-                _socket.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
-                _socket.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
+                // 移除Socket级别的超时设置，统一使用CancellationToken控制超时
+                // _socket.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
+                // _socket.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
                 
                 // 使用超时进行连接
                 using (var cts = new CancellationTokenSource(_connectTimeout))
