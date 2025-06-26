@@ -7,6 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
 using Wombat.Extensions.DataTypeExtensions;
+using System.Threading;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -98,98 +99,113 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public SiemensVersion SiemensVersion{ get; set; }
 
-        public async Task<OperationResult> InitAsync()
+        public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
         {
-            using (await _lock.LockAsync())
+            // 添加超时控制，防止死锁
+            using (var cts = new CancellationTokenSource(connectTimeout))
             {
-                var result = new OperationResult();
                 try
                 {
-                    var command1 = SiemensConstant.Command1;
-                    var command2 = SiemensConstant.Command2;
-
-                    switch (SiemensVersion)
+                    using (await _lock.LockAsync(cts.Token))
                     {
-                        case SiemensVersion.S7_200:
-                            command1 = SiemensConstant.Command1_200;
-                            command2 = SiemensConstant.Command2_200;
-                            break;
-                        case SiemensVersion.S7_200Smart:
-                            command1 = SiemensConstant.Command1_200Smart;
-                            command2 = SiemensConstant.Command2_200Smart;
-                            break;
-                        case SiemensVersion.S7_300:
-                            command1[21] = (byte)((Rack * 0x20) + Slot); //0x02;
-                            break;
-                        case SiemensVersion.S7_400:
-                            command1[21] = (byte)((Rack * 0x20) + Slot); //0x03;
-                            command1[17] = 0x00;
-                            break;
-                        case SiemensVersion.S7_1200:
-                            command1[21] = (byte)((Rack * 0x20) + Slot); //0x00;
-                            break;
-                        case SiemensVersion.S7_1500:
-                            command1[21] = (byte)((Rack * 0x20) + Slot); //0x00;
-                            break;
-                        default:
-                            command1[18] = 0x00;
-                            break;
-                    }
-
-                    result.Requsts.Add(string.Join(" ", command1.Select(t => t.ToString("X2"))));
-                    var command1RequestResult = await Transport.SendRequestAsync(command1);
-                    if (command1RequestResult.IsSuccess)
-                    {
-                        var response1Result = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength);
-                        if (response1Result.IsSuccess)
+                        var result = new OperationResult();
+                        try
                         {
-                            var response1 = response1Result.ResultValue;
-                            var response2Result = await Transport.ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(response1));
-                            if (!response2Result.IsSuccess)
+                            var command1 = SiemensConstant.Command1;
+                            var command2 = SiemensConstant.Command2;
+
+                            switch (SiemensVersion)
                             {
-                                return response2Result;
+                                case SiemensVersion.S7_200:
+                                    command1 = SiemensConstant.Command1_200;
+                                    command2 = SiemensConstant.Command2_200;
+                                    break;
+                                case SiemensVersion.S7_200Smart:
+                                    command1 = SiemensConstant.Command1_200Smart;
+                                    command2 = SiemensConstant.Command2_200Smart;
+                                    break;
+                                case SiemensVersion.S7_300:
+                                    command1[21] = (byte)((Rack * 0x20) + Slot); //0x02;
+                                    break;
+                                case SiemensVersion.S7_400:
+                                    command1[21] = (byte)((Rack * 0x20) + Slot); //0x03;
+                                    command1[17] = 0x00;
+                                    break;
+                                case SiemensVersion.S7_1200:
+                                    command1[21] = (byte)((Rack * 0x20) + Slot); //0x00;
+                                    break;
+                                case SiemensVersion.S7_1500:
+                                    command1[21] = (byte)((Rack * 0x20) + Slot); //0x00;
+                                    break;
+                                default:
+                                    command1[18] = 0x00;
+                                    break;
+                            }
+
+                            result.Requsts.Add(string.Join(" ", command1.Select(t => t.ToString("X2"))));
+                            var command1RequestResult = await Transport.SendRequestAsync(command1).ConfigureAwait(false);
+                            if (command1RequestResult.IsSuccess)
+                            {
+                                var response1Result = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength).ConfigureAwait(false);
+                                if (response1Result.IsSuccess)
+                                {
+                                    var response1 = response1Result.ResultValue;
+                                    var response2Result = await Transport.ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(response1)).ConfigureAwait(false);
+                                    if (!response2Result.IsSuccess)
+                                    {
+                                        return response2Result;
+
+                                    }
+                                    var response2 = response1Result.ResultValue;
+                                    result.Responses.Add(string.Join(" ", response1.Concat(response2).Select(t => t.ToString("X2"))));
+
+                                }
 
                             }
-                            var response2 = response1Result.ResultValue;
-                            result.Responses.Add(string.Join(" ", response1.Concat(response2).Select(t => t.ToString("X2"))));
+
+                            result.Requsts.Add(string.Join(" ", command2.Select(t => t.ToString("X2"))));
+                            //第二次初始化指令交互
+                            var command2RequestResult = await Transport.SendRequestAsync(command2).ConfigureAwait(false);
+                            if (command2RequestResult.IsSuccess)
+                            {
+                                var response3Result = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength).ConfigureAwait(false);
+                                if (!response3Result.IsSuccess)
+                                {
+                                    return response3Result;
+
+                                }
+                                var response3 = response3Result.ResultValue;
+
+                                var response4Result = await Transport.ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(response3)).ConfigureAwait(false);
+                                if (!response4Result.IsSuccess)
+                                {
+                                    return response4Result;
+
+                                }
+                                var response4 = response4Result.ResultValue;
+                                result.Responses.Add(string.Join(" ", response3.Concat(response4).Select(t => t.ToString("X2"))));
+                            }
+
 
                         }
-
-                    }
-
-                    result.Requsts.Add(string.Join(" ", command2.Select(t => t.ToString("X2"))));
-                    //第二次初始化指令交互
-                    var command2RequestResult = await Transport.SendRequestAsync(command2);
-                    if (command2RequestResult.IsSuccess)
-                    {
-                        var response3Result = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength);
-                        if (!response3Result.IsSuccess)
+                        catch (Exception ex)
                         {
-                            return response3Result;
-
+                            result.IsSuccess = false;
+                            result.Message = ex.Message;
+                            result.ErrorCode = 408;
+                            result.Exception = ex;
                         }
-                        var response3 = response3Result.ResultValue;
-
-                        var response4Result = await Transport.ReceiveResponseAsync(0, S7CommonMethods.GetContentLength(response3));
-                        if (!response4Result.IsSuccess)
-                        {
-                            return response4Result;
-
-                        }
-                        var response4 = response4Result.ResultValue;
-                        result.Responses.Add(string.Join(" ", response3.Concat(response4).Select(t => t.ToString("X2"))));
+                        return result.Complete();
                     }
-
-
+                }
+                catch (OperationCanceledException)
+                {
+                    return OperationResult.CreateFailedResult("S7协议初始化超时");
                 }
                 catch (Exception ex)
                 {
-                    result.IsSuccess = false;
-                    result.Message = ex.Message;
-                    result.ErrorCode = 408;
-                    result.Exception = ex;
+                    return OperationResult.CreateFailedResult($"S7协议初始化异常: {ex.Message}");
                 }
-                return result.Complete();
             }
         }
 
@@ -210,7 +226,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         {
                             ushort readLength = (ushort)Math.Min(length - alreadyFinished, maxCount);
 
-                            var tempResult = await internalReadAsync(s7Transport, address,alreadyFinished, readLength, isBit);
+                            var tempResult = await internalReadAsync(s7Transport, address,alreadyFinished, readLength, isBit).ConfigureAwait(false);
                             if (tempResult.IsSuccess)
                             {
                                 result.Requsts.Add(tempResult.Requsts[0]);
@@ -232,7 +248,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                        return await internalReadAsync(s7Transport, address,0, length, isBit);
+                        return await internalReadAsync(s7Transport, address,0, length, isBit).ConfigureAwait(false);
                     }
 
                 }
@@ -243,7 +259,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var tempResult = new OperationResult<byte>();
                 var readRequest = new S7ReadRequest(internalAddress, internalOffest, internalLength, isBit);
-                var response = await transport.UnicastReadMessageAsync(readRequest);
+                var response = await transport.UnicastReadMessageAsync(readRequest).ConfigureAwait(false);
                 if (response.IsSuccess)
                 {
                     int realLength = internalLength;
@@ -301,7 +317,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (Transport is S7EthernetTransport s7Transport)
                 {
                     var writeRequest = new S7WriteRequest(address,0,data, isBit);
-                    var response = await s7Transport.UnicastWriteMessageAsync(writeRequest);
+                    var response = await s7Transport.UnicastWriteMessageAsync(writeRequest).ConfigureAwait(false);
                     if (response.IsSuccess)
                     {
                         var dataPackage = response.ResultValue.ProtocolMessageFrame;
@@ -705,7 +721,7 @@ namespace Wombat.IndustrialCommunication.PLC
         private S7AddressInfo ParseMAddress(string address, S7AddressInfo addressInfo)
         {
             // M区地址属于内部存储区，使用特殊的DB号标识
-            addressInfo.DbNumber = -4; // 使用-4表示M区
+            addressInfo.DbNumber = 0; 
 
             if (address.Contains("."))
             {
@@ -1049,7 +1065,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     
                     // 直接调用底层读取方法，避免重复加锁
-                    var readResult = await InternalReadAsync(blockAddress, block.TotalLength, false);
+                    var readResult = await ReadAsync(blockAddress, block.TotalLength, false).ConfigureAwait(false);
                     
                     if (readResult.IsSuccess)
                     {
@@ -1086,67 +1102,6 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
-        /// <summary>
-        /// 内部读取方法，不加锁，供批量读取使用
-        /// </summary>
-        private async ValueTask<OperationResult<byte[]>> InternalReadAsync(string address, int length, bool isBit = false)
-        {
-            if (Transport is S7EthernetTransport s7Transport)
-            {
-                var tempResult = new OperationResult<byte>();
-                var readRequest = new S7ReadRequest(address, 0, length, isBit);
-                var response = await s7Transport.UnicastReadMessageAsync(readRequest);
-                if (response.IsSuccess)
-                {
-                    int realLength = length;
-                    var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                    byte[] responseData = new byte[realLength];
-                    try
-                    {
-                        //0x04 读 0x01 读取一个长度 //如果是批量读取，批量读取方法里面有验证
-                        if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
-                        {
-                            if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
-                            else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取{address}失败，请确认是否存在地址{address}";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
-                            else if (dataPackage[21] != 0xFF)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取{address}失败，异常代码[{21}]:{dataPackage[21]}";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
-                        }
-                        if (isBit) { realLength = (int)(Math.Ceiling(realLength / 8.0)); }
-                        Array.Copy(dataPackage, dataPackage.Length - realLength, responseData, 0, realLength);
-                    }
-                    catch (Exception ex)
-                    {
-                        tempResult.Exception = ex;
-                        tempResult.Message = $"{address} 0 {length} 读取预期长度与返回数据长度不一致";
-                        return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                    }
-                    
-                    var result = new OperationResult<byte[]>(response, responseData);
-                    result.Requsts.Add(string.Join(" ", readRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                    result.Responses.Add(string.Join(" ", response.ResultValue.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                    return result.Complete();
-                }
-                else
-                {
-                    return OperationResult.CreateFailedResult<byte[]>(response);
-                }
-            }
-            return OperationResult.CreateFailedResult<byte[]>();
-        }
 
         /// <summary>
         /// 从读取的块数据中提取各个地址对应的数据
@@ -1167,25 +1122,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     var firstAddress = block.Addresses[0];
                     var areaType = GetAreaType(firstAddress.DataType);
-                    
-                    // 根据DbNumber的特殊值来确定区域类型
-                    if (block.DbNumber == -2) // Q区
-                    {
-                        areaType = "Q";
-                    }
-                    else if (block.DbNumber == -3) // I区
-                    {
-                        areaType = "I";
-                    }
-                    else if (block.DbNumber == -4) // M区
-                    {
-                        areaType = "M";
-                    }
-                    else if (block.DbNumber == -1) // V区
-                    {
-                        areaType = "V";
-                    }
-                    
+                                   
                     switch (areaType)
                     {
                         case "DB":
@@ -1616,7 +1553,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     // 执行批量读取
-                    var blockReadResult = await ExecuteBatchRead(optimizedBlocks);
+                    var blockReadResult = await ExecuteBatchRead(optimizedBlocks).ConfigureAwait(false);
                     if (!blockReadResult.IsSuccess && blockReadResult.ResultValue.Count == 0)
                     {
                         result.IsSuccess = false;
@@ -1726,7 +1663,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             }
 
                             // 执行单个写入
-                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.DataType == S7DataType.DBX);
+                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.DataType == S7DataType.DBX).ConfigureAwait(false);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;

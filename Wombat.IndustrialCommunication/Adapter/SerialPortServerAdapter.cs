@@ -402,33 +402,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        /// <summary>
-        /// 检测连接的健康状态
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>连接是否健康的操作结果</returns>
-        public async Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
-        {
-            if (_disposed)
-                return OperationResult.CreateFailedResult<bool>("适配器已释放");
-
-            try
-            {
-                if (_serialPort != null && _serialPort.IsOpen)
-                {
-                    return OperationResult.CreateSuccessResult(true);
-                }
-                else
-                {
-                    return OperationResult.CreateSuccessResult(false);
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger?.LogError(ex, "检测串口连接健康状态时发生错误");
-                return OperationResult.CreateFailedResult<bool>(ex.Message);
-            }
-        }
 
         #endregion
 

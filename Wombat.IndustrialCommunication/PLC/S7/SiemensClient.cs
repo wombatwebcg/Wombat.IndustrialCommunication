@@ -8,7 +8,7 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    public class SiemensClient : S7Communication, IDeviceClient, IAutoReconnectClient
+    public class SiemensClient : S7Communication, IDeviceClient
     {
         TcpClientAdapter _tcpClientAdapter;
         
@@ -192,18 +192,29 @@ namespace Wombat.IndustrialCommunication.PLC
                     
                     // 记录开始时间
                     var startTime = DateTime.Now;
+                    var tcpConnectStartTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result = await _tcpClientAdapter.ConnectAsync();
+                    var result = await _tcpClientAdapter.ConnectAsync().ConfigureAwait(false);
+                    
+                    var tcpConnectTime = (DateTime.Now - tcpConnectStartTime).TotalMilliseconds;
+                    Logger?.LogDebug("TCP连接耗时：{TcpConnectTime}ms", tcpConnectTime);
                     
                     if (result.IsSuccess)
                     {
                         // 连接成功后初始化S7协议
-                        var initResult = await InitAsync();
+                        // 使用更短的超时时间进行协议初始化，避免超时累加
+                        var initTimeout = TimeSpan.FromMilliseconds(Math.Max(500, ConnectTimeout.TotalMilliseconds * 0.3)); // 使用连接超时的30%或至少500ms
+                        
+                        var initStartTime = DateTime.Now;
+                        var initResult = await InitAsync(initTimeout).ConfigureAwait(false);
+                        var initTime = (DateTime.Now - initStartTime).TotalMilliseconds;
+                        Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, initTimeout.TotalMilliseconds);
+                        
                         if (!initResult.IsSuccess)
                         {
                             // 初始化失败，断开连接
-                            await _tcpClientAdapter.DisconnectAsync();
+                            await _tcpClientAdapter.DisconnectAsync().ConfigureAwait(false);
                             Logger?.LogWarning("西门子PLC协议初始化失败，地址：{Address}:{Port}，错误：{Error}", 
                                 IPEndPoint.Address, IPEndPoint.Port, initResult.Message);
                             return OperationResult.CreateFailedResult($"协议初始化失败: {initResult.Message}");
@@ -211,14 +222,15 @@ namespace Wombat.IndustrialCommunication.PLC
                         
                         // 记录连接成功日志
                         var timeConsuming = (DateTime.Now - startTime).TotalMilliseconds;
-                        Logger?.LogInformation("成功连接西门子PLC，地址：{Address}:{Port}，耗时：{TimeConsuming}ms", 
-                            IPEndPoint.Address, IPEndPoint.Port, timeConsuming);
+                        Logger?.LogInformation("成功连接西门子PLC，地址：{Address}:{Port}，总耗时：{TimeConsuming}ms (TCP连接:{TcpConnectTime}ms + 协议初始化:{InitTime}ms)", 
+                            IPEndPoint.Address, IPEndPoint.Port, timeConsuming, tcpConnectTime, initTime);
                     }
                     else
                     {
                         // 记录连接失败日志
-                        Logger?.LogWarning("连接西门子PLC失败，地址：{Address}:{Port}，错误：{Error}", 
-                            IPEndPoint.Address, IPEndPoint.Port, result.Message);
+                        var timeConsuming = (DateTime.Now - startTime).TotalMilliseconds;
+                        Logger?.LogWarning("连接西门子PLC失败，地址：{Address}:{Port}，耗时：{TimeConsuming}ms，错误：{Error}", 
+                            IPEndPoint.Address, IPEndPoint.Port, timeConsuming, result.Message);
                     }
                     
                     return result;
@@ -255,7 +267,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var startTime = DateTime.Now;
                     
                     // 执行底层传输断开连接操作
-                    var result = await _tcpClientAdapter.DisconnectAsync();
+                    var result = await _tcpClientAdapter.DisconnectAsync().ConfigureAwait(false);
                     
                     if (result.IsSuccess)
                     {
@@ -324,7 +336,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     if (EnableAutoReconnect)
                     {
-                        var reconnectResult = await CheckAndReconnectAsync();
+                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
                         if (!reconnectResult.IsSuccess)
                         {
                             return OperationResult.CreateFailedResult<byte[]>($"S7客户端自动重连失败，无法读取数据");
@@ -339,7 +351,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit);
+                    var result = await base.ReadAsync(address, length, isBit).ConfigureAwait(false);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -365,10 +377,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 确保先断开可能存在的连接
-                    await DisconnectAsync();
+                    await DisconnectAsync().ConfigureAwait(false);
                     
                     // 建立新连接
-                    var connectResult = await ConnectAsync();
+                    var connectResult = await ConnectAsync().ConfigureAwait(false);
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
@@ -378,7 +390,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     connected = true;
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit);
+                    var result = await base.ReadAsync(address, length, isBit).ConfigureAwait(false);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -401,7 +413,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         try
                         {
-                            await DisconnectAsync();
+                            await DisconnectAsync().ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {
@@ -421,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     if (EnableAutoReconnect)
                     {
-                        var reconnectResult = await CheckAndReconnectAsync();
+                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
                         if (!reconnectResult.IsSuccess)
                         {
                             return OperationResult.CreateFailedResult($"S7客户端自动重连失败，无法写入数据");
@@ -436,7 +448,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data, isBit);
+                    var result = await base.WriteAsync(address, data, isBit).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)
@@ -462,10 +474,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 确保先断开可能存在的连接
-                    await DisconnectAsync();
+                    await DisconnectAsync().ConfigureAwait(false);
                     
                     // 建立新连接
-                    var connectResult = await ConnectAsync();
+                    var connectResult = await ConnectAsync().ConfigureAwait(false);
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
@@ -475,7 +487,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     connected = true;
                     
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data, isBit);
+                    var result = await base.WriteAsync(address, data, isBit).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)
@@ -498,7 +510,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         try
                         {
-                            await DisconnectAsync();
+                            await DisconnectAsync().ConfigureAwait(false);
                         }
                         catch (Exception ex)
                         {

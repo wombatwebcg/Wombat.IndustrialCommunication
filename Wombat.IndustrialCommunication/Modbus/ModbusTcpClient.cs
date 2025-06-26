@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         public double EfficiencyRatio { get; set; }
     }
 
-    public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient, IAutoReconnectClient, IModbusClient
+    public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient,  IModbusClient
     {
         private readonly TcpClientAdapter _tcpClientAdapter;
         private readonly AsyncLock _lock = new AsyncLock();

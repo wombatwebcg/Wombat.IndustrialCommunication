@@ -278,30 +278,6 @@ namespace Wombat.IndustrialCommunication
             });
         }
 
-        /// <summary>
-        /// 检测连接的健康状态
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>连接是否健康的操作结果</returns>
-        public Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
-        {
-            if (_disposed)
-                return Task.FromResult(new OperationResult<bool>
-                {
-                    IsSuccess = false,
-                    Message = "TcpServerAdapter is disposed",
-                    ResultValue = false
-                });
-
-            // 对于服务器，健康状态主要是检查是否正在监听
-            var result = new OperationResult<bool>
-            {
-                IsSuccess = true,
-                ResultValue = _listenerSocket?.IsBound ?? false
-            };
-
-            return Task.FromResult(result);
-        }
 
         /// <summary>
         /// 使用日志记录器

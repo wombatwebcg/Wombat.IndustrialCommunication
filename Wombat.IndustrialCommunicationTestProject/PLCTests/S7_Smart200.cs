@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         
         private SiemensClient client;
         private readonly ITestOutputHelper _output;
-        private ConnectionDisruptorExtreme _disruptor;
+
         
         #endregion
 
@@ -97,7 +97,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public S7_Smart200(ITestOutputHelper output = null)
         {
             _output = output;
-            _disruptor = new ConnectionDisruptorExtreme(new XUnitLogger(_output, "Disruptor"));
+
         }
         
         #endregion
@@ -220,10 +220,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 Assert.True(readResult.IsSuccess, $"读取失败: {readResult.Message}");
                 Assert.Equal(testValue, readResult.ResultValue);
                 
-                // Act - 模拟连接中断
-                LogStep("模拟连接中断");
-                var disruptResult = await _disruptor.SimulateSafeWait(client, 1000);
-                Assert.True(disruptResult.IsSuccess, $"模拟中断失败: {disruptResult.Message}");
+
                 
                 // Act - 等待自动重连
                 LogStep($"等待自动重连（最长{WAIT_RECONNECT_TIMEOUT}ms）");

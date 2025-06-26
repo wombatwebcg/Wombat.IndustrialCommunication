@@ -9,7 +9,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusRTUClient : ModbusRTUClientBase, IDeviceClient, IAutoReconnectClient, IModbusClient
+    public class ModbusRTUClient : ModbusRTUClientBase, IDeviceClient, IModbusClient
     {
         private readonly SerialPortAdapter _serialPortAdapter;
         private readonly AsyncLock _lock = new AsyncLock();
