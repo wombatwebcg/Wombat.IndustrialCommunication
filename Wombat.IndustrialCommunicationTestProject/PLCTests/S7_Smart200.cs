@@ -504,6 +504,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 bool[] bool_values = { false, true, false, false, false, false, false, false, false, false
                         , false, false, false,false,false,false,false,false,false, true };
                 client.Write(BYTE_TEST_ADDRESS, bool_values);
+                
                 var bool_values_result = client.ReadBoolean(BYTE_TEST_ADDRESS, bool_values.Length);
                 for (int j = 0; j < bool_values_result.ResultValue.Length; j++)
                 {
