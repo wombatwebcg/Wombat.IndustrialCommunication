@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunication
         private TimeSpan _sendTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private readonly object _lockObject = new object();
         private bool _disposed;
-        private const int DEFAULT_TIMEOUT_MS = 3000;
+        private const int DEFAULT_TIMEOUT_MS = 2000;
         private const int MIN_PORT = 1;
         private const int MAX_PORT = 65535;
 
@@ -108,11 +108,11 @@ namespace Wombat.IndustrialCommunication
                     var sendTask = _socket.SendAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
                     
                     // 使用Task.WhenAny进行超时控制
-                    var completedTask = await Task.WhenAny(sendTask, Task.Delay(_sendTimeout, cts.Token));
+                    var completedTask = await Task.WhenAny(sendTask, Task.Delay(_sendTimeout, cts.Token)).ConfigureAwait(false);
                     
                     if (completedTask == sendTask)
                     {
-                        await sendTask; // 确保任务完成
+                        await sendTask.ConfigureAwait(false); // 确保任务完成
                     }
                     else
                     {
@@ -177,11 +177,11 @@ namespace Wombat.IndustrialCommunication
                     var receiveTask = _socket.ReceiveAsync(new ArraySegment<byte>(buffer, offset, size), SocketFlags.None);
                     
                     // 使用Task.WaitAsync (对于.NET Framework，使用自定义超时处理)
-                    var completedTask = await Task.WhenAny(receiveTask, Task.Delay(_receiveTimeout, cts.Token));
+                    var completedTask = await Task.WhenAny(receiveTask, Task.Delay(_receiveTimeout, cts.Token)).ConfigureAwait(false);
                     
                     if (completedTask == receiveTask)
                     {
-                        count = await receiveTask;
+                        count = await receiveTask.ConfigureAwait(false);
                     }
                     else
                     {
@@ -240,36 +240,79 @@ namespace Wombat.IndustrialCommunication
             if (_disposed)
                 throw new ObjectDisposedException(nameof(TcpClientAdapter));
 
+            Socket socket = null;
             try
             {
                 Logger?.LogInformation("Connecting to {EndPoint}", _remoteEndPoint);
                 OperationResult connect = new OperationResult();
                 
                 // 创建新的Socket
-                _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+                socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
                 
                 // 设置Socket选项
-                _socket.NoDelay = true;
-                // 移除Socket级别的超时设置，统一使用CancellationToken控制超时
-                // _socket.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
-                // _socket.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
+                socket.NoDelay = true;
+                // 设置Socket级别的超时参数
+                socket.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
+                socket.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
                 
                 // 使用超时进行连接
                 using (var cts = new CancellationTokenSource(_connectTimeout))
                 {
                     // 创建连接任务
-                    var connectTask = Task.Factory.FromAsync(_socket.BeginConnect, _socket.EndConnect, _remoteEndPoint, null);
+                    var connectTask = Task.Factory.FromAsync(socket.BeginConnect, socket.EndConnect, _remoteEndPoint, null);
                     
-                    // 等待连接完成或取消
-                    await Task.Run(() => connectTask, cts.Token);
+                    // 使用Task.WhenAny进行精确的超时控制
+                    var completedTask = await Task.WhenAny(connectTask, Task.Delay(_connectTimeout, cts.Token)).ConfigureAwait(false);
+                    
+                    if (completedTask == connectTask)
+                    {
+                        await connectTask.ConfigureAwait(false); // 确保任务完成
+                    }
+                    else
+                    {
+                        throw new OperationCanceledException("连接操作超时");
+                    }
                 }
                 
-                connect.IsSuccess = _socket.Connected;
+                connect.IsSuccess = socket.Connected;
                 
                 if (connect.IsSuccess)
+                {
                     Logger?.LogInformation("Successfully connected to {EndPoint}", _remoteEndPoint);
+                    
+                    // 连接成功，先释放旧Socket，再设置新Socket
+                    if (_socket != null)
+                    {
+                        try
+                        {
+                            _socket.Close();
+                            _socket.Dispose();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger?.LogWarning(ex, "Error disposing old socket after successful connection");
+                        }
+                    }
+                    
+                    // 设置新Socket
+                    _socket = socket;
+                    socket = null; // 防止finally块中重复释放
+                }
                 else
+                {
                     Logger?.LogWarning("Failed to connect to {EndPoint}", _remoteEndPoint);
+                    // 连接失败，释放新Socket
+                    try
+                    {
+                        socket.Dispose();
+                        Logger?.LogDebug("Released unconnected socket resource");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.LogWarning(ex, "Error disposing failed connection socket");
+                    }
+                    socket = null; // 防止finally块中重复释放
+                }
                 
                 return connect.Complete();
             }
@@ -283,6 +326,22 @@ namespace Wombat.IndustrialCommunication
             {
                 Logger?.LogError(ex, "Error connecting to {EndPoint}", _remoteEndPoint);
                 return OperationResult.CreateFailedResult(ex);
+            }
+            finally
+            {
+                // 确保临时Socket被释放
+                if (socket != null)
+                {
+                    try
+                    {
+                        socket.Dispose();
+                        Logger?.LogDebug("Released temporary socket resource in finally block");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.LogWarning(ex, "Error disposing temporary socket in finally block");
+                    }
+                }
             }
         }
 
@@ -298,16 +357,92 @@ namespace Wombat.IndustrialCommunication
                 
                 if (_socket != null)
                 {
-                    _socket.Close();
-                    StreamClose();
+                    // 使用超时进行断开连接
+                    using (var cts = new CancellationTokenSource(_connectTimeout))
+                    {
+                        try
+                        {
+                            // 创建Socket关闭任务
+                            var closeTask = Task.Run(() =>
+                            {
+                                try
+                                {
+                                    // 先尝试优雅关闭
+                                    if (_socket.Connected)
+                                    {
+                                        _socket.Shutdown(SocketShutdown.Send);
+                                    }
+                                    _socket.Close();
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger?.LogWarning(ex, "Socket关闭时发生异常，尝试强制关闭");
+                                    // 如果优雅关闭失败，强制关闭
+                                    try
+                                    {
+                                        _socket.Close(0); // 立即关闭，不等待
+                                    }
+                                    catch (Exception forceEx)
+                                    {
+                                        Logger?.LogWarning(forceEx, "强制关闭Socket也失败");
+                                    }
+                                }
+                            });
+                            
+                            // 使用Task.WhenAny进行精确的超时控制
+                            var completedTask = await Task.WhenAny(closeTask, Task.Delay(_connectTimeout, cts.Token)).ConfigureAwait(false);
+                            
+                            if (completedTask == closeTask)
+                            {
+                                await closeTask.ConfigureAwait(false); // 确保任务完成
+                            }
+                            else
+                            {
+                                Logger?.LogWarning("Socket关闭操作超时，强制关闭");
+                                // 超时时强制关闭
+                                try
+                                {
+                                    _socket?.Close(0); // 立即关闭，不等待
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger?.LogWarning(ex, "超时后强制关闭Socket失败");
+                                }
+                            }
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            Logger?.LogWarning("Socket关闭操作被取消");
+                            // 被取消时强制关闭
+                            try
+                            {
+                                _socket?.Close(0); // 立即关闭，不等待
+                            }
+                            catch (Exception ex)
+                            {
+                                Logger?.LogWarning(ex, "取消后强制关闭Socket失败");
+                            }
+                        }
+                    }
+                    
+                    // 释放Socket资源
+                    try
+                    {
+                        _socket.Dispose();
+                        Logger?.LogDebug("Released socket resource after disconnection");
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.LogWarning(ex, "Error disposing socket after disconnection");
+                    }
+                    
+                    // 将_socket设置为null
+                    _socket = null;
                 }
                 
-                disConnect.IsSuccess = !(_socket?.Connected ?? false);
+                disConnect.IsSuccess = true; // 断开连接成功
                 
-                if (disConnect.IsSuccess)
-                    Logger?.LogInformation("Successfully disconnected from {EndPoint}", _remoteEndPoint);
-                else
-                    Logger?.LogWarning("Failed to disconnect from {EndPoint}", _remoteEndPoint);
+                Logger?.LogInformation("Successfully disconnected from {EndPoint}", _remoteEndPoint);
                 
                 return disConnect.Complete();
             }
@@ -328,7 +463,33 @@ namespace Wombat.IndustrialCommunication
                 Logger?.LogDebug("Closing stream");
                 if (_socket != null && _socket.Connected)
                 {
-                    _socket.Shutdown(SocketShutdown.Send);
+                    // 使用超时控制防止卡死
+                    using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000))) // 1秒超时
+                    {
+                        try
+                        {
+                            // 异步执行Shutdown操作
+                            Task.Run(() =>
+                            {
+                                try
+                                {
+                                    _socket.Shutdown(SocketShutdown.Send);
+                                }
+                                catch (Exception ex)
+                                {
+                                    Logger?.LogWarning(ex, "Stream shutdown时发生异常");
+                                }
+                            }, cts.Token).Wait(cts.Token);
+                        }
+                        catch (OperationCanceledException)
+                        {
+                            Logger?.LogWarning("Stream shutdown操作超时，跳过");
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger?.LogWarning(ex, "Stream shutdown操作异常");
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -362,7 +523,7 @@ namespace Wombat.IndustrialCommunication
                     Logger?.LogDebug("正在执行连接健康检查: {EndPoint}", _remoteEndPoint);
                     
                     // 尝试发送和接收最小数据以检测连接状态
-                    var sendResult = await Send(heartbeatPacket, 0, 1, linkedCts.Token);
+                    var sendResult = await Send(heartbeatPacket, 0, 1, linkedCts.Token).ConfigureAwait(false);
                     if (!sendResult.IsSuccess)
                     {
                         Logger?.LogWarning("连接健康检查失败(发送): {Message}", sendResult.Message);

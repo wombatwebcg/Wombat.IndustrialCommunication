@@ -329,49 +329,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        /// <summary>
-        /// 检测连接的健康状态
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>连接是否健康的操作结果</returns>
-        public async Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
-        {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(SerialPortAdapter));
-
-            if (!Connected)
-                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
-
-            try
-            {
-                // 对于串口连接，我们主要检查端口是否打开并且可以进行简单的读取操作
-                using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000)))
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
-                {
-                    Logger?.LogDebug("正在执行串口健康检查: {PortName}", PortName);
-                    
-                    // 检查串口是否有可用的数据
-                    // 只是检查属性而不实际读取数据，因为实际读取可能会阻塞或影响正常通信
-                    var isHealthy = _serialPort.IsOpen && _serialPort.BaseStream.CanRead && _serialPort.BaseStream.CanWrite;
-                    
-                    if (isHealthy)
-                    {
-                        Logger?.LogDebug("串口健康检查成功: {PortName}", PortName);
-                        return new OperationResult<bool> { IsSuccess = true, ResultValue = true };
-                    }
-                    else
-                    {
-                        Logger?.LogWarning("串口健康检查失败: {PortName}", PortName);
-                        return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                Logger?.LogError(ex, "串口健康检查异常: {PortName}", PortName);
-                return new OperationResult<bool> { IsSuccess = false, ResultValue = false, Message = ex.Message };
-            }
-        }
 
         /// <summary>
         /// 设置日志记录器

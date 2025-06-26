@@ -15,11 +15,6 @@ namespace Wombat.IndustrialCommunication
         Task<OperationResult> Send(byte[] buffer, int offset, int length, CancellationToken cancellationToken);
         void StreamClose();
         
-        /// <summary>
-        /// 检测连接的健康状态
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>连接是否健康的操作结果</returns>
-        Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default);
+
     }
 }
