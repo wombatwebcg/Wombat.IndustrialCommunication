@@ -182,21 +182,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 var connectResult = await client.ConnectAsync();
                 Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
                 client.IsLongConnection = false;
-                for (; ; )
-                {
-
-                        var test1 = await client.ReadByteAsync("db23.dbb0", 696);
-                        if (test1.IsSuccess)
-                        {
-                            Debug.Print(test1.ResultValue.Length.ToString());
-                        }
-                        else
-                        {
-                            Debug.Print("失败");
-                        }
-                  
-
-                }
                 LogStep("执行异步读写测试");
                 await ReadWriteAsync();
                 
