@@ -823,7 +823,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         /// <summary>
-        /// 测试批量写入性能
+        /// 测试批量写入功能
         /// </summary>
         private async Task TestBatchWritePerformance()
         {
@@ -848,25 +848,45 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         {
             LogInfo("准备测试数据");
             
-            // 写入测试用的布尔值
-            await client.WriteAsync("DB200.DBX124.0", true);
-            await client.WriteAsync("DB200.DBX124.1", false);
-            await client.WriteAsync("DB200.DBX124.2", true);
+            // 准备Data0区域：Bool数组 [0..31] 占用 0.0-3.7 (4字节)
+            LogInfo("准备Data0区域 - Bool数组数据");
+            for (int i = 0; i < 32; i++)
+            {
+                var boolValue = i % 2 == 0;
+                await client.WriteAsync($"DB200.DBX{i / 8}.{i % 8}", boolValue);
+            }
             
-            // 写入测试用的整数
-            await client.WriteAsync("DB200.DBW124", (short)12345);
-            await client.WriteAsync("DB200.DBW126", (short)23456);
-            await client.WriteAsync("DB200.DBW128", (short)32767);
+            // 准备Data1区域：Word数组 [0..31] 占用 4.0-67.7 (64字节)
+            LogInfo("准备Data1区域 - Word数组数据");
+            for (int i = 0; i < 32; i++)
+            {
+                var wordValue = (short)(1000 + i * 10);
+                await client.WriteAsync($"DB200.DBW{4 + i * 2}", wordValue);
+            }
             
-            // 写入测试用的双字
-            await client.WriteAsync("DB200.DBD130", 1234567890);
-            await client.WriteAsync("DB200.DBD134", 2345678901);
-            await client.WriteAsync("DB200.DBD138", 3456789012);
+            // 准备Data2区域：DWord数组 [0..31] 占用 68.0-195.7 (128字节)
+            LogInfo("准备Data2区域 - DWord数组数据");
+            for (int i = 0; i < 32; i++)
+            {
+                var dwordValue = 1000000 + i * 10000;
+                await client.WriteAsync($"DB200.DBD{68 + i * 4}", dwordValue);
+            }
             
-            // 写入测试用的浮点数
-            await client.WriteAsync("DB200.DBD250", 123.456f);
-            await client.WriteAsync("DB200.DBD254", 234.567f);
-            await client.WriteAsync("DB200.DBD258", 345.678f);
+            // 准备Data3区域：Real数组 [0..31] 占用 196.0-323.7 (128字节)
+            LogInfo("准备Data3区域 - Real数组数据");
+            for (int i = 0; i < 32; i++)
+            {
+                var realValue = 100.0f + i * 1.5f;
+                await client.WriteAsync($"DB200.DBD{196 + i * 4}", realValue);
+            }
+            
+            // 为大批量连续读取准备额外数据（Data1区域扩展到100个Word）
+            LogInfo("准备大批量连续读取数据 - 扩展Data1区域");
+            for (int i = 32; i < 100; i++)
+            {
+                var wordValue = (short)(2000 + i * 10);
+                await client.WriteAsync($"DB200.DBW{4 + i * 2}", wordValue);
+            }
             
             LogInfo("测试数据准备完成");
         }
@@ -876,20 +896,19 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private async Task TestContinuousAddressBatchRead()
         {
-            LogInfo("=== 连续地址批量读取测试 ===");
+            LogInfo("=== 连续地址批量读取测试 (100个Int16地址) ===");
             
-            // 准备连续地址的测试数据
-            var continuousAddresses = new Dictionary<string, DataTypeEnums>
+            // 准备连续地址的测试数据 - 使用Data1区域，100个连续的Word地址
+            var continuousAddresses = new Dictionary<string, DataTypeEnums>();
+            for (int i = 0; i < 100; i++)
             {
-                ["DB200.DBW124"] = DataTypeEnums.Int16,
-                ["DB200.DBW126"] = DataTypeEnums.Int16,
-                ["DB200.DBW128"] = DataTypeEnums.Int16,
-                ["DB200.DBD130"] = DataTypeEnums.Int32,
-                ["DB200.DBD134"] = DataTypeEnums.Int32,
-                ["DB200.DBD138"] = DataTypeEnums.Int32
-            };
+                continuousAddresses[$"DB200.DBW{4 + i * 2}"] = DataTypeEnums.Int16;
+            }
             
-            await CompareReadPerformance("连续地址", continuousAddresses);
+            LogInfo($"准备测试 {continuousAddresses.Count} 个连续Int16地址");
+            LogInfo($"地址范围: DB200.DBW4 到 DB200.DBW202 (跨度200字节)");
+            
+            await CompareReadPerformance("连续地址(100个Int16)", continuousAddresses);
         }
 
         /// <summary>
@@ -897,20 +916,33 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private async Task TestScatteredAddressBatchRead()
         {
-            LogInfo("=== 分散地址批量读取测试 ===");
+            LogInfo("=== 分散地址批量读取测试 (100个分散地址) ===");
             
-            // 准备分散地址的测试数据
-            var scatteredAddresses = new Dictionary<string, DataTypeEnums>
+            // 准备分散地址的测试数据 - 分布在多个数据区域
+            var scatteredAddresses = new Dictionary<string, DataTypeEnums>();
+            
+            // Data0区域：32个Bool地址
+            for (int i = 0; i < 32; i++)
             {
-                ["DB200.DBW4"] = DataTypeEnums.Int16,
-                ["DB200.DBD68"] = DataTypeEnums.Int32,
-                ["DB200.DBD100"] = DataTypeEnums.Int32,
-                ["DB200.DBD196"] = DataTypeEnums.Int32,
-                ["DB200.DBD250"] = DataTypeEnums.Float,
-                ["DB200.DBW50"] = DataTypeEnums.Int16
-            };
+                scatteredAddresses[$"DB200.DBX{i / 8}.{i % 8}"] = DataTypeEnums.Bool;
+            }
             
-            await CompareReadPerformance("分散地址", scatteredAddresses);
+            // Data1区域：34个Word地址（跳过一些地址使其分散）
+            for (int i = 0; i < 34; i++)
+            {
+                scatteredAddresses[$"DB200.DBW{4 + i * 3}"] = DataTypeEnums.Int16;
+            }
+            
+            // Data2区域：34个DWord地址（跳过一些地址使其分散）
+            for (int i = 0; i < 34; i++)
+            {
+                scatteredAddresses[$"DB200.DBD{68 + i * 3}"] = DataTypeEnums.Int32;
+            }
+            
+            LogInfo($"准备测试 {scatteredAddresses.Count} 个分散地址");
+            LogInfo($"分布: Data0区域(32个Bool) + Data1区域(34个Word) + Data2区域(34个DWord)");
+            
+            await CompareReadPerformance("分散地址(100个混合)", scatteredAddresses);
         }
 
         /// <summary>
@@ -918,22 +950,39 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private async Task TestMixedDataTypeBatchRead()
         {
-            LogInfo("=== 混合数据类型批量读取测试 ===");
+            LogInfo("=== 混合数据类型批量读取测试 (120个混合类型地址) ===");
             
-            // 准备混合数据类型的测试数据
-            var mixedAddresses = new Dictionary<string, DataTypeEnums>
+            // 准备混合数据类型的测试数据 - 覆盖所有数据类型
+            var mixedAddresses = new Dictionary<string, DataTypeEnums>();
+            
+            // Data0区域：32个Bool地址
+            for (int i = 0; i < 32; i++)
             {
-                ["DB200.DBX124.0"] = DataTypeEnums.Bool,
-                ["DB200.DBX124.1"] = DataTypeEnums.Bool,
-                ["DB200.DBX124.2"] = DataTypeEnums.Bool,
-                ["DB200.DBW124"] = DataTypeEnums.Int16,
-                ["DB200.DBW126"] = DataTypeEnums.Int16,
-                ["DB200.DBD130"] = DataTypeEnums.Int32,
-                ["DB200.DBD250"] = DataTypeEnums.Float,
-                ["DB200.DBD254"] = DataTypeEnums.Float
-            };
+                mixedAddresses[$"DB200.DBX{i / 8}.{i % 8}"] = DataTypeEnums.Bool;
+            }
             
-            await CompareReadPerformance("混合数据类型", mixedAddresses);
+            // Data1区域：30个Word地址
+            for (int i = 0; i < 30; i++)
+            {
+                mixedAddresses[$"DB200.DBW{4 + i * 2}"] = DataTypeEnums.Int16;
+            }
+            
+            // Data2区域：30个DWord地址
+            for (int i = 0; i < 30; i++)
+            {
+                mixedAddresses[$"DB200.DBD{68 + i * 4}"] = DataTypeEnums.Int32;
+            }
+            
+            // Data3区域：28个Real地址
+            for (int i = 0; i < 28; i++)
+            {
+                mixedAddresses[$"DB200.DBD{196 + i * 4}"] = DataTypeEnums.Float;
+            }
+            
+            LogInfo($"准备测试 {mixedAddresses.Count} 个混合类型地址");
+            LogInfo($"分布: Data0区域(32个Bool) + Data1区域(30个Word) + Data2区域(30个DWord) + Data3区域(28个Real)");
+            
+            await CompareReadPerformance("混合数据类型(120个混合)", mixedAddresses);
         }
 
         /// <summary>
@@ -958,7 +1007,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 foreach (var kvp in batchResult.ResultValue)
                 {
                     Assert.NotNull(kvp.Value.Item2);
-                    LogInfo($"批量读取 {kvp.Key}: {kvp.Value.Item2}");
+                    //LogInfo($"批量读取 {kvp.Key}: {kvp.Value.Item2}");
                 }
             }
             batchStopwatch.Stop();
@@ -974,13 +1023,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     {
                         var result = await client.ReadBooleanAsync(address);
                         Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
-                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                        //LogInfo($"单个读取 {address}: {result.ResultValue}");
                     }
                     else if (address.Contains("DBW"))
                     {
                         var result = await client.ReadInt16Async(address);
                         Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
-                        LogInfo($"单个读取 {address}: {result.ResultValue}");
+                        //LogInfo($"单个读取 {address}: {result.ResultValue}");
                     }
                     else if (address.Contains("DBD"))
                     {
@@ -989,13 +1038,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                         {
                             var result = await client.ReadFloatAsync(address);
                             Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
-                            LogInfo($"单个读取 {address}: {result.ResultValue}");
+                            //LogInfo($"单个读取 {address}: {result.ResultValue}");
                         }
                         else
                         {
                             var result = await client.ReadInt32Async(address);
                             Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
-                            LogInfo($"单个读取 {address}: {result.ResultValue}");
+                            //LogInfo($"单个读取 {address}: {result.ResultValue}");
                         }
                     }
                 }
@@ -1046,6 +1095,94 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 if (batchTotalTime <= individualTotalTime * 1.1)
                     LogInfo("批量读取性能不应该显著差于单个读取");
 
+            }
+            
+            // 数据一致性验证：对比批量读取和单个读取的值是否相等
+            LogInfo("开始数据一致性验证...");
+            var batchResultForValidation = await client.BatchReadAsync(addresses);
+            Assert.True(batchResultForValidation.IsSuccess, $"数据一致性验证：批量读取失败: {batchResultForValidation.Message}");
+            
+            var validationErrors = new List<string>();
+            
+            foreach (var address in addresses.Keys)
+            {
+                object individualValue = null;
+                object batchValue = null;
+                
+                // 获取单个读取的值
+                if (address.Contains("DBX"))
+                {
+                    var result = await client.ReadBooleanAsync(address);
+                    Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
+                    individualValue = result.ResultValue;
+                }
+                else if (address.Contains("DBW"))
+                {
+                    var result = await client.ReadInt16Async(address);
+                    Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
+                    individualValue = result.ResultValue;
+                }
+                else if (address.Contains("DBD"))
+                {
+                    // 尝试读取为int32，如果地址在浮点数范围则读取为float
+                    if (address.Contains("250") || address.Contains("254") || address.Contains("258"))
+                    {
+                        var result = await client.ReadFloatAsync(address);
+                        Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
+                        individualValue = result.ResultValue;
+                    }
+                    else
+                    {
+                        var result = await client.ReadInt32Async(address);
+                        Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
+                        individualValue = result.ResultValue;
+                    }
+                }
+                
+                // 获取批量读取的值
+                if (batchResultForValidation.ResultValue.ContainsKey(address))
+                {
+                    batchValue = batchResultForValidation.ResultValue[address].Item2;
+                }
+                
+                // 比较值是否相等（考虑浮点数精度）
+                if (individualValue == null || batchValue == null)
+                {
+                    validationErrors.Add($"地址 {address}: 值为null (单个={individualValue}, 批量={batchValue})");
+                }
+                else if (individualValue is float || individualValue is double || batchValue is float || batchValue is double)
+                {
+                    // 浮点数比较需要考虑精度
+                    double individualDouble = Convert.ToDouble(individualValue);
+                    double batchDouble = Convert.ToDouble(batchValue);
+                    if (Math.Abs(individualDouble - batchDouble) >= FLOAT_COMPARISON_PRECISION)
+                    {
+                        validationErrors.Add($"地址 {address}: 浮点数值不匹配 (单个={individualValue}, 批量={batchValue})");
+                    }
+                }
+                else if (!individualValue.Equals(batchValue))
+                {
+                    validationErrors.Add($"地址 {address}: 值不匹配 (单个={individualValue}, 批量={batchValue})");
+                }
+            }
+            
+            // 报告验证结果
+            if (validationErrors.Count == 0)
+            {
+                LogInfo($"✓ 数据一致性验证通过：{addresses.Count} 个地址的值完全匹配");
+            }
+            else
+            {
+                LogWarning($"⚠ 数据一致性验证失败：发现 {validationErrors.Count} 个不匹配");
+                foreach (var error in validationErrors.Take(10)) // 只显示前10个错误
+                {
+                    LogWarning($"  {error}");
+                }
+                if (validationErrors.Count > 10)
+                {
+                    LogWarning($"  ... 还有 {validationErrors.Count - 10} 个错误未显示");
+                }
+                Assert.True(false, $"数据一致性验证失败：批量读取与单个读取的值不匹配");
             }
         }
 
