@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         #region 测试配置常量
         
         /// <summary>测试PLC IP地址</summary>
-        private const string TEST_PLC_IP = "192.168.11.41";
+        private const string TEST_PLC_IP = "192.168.6.159";
         
         /// <summary>测试PLC端口</summary>
         private const int TEST_PLC_PORT = 102;
@@ -181,7 +181,22 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 LogStep("建立PLC连接");
                 var connectResult = await client.ConnectAsync();
                 Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
-                
+                client.IsLongConnection = false;
+                for (; ; )
+                {
+
+                        var test1 = await client.ReadByteAsync("db23.dbb0", 696);
+                        if (test1.IsSuccess)
+                        {
+                            Debug.Print(test1.ResultValue.Length.ToString());
+                        }
+                        else
+                        {
+                            Debug.Print("失败");
+                        }
+                  
+
+                }
                 LogStep("执行异步读写测试");
                 await ReadWriteAsync();
                 
