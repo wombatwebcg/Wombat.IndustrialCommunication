@@ -203,13 +203,11 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (result.IsSuccess)
                     {
                         // 连接成功后初始化S7协议
-                        // 使用更短的超时时间进行协议初始化，避免超时累加
-                        var initTimeout = TimeSpan.FromMilliseconds(Math.Max(500, ConnectTimeout.TotalMilliseconds * 0.3)); // 使用连接超时的30%或至少500ms
                         
                         var initStartTime = DateTime.Now;
-                        var initResult = await InitAsync(initTimeout).ConfigureAwait(false);
+                        var initResult = await InitAsync(ConnectTimeout).ConfigureAwait(false);
                         var initTime = (DateTime.Now - initStartTime).TotalMilliseconds;
-                        Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, initTimeout.TotalMilliseconds);
+                        Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, ConnectTimeout);
                         
                         if (!initResult.IsSuccess)
                         {

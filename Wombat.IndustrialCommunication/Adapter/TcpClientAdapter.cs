@@ -18,7 +18,6 @@ namespace Wombat.IndustrialCommunication
         private TimeSpan _connectTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private TimeSpan _receiveTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private TimeSpan _sendTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
-        private readonly object _lockObject = new object();
         private bool _disposed;
         private const int DEFAULT_TIMEOUT_MS = 2000;
         private const int MIN_PORT = 1;
@@ -498,53 +497,6 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        /// <summary>
-        /// 检测连接的健康状态
-        /// </summary>
-        /// <param name="cancellationToken">取消令牌</param>
-        /// <returns>连接是否健康的操作结果</returns>
-        public async Task<OperationResult<bool>> IsConnectionHealthyAsync(CancellationToken cancellationToken = default)
-        {
-            if (_disposed)
-                throw new ObjectDisposedException(nameof(TcpClientAdapter));
-
-            if (!Connected)
-                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
-
-            try
-            {
-                // 创建一个心跳检测的取消令牌，使用较短的超时时间
-                using (var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(1000)))
-                using (var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, cancellationToken))
-                {
-                    // 创建一个0字节的心跳数据包
-                    byte[] heartbeatPacket = new byte[1] { 0 };
-                    
-                    Logger?.LogDebug("正在执行连接健康检查: {EndPoint}", _remoteEndPoint);
-                    
-                    // 尝试发送和接收最小数据以检测连接状态
-                    var sendResult = await Send(heartbeatPacket, 0, 1, linkedCts.Token).ConfigureAwait(false);
-                    if (!sendResult.IsSuccess)
-                    {
-                        Logger?.LogWarning("连接健康检查失败(发送): {Message}", sendResult.Message);
-                        return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
-                    }
-                    
-                    Logger?.LogDebug("连接健康检查成功: {EndPoint}", _remoteEndPoint);
-                    return new OperationResult<bool> { IsSuccess = true, ResultValue = true };
-                }
-            }
-            catch (OperationCanceledException)
-            {
-                Logger?.LogWarning("连接健康检查超时: {EndPoint}", _remoteEndPoint);
-                return new OperationResult<bool> { IsSuccess = true, ResultValue = false };
-            }
-            catch (Exception ex)
-            {
-                Logger?.LogError(ex, "连接健康检查异常: {EndPoint}", _remoteEndPoint);
-                return new OperationResult<bool> { IsSuccess = false, ResultValue = false, Message = ex.Message };
-            }
-        }
 
         public void Dispose()
         {
