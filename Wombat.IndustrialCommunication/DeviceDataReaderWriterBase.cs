@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public virtual OperationResult<Dictionary<string, (DataTypeEnums, object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
-            return BatchReadAsync(addresses).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await BatchReadAsync(addresses)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -54,7 +54,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         internal virtual OperationResult<byte[]> Read(string address, int length, bool isBit = false)
         {
-            return ReadAsync(address, length, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadAsync(address, length, isBit)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -62,7 +62,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public OperationResult<byte> ReadByte(string address)
         {
-            return ReadByteAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadByteAsync(address)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -70,7 +70,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public OperationResult<byte[]> ReadByte(string address, int length)
         {
-            return ReadByteAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadByteAsync(address, length)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -78,7 +78,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public virtual OperationResult<bool> ReadBoolean(string address)
         {
-            return ReadBooleanAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadBooleanAsync(address)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -86,92 +86,92 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public virtual OperationResult<bool[]> ReadBoolean(string address, int length)
         {
-            return ReadBooleanAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadBooleanAsync(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<short> ReadInt16(string address)
         {
-            return ReadInt16Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt16Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<short[]> ReadInt16(string address, int length)
         {
-            return ReadInt16Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt16Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<ushort> ReadUInt16(string address)
         {
-            return ReadUInt16Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt16Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<ushort[]> ReadUInt16(string address, int length)
         {
-            return ReadUInt16Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt16Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<int> ReadInt32(string address)
         {
-            return ReadInt32Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt32Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<int[]> ReadInt32(string address, int length)
         {
-            return ReadInt32Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt32Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<uint> ReadUInt32(string address)
         {
-            return ReadUInt32Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt32Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<uint[]> ReadUInt32(string address, int length)
         {
-            return ReadUInt32Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt32Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<long> ReadInt64(string address)
         {
-            return ReadInt64Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt64Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<long[]> ReadInt64(string address, int length)
         {
-            return ReadInt64Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadInt64Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<ulong> ReadUInt64(string address)
         {
-            return ReadUInt64Async(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt64Async(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<ulong[]> ReadUInt64(string address, int length)
         {
-            return ReadUInt64Async(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadUInt64Async(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<float> ReadFloat(string address)
         {
-            return ReadFloatAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadFloatAsync(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<float[]> ReadFloat(string address, int length)
         {
-            return ReadFloatAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadFloatAsync(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<double> ReadDouble(string address)
         {
-            return ReadDoubleAsync(address).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadDoubleAsync(address)).GetAwaiter().GetResult();
         }
 
         public OperationResult<double[]> ReadDouble(string address, int length)
         {
-            return ReadDoubleAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadDoubleAsync(address, length)).GetAwaiter().GetResult();
         }
 
         public OperationResult<string> ReadString(string address, int length)
         {
-            return ReadStringAsync(address, length).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadStringAsync(address, length)).GetAwaiter().GetResult();
         }
 
         #endregion
@@ -729,117 +729,117 @@ namespace Wombat.IndustrialCommunication
 
         public virtual OperationResult BatchWrite(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
-            return BatchWriteAsync(addresses).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await BatchWriteAsync(addresses)).GetAwaiter().GetResult();
         }
 
         internal virtual OperationResult Write(string address, byte[] data, bool isBit = false)
         {
-            return WriteAsync(address, data, isBit).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, data, isBit)).GetAwaiter().GetResult();
         }
 
         public virtual OperationResult Write(string address, byte[] value)
         {
-            return WriteAsync(address, value, false).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value, false)).GetAwaiter().GetResult();
         }
         
         public virtual OperationResult Write(string address, byte value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public virtual OperationResult Write(string address, bool value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
         
         public virtual OperationResult Write(string address, bool[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, short value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, short[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, ushort value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, ushort[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, int value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, int[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, uint value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, uint[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, long value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, long[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, ulong value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, ulong[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, float value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, float[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, double value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, double[] value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         public OperationResult Write(string address, string value)
         {
-            return WriteAsync(address, value).ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value)).GetAwaiter().GetResult();
         }
 
         #endregion

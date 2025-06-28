@@ -39,6 +39,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     public class ModbusTcpClient : ModbusTcpClientBase, IDeviceClient,  IModbusClient
     {
         private readonly TcpClientAdapter _tcpClientAdapter;
+
         private readonly AsyncLock _lock = new AsyncLock();
         
         public IPEndPoint IPEndPoint { get; private set; }
@@ -201,7 +202,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public OperationResult Connect()
         {
-            return ConnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> ConnectAsync()
@@ -223,7 +224,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var startTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result = await _tcpClientAdapter.ConnectAsync();
+                    var result =await _tcpClientAdapter.ConnectAsync();
                     
                     if (result.IsSuccess)
                     {
@@ -251,7 +252,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public OperationResult Disconnect()
         {
-            return DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await DisconnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> DisconnectAsync()

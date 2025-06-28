@@ -172,7 +172,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public OperationResult Connect()
         {
-            return ConnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> ConnectAsync()
@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var tcpConnectStartTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result = await _tcpClientAdapter.ConnectAsync().ConfigureAwait(false);
+                    var result =await  _tcpClientAdapter.ConnectAsync();
                     
                     var tcpConnectTime = (DateTime.Now - tcpConnectStartTime).TotalMilliseconds;
                     Logger?.LogDebug("TCP连接耗时：{TcpConnectTime}ms", tcpConnectTime);
@@ -205,7 +205,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         // 连接成功后初始化S7协议
                         
                         var initStartTime = DateTime.Now;
-                        var initResult = await InitAsync(ConnectTimeout).ConfigureAwait(false);
+                        var initResult = await InitAsync(ConnectTimeout);
                         var initTime = (DateTime.Now - initStartTime).TotalMilliseconds;
                         Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, ConnectTimeout);
                         
@@ -243,7 +243,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public OperationResult Disconnect()
         {
-            return DisconnectAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return Task.Run(async () => await DisconnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> DisconnectAsync()
@@ -265,7 +265,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var startTime = DateTime.Now;
                     
                     // 执行底层传输断开连接操作
-                    var result = await _tcpClientAdapter.DisconnectAsync().ConfigureAwait(false);
+                    var result = await _tcpClientAdapter.DisconnectAsync();
                     
                     if (result.IsSuccess)
                     {
