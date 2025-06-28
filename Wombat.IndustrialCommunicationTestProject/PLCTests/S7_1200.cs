@@ -181,7 +181,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 LogStep("建立PLC连接");
                 var connectResult = await client.ConnectAsync();
                 Assert.True(connectResult.IsSuccess, $"连接失败: {connectResult.Message}");
-                client.IsLongConnection = false;
                 LogStep("执行异步读写测试");
                 await ReadWriteAsync();
                 
