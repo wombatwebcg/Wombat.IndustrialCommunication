@@ -449,6 +449,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             catch (Exception ex)
             {
                 LogTestError(testName, ex);
+                throw;
             }
             finally
             {
@@ -487,6 +488,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             catch (Exception ex)
             {
                 LogTestError(testName, ex);
+                throw;
             }
             finally
             {
@@ -812,10 +814,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             // 测试场景1：连续地址批量读取
             await TestContinuousAddressBatchRead();
 
-            //// 测试场景2：分散地址批量读取
+            // 测试场景2：分散地址批量读取
             await TestScatteredAddressBatchRead();
 
-            //// 测试场景3：混合数据类型批量读取
+            // 测试场景3：混合数据类型批量读取
             await TestMixedDataTypeBatchRead();
 
             LogInfo("批量读取性能测试完成");
@@ -1033,7 +1035,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     else if (address.Contains("DBD"))
                     {
                         // 尝试读取为int32，如果地址在浮点数范围则读取为float
-                        if (address.Contains("250") || address.Contains("254") || address.Contains("258"))
+                        // 所有Data3区域（196-308）的地址都是浮点数
+                        if (address.Contains("DBD19") || address.Contains("DBD2") || address.Contains("DBD3"))
                         {
                             var result = await client.ReadFloatAsync(address);
                             Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
@@ -1124,7 +1127,8 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 else if (address.Contains("DBD"))
                 {
                     // 尝试读取为int32，如果地址在浮点数范围则读取为float
-                    if (address.Contains("250") || address.Contains("254") || address.Contains("258"))
+                    // 所有Data3区域（196-308）的地址都是浮点数
+                    if (address.Contains("DBD19") || address.Contains("DBD2") || address.Contains("DBD3"))
                     {
                         var result = await client.ReadFloatAsync(address);
                         Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
@@ -1144,7 +1148,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     batchValue = batchResultForValidation.ResultValue[address].Item2;
                 }
                 
-                // 比较值是否相等（考虑浮点数精度）
+                // 比较值是否相等（考虑浮点数精度和类型差异）
                 if (individualValue == null || batchValue == null)
                 {
                     validationErrors.Add($"地址 {address}: 值为null (单个={individualValue}, 批量={batchValue})");
@@ -1159,9 +1163,37 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                         validationErrors.Add($"地址 {address}: 浮点数值不匹配 (单个={individualValue}, 批量={batchValue})");
                     }
                 }
+                else if (IsNumericType(individualValue) && IsNumericType(batchValue))
+                {
+                    // 对于数值类型，转换为相同类型后比较
+                    // 特殊处理Int16/UInt16的情况，因为这是最常见的不匹配情况
+                    if ((individualValue is short || individualValue is ushort) && 
+                        (batchValue is short || batchValue is ushort))
+                    {
+                        // 将两个值都转换为uint进行比较，这样可以避免符号位问题
+                        ushort val1 = individualValue is short ? (ushort)(short)individualValue : (ushort)individualValue;
+                        ushort val2 = batchValue is short ? (ushort)(short)batchValue : (ushort)batchValue;
+                        
+                        if (val1 != val2)
+                        {
+                            validationErrors.Add($"地址 {address}: 16位整数不匹配 (单个={individualValue}[{individualValue.GetType().Name}]={val1}, 批量={batchValue}[{batchValue.GetType().Name}]={val2})");
+                        }
+                    }
+                    else
+                    {
+                        // 其他数值类型使用双精度浮点数比较
+                        double individualNum = Convert.ToDouble(individualValue);
+                        double batchNum = Convert.ToDouble(batchValue);
+                        
+                        if (Math.Abs(individualNum - batchNum) >= 0.0001)
+                        {
+                            validationErrors.Add($"地址 {address}: 数值不匹配 (单个={individualValue}[{individualValue.GetType().Name}], 批量={batchValue}[{batchValue.GetType().Name}])");
+                        }
+                    }
+                }
                 else if (!individualValue.Equals(batchValue))
                 {
-                    validationErrors.Add($"地址 {address}: 值不匹配 (单个={individualValue}, 批量={batchValue})");
+                    validationErrors.Add($"地址 {address}: 值不匹配 (单个={individualValue}[{individualValue.GetType().Name}], 批量={batchValue}[{batchValue.GetType().Name}])");
                 }
             }
             
@@ -1183,6 +1215,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
                 Assert.True(false, $"数据一致性验证失败：批量读取与单个读取的值不匹配");
             }
+        }
+
+        /// <summary>
+        /// 判断对象是否为数值类型
+        /// </summary>
+        private bool IsNumericType(object obj)
+        {
+            return obj is byte || obj is sbyte || obj is short || obj is ushort || 
+                   obj is int || obj is uint || obj is long || obj is ulong || 
+                   obj is float || obj is double || obj is decimal;
         }
 
         /// <summary>
