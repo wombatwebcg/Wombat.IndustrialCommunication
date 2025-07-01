@@ -13,12 +13,12 @@ namespace Wombat.IndustrialCommunication
         #region Read
 
 
-        public virtual OperationResult<Dictionary<string, object>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
+        public virtual OperationResult<Dictionary<string, (DataTypeEnums, object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new NotImplementedException();
         }
 
-        public virtual ValueTask<OperationResult<Dictionary<string, object>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             throw new NotImplementedException();
         }
@@ -50,7 +50,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadByte(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<byte>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<byte>(result).Complete();
         }
@@ -64,7 +64,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadByteAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<byte>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<byte>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<byte>(result).Complete();
         }
@@ -85,7 +85,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadBoolean(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<bool>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<bool>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<bool>(result).Complete();
         }
@@ -95,7 +95,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadBooleanAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<bool>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<bool>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<bool>(result).Complete();
         }
@@ -112,7 +112,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -122,7 +122,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, length, isBit: true);
             var result = new OperationResult<bool[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToBool(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToBool(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -135,7 +135,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 1).Take(1).ToArray();
                 return new OperationResult<bool>
                 {
-                    Value = BitConverter.ToBoolean(byteArry, 0)
+                    ResultValue = BitConverter.ToBoolean(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -158,7 +158,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt16(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<short>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<short>(result).Complete();
         }
@@ -172,7 +172,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<short>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<short>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<short>(result).Complete();
         }
@@ -188,7 +188,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 2 * length);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt16(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -202,7 +202,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 2 * length);
             var result = new OperationResult<short[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt16(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -215,7 +215,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<short>
                 {
-                    Value = BitConverter.ToInt16(byteArry, 0)
+                    ResultValue = BitConverter.ToInt16(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -237,7 +237,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt16(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ushort>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ushort>(result).Complete();
         }
@@ -251,7 +251,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt16Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ushort>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ushort>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ushort>(result).Complete();
         }
@@ -267,7 +267,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -281,7 +281,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 2 * length);
             var result = new OperationResult<ushort[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt16(0, length, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse);
             return result.Complete();
         }
 
@@ -294,7 +294,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2).Take(2).Reverse().ToArray();
                 return new OperationResult<ushort>
                 {
-                    Value = BitConverter.ToUInt16(byteArry, 0)
+                    ResultValue = BitConverter.ToUInt16(byteArry, 0)
                 };
             }
             catch (Exception ex)
@@ -316,7 +316,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<int>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<int>(result).Complete();
 
@@ -331,7 +331,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<int>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<int>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<int>(result).Complete();
 
@@ -349,7 +349,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt32(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -364,7 +364,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<int[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt32(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -377,7 +377,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<int>
                 {
-                    Value = byteArry.ToInt32(0, DataFormat)
+                    ResultValue = byteArry.ToInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -399,7 +399,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt32(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<uint>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<uint>(result).Complete();
         }
@@ -413,7 +413,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt32Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<uint>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<uint>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<uint>(result).Complete();
         }
@@ -429,7 +429,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt32(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -443,7 +443,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<uint[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt32(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt32(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -457,7 +457,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<uint>
                 {
-                    Value = byteArry.ToUInt32(0, DataFormat)
+                    ResultValue = byteArry.ToUInt32(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -479,7 +479,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<long>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<long>(result).Complete();
         }
@@ -493,7 +493,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<long>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<long>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<long>(result).Complete();
         }
@@ -510,7 +510,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt64(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -524,7 +524,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<long[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToInt64(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -538,7 +538,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<long>
                 {
-                    Value = byteArry.ToInt64(0, DataFormat)
+                    ResultValue = byteArry.ToInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -560,7 +560,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadUInt64(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ulong>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ulong>(result).Complete();
         }
@@ -574,7 +574,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadUInt64Async(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<ulong>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<ulong>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<ulong>(result).Complete();
         }
@@ -590,7 +590,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt64(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -604,7 +604,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<ulong[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToUInt64(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToUInt64(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -618,7 +618,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<ulong>
                 {
-                    Value = byteArry.ToUInt64(0, DataFormat)
+                    ResultValue = byteArry.ToUInt64(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -640,7 +640,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadFloat(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<float>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<float>(result).Complete();
         }
@@ -655,7 +655,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadFloatAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<float>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<float>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<float>(result).Complete();
         }
@@ -671,7 +671,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToFloat(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -685,7 +685,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<float[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToFloat(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToFloat(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -698,7 +698,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 2 + offset).Take(2 * 2).ToArray();
                 return new OperationResult<float>
                 {
-                    Value = byteArry.ToFloat(0, DataFormat)
+                    ResultValue = byteArry.ToFloat(0, DataFormat)
                 };
             }
             catch (Exception ex)
@@ -720,7 +720,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = ReadDouble(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<double>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<double>(result).Complete();
         }
@@ -734,7 +734,7 @@ namespace Wombat.IndustrialCommunication
         {
             var result = await ReadDoubleAsync(address, 1);
             if (result.IsSuccess)
-                return new OperationResult<double>(result) { Value = result.Value[0] }.Complete();
+                return new OperationResult<double>(result) { ResultValue = result.ResultValue[0] }.Complete();
             else
                 return new OperationResult<double>(result).Complete();
         }
@@ -751,7 +751,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 8 * length);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToDouble(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToDouble(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -765,7 +765,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 8 * length);
             var result = new OperationResult<double[]>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToDouble(0, length, DataFormat, IsReverse);
+                result.ResultValue = readResult.ResultValue.ToDouble(0, length,DataFormat);
             return result.Complete();
         }
 
@@ -779,7 +779,7 @@ namespace Wombat.IndustrialCommunication
                 var byteArry = values.Skip(interval * 2 * 4 + offset).Take(2 * 4).ToArray();
                 return new OperationResult<double>
                 {
-                    Value = byteArry.ToDouble(0, DataFormat, IsReverse)
+                    ResultValue = byteArry.ToDouble(0,DataFormat)
                 };
             }
             catch (Exception ex)
@@ -797,7 +797,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = Read(address, 4 * length);
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToString(0, length, encoding: Encoding.ASCII);
+                result.ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII);
             return result.Complete();
         }
 
@@ -806,7 +806,7 @@ namespace Wombat.IndustrialCommunication
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<string>(readResult);
             if (result.IsSuccess)
-                result.Value = readResult.Value.ToString(0, length, encoding: Encoding.ASCII);
+                result.ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII);
             return result.Complete();
         }
 
@@ -816,13 +816,13 @@ namespace Wombat.IndustrialCommunication
 
         #region Write
 
-        public virtual OperationResult BatchWrite(Dictionary<string, object> addresses)
+        public virtual OperationResult BatchWrite(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             throw new NotImplementedException();
 
         }
 
-        public Task<OperationResult> BatchWriteAsync(Dictionary<string, object> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             throw new NotImplementedException();
 
@@ -904,7 +904,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual OperationResult Write(string address, bool[] value)
         {
-            return Write(address, value.ToByte(), true);
+            return Write(address, value.ToBytes(), true);
         }
 
         /// <summary>
@@ -915,7 +915,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual async Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            return await WriteAsync(address, value.ToByte(), true);
+            return await WriteAsync(address, value.ToBytes(), true);
         }
 
 
@@ -1022,7 +1022,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, int value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1033,7 +1033,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1045,7 +1045,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, int[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1057,7 +1057,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1069,7 +1069,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, uint value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1080,7 +1080,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1092,7 +1092,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, uint[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1104,7 +1104,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1116,7 +1116,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, long value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1128,7 +1128,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1140,7 +1140,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, long[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1151,7 +1151,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1163,7 +1163,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, ulong value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1174,7 +1174,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1187,7 +1187,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, ulong[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1199,7 +1199,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1211,7 +1211,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, float value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1222,7 +1222,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1234,7 +1234,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, float[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1245,7 +1245,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1256,7 +1256,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, double value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
         /// <summary>
@@ -1267,7 +1267,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1279,7 +1279,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public OperationResult Write(string address, double[] value)
         {
-            return Write(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return Write(address, value.ToByte(DataFormat));
         }
 
 
@@ -1291,7 +1291,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat, reverse: IsReverse));
+            return await WriteAsync(address, value.ToByte(DataFormat));
         }
 
 
@@ -1315,216 +1315,206 @@ namespace Wombat.IndustrialCommunication
         #region object类型操作
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object>("数据类型为null");
-                case DataTypeEnums.Bool:
-                    return ReadBoolean(address).ToObject();
-                case DataTypeEnums.Byte:
-                    return ReadByte(address).ToObject();
-                case DataTypeEnums.Int16:
-                    return ReadInt16(address).ToObject();
-                case DataTypeEnums.UInt16:
-                    return ReadUInt16(address).ToObject();
-                case DataTypeEnums.Int32:
-                    return ReadInt32(address).ToObject();
-                case DataTypeEnums.UInt32:
-                    return ReadUInt32(address).ToObject();
-                case DataTypeEnums.Int64:
-                    return ReadInt64(address).ToObject();
-                case DataTypeEnums.UInt64:
-                    return ReadUInt64(address).ToObject();
-                case DataTypeEnums.Float:
-                    return ReadFloat(address).ToObject();
-                case DataTypeEnums.Double:
-                    return ReadDouble(address).ToObject();
-                case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
-                default:
-                    return OperationResult.CreateFailedResult<object>();
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return OperationResult.CreateFailedResult<object>("数据类型为null");
+                    case DataTypeEnums.Bool:
+                        var boolResult = ReadBoolean(address);
+                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
+                    case DataTypeEnums.Byte:
+                        var byteResult = ReadByte(address);
+                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
+                    case DataTypeEnums.Int16:
+                        var int16Result = ReadInt16(address);
+                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
+                    case DataTypeEnums.UInt16:
+                        var uint16Result = ReadUInt16(address);
+                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
+                    case DataTypeEnums.Int32:
+                        var int32Result = ReadInt32(address);
+                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
+                    case DataTypeEnums.UInt32:
+                        var uint32Result = ReadUInt32(address);
+                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
+                    case DataTypeEnums.Int64:
+                        var int64Result = ReadInt64(address);
+                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
+                    case DataTypeEnums.UInt64:
+                        var uint64Result = ReadUInt64(address);
+                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
+                    case DataTypeEnums.Float:
+                        var floatResult = ReadFloat(address);
+                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
+                    case DataTypeEnums.Double:
+                        var doubleResult = ReadDouble(address);
+                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
+                    case DataTypeEnums.String:
+                        return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
+                    default:
+                        return OperationResult.CreateFailedResult<object>();
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<object>($"类型转换错误: {ex.Message}");
             }
         }
 
 
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address, int length)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult<object>("数据类型为null");
-                case DataTypeEnums.Bool:
-                    return ReadBoolean(address, length).ToObject();
-                case DataTypeEnums.Byte:
-                    return ReadByte(address, length).ToObject();
-                case DataTypeEnums.Int16:
-                    return ReadInt16(address, length).ToObject();
-                case DataTypeEnums.UInt16:
-                    return ReadUInt16(address, length).ToObject();
-                case DataTypeEnums.Int32:
-                    return ReadInt32(address, length).ToObject();
-                case DataTypeEnums.UInt32:
-                    return ReadUInt32(address, length).ToObject();
-                case DataTypeEnums.Int64:
-                    return ReadInt64(address, length).ToObject();
-                case DataTypeEnums.UInt64:
-                    return ReadUInt64(address, length).ToObject();
-                case DataTypeEnums.Float:
-                    return ReadFloat(address, length).ToObject();
-                case DataTypeEnums.Double:
-                    return ReadDouble(address, length).ToObject();
-                case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
-                default:
-                    return OperationResult.CreateFailedResult<object>();
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return OperationResult.CreateFailedResult<object>("数据类型为null");
+                    case DataTypeEnums.Bool:
+                        var boolResult = ReadBoolean(address, length);
+                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
+                    case DataTypeEnums.Byte:
+                        var byteResult = ReadByte(address, length);
+                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
+                    case DataTypeEnums.Int16:
+                        var int16Result = ReadInt16(address, length);
+                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
+                    case DataTypeEnums.UInt16:
+                        var uint16Result = ReadUInt16(address, length);
+                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
+                    case DataTypeEnums.Int32:
+                        var int32Result = ReadInt32(address, length);
+                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
+                    case DataTypeEnums.UInt32:
+                        var uint32Result = ReadUInt32(address, length);
+                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
+                    case DataTypeEnums.Int64:
+                        var int64Result = ReadInt64(address, length);
+                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
+                    case DataTypeEnums.UInt64:
+                        var uint64Result = ReadUInt64(address, length);
+                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
+                    case DataTypeEnums.Float:
+                        var floatResult = ReadFloat(address, length);
+                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
+                    case DataTypeEnums.Double:
+                        var doubleResult = ReadDouble(address, length);
+                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
+                    case DataTypeEnums.String:
+                        return OperationResult.CreateFailedResult<object>("string泛型读取没有实现");
+                    default:
+                        return OperationResult.CreateFailedResult<object>();
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<object>($"类型转换错误: {ex.Message}");
             }
         }
 
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
-                case DataTypeEnums.Bool:
-                    return (await ReadBooleanAsync(address)).ToObject();
-                case DataTypeEnums.Byte:
-                    return (await ReadByteAsync(address)).ToObject();
-                case DataTypeEnums.Int16:
-                    return (await ReadInt16Async(address)).ToObject();
-                case DataTypeEnums.UInt16:
-                    return (await ReadUInt16Async(address)).ToObject();
-                case DataTypeEnums.Int32:
-                    return (await ReadInt32Async(address)).ToObject();
-                case DataTypeEnums.UInt32:
-                    return (await ReadUInt32Async(address)).ToObject();
-                case DataTypeEnums.Int64:
-                    return (await ReadInt64Async(address)).ToObject();
-                case DataTypeEnums.UInt64:
-                    return (await ReadUInt64Async(address)).ToObject();
-                case DataTypeEnums.Float:
-                    return (await ReadFloatAsync(address)).ToObject();
-                case DataTypeEnums.Double:
-                    return (await ReadDoubleAsync(address)).ToObject();
-                case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
-                default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
+                    case DataTypeEnums.Bool:
+                        var boolResult = await ReadBooleanAsync(address);
+                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
+                    case DataTypeEnums.Byte:
+                        var byteResult = await ReadByteAsync(address);
+                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
+                    case DataTypeEnums.Int16:
+                        var int16Result = await ReadInt16Async(address);
+                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
+                    case DataTypeEnums.UInt16:
+                        var uint16Result = await ReadUInt16Async(address);
+                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
+                    case DataTypeEnums.Int32:
+                        var int32Result = await ReadInt32Async(address);
+                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
+                    case DataTypeEnums.UInt32:
+                        var uint32Result = await ReadUInt32Async(address);
+                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
+                    case DataTypeEnums.Int64:
+                        var int64Result = await ReadInt64Async(address);
+                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
+                    case DataTypeEnums.UInt64:
+                        var uint64Result = await ReadUInt64Async(address);
+                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
+                    case DataTypeEnums.Float:
+                        var floatResult = await ReadFloatAsync(address);
+                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
+                    case DataTypeEnums.Double:
+                        var doubleResult = await ReadDoubleAsync(address);
+                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
+                    case DataTypeEnums.String:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
+                    default:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                }
+            }
+            catch (Exception ex)
+            {
+                return await Task.FromResult(OperationResult.CreateFailedResult<object>($"类型转换错误: {ex.Message}"));
             }
         }
 
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnums.None:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
-                case DataTypeEnums.Bool:
-                    return (await ReadBooleanAsync(address, length)).ToObject();
-                case DataTypeEnums.Byte:
-                    return (await ReadByteAsync(address, length)).ToObject();
-                case DataTypeEnums.Int16:
-                    return (await ReadInt16Async(address, length)).ToObject();
-                case DataTypeEnums.UInt16:
-                    return (await ReadUInt16Async(address, length)).ToObject();
-                case DataTypeEnums.Int32:
-                    return (await ReadInt32Async(address, length)).ToObject();
-                case DataTypeEnums.UInt32:
-                    return (await ReadUInt32Async(address, length)).ToObject();
-                case DataTypeEnums.Int64:
-                    return (await ReadInt64Async(address, length)).ToObject();
-                case DataTypeEnums.UInt64:
-                    return (await ReadUInt64Async(address, length)).ToObject();
-                case DataTypeEnums.Float:
-                    return (await ReadFloatAsync(address, length)).ToObject();
-                case DataTypeEnums.Double:
-                    return (await ReadDoubleAsync(address, length)).ToObject();
-                case DataTypeEnums.String:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
-                default:
-                    return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>("数据类型为null"));
+                    case DataTypeEnums.Bool:
+                        var boolResult = await ReadBooleanAsync(address, length);
+                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
+                    case DataTypeEnums.Byte:
+                        var byteResult = await ReadByteAsync(address, length);
+                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
+                    case DataTypeEnums.Int16:
+                        var int16Result = await ReadInt16Async(address, length);
+                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
+                    case DataTypeEnums.UInt16:
+                        var uint16Result = await ReadUInt16Async(address, length);
+                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
+                    case DataTypeEnums.Int32:
+                        var int32Result = await ReadInt32Async(address, length);
+                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
+                    case DataTypeEnums.UInt32:
+                        var uint32Result = await ReadUInt32Async(address, length);
+                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
+                    case DataTypeEnums.Int64:
+                        var int64Result = await ReadInt64Async(address, length);
+                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
+                    case DataTypeEnums.UInt64:
+                        var uint64Result = await ReadUInt64Async(address, length);
+                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
+                    case DataTypeEnums.Float:
+                        var floatResult = await ReadFloatAsync(address, length);
+                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
+                    case DataTypeEnums.Double:
+                        var doubleResult = await ReadDoubleAsync(address, length);
+                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
+                    case DataTypeEnums.String:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>("string泛型读取没有实现"));
+                    default:
+                        return await Task.FromResult(OperationResult.CreateFailedResult<object>());
+                }
+            }
+            catch (Exception ex)
+            {
+                return await Task.FromResult(OperationResult.CreateFailedResult<object>($"类型转换错误: {ex.Message}"));
             }
         }
-
-
-        public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value)
-        {
-            switch (dataTypeEnum)
-            {
-                case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-                case DataTypeEnums.Bool:
-                    return Write(address, (bool)value);
-                case DataTypeEnums.Byte:
-                    return Write(address, (byte)value);
-                case DataTypeEnums.Int16:
-                    return Write(address, (short)value);
-                case DataTypeEnums.UInt16:
-                    return Write(address, (int)value);
-                case DataTypeEnums.Int32:
-                    return Write(address, (long)value);
-                case DataTypeEnums.UInt32:
-                    return Write(address, (ushort)value);
-                case DataTypeEnums.Int64:
-                    return Write(address, (uint)value);
-                case DataTypeEnums.UInt64:
-                    return Write(address, (ulong)value);
-                case DataTypeEnums.Float:
-                    return Write(address, (float)value);
-                case DataTypeEnums.Double:
-                    return Write(address, (double)value);
-                case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
-                default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-
-
-
-
-            }
-
-        }
-
-
-        public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] values)
-        {
-            switch (dataTypeEnum)
-            {
-                case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-                case DataTypeEnums.Bool:
-                    return Write(address, values.Cast<bool>().ToArray());
-                case DataTypeEnums.Byte:
-                    return Write(address, values.Cast<byte>().ToArray());
-                case DataTypeEnums.Int16:
-                    return Write(address, values.Cast<short>().ToArray());
-                case DataTypeEnums.UInt16:
-                    return Write(address, values.Cast<ushort>().ToArray());
-                case DataTypeEnums.Int32:
-                    return Write(address, values.Cast<int>().ToArray());
-                case DataTypeEnums.UInt32:
-                    return Write(address, values.Cast<uint>().ToArray());
-                case DataTypeEnums.Int64:
-                    return Write(address, values.Cast<long>().ToArray());
-                case DataTypeEnums.UInt64:
-                    return Write(address, values.Cast<ulong>().ToArray());
-                case DataTypeEnums.Float:
-                    return Write(address, values.Cast<float>().ToArray());
-                case DataTypeEnums.Double:
-                    return Write(address, values.Cast<double>().ToArray());
-                case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
-                default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-
-
-
-
-            }
-        }
-
 
 
         public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
@@ -1559,51 +1549,132 @@ namespace Wombat.IndustrialCommunication
                         return OperationResult.CreateFailedResult("string写入未实现");
                     default:
                         return OperationResult.CreateFailedResult("数据类型为null");
-
                 }
-
             }
             catch (Exception ex)
             {
-                return OperationResult.CreateFailedResult(ex.Message);
+                return OperationResult.CreateFailedResult($"类型转换错误: {ex.Message}");
             }
         }
 
 
+        public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value)
+        {
+            try
+            {
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                    case DataTypeEnums.Bool:
+                        return Write(address, (bool)value);
+                    case DataTypeEnums.Byte:
+                        return Write(address, (byte)value);
+                    case DataTypeEnums.Int16:
+                        return Write(address, (short)value);
+                    case DataTypeEnums.UInt16:
+                        return Write(address, (int)value);
+                    case DataTypeEnums.Int32:
+                        return Write(address, (long)value);
+                    case DataTypeEnums.UInt32:
+                        return Write(address, (ushort)value);
+                    case DataTypeEnums.Int64:
+                        return Write(address, (uint)value);
+                    case DataTypeEnums.UInt64:
+                        return Write(address, (ulong)value);
+                    case DataTypeEnums.Float:
+                        return Write(address, (float)value);
+                    case DataTypeEnums.Double:
+                        return Write(address, (double)value);
+                    case DataTypeEnums.String:
+                        return OperationResult.CreateFailedResult("string写入未实现");
+                    default:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"类型转换错误: {ex.Message}");
+            }
+        }
+
         public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values)
         {
-            switch (dataTypeEnum)
+            try
             {
-                case DataTypeEnums.None:
-                    return OperationResult.CreateFailedResult("数据类型为null");
-                case DataTypeEnums.Bool:
-                    return await WriteAsync(address, values.Cast<bool>().ToArray());
-                case DataTypeEnums.Byte:
-                    return await WriteAsync(address, values.Cast<byte>().ToArray());
-                case DataTypeEnums.Int16:
-                    return await WriteAsync(address, values.Cast<short>().ToArray());
-                case DataTypeEnums.UInt16:
-                    return await WriteAsync(address, values.Cast<ushort>().ToArray());
-                case DataTypeEnums.Int32:
-                    return await WriteAsync(address, values.Cast<int>().ToArray());
-                case DataTypeEnums.UInt32:
-                    return await WriteAsync(address, values.Cast<uint>().ToArray());
-                case DataTypeEnums.Int64:
-                    return await WriteAsync(address, values.Cast<long>().ToArray());
-                case DataTypeEnums.UInt64:
-                    return await WriteAsync(address, values.Cast<ulong>().ToArray());
-                case DataTypeEnums.Float:
-                    return await WriteAsync(address, values.Cast<float>().ToArray());
-                case DataTypeEnums.Double:
-                    return await WriteAsync(address, values.Cast<double>().ToArray());
-                case DataTypeEnums.String:
-                    return OperationResult.CreateFailedResult("string写入未实现");
-                default:
-                    return OperationResult.CreateFailedResult("数据类型为null");
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                    case DataTypeEnums.Bool:
+                        return await WriteAsync(address, values.Cast<bool>().ToArray());
+                    case DataTypeEnums.Byte:
+                        return await WriteAsync(address, values.Cast<byte>().ToArray());
+                    case DataTypeEnums.Int16:
+                        return await WriteAsync(address, values.Cast<short>().ToArray());
+                    case DataTypeEnums.UInt16:
+                        return await WriteAsync(address, values.Cast<ushort>().ToArray());
+                    case DataTypeEnums.Int32:
+                        return await WriteAsync(address, values.Cast<int>().ToArray());
+                    case DataTypeEnums.UInt32:
+                        return await WriteAsync(address, values.Cast<uint>().ToArray());
+                    case DataTypeEnums.Int64:
+                        return await WriteAsync(address, values.Cast<long>().ToArray());
+                    case DataTypeEnums.UInt64:
+                        return await WriteAsync(address, values.Cast<ulong>().ToArray());
+                    case DataTypeEnums.Float:
+                        return await WriteAsync(address, values.Cast<float>().ToArray());
+                    case DataTypeEnums.Double:
+                        return await WriteAsync(address, values.Cast<double>().ToArray());
+                    case DataTypeEnums.String:
+                        return OperationResult.CreateFailedResult("string写入未实现");
+                    default:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"类型转换错误: {ex.Message}");
+            }
+        }
 
-
-
-
+        public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] values)
+        {
+            try
+            {
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.None:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                    case DataTypeEnums.Bool:
+                        return Write(address, values.Cast<bool>().ToArray());
+                    case DataTypeEnums.Byte:
+                        return Write(address, values.Cast<byte>().ToArray());
+                    case DataTypeEnums.Int16:
+                        return Write(address, values.Cast<short>().ToArray());
+                    case DataTypeEnums.UInt16:
+                        return Write(address, values.Cast<ushort>().ToArray());
+                    case DataTypeEnums.Int32:
+                        return Write(address, values.Cast<int>().ToArray());
+                    case DataTypeEnums.UInt32:
+                        return Write(address, values.Cast<uint>().ToArray());
+                    case DataTypeEnums.Int64:
+                        return Write(address, values.Cast<long>().ToArray());
+                    case DataTypeEnums.UInt64:
+                        return Write(address, values.Cast<ulong>().ToArray());
+                    case DataTypeEnums.Float:
+                        return Write(address, values.Cast<float>().ToArray());
+                    case DataTypeEnums.Double:
+                        return Write(address, values.Cast<double>().ToArray());
+                    case DataTypeEnums.String:
+                        return OperationResult.CreateFailedResult("string写入未实现");
+                    default:
+                        return OperationResult.CreateFailedResult("数据类型为null");
+                }
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"类型转换错误: {ex.Message}");
             }
         }
 

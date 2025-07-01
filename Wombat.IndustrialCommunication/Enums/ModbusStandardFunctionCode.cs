@@ -4,7 +4,7 @@ using System.Text;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public enum ModbusStandardFunctionCode
+    public  enum  ModbusStandardFunctionCode
     {
         ReadCoils = 0x1,
         ReadDiscreteInputs = 0x2,

@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.0.34-pre</Version>
+    <Version>2.1.16</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
@@ -15,17 +15,15 @@
     <RepositoryUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</RepositoryUrl>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Compile Remove="Modbus\Data\MemoryCollection.cs" />
-  </ItemGroup>
+
 
 
 
   <ItemGroup>
-    <PackageReference Include="System.IO.Ports" Version="7.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="9.0.6" />
+    <PackageReference Include="System.IO.Ports" Version="9.0.5" />
     <PackageReference Include="System.Reactive" Version="6.0.1" />
-    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.8" />
-    <PackageReference Include="Wombat.Network" Version="1.0.11" />
+    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.12" />
   </ItemGroup>
 
   <ItemGroup>

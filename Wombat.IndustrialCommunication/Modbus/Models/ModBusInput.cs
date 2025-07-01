@@ -8,6 +8,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 {
     public class ModbusHeader
     {
+
         /// <summary>
         /// 地址
         /// </summary>
