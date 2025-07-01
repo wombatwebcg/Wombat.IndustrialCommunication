@@ -389,7 +389,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="minEfficiencyRatio">最小效率比（有效数据/总读取数据）</param>
         /// <param name="maxBlockSize">最大块大小（字节）</param>
         /// <returns>优化后的地址块列表</returns>
-        public static List<S7AddressBlock> OptimizeS7AddressBlocks(List<S7AddressInfo> addressInfos, double minEfficiencyRatio = 0.7, int maxBlockSize = 180)
+        public static List<S7AddressBlock> OptimizeS7AddressBlocks(List<S7AddressInfo> addressInfos, double minEfficiencyRatio = 0.8, int maxBlockSize = 180)
         {
             var optimizedBlocks = new List<S7AddressBlock>();
             
@@ -423,7 +423,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else
                 {
-                    // 其他类型的地址使用改进的排序逻辑（按BitOffset、StartByte排序）
                     var sortedAddresses = dbGroup.OrderBy(a => a.BitOffset)
                                                 .ThenBy(a => a.StartByte)
                                                 .ToList();
@@ -481,9 +480,8 @@ namespace Wombat.IndustrialCommunication.PLC
             var optimizedBlocks = new List<S7AddressBlock>();
             
             // 按BitOffset、StartByte和DbNumber排序（根据用户需求）
-            var sortedAddresses = addresses.OrderBy(a => a.BitOffset)
+            var sortedAddresses = addresses.OrderBy(a => a.DbNumber)
                                           .ThenBy(a => a.StartByte)
-                                          .ThenBy(a => a.DbNumber)
                                           .ToList();
             
             var currentBlock = new S7AddressBlock
