@@ -204,29 +204,61 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             ValidateNotDisposed();
 
             if (Connected)
                 return OperationResult.CreateSuccessResult();
 
+            CancellationTokenSource timeoutCts = null;
             try
             {
                 _tcpClient = new TcpClient();
                 _tcpClient.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
                 _tcpClient.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
 
-                await _tcpClient.ConnectAsync(_remoteEndPoint.Address, _remoteEndPoint.Port);
+                // 创建超时 CancellationTokenSource
+                timeoutCts = new CancellationTokenSource(_connectTimeout);
+                
+                // 合并超时 token 和传入的 cancellationToken
+                var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+
+                // 使用 Task.WhenAny 实现超时控制
+                var connectTask = _tcpClient.ConnectAsync(_remoteEndPoint.Address, _remoteEndPoint.Port);
+                var timeoutTask = Task.Delay(Timeout.Infinite, combinedCts.Token);
+                
+                var completedTask = await Task.WhenAny(connectTask, timeoutTask);
+                
+                if (completedTask == timeoutTask)
+                {
+                    // 超时发生
+                    throw new OperationCanceledException("Connection timeout");
+                }
+                
+                // 等待连接任务完成（应该已经完成）
+                await connectTask;
                 
                 // 连接成功后设置NetworkStream的超时
                 SetStreamTimeouts();
                 
                 return OperationResult.CreateSuccessResult();
             }
+            catch (OperationCanceledException) when (timeoutCts?.IsCancellationRequested == true)
+            {
+                return OperationResult.CreateFailedResult($"Connection timeout after {_connectTimeout.TotalMilliseconds}ms");
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                return OperationResult.CreateFailedResult("Connection was cancelled by user");
+            }
             catch (Exception ex)
             {
                 return OperationResult.CreateFailedResult($"Connection failed: {ex.Message}");
+            }
+            finally
+            {
+                timeoutCts?.Dispose();
             }
         }
 

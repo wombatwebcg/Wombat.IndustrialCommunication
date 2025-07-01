@@ -198,8 +198,28 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         private static S7AddressInfo ParseVAddress(string address, S7AddressInfo addressInfo)
         {
+            // Smart200的V区地址映射到DB1
+            addressInfo.DbNumber = 1; // Smart200的V区对应DB1
+
+            // 判断是否是位地址格式（如V0.0）
+            if (address.Contains("."))
+            {
+                // V区位地址，如 V1.3
+                var parts = address.Substring(1).Split('.'); // 去掉V前缀并分割
+                if (parts.Length != 2)
+                    throw new ArgumentException($"V区位地址格式错误: {address}");
+
+                if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
+                    throw new ArgumentException($"V区位地址偏移解析失败: {address}");
+
+                addressInfo.DataType = S7DataType.V; // V区位地址使用V类型
+                addressInfo.StartByte = byteOffset;
+                addressInfo.BitOffset = bitOffset;
+                addressInfo.Length = 1; // 位长度为1
+                return addressInfo;
+            }
             // 判断是否是复合地址格式（VW、VD等）
-            if (address.Length > 2 && (address[1] == 'W' || address[1] == 'D' || address[1] == 'B'))
+            else if (address.Length > 2 && (address[1] == 'W' || address[1] == 'D' || address[1] == 'B'))
             {
                 var dataType = address[1];
                 var offsetStr = address.Substring(2); // 去掉VW、VD、VB前缀
@@ -207,8 +227,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!int.TryParse(offsetStr, out int offset))
                     throw new ArgumentException($"V区地址偏移解析失败: {address}");
 
-                // Smart200的V区地址映射到DB1
-                addressInfo.DbNumber = 1; // Smart200的V区对应DB1
                 addressInfo.StartByte = offset;
                 addressInfo.BitOffset = 0;
 
@@ -216,15 +234,15 @@ namespace Wombat.IndustrialCommunication.PLC
                 switch (dataType)
                 {
                     case 'B':
-                        addressInfo.DataType = S7DataType.DBB;
+                        addressInfo.DataType = S7DataType.VB;
                         addressInfo.Length = 1;
                         break;
                     case 'W':
-                        addressInfo.DataType = S7DataType.DBW;
+                        addressInfo.DataType = S7DataType.VW;
                         addressInfo.Length = 2;
                         break;
                     case 'D':
-                        addressInfo.DataType = S7DataType.DBD;
+                        addressInfo.DataType = S7DataType.VD;
                         addressInfo.Length = 4;
                         break;
                     default:
@@ -238,9 +256,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!int.TryParse(offsetStr, out int offset))
                     throw new ArgumentException($"V区地址偏移解析失败: {address}");
 
-                // Smart200的V区地址映射到DB1
-                addressInfo.DbNumber = 1; // Smart200的V区对应DB1
-                addressInfo.DataType = S7DataType.DBB; // 使用DB区的字节类型
+                addressInfo.DataType = S7DataType.VB; // 使用V区的字节类型
                 addressInfo.StartByte = offset;
                 addressInfo.Length = 1; // 默认长度，实际使用时根据需要进行调整
                 addressInfo.BitOffset = 0;
@@ -267,7 +283,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
                     throw new ArgumentException($"Q区位地址偏移解析失败: {address}");
 
-                addressInfo.DataType = S7DataType.DBX; // Q区位地址使用DB位类型
+                addressInfo.DataType = S7DataType.Q; // Q区位地址使用Q类型
                 addressInfo.StartByte = byteOffset;
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
@@ -306,7 +322,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
                     throw new ArgumentException($"I区位地址偏移解析失败: {address}");
 
-                addressInfo.DataType = S7DataType.DBX; // I区位地址使用DBX类型表示
+                addressInfo.DataType = S7DataType.I; // I区位地址使用I类型表示
                 addressInfo.StartByte = byteOffset;
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
@@ -345,7 +361,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!int.TryParse(parts[0], out int byteOffset) || !int.TryParse(parts[1], out int bitOffset))
                     throw new ArgumentException($"M区位地址偏移解析失败: {address}");
 
-                addressInfo.DataType = S7DataType.MX;
+                addressInfo.DataType = S7DataType.M;
                 addressInfo.StartByte = byteOffset;
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
@@ -384,12 +400,12 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var areaType = dbGroup.Key.AreaType;
                 
-                // 特殊处理Q区和I区的位地址
-                if ((areaType == "Q" || areaType == "I") && dbGroup.Any(a => a.DataType == S7DataType.DBX))
+                // 特殊处理位地址
+                if (dbGroup.Any(a => IsBitType(a.DataType)))
                 {
-                    // 对于Q区和I区的位地址，按字节边界进行优化
-                    var bitAddresses = dbGroup.Where(a => a.DataType == S7DataType.DBX).ToList();
-                    var nonBitAddresses = dbGroup.Where(a => a.DataType != S7DataType.DBX).ToList();
+                    // 对于位地址，按字节边界进行优化
+                    var bitAddresses = dbGroup.Where(a => IsBitType(a.DataType)).ToList();
+                    var nonBitAddresses = dbGroup.Where(a => !IsBitType(a.DataType)).ToList();
                     
                     // 处理位地址
                     if (bitAddresses.Count > 0)
@@ -407,8 +423,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else
                 {
-                    // 其他类型的地址使用原有逻辑
-                    var sortedAddresses = dbGroup.OrderBy(a => a.StartByte).ToList();
+                    // 其他类型的地址使用改进的排序逻辑（按BitOffset、StartByte排序）
+                    var sortedAddresses = dbGroup.OrderBy(a => a.BitOffset)
+                                                .ThenBy(a => a.StartByte)
+                                                .ToList();
                     var blocks = OptimizeNonBitAddresses(sortedAddresses, minEfficiencyRatio, maxBlockSize);
                     optimizedBlocks.AddRange(blocks);
                 }
@@ -418,19 +436,26 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         /// <summary>
-        /// 优化位地址（Q区和I区）
+        /// 优化位地址
         /// </summary>
         private static List<S7AddressBlock> OptimizeBitAddresses(List<S7AddressInfo> bitAddresses, string areaType, int maxBlockSize)
         {
             var optimizedBlocks = new List<S7AddressBlock>();
             
+            // 先按BitOffset、StartByte、DbNumber排序
+            var sortedBitAddresses = bitAddresses.OrderBy(a => a.BitOffset)
+                                               .ThenBy(a => a.StartByte)
+                                               .ThenBy(a => a.DbNumber)
+                                               .ToList();
+            
             // 按字节地址分组
-            var byteGroups = bitAddresses.GroupBy(a => a.StartByte).ToList();
+            var byteGroups = sortedBitAddresses.GroupBy(a => a.StartByte).ToList();
             
             foreach (var byteGroup in byteGroups)
             {
                 var byteOffset = byteGroup.Key;
-                var addresses = byteGroup.ToList();
+                // 按BitOffset排序位地址
+                var addresses = byteGroup.OrderBy(a => a.BitOffset).ToList();
                 
                 // 每个字节作为一个块
                 var block = new S7AddressBlock
@@ -455,8 +480,11 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var optimizedBlocks = new List<S7AddressBlock>();
             
-            // 按起始地址排序
-            var sortedAddresses = addresses.OrderBy(a => a.StartByte).ToList();
+            // 按BitOffset、StartByte和DbNumber排序（根据用户需求）
+            var sortedAddresses = addresses.OrderBy(a => a.BitOffset)
+                                          .ThenBy(a => a.StartByte)
+                                          .ThenBy(a => a.DbNumber)
+                                          .ToList();
             
             var currentBlock = new S7AddressBlock
             {
@@ -632,7 +660,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             continue;
                         }
 
-                        object value = ExtractValueFromBytes(data, relativeOffset, address);
+                        object value = ExtractValueFromBytes(data, relativeOffset, address, true, EndianFormat.ABCD);
                         result[address.OriginalAddress] = value;
                     }
                     catch (Exception)
@@ -651,54 +679,108 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="data">字节数组</param>
         /// <param name="offset">偏移量</param>
         /// <param name="addressInfo">地址信息</param>
+        /// <param name="isReverse">是否反转字节序</param>
+        /// <param name="dataFormat">数据格式</param>
         /// <returns>提取的值</returns>
-        private static object ExtractValueFromBytes(byte[] data, int offset, S7AddressInfo addressInfo)
+        private static object ExtractValueFromBytes(byte[] data, int offset, S7AddressInfo addressInfo, bool isReverse = true, EndianFormat dataFormat = EndianFormat.ABCD)
         {
-            switch (addressInfo.DataType)
+            try
             {
-                case S7DataType.DBX:
-                    // 位数据（包括I区和Q区的位地址）
-                    if (offset < data.Length)
-                    {
-                        var byteValue = data[offset];
-                        return (byteValue & (1 << addressInfo.BitOffset)) != 0;
-                    }
-                    return false;
+                switch (addressInfo.DataType)
+                {
+                    case S7DataType.DBX:
+                    case S7DataType.I:
+                    case S7DataType.Q:
+                    case S7DataType.V:
+                        // 位数据
+                        if (offset < data.Length)
+                        {
+                            var byteValue = data[offset];
+                            return (byteValue & (1 << addressInfo.BitOffset)) != 0;
+                        }
+                        return false;
 
-                case S7DataType.DBB:
-                case S7DataType.IB:
-                case S7DataType.VB:
-                    // 字节数据
-                    if (offset < data.Length)
-                    {
-                        return data[offset];
-                    }
-                    return (byte)0;
+                    case S7DataType.DBB:
+                    case S7DataType.IB:
+                    case S7DataType.VB:
+                    case S7DataType.MB:
+                    case S7DataType.QB:
+                        // 字节数据
+                        if (offset < data.Length)
+                        {
+                            return data[offset];
+                        }
+                        return (byte)0;
 
-                case S7DataType.DBW:
-                case S7DataType.IW:
-                case S7DataType.VW:
-                    // 字数据 (2字节)
-                    if (offset + 1 < data.Length)
-                    {
-                        // 注意：这里假设使用大端序，实际使用时需要根据IsReverse参数调整
-                        return (ushort)(data[offset] << 8 | data[offset + 1]);
-                    }
-                    return (ushort)0;
+                    case S7DataType.DBW:
+                    case S7DataType.IW:
+                    case S7DataType.VW:
+                    case S7DataType.MW:
+                    case S7DataType.QW:
+                        // 字数据 (2字节)
+                        if (offset + 1 < data.Length)
+                        {
+                            return data.ToUInt16(offset, isReverse);
+                        }
+                        return (ushort)0;
 
-                case S7DataType.DBD:
-                case S7DataType.ID:
-                case S7DataType.VD:
-                    // 双字数据 (4字节)
-                    if (offset + 3 < data.Length)
-                    {
-                        // 注意：这里假设使用大端序，实际使用时需要根据IsReverse参数调整
-                        return (uint)(data[offset] << 24 | data[offset + 1] << 16 | data[offset + 2] << 8 | data[offset + 3]);
-                    }
-                    return (uint)0;
+                    case S7DataType.DBD:
+                    case S7DataType.ID:
+                    case S7DataType.VD:
+                    case S7DataType.MD:
+                    case S7DataType.QD:
+                        // 双字数据 (4字节)
+                        // 根据TargetDataType确定返回类型
+                        if (offset + 3 < data.Length)
+                        {
+                            if (addressInfo.TargetDataType == DataTypeEnums.Float)
+                            {
+                                return data.ToFloat(offset, dataFormat);
+                            }
+                            else if (addressInfo.TargetDataType == DataTypeEnums.Int32)
+                            {
+                                return data.ToInt32(offset, dataFormat);
+                            }
+                            else
+                            {
+                                return data.ToUInt32(offset, dataFormat);
+                            }
+                        }
+                        return (uint)0;
 
-                default:
-                    return null;
+                    default:
+                        // 根据TargetDataType尝试进行转换
+                        switch (addressInfo.TargetDataType)
+                        {
+                            case DataTypeEnums.Int64:
+                                if (offset + 7 < data.Length)
+                                {
+                                    return data.ToInt64(offset, dataFormat);
+                                }
+                                return (long)0;
+                                
+                            case DataTypeEnums.UInt64:
+                                if (offset + 7 < data.Length)
+                                {
+                                    return data.ToUInt64(offset, dataFormat);
+                                }
+                                return (ulong)0;
+                                
+                            case DataTypeEnums.Double:
+                                if (offset + 7 < data.Length)
+                                {
+                                    return data.ToDouble(offset, dataFormat);
+                                }
+                                return 0.0;
+                                
+                            default:
+                                return null;
+                        }
+                }
+            }
+            catch (Exception)
+            {
+                return null;
             }
         }
 
@@ -717,6 +799,9 @@ namespace Wombat.IndustrialCommunication.PLC
                 switch (addressInfo.DataType)
                 {
                     case S7DataType.DBX:
+                    case S7DataType.I:
+                    case S7DataType.Q:
+                    case S7DataType.V:
                         // 位数据
                         if (value is bool boolValue)
                         {
@@ -732,6 +817,8 @@ namespace Wombat.IndustrialCommunication.PLC
                     case S7DataType.DBB:
                     case S7DataType.IB:
                     case S7DataType.VB:
+                    case S7DataType.MB:
+                    case S7DataType.QB:
                         // 字节数据
                         if (value is byte byteValue)
                         {
@@ -746,101 +833,54 @@ namespace Wombat.IndustrialCommunication.PLC
                     case S7DataType.DBW:
                     case S7DataType.IW:
                     case S7DataType.VW:
+                    case S7DataType.MW:
+                    case S7DataType.QW:
                         // 字数据 (2字节)
                         if (value is short shortValue)
                         {
-                            var bytes = new byte[2];
-                            if (isReverse)
-                            {
-                                bytes[0] = (byte)(shortValue >> 8);
-                                bytes[1] = (byte)(shortValue & 0xFF);
-                            }
-                            else
-                            {
-                                bytes[0] = (byte)(shortValue & 0xFF);
-                                bytes[1] = (byte)(shortValue >> 8);
-                            }
-                            return bytes;
+                            return shortValue.ToByte(isReverse);
                         }
                         else if (value is ushort ushortValue)
                         {
-                            var bytes = new byte[2];
-                            if (isReverse)
-                            {
-                                bytes[0] = (byte)(ushortValue >> 8);
-                                bytes[1] = (byte)(ushortValue & 0xFF);
-                            }
-                            else
-                            {
-                                bytes[0] = (byte)(ushortValue & 0xFF);
-                                bytes[1] = (byte)(ushortValue >> 8);
-                            }
-                            return bytes;
+                            return ushortValue.ToByte(isReverse);
                         }
                         return null;
 
                     case S7DataType.DBD:
                     case S7DataType.ID:
+                    case S7DataType.VD:
+                    case S7DataType.MD:
+                    case S7DataType.QD:
                         // 双字数据 (4字节)
+                        // 根据值类型确定转换方法
                         if (value is int int32Value)
                         {
-                            var bytes = new byte[4];
-                            if (isReverse)
-                            {
-                                bytes[0] = (byte)(int32Value >> 24);
-                                bytes[1] = (byte)(int32Value >> 16);
-                                bytes[2] = (byte)(int32Value >> 8);
-                                bytes[3] = (byte)(int32Value & 0xFF);
-                            }
-                            else
-                            {
-                                bytes[0] = (byte)(int32Value & 0xFF);
-                                bytes[1] = (byte)(int32Value >> 8);
-                                bytes[2] = (byte)(int32Value >> 16);
-                                bytes[3] = (byte)(int32Value >> 24);
-                            }
-                            return bytes;
+                            return int32Value.ToByte(dataFormat);
                         }
                         else if (value is uint uint32Value)
                         {
-                            var bytes = new byte[4];
-                            if (isReverse)
-                            {
-                                bytes[0] = (byte)(uint32Value >> 24);
-                                bytes[1] = (byte)(uint32Value >> 16);
-                                bytes[2] = (byte)(uint32Value >> 8);
-                                bytes[3] = (byte)(uint32Value & 0xFF);
-                            }
-                            else
-                            {
-                                bytes[0] = (byte)(uint32Value & 0xFF);
-                                bytes[1] = (byte)(uint32Value >> 8);
-                                bytes[2] = (byte)(uint32Value >> 16);
-                                bytes[3] = (byte)(uint32Value >> 24);
-                            }
-                            return bytes;
+                            return uint32Value.ToByte(dataFormat);
                         }
                         else if (value is float floatValue)
                         {
-                            var intBytes = BitConverter.GetBytes(floatValue);
-                            if (isReverse)
-                            {
-                                Array.Reverse(intBytes);
-                            }
-                            return intBytes;
-                        }
-                        else if (value is double doubleValue)
-                        {
-                            var doubleBytes = BitConverter.GetBytes(doubleValue);
-                            if (isReverse)
-                            {
-                                Array.Reverse(doubleBytes);
-                            }
-                            return doubleBytes;
+                            return floatValue.ToByte(dataFormat);
                         }
                         return null;
 
                     default:
+                        // 根据值类型尝试进行转换
+                        if (value is long longValue)
+                        {
+                            return longValue.ToByte(dataFormat);
+                        }
+                        else if (value is ulong ulongValue)
+                        {
+                            return ulongValue.ToByte(dataFormat);
+                        }
+                        else if (value is double doubleValue)
+                        {
+                            return doubleValue.ToByte(dataFormat);
+                        }
                         return null;
                 }
             }
@@ -883,7 +923,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         break;
 
                     case "I":
-                        if (addressInfo.DataType == S7DataType.DBX)
+                        if (addressInfo.DataType == S7DataType.I)
                         {
                             return $"I{addressInfo.StartByte}.{addressInfo.BitOffset}";
                         }
@@ -902,7 +942,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         break;
 
                     case "Q":
-                        if (addressInfo.DataType == S7DataType.DBX)
+                        if (addressInfo.DataType == S7DataType.Q)
                         {
                             return $"Q{addressInfo.StartByte}.{addressInfo.BitOffset}";
                         }
@@ -921,7 +961,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         break;
 
                     case "M":
-                        if (addressInfo.DataType == S7DataType.MX)
+                        if (addressInfo.DataType == S7DataType.M)
                         {
                             return $"M{addressInfo.StartByte}.{addressInfo.BitOffset}";
                         }
@@ -941,21 +981,21 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     case "V":
                         // V区地址（Smart200专用）
-                        if (addressInfo.DataType == S7DataType.DBX)
+                        if (addressInfo.DataType == S7DataType.V)
                         {
-                            return $"DB1.DBX{addressInfo.StartByte}.{addressInfo.BitOffset}";
+                            return $"V{addressInfo.StartByte}.{addressInfo.BitOffset}";
                         }
-                        else if (addressInfo.DataType == S7DataType.DBB)
+                        else if (addressInfo.DataType == S7DataType.VB)
                         {
-                            return $"DB1.DBB{addressInfo.StartByte}";
+                            return $"VB{addressInfo.StartByte}";
                         }
-                        else if (addressInfo.DataType == S7DataType.DBW)
+                        else if (addressInfo.DataType == S7DataType.VW)
                         {
-                            return $"DB1.DBW{addressInfo.StartByte}";
+                            return $"VW{addressInfo.StartByte}";
                         }
-                        else if (addressInfo.DataType == S7DataType.DBD)
+                        else if (addressInfo.DataType == S7DataType.VD)
                         {
-                            return $"DB1.DBD{addressInfo.StartByte}";
+                            return $"VD{addressInfo.StartByte}";
                         }
                         break;
                 }
@@ -982,19 +1022,22 @@ namespace Wombat.IndustrialCommunication.PLC
                 case S7DataType.DBW:
                 case S7DataType.DBD:
                     return "DB";
+                case S7DataType.I:
                 case S7DataType.IB:
                 case S7DataType.IW:
                 case S7DataType.ID:
                     return "I";
+                case S7DataType.Q:
                 case S7DataType.QB:
                 case S7DataType.QW:
                 case S7DataType.QD:
                     return "Q";
-                case S7DataType.MX:
+                case S7DataType.M:
                 case S7DataType.MB:
                 case S7DataType.MW:
                 case S7DataType.MD:
                     return "M";
+                case S7DataType.V:
                 case S7DataType.VB:
                 case S7DataType.VW:
                 case S7DataType.VD:
@@ -1002,6 +1045,20 @@ namespace Wombat.IndustrialCommunication.PLC
                 default:
                     return "UNKNOWN";
             }
+        }
+        
+        /// <summary>
+        /// 判断S7数据类型是否为位类型
+        /// </summary>
+        /// <param name="dataType">S7数据类型</param>
+        /// <returns>是否为位类型</returns>
+        public static bool IsBitType(S7DataType dataType)
+        {
+            return dataType == S7DataType.DBX || 
+                   dataType == S7DataType.I || 
+                   dataType == S7DataType.Q || 
+                   dataType == S7DataType.V || 
+                   dataType == S7DataType.M;
         }
     }
 } 
