@@ -16,32 +16,30 @@ namespace Wombat.IndustrialCommunication.PLC
     /// </summary>
     public enum S7DataType
     {
-        // DB区（数据块）
-        DBX,  // DB位
-        DBB,  // DB字节
-        DBW,  // DB字
-        DBD,  // DB双字
+        DBX,  
+        DBB, 
+        DBW,  
+        DBD,  
         
-        // I区（输入区）- 位地址直接在解析时处理，不需要单独的IX类型
-        IB,   // I区字节
-        IW,   // I区字
-        ID,   // I区双字
+        I,    // I区位类型
+        IB,   
+        IW,   
+        ID,   
         
-        // Q区（输出区）- 位地址直接在解析时处理，不需要单独的QX类型  
-        QB,   // Q区字节
-        QW,   // Q区字
-        QD,   // Q区双字
+        Q,    // Q区位类型
+        QB,  
+        QW,  
+        QD,  
         
-        // M区（Merker内部存储区）
-        MX,   // M区位
-        MB,   // M区字节
-        MW,   // M区字
-        MD,   // M区双字
+        M,
+        MB,  
+        MW,   
+        MD,  
         
-        // V区（Smart200专用，映射到DB1）
-        VB,   // V区字节（Smart200用）
-        VW,   // V区字（Smart200用）
-        VD    // V区双字（Smart200用）
+        V,    // V区位类型
+        VB,   
+        VW,  
+        VD 
     }
 
     /// <summary>
