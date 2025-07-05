@@ -8,7 +8,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication
 {
-    public abstract class DeviceServer : ServerBase, IServer, IReadWrite
+    public abstract class DeviceServer : ServerBase, IServer
     {
         #region Read
 

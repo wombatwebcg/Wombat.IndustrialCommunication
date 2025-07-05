@@ -158,6 +158,62 @@ namespace Wombat.IndustrialCommunication.PLC
             return new ServerMessageTransport(adapter);
         }
         
+        #region 数据变化监听接口
+
+        /// <summary>
+        /// 数据写入事件
+        /// </summary>
+        public event EventHandler<S7DataStoreEventArgs> DataWritten
+        {
+            add { DataStore.DataStoreWrittenTo += value; }
+            remove { DataStore.DataStoreWrittenTo -= value; }
+        }
+
+        /// <summary>
+        /// 数据读取事件
+        /// </summary>
+        public event EventHandler<S7DataStoreEventArgs> DataRead
+        {
+            add { DataStore.DataStoreReadFrom += value; }
+            remove { DataStore.DataStoreReadFrom -= value; }
+        }
+
+        /// <summary>
+        /// 启用数据变化监听
+        /// </summary>
+        /// <param name="enable">是否启用</param>
+        public void EnableDataMonitoring(bool enable)
+        {
+            if (enable)
+            {
+                Logger?.LogInformation("启用S7数据变化监听");
+            }
+            else
+            {
+                Logger?.LogInformation("禁用S7数据变化监听");
+            }
+        }
+
+        /// <summary>
+        /// 获取数据变化统计信息
+        /// </summary>
+        /// <returns>统计信息</returns>
+        public string GetDataMonitoringStats()
+        {
+            var stats = new System.Text.StringBuilder();
+            stats.AppendLine("S7数据变化监听统计:");
+            stats.AppendLine($"  数据块数量: {DataStore.DataBlocks.Count}");
+            stats.AppendLine($"  M区大小: {DataStore.Merkers?.Size ?? 0} 字节");
+            stats.AppendLine($"  I区大小: {DataStore.Inputs?.Size ?? 0} 字节");
+            stats.AppendLine($"  Q区大小: {DataStore.Outputs?.Size ?? 0} 字节");
+            stats.AppendLine($"  T区大小: {DataStore.Timers?.Size ?? 0} 字节");
+            stats.AppendLine($"  C区大小: {DataStore.Counters?.Size ?? 0} 字节");
+            
+            return stats.ToString();
+        }
+
+        #endregion
+        
         #region 数据区操作接口
 
         /// <summary>
@@ -494,54 +550,465 @@ namespace Wombat.IndustrialCommunication.PLC
         
         #endregion
         
-        #region IReadWrite 接口实现
+        #region 辅助方法
         
-        private OperationResult<T> CreateNotSupportedResult<T>()
-        {
-            return new OperationResult<T>
-            {
-                IsSuccess = false,
-                Message = "S7 TCP服务器不支持此操作。服务器端不应直接调用读取方法。"
-            };
-        }
-        
+        /// <summary>
+        /// 创建不支持功能的结果
+        /// </summary>
+        /// <returns>不支持功能的结果</returns>
         private OperationResult CreateNotSupportedResult()
         {
-            return new OperationResult
+            return OperationResult.CreateFailedResult("此功能暂不支持，请使用S7协议特定的读写方法");
+        }
+        
+        /// <summary>
+        /// 创建不支持功能的结果
+        /// </summary>
+        /// <typeparam name="T">返回类型</typeparam>
+        /// <returns>不支持功能的结果</returns>
+        private OperationResult<T> CreateNotSupportedResult<T>()
+        {
+            return OperationResult.CreateFailedResult<T>("此功能暂不支持，请使用S7协议特定的读写方法");
+        }
+
+        /// <summary>
+        /// 解析S7地址
+        /// </summary>
+        /// <param name="address">地址字符串</param>
+        /// <returns>地址信息</returns>
+        private (S7AddressInfo AddressInfo, S7Area Area)? ParseS7Address(string address)
+        {
+            try
             {
-                IsSuccess = false,
-                Message = "S7 TCP服务器不支持此操作。服务器端不应直接调用写入方法。"
-            };
+                if (string.IsNullOrEmpty(address))
+                    return null;
+
+                address = address.ToUpper();
+                var addressInfo = new S7AddressInfo
+                {
+                    OriginalAddress = address,
+                    DbNumber = 0,
+                    StartByte = 0,
+                    Length = 1
+                };
+
+                S7Area area = S7Area.M; // 默认区域
+
+                // 解析地址格式：DB1.DBW0, M0, I0, Q0, T0, C0, V0
+                if (address.StartsWith("DB"))
+                {
+                    area = S7Area.DB;
+                    addressInfo.DataType = S7DataType.DBB;
+                    var parts = address.Split('.');
+                    if (parts.Length >= 2)
+                    {
+                        // 解析DB号
+                        addressInfo.DbNumber = int.Parse(parts[0].Substring(2));
+                        
+                        // 解析数据类型和地址
+                        var dataPart = parts[1];
+                        if (dataPart.StartsWith("DBX"))
+                        {
+                            addressInfo.DataType = S7DataType.DBX;
+                            addressInfo.StartByte = int.Parse(dataPart.Substring(3));
+                            addressInfo.Length = 1;
+                        }
+                        else if (dataPart.StartsWith("DBB"))
+                        {
+                            addressInfo.DataType = S7DataType.DBB;
+                            addressInfo.StartByte = int.Parse(dataPart.Substring(3));
+                            addressInfo.Length = 1;
+                        }
+                        else if (dataPart.StartsWith("DBW"))
+                        {
+                            addressInfo.DataType = S7DataType.DBW;
+                            addressInfo.StartByte = int.Parse(dataPart.Substring(3));
+                            addressInfo.Length = 2;
+                        }
+                        else if (dataPart.StartsWith("DBD"))
+                        {
+                            addressInfo.DataType = S7DataType.DBD;
+                            addressInfo.StartByte = int.Parse(dataPart.Substring(3));
+                            addressInfo.Length = 4;
+                        }
+                    }
+                }
+                else if (address.StartsWith("M"))
+                {
+                    area = S7Area.M;
+                    addressInfo.DataType = S7DataType.MB;
+                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    addressInfo.Length = 1;
+                }
+                else if (address.StartsWith("I"))
+                {
+                    area = S7Area.I;
+                    addressInfo.DataType = S7DataType.IB;
+                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    addressInfo.Length = 1;
+                }
+                else if (address.StartsWith("Q"))
+                {
+                    area = S7Area.Q;
+                    addressInfo.DataType = S7DataType.QB;
+                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    addressInfo.Length = 1;
+                }
+                else if (address.StartsWith("V"))
+                {
+                    area = S7Area.DB; // V区映射到DB1
+                    addressInfo.DataType = S7DataType.VB;
+                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    addressInfo.Length = 1;
+                }
+
+                return (addressInfo, area);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "解析S7地址失败: {Address}", address);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 将字节数组转换为指定类型的值
+        /// </summary>
+        /// <param name="data">字节数组</param>
+        /// <param name="dataType">数据类型</param>
+        /// <param name="length">长度</param>
+        /// <returns>转换后的值</returns>
+        private object ConvertBytesToValue(byte[] data, DataTypeEnums dataType, int length)
+        {
+            try
+            {
+                if (data == null || data.Length == 0)
+                    return null;
+
+                switch (dataType)
+                {
+                    case DataTypeEnums.Bool:
+                        return data[0] != 0;
+                    case DataTypeEnums.Byte:
+                        return data[0];
+                    case DataTypeEnums.Int16:
+                        return BitConverter.ToInt16(data, 0);
+                    case DataTypeEnums.UInt16:
+                        return BitConverter.ToUInt16(data, 0);
+                    case DataTypeEnums.Int32:
+                        return BitConverter.ToInt32(data, 0);
+                    case DataTypeEnums.UInt32:
+                        return BitConverter.ToUInt32(data, 0);
+                    case DataTypeEnums.Int64:
+                        return BitConverter.ToInt64(data, 0);
+                    case DataTypeEnums.UInt64:
+                        return BitConverter.ToUInt64(data, 0);
+                    case DataTypeEnums.Float:
+                        return BitConverter.ToSingle(data, 0);
+                    case DataTypeEnums.Double:
+                        return BitConverter.ToDouble(data, 0);
+                    case DataTypeEnums.String:
+                        return Encoding.ASCII.GetString(data);
+                    default:
+                        return data;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "数据类型转换失败: {DataType}", dataType);
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// 将值转换为字节数组
+        /// </summary>
+        /// <param name="value">要转换的值</param>
+        /// <param name="dataType">数据类型</param>
+        /// <returns>字节数组</returns>
+        private byte[] ConvertValueToBytes(object value, DataTypeEnums dataType)
+        {
+            try
+            {
+                if (value == null)
+                    return null;
+
+                switch (dataType)
+                {
+                    case DataTypeEnums.Bool:
+                        return new byte[] { (byte)((bool)value ? 1 : 0) };
+                    case DataTypeEnums.Byte:
+                        return new byte[] { (byte)value };
+                    case DataTypeEnums.Int16:
+                        return BitConverter.GetBytes((short)value);
+                    case DataTypeEnums.UInt16:
+                        return BitConverter.GetBytes((ushort)value);
+                    case DataTypeEnums.Int32:
+                        return BitConverter.GetBytes((int)value);
+                    case DataTypeEnums.UInt32:
+                        return BitConverter.GetBytes((uint)value);
+                    case DataTypeEnums.Int64:
+                        return BitConverter.GetBytes((long)value);
+                    case DataTypeEnums.UInt64:
+                        return BitConverter.GetBytes((ulong)value);
+                    case DataTypeEnums.Float:
+                        return BitConverter.GetBytes((float)value);
+                    case DataTypeEnums.Double:
+                        return BitConverter.GetBytes((double)value);
+                    case DataTypeEnums.String:
+                        return Encoding.ASCII.GetBytes((string)value);
+                    default:
+                        Logger?.LogWarning("不支持的数据类型转换: {DataType}", dataType);
+                        return null;
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "值转换为字节数组失败: {DataType}", dataType);
+                return null;
+            }
+        }
+        
+        #endregion
+        
+        #region 服务器管理接口
+        
+        /// <summary>
+        /// 设置PLC型号
+        /// </summary>
+        /// <param name="siemensVersion">西门子版本</param>
+        public void SetSiemensVersion(SiemensVersion siemensVersion)
+        {
+            SiemensVersion = siemensVersion;
+            Logger?.LogInformation("设置PLC型号为: {SiemensVersion}", siemensVersion);
+        }
+        
+        /// <summary>
+        /// 设置机架号和槽号
+        /// </summary>
+        /// <param name="rack">机架号</param>
+        /// <param name="slot">槽号</param>
+        public void SetRackSlot(byte rack, byte slot)
+        {
+            Rack = rack;
+            Slot = slot;
+            Logger?.LogInformation("设置机架号: {Rack}, 槽号: {Slot}", rack, slot);
+        }
+        
+        /// <summary>
+        /// 获取服务器状态信息
+        /// </summary>
+        /// <returns>状态信息</returns>
+        public string GetServerStatus()
+        {
+            var status = new System.Text.StringBuilder();
+            status.AppendLine($"S7 TCP服务器状态:");
+            status.AppendLine($"  监听状态: {(IsListening ? "正在监听" : "未监听")}");
+            status.AppendLine($"  监听地址: {IPEndPoint}");
+            status.AppendLine($"  PLC型号: {SiemensVersion}");
+            status.AppendLine($"  机架号: {Rack}, 槽号: {Slot}");
+            status.AppendLine($"  数据块数量: {DataStore.DataBlocks.Count}");
+            status.AppendLine($"  M区大小: {DataStore.Merkers?.Size ?? 0} 字节");
+            status.AppendLine($"  I区大小: {DataStore.Inputs?.Size ?? 0} 字节");
+            status.AppendLine($"  Q区大小: {DataStore.Outputs?.Size ?? 0} 字节");
+            status.AppendLine($"  T区大小: {DataStore.Timers?.Size ?? 0} 字节");
+            status.AppendLine($"  C区大小: {DataStore.Counters?.Size ?? 0} 字节");
+            
+            return status.ToString();
         }
         
         // BatchRead
         public OperationResult<Dictionary<string, (DataTypeEnums, object)>> BatchRead(Dictionary<string, DataTypeEnums> addresses)
         {
-            return CreateNotSupportedResult<Dictionary<string, (DataTypeEnums, object)>>();
+            try
+            {
+                if (addresses == null || addresses.Count == 0)
+                {
+                    return OperationResult.CreateSuccessResult(new Dictionary<string, (DataTypeEnums, object)>());
+                }
+
+                var result = new Dictionary<string, (DataTypeEnums, object)>();
+                var errors = new List<string>();
+
+                foreach (var kvp in addresses)
+                {
+                    try
+                    {
+                        var address = kvp.Key;
+                        var dataType = kvp.Value;
+                        
+                        // 解析S7地址
+                        var addressParseResult = ParseS7Address(address);
+                        if (addressParseResult == null)
+                        {
+                            errors.Add($"无效的S7地址: {address}");
+                            continue;
+                        }
+
+                        var addressInfo = addressParseResult.Value.AddressInfo;
+                        var area = addressParseResult.Value.Area;
+
+                        // 读取数据
+                        var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, addressInfo.Length);
+                        if (readResult.IsSuccess)
+                        {
+                            // 转换数据类型
+                            var convertedValue = ConvertBytesToValue(readResult.ResultValue, dataType, addressInfo.Length);
+                            result[address] = (dataType, convertedValue);
+                        }
+                        else
+                        {
+                            errors.Add($"读取地址 {address} 失败: {readResult.Message}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"处理地址 {kvp.Key} 时发生错误: {ex.Message}");
+                    }
+                }
+
+                if (errors.Count > 0)
+                {
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>(
+                        $"批量读取部分失败: {string.Join("; ", errors)}");
+                }
+
+                return OperationResult.CreateSuccessResult(result);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "批量读取失败");
+                return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>(ex.Message);
+            }
         }
         
         // ReadByte
         public OperationResult<byte> ReadByte(string address)
         {
-            return CreateNotSupportedResult<byte>();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult<byte>($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, 1);
+                if (readResult.IsSuccess)
+                {
+                    return OperationResult.CreateSuccessResult(readResult.ResultValue[0]);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte>(readResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "读取字节失败: {Address}", address);
+                return OperationResult.CreateFailedResult<byte>(ex.Message);
+            }
         }
         
         // ReadByte
         public OperationResult<byte[]> ReadByte(string address, int length)
         {
-            return CreateNotSupportedResult<byte[]>();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult<byte[]>($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, length);
+                if (readResult.IsSuccess)
+                {
+                    return OperationResult.CreateSuccessResult(readResult.ResultValue);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(readResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "读取字节数组失败: {Address}, {Length}", address, length);
+                return OperationResult.CreateFailedResult<byte[]>(ex.Message);
+            }
         }
         
         // ReadBoolean
         public OperationResult<bool> ReadBoolean(string address)
         {
-            return CreateNotSupportedResult<bool>();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult<bool>($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, 1);
+                if (readResult.IsSuccess)
+                {
+                    return OperationResult.CreateSuccessResult(readResult.ResultValue[0] != 0);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<bool>(readResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "读取布尔值失败: {Address}", address);
+                return OperationResult.CreateFailedResult<bool>(ex.Message);
+            }
         }
         
         // ReadBoolean
         public OperationResult<bool[]> ReadBoolean(string address, int length)
         {
-            return CreateNotSupportedResult<bool[]>();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult<bool[]>($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, length);
+                if (readResult.IsSuccess)
+                {
+                    var boolArray = new bool[length];
+                    for (int i = 0; i < length; i++)
+                    {
+                        boolArray[i] = readResult.ResultValue[i] != 0;
+                    }
+                    return OperationResult.CreateSuccessResult(boolArray);
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<bool[]>(readResult.Message);
+                }
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "读取布尔数组失败: {Address}, {Length}", address, length);
+                return OperationResult.CreateFailedResult<bool[]>(ex.Message);
+            }
         }
         
         // ReadUInt16
@@ -805,31 +1272,186 @@ namespace Wombat.IndustrialCommunication.PLC
         // BatchWrite
         public OperationResult BatchWrite(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
-            return CreateNotSupportedResult();
+            try
+            {
+                if (addresses == null || addresses.Count == 0)
+                {
+                    return OperationResult.CreateSuccessResult();
+                }
+
+                var errors = new List<string>();
+                var successCount = 0;
+
+                foreach (var kvp in addresses)
+                {
+                    try
+                    {
+                        var address = kvp.Key;
+                        var (dataType, value) = kvp.Value;
+
+                        // 解析S7地址
+                        var addressParseResult = ParseS7Address(address);
+                        if (addressParseResult == null)
+                        {
+                            errors.Add($"无效的S7地址: {address}");
+                            continue;
+                        }
+
+                        var addressInfo = addressParseResult.Value.AddressInfo;
+                        var area = addressParseResult.Value.Area;
+
+                        // 将值转换为字节数组
+                        byte[] data = ConvertValueToBytes(value, dataType);
+                        if (data == null)
+                        {
+                            errors.Add($"地址 {address} 的值转换失败");
+                            continue;
+                        }
+
+                        // 写入数据
+                        var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, data);
+                        if (writeResult.IsSuccess)
+                        {
+                            successCount++;
+                        }
+                        else
+                        {
+                            errors.Add($"写入地址 {address} 失败: {writeResult.Message}");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors.Add($"处理地址 {kvp.Key} 时发生错误: {ex.Message}");
+                    }
+                }
+
+                if (errors.Count > 0)
+                {
+                    return OperationResult.CreateFailedResult(
+                        $"批量写入部分失败: {string.Join("; ", errors)}");
+                }
+
+                return OperationResult.CreateSuccessResult();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "批量写入失败");
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
         }
         
         // Write
         public OperationResult Write(string address, byte[] value)
         {
-            return CreateNotSupportedResult();
+            try
+            {
+                if (value == null || value.Length == 0)
+                {
+                    return OperationResult.CreateFailedResult("写入数据不能为空");
+                }
+
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, value);
+                return writeResult;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "写入字节数组失败: {Address}", address);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
         }
         
         // Write
         public OperationResult Write(string address, bool value)
         {
-            return CreateNotSupportedResult();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var data = new byte[] { (byte)(value ? 1 : 0) };
+                var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, data);
+                return writeResult;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "写入布尔值失败: {Address}", address);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
         }
         
         // Write
         public OperationResult Write(string address, bool[] value)
         {
-            return CreateNotSupportedResult();
+            try
+            {
+                if (value == null || value.Length == 0)
+                {
+                    return OperationResult.CreateFailedResult("写入数据不能为空");
+                }
+
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var data = new byte[value.Length];
+                for (int i = 0; i < value.Length; i++)
+                {
+                    data[i] = (byte)(value[i] ? 1 : 0);
+                }
+
+                var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, data);
+                return writeResult;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "写入布尔数组失败: {Address}", address);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
         }
         
         // Write
         public OperationResult Write(string address, byte value)
         {
-            return CreateNotSupportedResult();
+            try
+            {
+                var addressParseResult = ParseS7Address(address);
+                if (addressParseResult == null)
+                {
+                    return OperationResult.CreateFailedResult($"无效的S7地址: {address}");
+                }
+
+                var addressInfo = addressParseResult.Value.AddressInfo;
+                var area = addressParseResult.Value.Area;
+
+                var data = new byte[] { value };
+                var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, data);
+                return writeResult;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "写入字节失败: {Address}", address);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
         }
         
         // Write

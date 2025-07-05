@@ -1365,25 +1365,25 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.None:
                         return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                     case DataTypeEnums.Bool:
-                        return await WriteAsync(address, (bool)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (bool)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Byte:
-                        return await WriteAsync(address, (byte)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (byte)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Int16:
-                        return await WriteAsync(address, (short)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (short)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.UInt16:
-                        return await WriteAsync(address, (int)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (int)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Int32:
-                        return await WriteAsync(address, (long)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (long)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.UInt32:
-                        return await WriteAsync(address, (ushort)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (ushort)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Int64:
-                        return await WriteAsync(address, (uint)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (uint)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.UInt64:
-                        return await WriteAsync(address, (ulong)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (ulong)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Float:
-                        return await WriteAsync(address, (float)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (float)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Double:
-                        return await WriteAsync(address, (double)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                        return await WriteAsync(address, (double)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.String:
                         return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
                     default:

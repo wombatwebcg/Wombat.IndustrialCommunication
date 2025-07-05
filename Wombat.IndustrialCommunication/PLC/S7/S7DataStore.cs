@@ -13,6 +13,16 @@ namespace Wombat.IndustrialCommunication.PLC
         private readonly object _syncRoot = new object();
 
         /// <summary>
+        /// 数据写入事件
+        /// </summary>
+        public event EventHandler<S7DataStoreEventArgs> DataStoreWrittenTo;
+
+        /// <summary>
+        /// 数据读取事件
+        /// </summary>
+        public event EventHandler<S7DataStoreEventArgs> DataStoreReadFrom;
+
+        /// <summary>
         /// 构造函数
         /// </summary>
         public S7DataStore()
@@ -75,6 +85,18 @@ namespace Wombat.IndustrialCommunication.PLC
         public object SyncRoot
         {
             get { return _syncRoot; }
+        }
+
+        /// <summary>
+        /// 帮助方法，用于引发事件
+        /// </summary>
+        /// <typeparam name="T">事件参数类型</typeparam>
+        /// <param name="handler">事件处理器</param>
+        /// <param name="sender">事件发送者</param>
+        /// <param name="args">事件参数</param>
+        private static void RaiseEvent<T>(EventHandler<T> handler, object sender, T args) where T : EventArgs
+        {
+            handler?.Invoke(sender, args);
         }
 
         /// <summary>
@@ -183,6 +205,9 @@ namespace Wombat.IndustrialCommunication.PLC
                     result[i] = memory[startAddress + i];
                 }
 
+                // 引发读取事件
+                RaiseEvent(DataStoreReadFrom, this, S7DataStoreEventArgs.CreateReadEventArgs(area, dbNumber, startAddress, result));
+
                 return result;
             }
         }
@@ -242,6 +267,9 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     memory[startAddress + i] = data[i];
                 }
+
+                // 引发写入事件
+                RaiseEvent(DataStoreWrittenTo, this, S7DataStoreEventArgs.CreateWriteEventArgs(area, dbNumber, startAddress, data));
             }
         }
     }

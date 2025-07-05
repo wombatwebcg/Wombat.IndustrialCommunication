@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     /// S7-1200 PLC通讯测试类
     /// 测试包括：同步/异步读写、断线重连、短连接、数据类型综合测试
     /// </summary>
-    public class S7_1200
+    public class S7_1200ClientTest
     {
         #region 测试配置常量
         
@@ -113,7 +113,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 初始化S7-1200测试类
         /// </summary>
         /// <param name="output">测试输出助手</param>
-        public S7_1200(ITestOutputHelper output = null)
+        public S7_1200ClientTest(ITestOutputHelper output = null)
         {
             _output = output;
         }
