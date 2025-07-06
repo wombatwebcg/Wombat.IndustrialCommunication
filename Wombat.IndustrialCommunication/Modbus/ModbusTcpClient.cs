@@ -950,7 +950,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                         internalAddresses[kvp.Key] = (kvp.Value, null);
-                    var addressInfos = ModbusBatchHelper.ParseModbusAddresses(internalAddresses);
+                    var addressInfos = ModbusBatchHelper.ParseModbusAddresses(internalAddresses, false);
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;

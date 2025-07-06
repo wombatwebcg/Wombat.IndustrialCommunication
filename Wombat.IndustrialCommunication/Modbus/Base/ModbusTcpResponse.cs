@@ -1,13 +1,20 @@
 ﻿using System;
 using System.Buffers;
 using System.Collections.Generic;
+using System.Linq;
 using System.Text;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
     public class ModbusTcpResponse : IDeviceReadWriteMessage
     {
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+        
+        /// <summary>
+        /// 是否启用严格的帧长度验证（默认启用）
+        /// </summary>
+        public static bool EnableStrictLengthValidation { get; set; } = true;
 
         public ushort TransactionId { get; private set; }
         public ushort ProtocolId { get; private set; }
@@ -30,11 +37,26 @@ namespace Wombat.IndustrialCommunication.Modbus
         // 解析 Modbus TCP 响应帧
         public void Initialize(byte[] frame)
         {
+            var ss = string.Join(" ", frame.Select(t => t.ToString("X2")));
             if (frame == null || frame.Length < 10)
                 throw new ArgumentException("Invalid Modbus TCP frame");
-            ushort lengthInFrame = BitConverter.ToUInt16(new byte[2] { frame[5], frame[4] },0);
+            ushort lengthInFrame = (ushort)((frame[4] << 8) | frame[5]);
             if (frame.Length != lengthInFrame + 6)
-                throw new ArgumentException("Frame length mismatch with MBAP header length");
+            {
+                // 添加详细的调试信息
+                string frameHex = frame != null ? BitConverter.ToString(frame).Replace("-", " ") : "null";
+                string errorDetails = $"Frame length mismatch: Received frame length={frame.Length}, MBAP header length={lengthInFrame}, Expected total length={lengthInFrame + 6}. Frame data: {frameHex}";
+                
+                if (EnableStrictLengthValidation)
+                {
+                    throw new ArgumentException($"Frame length mismatch with MBAP header length. {errorDetails}");
+                }
+                else
+                {
+                    // 非严格模式下，记录警告但继续处理
+                    System.Diagnostics.Debug.WriteLine($"Warning: {errorDetails}");
+                }
+            }
             // 解析 MBAP Header
             // Transaction ID（2字节）
             TransactionId = BitConverter.ToUInt16(frame, 0);

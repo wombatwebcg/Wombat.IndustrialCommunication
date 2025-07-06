@@ -7,6 +7,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicat
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Wombat.IndustrialCommunicationTestProject", "Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj", "{0CCDCE17-C507-4429-8633-0B8C0EB90138}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.Extensions.DataTypeExtensions", "..\..\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions\Wombat.Extensions.DataTypeExtensions.csproj", "{24E4E3B3-4C94-D73E-76C2-87333DC57009}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{0CCDCE17-C507-4429-8633-0B8C0EB90138}.Release|Any CPU.Build.0 = Release|Any CPU
+		{24E4E3B3-4C94-D73E-76C2-87333DC57009}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{24E4E3B3-4C94-D73E-76C2-87333DC57009}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{24E4E3B3-4C94-D73E-76C2-87333DC57009}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{24E4E3B3-4C94-D73E-76C2-87333DC57009}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

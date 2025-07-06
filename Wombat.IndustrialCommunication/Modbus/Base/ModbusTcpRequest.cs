@@ -59,90 +59,80 @@ namespace Wombat.IndustrialCommunication.Modbus
         private byte[] BuildPDU(byte functionCode, ushort address, ushort length, byte[] data = null)
         {
             byte[] pdu;
-            byte[] addressBytes = BitConverter.GetBytes(address);
-            byte[] lengthBytes;
             switch (functionCode)
             {
                 // 读取类指令（读线圈、读离散输入、读保持寄存器、读输入寄存器）
                 case 0x01:  // 读线圈
-                    lengthBytes = BitConverter.GetBytes(length);
+                case 0x02:  // 读离散输入
                     pdu = new byte[5];
                     pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = lengthBytes[1];
-                    pdu[4] = lengthBytes[0];//表示request 寄存器的长度(寄存器个数)
-                    ProtocolResponseLength = 7 + 1 + 1 + (int)(Math.Ceiling(length/8.0)); // 7 (MBAP) + 功能码 + 字节数 + 数据
-
+                    pdu[1] = (byte)(address >> 8);
+                    pdu[2] = (byte)(address & 0xFF);
+                    pdu[3] = (byte)(length >> 8);
+                    pdu[4] = (byte)(length & 0xFF);
+                    ProtocolResponseLength = 7 + 1 + 1 + (int)Math.Ceiling(length / 8.0); // MBAP + 功能码 + 字节数 + 位数据
                     break;
-                case 0x02:  // 读离散输入
+
                 case 0x03:  // 读保持寄存器
                 case 0x04:  // 读输入寄存器
                     pdu = new byte[5];
-                    lengthBytes = BitConverter.GetBytes(length/2);
                     pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = lengthBytes[1];
-                    pdu[4] = lengthBytes[0];//表示request 寄存器的长度(寄存器个数)
-                    ProtocolResponseLength = 7 + 1 + 1 + length ; // 7 (MBAP) + 功能码 + 字节数 + 数据
+                    pdu[1] = (byte)(address >> 8);
+                    pdu[2] = (byte)(address & 0xFF);
+                    pdu[3] = (byte)(length >> 8);
+                    pdu[4] = (byte)(length & 0xFF);
+                    ProtocolResponseLength = 7 + 1 + 1 + length * 2; // MBAP + 功能码 + 字节数 + 寄存器数据
                     break;
 
-                // 写单寄存器/线圈（0x05 写单线圈, 0x06 写单寄存器）
                 case 0x05:  // 写单线圈
-                    pdu = new byte[5];
-                    pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = data[0];
-                    pdu[4] = data[1];//表示request 寄存器的长度(寄存器个数)
-                    ProtocolResponseLength = 12; // MBAP + 回显数据
-                    break;
-
-
                 case 0x06:  // 写单寄存器
+                    if (data == null || data.Length < 2)
+                        throw new ArgumentException("Data must be at least 2 bytes for function code 0x05/0x06");
+
                     pdu = new byte[5];
                     pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
+                    pdu[1] = (byte)(address >> 8);
+                    pdu[2] = (byte)(address & 0xFF);
                     pdu[3] = data[0];
-                    pdu[4] = data[1];//表示request 寄存器的长度(寄存器个数)
-                    ProtocolResponseLength = 12; // MBAP + 回显数据
+                    pdu[4] = data[1];
+                    ProtocolResponseLength = 12; // MBAP + FunctionCode + Address + Value
                     break;
 
-                // 写多寄存器/线圈（0x0F 写多线圈, 0x10 写多寄存器）
                 case 0x0F:  // 写多线圈
+                    if (data == null || data.Length == 0)
+                        throw new ArgumentException("Data cannot be null or empty for function code 0x0F");
 
                     pdu = new byte[6 + data.Length];
-
                     pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = (byte)(length  / 256);
-                    pdu[4] = (byte)(length  % 256);     //写寄存器数量(除2是两个字节一个寄存器，寄存器16位。除以256是byte最大存储255。)              
-                    pdu[5] = (byte)(data.Length);          //写字节的个数
-                    data.CopyTo(pdu, 6);                   //把目标值附加到数组后面
-                    ProtocolResponseLength = 12; // MBAP + 回显数据
+                    pdu[1] = (byte)(address >> 8);
+                    pdu[2] = (byte)(address & 0xFF);
+                    pdu[3] = (byte)(length >> 8);      // bit 数量
+                    pdu[4] = (byte)(length & 0xFF);
+                    pdu[5] = (byte)data.Length;        // 实际写入字节数
+                    data.CopyTo(pdu, 6);
+                    ProtocolResponseLength = 12; // MBAP + 回显功能码、地址、写入数量
                     break;
 
                 case 0x10:  // 写多寄存器
-                    pdu = new byte[6+data.Length];
-                    pdu[0] = functionCode;
-                    pdu[1] = addressBytes[1];
-                    pdu[2] = addressBytes[0];//寄存器地址
-                    pdu[3] = (byte)(data.Length / 2 / 256);
-                    pdu[4] = (byte)(data.Length / 2 % 256);//写寄存器数量(除2是两个字节一个寄存器，寄存器16位。除以256是byte最大存储255。)              
-                    pdu[5] = (byte)(data.Length);          //写字节的个数
-                    data.CopyTo(pdu, 6);                   //把目标值附加到数组后面
-                    ProtocolResponseLength = 12; // MBAP + 回显数据
+                    if (data == null || data.Length == 0 || data.Length % 2 != 0)
+                        throw new ArgumentException("Data must be non-empty and even-length for function code 0x10");
 
+                    ushort registerCount = (ushort)(data.Length / 2);
+                    pdu = new byte[6 + data.Length];
+                    pdu[0] = functionCode;
+                    pdu[1] = (byte)(address >> 8);
+                    pdu[2] = (byte)(address & 0xFF);
+                    pdu[3] = (byte)(registerCount >> 8);
+                    pdu[4] = (byte)(registerCount & 0xFF);
+                    pdu[5] = (byte)data.Length;
+                    data.CopyTo(pdu, 6);
+                    ProtocolResponseLength = 12; // MBAP + 回显功能码、地址、写入数量
                     break;
 
-
-                // 默认不支持的功能码
                 default:
-                    throw new NotSupportedException("Unsupported function code");
+                    throw new NotSupportedException($"Unsupported function code: 0x{functionCode:X2}");
             }
+
             return pdu;
         }
 
@@ -150,22 +140,28 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             byte[] header = new byte[7];
 
-            // Transaction ID (大端序)
-            byte[] transactionIdBytes = BitConverter.GetBytes(TransactionId);
-            byte[] length = BitConverter.GetBytes(pduLength+1);
-            header[0] = transactionIdBytes[1];
-            header[1] = transactionIdBytes[0];
-            header[2] = 0x00;
-            header[3] = 0x00;//表示tcp/ip 的协议的Modbus的协议
-            header[4] = length[1];
-            header[5] = length[0];//表示的是该字节以后的字节长度
+            // MBAP.Length = PDU + Unit ID (1 byte)
+            int pduLengthWithUnitId = pduLength + 1;
 
-            // Unit ID (1字节)
-            header[6] = Station; // Unit ID
+            if (pduLengthWithUnitId > 0xFFFF)
+                throw new ArgumentOutOfRangeException(nameof(pduLength), "PDU length too long for Modbus TCP");
+
+            // Transaction ID (big-endian)
+            header[0] = (byte)(TransactionId >> 8);
+            header[1] = (byte)(TransactionId & 0xFF);
+
+            // Protocol ID = 0 (Modbus)
+            header[2] = 0x00;
+            header[3] = 0x00;
+
+            // Length (PDU + Unit ID), big-endian
+            header[4] = (byte)(pduLengthWithUnitId >> 8);
+            header[5] = (byte)(pduLengthWithUnitId & 0xFF);
+
+            // Unit ID
+            header[6] = Station;
 
             return header;
-
-
         }
 
         public void Initialize(byte[] frame)
