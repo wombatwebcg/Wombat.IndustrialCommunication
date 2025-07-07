@@ -19,7 +19,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             public ushort Address { get; set; }
             public int Length { get; set; }
             public DataTypeEnums DataType { get; set; }
-            public bool IsRerasrt { get; set; }
         }
 
         public class ModbusAddressBlock

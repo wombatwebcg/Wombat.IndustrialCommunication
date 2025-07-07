@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Newtonsoft.Json.Linq;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -239,61 +240,30 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult();
+                var writeErrors = new List<string>();
+                var successCount = 0;
+
                 try
+
                 {
                     if (addresses == null || addresses.Count == 0)
                         return result.Complete();
-                    var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
-                    foreach (var kvp in addresses)
-                        internalAddresses[kvp.Key] = (kvp.Value.Item1, kvp.Value.Item2);
-                    var addressInfos = ModbusBatchHelper.ParseModbusAddresses(internalAddresses);
-                    if (addressInfos.Count == 0)
+                    foreach (var address in addresses)
                     {
-                        result.IsSuccess = false;
-                        result.Message = "没有有效的地址可以写入";
-                        return result.Complete();
-                    }
-                    var writeErrors = new List<string>();
-                    var successCount = 0;
-                    foreach (var addressInfo in addressInfos)
-                    {
-                        try
+                        var writeResult = await WriteAsync(address.Value.Item1,address.Key,address.Value.Item2);
+                        if (writeResult.IsSuccess)
                         {
-                            if (!internalAddresses.TryGetValue(addressInfo.OriginalAddress, out var value))
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
-                                continue;
-                            }
-                            byte[] data = ModbusBatchHelper.ConvertValueToModbusBytes(value, addressInfo, IsReverse, DataFormat);
-                            if (data == null)
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 的值转换失败");
-                                continue;
-                            }
-                            string writeAddress = ModbusBatchHelper.ConstructModbusWriteAddress(addressInfo);
-                            if (string.IsNullOrEmpty(writeAddress))
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
-                                continue;
-                            }
-                            var writeResult = await WriteAsync(writeAddress, data, value.Item1, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
-                            if (writeResult.IsSuccess)
-                            {
-                                successCount++;
-                                result.Requsts.AddRange(writeResult.Requsts);
-                                result.Responses.AddRange(writeResult.Responses);
-                            }
-                            else
-                            {
-                                writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
-                            }
+                            successCount++;
+                            result.Requsts.AddRange(writeResult.Requsts);
+                            result.Responses.AddRange(writeResult.Responses);
                         }
-                        catch (Exception ex)
+                        else
                         {
-                            writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
+                            writeErrors.Add($"写入地址 {address.Key} 失败: {writeResult.Message}");
                         }
+
                     }
-                    if (successCount == addressInfos.Count)
+                    if (successCount == addresses.Count)
                     {
                         result.IsSuccess = true;
                         result.Message = $"成功写入 {successCount} 个地址";
@@ -301,7 +271,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     else if (successCount > 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
+                        result.Message = $"部分写入成功 ({successCount}/{addresses.Count}): {string.Join("; ", writeErrors)}";
                     }
                     else
                     {

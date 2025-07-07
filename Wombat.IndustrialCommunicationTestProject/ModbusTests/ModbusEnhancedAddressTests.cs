@@ -159,7 +159,13 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
-            
+            //var ss = client.Write("1;400010", 3.14159f);
+            //var yy = client.Write(DataTypeEnums.Float, "1;400014", 3.14159f);
+
+            //var r1 = client.Read(DataTypeEnums.Float, "1;400010");
+
+            var r2 = client.Read(DataTypeEnums.Float, "1;400020");
+
             // 测试新格式批量写入，使用1-90范围内的地址
             var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {
