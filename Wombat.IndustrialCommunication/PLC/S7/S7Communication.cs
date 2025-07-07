@@ -195,7 +195,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -289,7 +289,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -425,8 +425,7 @@ namespace Wombat.IndustrialCommunication.PLC
                                 continue;
                             }
                             
-                            // 直接调用底层读取方法，避免重复逻辑
-                            var readResult = await ReadAsync(blockAddress, block.TotalLength, false);
+                            var readResult = await ReadAsync(blockAddress, block.TotalLength, DataTypeEnums.Byte,false);
                             
                             if (readResult.IsSuccess)
                             {
@@ -555,7 +554,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             }
 
                             // 执行单个写入
-                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.DataType == S7DataType.DBX);
+                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, addressInfo.DataType == S7DataType.DBX);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;

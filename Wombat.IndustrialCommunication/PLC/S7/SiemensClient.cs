@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Text;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
@@ -325,7 +326,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return await ConnectAsync();
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
             {
@@ -349,7 +350,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit).ConfigureAwait(false);
+                    var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -388,7 +389,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     connected = true;
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit).ConfigureAwait(false);
+                    var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -422,7 +423,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
             {
@@ -446,7 +447,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data, isBit).ConfigureAwait(false);
+                    var result = await base.WriteAsync(address, data,dataType, isBit).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)
@@ -485,7 +486,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     connected = true;
                     
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data, isBit).ConfigureAwait(false);
+                    var result = await base.WriteAsync(address, data,dataType, isBit).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)

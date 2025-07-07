@@ -40,12 +40,12 @@ namespace Wombat.IndustrialCommunication.Modbus
             public double EfficiencyRatio { get; set; }
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
-                if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
+                if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber,modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
                     var response = await Transport.UnicastReadMessageAsync(request);
@@ -63,14 +63,25 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
 
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
-                if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
+                if (ModbusAddressParser.TryParseModbusAddress(address, dataType, true, out var modbusAddress))
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
+                    ushort registerOrCoilCount;
+                    if (isBit || modbusAddress.FunctionCode == 0x05 || modbusAddress.FunctionCode == 0x0F)
+                    {
+                        // 位操作，长度就是线圈数量
+                        registerOrCoilCount = (ushort)data.Length;
+                    }
+                    else
+                    {
+                        // 寄存器操作，长度是寄存器数量
+                        registerOrCoilCount = (ushort)(data.Length / 2);
+                    }
+                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, registerOrCoilCount, data);
                     var response = await Transport.UnicastWriteMessageAsync(request);
                     return _writeResponseHandle(response);
 
@@ -85,14 +96,15 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
-                if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
+                if (ModbusAddressParser.TryParseModbusAddress(address, DataTypeEnums.Bool, true, out var modbusAddress))
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, new byte[2] { (byte)(value ? 0xFF : 0x00) ,0x00}) ;
                     var response = await Transport.UnicastWriteMessageAsync(request);
                     return _writeResponseHandle(response);
 
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                
+                return OperationResult.CreateFailedResult<byte[]>($"地址转换失败,{address}尝试写入{value}");
 
             }
         }
@@ -102,7 +114,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
-                if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
+                if (ModbusAddressParser.TryParseModbusAddress(address, DataTypeEnums.Bool, true, out var modbusAddress))
                 {
                     var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
                     var response = await Transport.UnicastWriteMessageAsync(request);
@@ -172,7 +184,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         {
                             string blockAddress = $"{block.StationNumber};{block.FunctionCode};{block.StartAddress}";
                             string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
-                            var readResult = await ReadAsync(blockAddress, block.TotalLength, block.FunctionCode == 0x01 || block.FunctionCode == 0x02);
+                            var readResult = await ReadAsync(blockAddress, block.TotalLength, DataTypeEnums.Byte, block.FunctionCode == 0x01 || block.FunctionCode == 0x02);
                             if (readResult.IsSuccess)
                             {
                                 blockDataDict[blockKey] = readResult.ResultValue;
@@ -264,7 +276,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
                                 continue;
                             }
-                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
+                            var writeResult = await WriteAsync(writeAddress, data, value.Item1, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;

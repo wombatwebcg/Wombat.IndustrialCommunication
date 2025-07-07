@@ -315,7 +315,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return await ConnectAsync();
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false)
+        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             // 获取操作名称，用于日志记录
             string operationName = $"Read_{(isBit ? "Bit" : "Byte")}";
@@ -345,7 +345,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogDebug("开始读取Modbus RTU数据，地址：{Address}，长度：{Length}", address, length);
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit);
+                    var result = await base.ReadAsync(address, length, dataType, isBit);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -390,7 +390,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     connected = true;
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, isBit);
+                    var result = await base.ReadAsync(address, length,dataType, isBit);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -424,9 +424,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false)
+        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
         {
-            return await HandleWriteAsync(() => base.WriteAsync(address, data, isBit), address);
+            return await HandleWriteAsync(() => base.WriteAsync(address, data,dataType, isBit), address);
         }
 
         public override async Task<OperationResult> WriteAsync(string address, bool[] data)
@@ -1049,7 +1049,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
                                 continue;
                             }
-                            var writeResult = await WriteAsync(writeAddress, data, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
+                            var writeResult = await WriteAsync(writeAddress, data,DataTypeEnums.Byte, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;
@@ -1097,7 +1097,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         private async ValueTask<OperationResult<byte[]>> InternalModbusReadAsync(string address, int length, bool isBit = false)
         {
-            if (ModbusAddressParser.TryParseModbusAddress(address, out var modbusAddress))
+            // 根据isBit参数确定数据类型，默认为读操作
+            var dataType = isBit ? DataTypeEnums.Bool : DataTypeEnums.UInt16;
+            if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
             {
                 var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
                 var response = await Transport.UnicastReadMessageAsync(request);

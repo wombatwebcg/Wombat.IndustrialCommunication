@@ -152,8 +152,8 @@ namespace Wombat.IndustrialCommunication.Modbus
             // 预处理地址，提取纯地址部分
             var processedAddress = PreprocessAddress(address);
             
-            // 首先尝试使用增强解析器（支持新格式）
-            if (ModbusAddressParser.TryParseEnhancedModbusAddress(processedAddress, dataType, isWrite, out var modbusHeader))
+            // 使用增强解析器（统一使用增强方式）
+            if (ModbusAddressParser.TryParseModbusAddress(processedAddress, dataType, isWrite, out var modbusHeader))
             {
                 addressInfo.StationNumber = modbusHeader.StationNumber;
                 addressInfo.FunctionCode = modbusHeader.FunctionCode;
@@ -222,78 +222,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             else
             {
-                // 如果增强解析失败，尝试原有解析器（保持向后兼容）
-                if (ModbusAddressParser.TryParseModbusAddress(processedAddress, out modbusHeader))
-                {
-                    addressInfo.StationNumber = modbusHeader.StationNumber;
-                    addressInfo.FunctionCode = modbusHeader.FunctionCode;
-                    addressInfo.Address = modbusHeader.Address;
-                    
-                    // 优先使用传入的DataTypeEnums，如果没有指定则根据功能码推断
-                    if (dataType != DataTypeEnums.None)
-                    {
-                        addressInfo.DataType = dataType;
-                    }
-                    else
-                    {
-                        // 根据功能码推断数据类型（保持向后兼容）
-                        switch (modbusHeader.FunctionCode)
-                        {
-                            case 0x01:  // 读线圈
-                            case 0x02:  // 读离散输入
-                                addressInfo.DataType = DataTypeEnums.Bool;
-                                break;
-                            case 0x03:  // 读保持寄存器
-                            case 0x04:  // 读输入寄存器
-                                addressInfo.DataType = DataTypeEnums.UInt16;
-                                break;
-                            case 0x05:  // 写单个线圈
-                                addressInfo.DataType = DataTypeEnums.Bool;
-                                break;
-                            case 0x06:  // 写单个寄存器
-                            case 0x10:  // 写多个寄存器
-                                addressInfo.DataType = DataTypeEnums.UInt16;
-                                break;
-                            case 0x0F:  // 写多个线圈
-                                addressInfo.DataType = DataTypeEnums.Bool;
-                                break;
-                            default:
-                                throw new ArgumentException($"不支持的功能码: {modbusHeader.FunctionCode}");
-                        }
-                    }
-                    
-                    // 根据DataTypeEnums确定长度
-                    switch (addressInfo.DataType)
-                    {
-                        case DataTypeEnums.Bool:
-                            addressInfo.Length = 1;
-                            break;
-                        case DataTypeEnums.Byte:
-                            addressInfo.Length = 1;
-                            break;
-                        case DataTypeEnums.Int16:
-                        case DataTypeEnums.UInt16:
-                            addressInfo.Length = 2;
-                            break;
-                        case DataTypeEnums.Int32:
-                        case DataTypeEnums.UInt32:
-                        case DataTypeEnums.Float:
-                            addressInfo.Length = 4;
-                            break;
-                        case DataTypeEnums.Int64:
-                        case DataTypeEnums.UInt64:
-                        case DataTypeEnums.Double:
-                            addressInfo.Length = 8;
-                            break;
-                        default:
-                            addressInfo.Length = 2; // 默认长度
-                            break;
-                    }
-                }
-                else
-                {
-                    throw new ArgumentException($"无效的Modbus地址格式: {address} (处理后: {processedAddress})");
-                }
+                throw new ArgumentException($"无效的Modbus地址格式: {address} (处理后: {processedAddress})");
             }
             return addressInfo;
         }
@@ -330,10 +259,50 @@ namespace Wombat.IndustrialCommunication.Modbus
                     continue;
                 }
                 var newStartAddress = Math.Min(currentBlock.StartAddress, (ushort)address.Address);
-                var currentEndAddress = currentBlock.StartAddress + currentBlock.TotalLength;
-                var addressEndAddress = (ushort)((ushort)address.Address + address.Length);
+                
+                // 根据功能码计算当前块的结束地址
+                ushort currentEndAddress;
+                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
+                {
+                    // 寄存器类型：TotalLength 是字节数，需要转换为寄存器数量
+                    var registerCount = (ushort)(currentBlock.TotalLength / 2);
+                    currentEndAddress = (ushort)(currentBlock.StartAddress + registerCount);
+                }
+                else
+                {
+                    // 线圈类型：TotalLength 是字节数
+                    currentEndAddress = (ushort)(currentBlock.StartAddress + currentBlock.TotalLength);
+                }
+                
+                // 根据功能码计算地址结束位置
+                ushort addressEndAddress;
+                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
+                {
+                    // 寄存器类型：address.Length 是字节数，需要转换为寄存器数量
+                    var registerCount = (ushort)(address.Length / 2);
+                    addressEndAddress = (ushort)((ushort)address.Address + registerCount);
+                }
+                else
+                {
+                    // 线圈类型：address.Length 是字节数
+                    addressEndAddress = (ushort)((ushort)address.Address + address.Length);
+                }
+                
                 var newEndAddress = Math.Max(currentEndAddress, addressEndAddress);
-                var newTotalLength = (ushort)(newEndAddress - newStartAddress);
+                
+                // 根据功能码计算总长度
+                ushort newTotalLength;
+                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
+                {
+                    // 寄存器类型：按寄存器数量计算，每个寄存器2字节
+                    var registerCount = (ushort)(newEndAddress - newStartAddress);
+                    newTotalLength = (ushort)(registerCount * 2);
+                }
+                else
+                {
+                    // 线圈类型：按字节数计算
+                    newTotalLength = (ushort)(newEndAddress - newStartAddress);
+                }
                 if (newTotalLength > maxBlockSize)
                 {
                     currentBlock.EfficiencyRatio = CalculateModbusEfficiencyRatio(currentBlock);
@@ -410,7 +379,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     try
                     {
-                        var relativeOffset = (ushort)address.Address - block.StartAddress;
+                        int relativeOffset;
+                        if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
+                        {
+                            // 寄存器类型：地址差值转换为字节偏移量
+                            var addressOffset = (ushort)address.Address - block.StartAddress;
+                            relativeOffset = addressOffset * 2;
+                        }
+                        else
+                        {
+                            // 线圈类型：直接使用地址差值作为字节偏移量
+                            relativeOffset = (ushort)address.Address - block.StartAddress;
+                        }
+                        
                         if (relativeOffset < 0 || relativeOffset + address.Length > data.Length)
                         {
                             result[address.OriginalAddress] = null;

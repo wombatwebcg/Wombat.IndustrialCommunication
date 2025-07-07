@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
@@ -52,9 +53,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 读取数据
         /// </summary>
-        internal virtual OperationResult<byte[]> Read(string address, int length, bool isBit = false)
+        internal virtual OperationResult<byte[]> Read(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
-            return Task.Run(async () => await ReadAsync(address, length, isBit)).GetAwaiter().GetResult();
+            return Task.Run(async () => await ReadAsync(address, length, dataType, isBit)).GetAwaiter().GetResult();
         }
 
         /// <summary>
@@ -189,7 +190,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 异步读取数据
         /// </summary>
-        internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, bool isBit = false);
+        internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType,bool isBit = false);
 
         /// <summary>
         /// 异步读取单个字节
@@ -209,7 +210,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public async ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length)
         {
-            return await ReadAsync(address, length, false);
+            return await ReadAsync(address, length, DataTypeEnums.Byte, false);
         }
 
         /// <summary>
@@ -230,7 +231,7 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
-            var readResult = await ReadAsync(address, length, isBit: true);
+            var readResult = await ReadAsync(address, length, DataTypeEnums.Bool, isBit: true);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<bool[]> { IsSuccess = false, Message = readResult.Message };
@@ -285,7 +286,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 2 * length);
+            var readResult = await ReadAsync(address, 2 * length, DataTypeEnums.Int16);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<short[]> { IsSuccess = false, Message = readResult.Message };
@@ -340,7 +341,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 2 * length);
+            var readResult = await ReadAsync(address, 2 * length, DataTypeEnums.UInt16);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<ushort[]> { IsSuccess = false, Message = readResult.Message };
@@ -395,7 +396,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 4 * length);
+            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.Int32);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<int[]> { IsSuccess = false, Message = readResult.Message };
@@ -451,7 +452,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 4 * length);
+            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.UInt32);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<uint[]> { IsSuccess = false, Message = readResult.Message };
@@ -507,7 +508,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 8 * length);
+            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.Int64);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<long[]> { IsSuccess = false, Message = readResult.Message };
@@ -563,7 +564,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
         {
-            var readResult = await ReadAsync(address, 8 * length);
+            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.UInt64);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<ulong[]> { IsSuccess = false, Message = readResult.Message };
@@ -619,7 +620,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length)
         {
-            var readResult = await ReadAsync(address, 4 * length);
+            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.Float);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<float[]> { IsSuccess = false, Message = readResult.Message };
@@ -675,7 +676,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
         {
-            var readResult = await ReadAsync(address, 8 * length);
+            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.Double);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<double[]> { IsSuccess = false, Message = readResult.Message };
@@ -711,7 +712,7 @@ namespace Wombat.IndustrialCommunication
 
         public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
         {
-            var readResult = await ReadAsync(address, 4 * length);
+            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.String);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<string> { IsSuccess = false, Message = readResult.Message };
@@ -732,14 +733,14 @@ namespace Wombat.IndustrialCommunication
             return Task.Run(async () => await BatchWriteAsync(addresses)).GetAwaiter().GetResult();
         }
 
-        internal virtual OperationResult Write(string address, byte[] data, bool isBit = false)
+        internal virtual OperationResult Write(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
         {
-            return Task.Run(async () => await WriteAsync(address, data, isBit)).GetAwaiter().GetResult();
-        }
+            return Task.Run(async () => await WriteAsync(address, data,dataType, isBit)).GetAwaiter().GetResult();
+        }   
 
         public virtual OperationResult Write(string address, byte[] value)
         {
-            return Task.Run(async () => await WriteAsync(address, value, false)).GetAwaiter().GetResult();
+            return Task.Run(async () => await WriteAsync(address, value, DataTypeEnums.Byte, false)).GetAwaiter().GetResult();
         }
         
         public virtual OperationResult Write(string address, byte value)
@@ -858,9 +859,9 @@ namespace Wombat.IndustrialCommunication
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        internal abstract Task<OperationResult> WriteAsync(string address, byte[] data, bool isBit = false);
+        internal abstract Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false);
 
-        public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, false);
+        public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, DataTypeEnums.Byte, false);
 
         public virtual async Task<OperationResult> WriteAsync(string address, byte value)
         {
@@ -875,7 +876,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async virtual Task<OperationResult> WriteAsync(string address, bool value)
         {
-            return await WriteAsync(address, value ? new byte[] { 0x01 } : new byte[] { 0x00 }, true);
+            return await WriteAsync(address, value ? new byte[] { 0x01 } : new byte[] { 0x00 }, DataTypeEnums.Bool, true);
         }
 
         /// <summary>
@@ -886,7 +887,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public virtual async Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            return await WriteAsync(address, value.ToBytes(), true);
+            return await WriteAsync(address, value.ToBytes(), DataTypeEnums.Bool, true);
         }
 
         /// <summary>
@@ -897,7 +898,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, short value)
         {
-            return await WriteAsync(address, value.ToByte(IsReverse));
+            return await WriteAsync(address, value.ToByte(IsReverse), DataTypeEnums.Int16);
         }
 
         /// <summary>
@@ -908,7 +909,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, short[] value)
         {
-            return await WriteAsync(address, value.ToByte(IsReverse));
+            return await WriteAsync(address, value.ToByte(IsReverse), DataTypeEnums.Int16);
         }
 
         /// <summary>
@@ -919,7 +920,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ushort value)
         {
-            return await WriteAsync(address, value.ToByte(IsReverse));
+            return await WriteAsync(address, value.ToByte(IsReverse), DataTypeEnums.UInt16);
         }
 
         /// <summary>
@@ -930,7 +931,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ushort[] value)
         {
-            return await WriteAsync(address, value.ToByte(IsReverse));
+            return await WriteAsync(address, value.ToByte(IsReverse), DataTypeEnums.UInt16);
         }
 
         /// <summary>
@@ -941,7 +942,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Int32);
         }
 
         /// <summary>
@@ -952,7 +953,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Int32);
         }
 
         /// <summary>
@@ -963,7 +964,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.UInt32);
         }
 
         /// <summary>
@@ -974,7 +975,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.UInt32);
         }
 
         /// <summary>
@@ -985,7 +986,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Int64);
         }
 
         /// <summary>
@@ -996,7 +997,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Int64);
         }
 
         /// <summary>
@@ -1007,7 +1008,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.UInt64);
         }
 
         /// <summary>
@@ -1018,7 +1019,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.UInt64);
         }
 
         /// <summary>
@@ -1029,7 +1030,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Float);
         }
 
         /// <summary>
@@ -1040,7 +1041,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Float);
         }
 
         /// <summary>
@@ -1051,7 +1052,7 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Double);
         }
 
         /// <summary>
@@ -1062,12 +1063,12 @@ namespace Wombat.IndustrialCommunication
         /// <returns></returns>
         public async Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return await WriteAsync(address, value.ToByte(DataFormat));
+            return await WriteAsync(address, value.ToByte(DataFormat), DataTypeEnums.Double);
         }
 
         public async Task<OperationResult> WriteAsync(string address, string value)
         {
-            return await WriteAsync(address, value.ToByte(Encoding.ASCII));
+            return await WriteAsync(address, value.ToByte(Encoding.ASCII), DataTypeEnums.String);
         }
 
         #endregion
@@ -1291,13 +1292,13 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.Int16:
                         return Write(address, (short)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.UInt16:
-                        return Write(address, (int)value.ToString().ConvertFromStringToObject(dataTypeEnum));
-                    case DataTypeEnums.Int32:
-                        return Write(address, (long)value.ToString().ConvertFromStringToObject(dataTypeEnum));
-                    case DataTypeEnums.UInt32:
                         return Write(address, (ushort)value.ToString().ConvertFromStringToObject(dataTypeEnum));
-                    case DataTypeEnums.Int64:
+                    case DataTypeEnums.Int32:
+                        return Write(address, (int)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                    case DataTypeEnums.UInt32:
                         return Write(address, (uint)value.ToString().ConvertFromStringToObject(dataTypeEnum));
+                    case DataTypeEnums.Int64:
+                        return Write(address, (long)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.UInt64:
                         return Write(address, (ulong)value.ToString().ConvertFromStringToObject(dataTypeEnum));
                     case DataTypeEnums.Float:
@@ -1371,13 +1372,13 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.Int16:
                         return await WriteAsync(address, (short)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.UInt16:
-                        return await WriteAsync(address, (int)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
-                    case DataTypeEnums.Int32:
-                        return await WriteAsync(address, (long)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
-                    case DataTypeEnums.UInt32:
                         return await WriteAsync(address, (ushort)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
-                    case DataTypeEnums.Int64:
+                    case DataTypeEnums.Int32:
+                        return await WriteAsync(address, (int)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                    case DataTypeEnums.UInt32:
                         return await WriteAsync(address, (uint)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                    case DataTypeEnums.Int64:
+                        return await WriteAsync(address, (long)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.UInt64:
                         return await WriteAsync(address, (ulong)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
                     case DataTypeEnums.Float:
@@ -1457,6 +1458,133 @@ namespace Wombat.IndustrialCommunication
         {
             Dispose(disposing: true);
             GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// 根据寄存器类型和操作类型获取功能码
+        /// </summary>
+        /// <param name="registerType">寄存器类型</param>
+        /// <param name="dataType">数据类型</param>
+        /// <param name="isWrite">是否为写操作</param>
+        /// <param name="dataLength">数据长度（字节数），用于判断是否写多个寄存器/线圈</param>
+        /// <returns>功能码</returns>
+        private static byte GetFunctionCodeByRegisterType(byte registerType, DataTypeEnums dataType, bool isWrite, int dataLength = 1)
+        {
+            if (isWrite)
+            {
+                switch (registerType)
+                {
+                    case 0x01:  // 线圈
+                        // 根据数据长度判断写单个还是多个线圈
+                        return dataLength > 1 ? (byte)0x0F : (byte)0x05;
+                    case 0x02:  // 离散输入 - 不支持写操作
+                        throw new ArgumentException("离散输入寄存器不支持写操作");
+                    case 0x03:  // 保持寄存器
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Int16:
+                            case DataTypeEnums.UInt16:
+                                return 0x06;  // 写单个寄存器
+                            case DataTypeEnums.Int32:
+                            case DataTypeEnums.UInt32:
+                            case DataTypeEnums.Float:
+                            case DataTypeEnums.Int64:
+                            case DataTypeEnums.UInt64:
+                            case DataTypeEnums.Double:
+                                return 0x10;  // 写多个寄存器
+                            default:
+                                // 根据数据长度判断：大于2字节使用写多个寄存器
+                                return dataLength > 2 ? (byte)0x10 : (byte)0x06;
+                        }
+                    case 0x04:  // 输入寄存器 - 不支持写操作
+                        throw new ArgumentException("输入寄存器不支持写操作");
+                    default:
+                        return dataLength > 2 ? (byte)0x10 : (byte)0x06;  // 默认根据长度判断
+                }
+            }
+            else
+            {
+                return registerType;  // 读操作直接使用寄存器类型作为功能码
+            }
+        }
+
+        /// <summary>
+        /// 根据数据类型和操作类型自动判断功能码
+        /// </summary>
+        /// <param name="dataType">数据类型</param>
+        /// <param name="isWrite">是否为写操作</param>
+        /// <param name="registerType">寄存器类型（可选，用于逻辑地址格式）</param>
+        /// <param name="dataLength">数据长度（字节数）</param>
+        /// <returns>功能码</returns>
+        private static byte GetAutoFunctionCode(DataTypeEnums dataType, bool isWrite, byte registerType = 0x03, int dataLength = 1)
+        {
+            if (isWrite)
+            {
+                switch (registerType)
+                {
+                    case 0x01:  // 线圈
+                        return dataLength > 1 ? (byte)0x0F : (byte)0x05;
+                    case 0x02:  // 离散输入 - 不支持写操作
+                        throw new ArgumentException("离散输入寄存器不支持写操作");
+                    case 0x03:  // 保持寄存器
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Int16:
+                            case DataTypeEnums.UInt16:
+                                return 0x06;  // 写单个寄存器
+                            case DataTypeEnums.Int32:
+                            case DataTypeEnums.UInt32:
+                            case DataTypeEnums.Float:
+                            case DataTypeEnums.Int64:
+                            case DataTypeEnums.UInt64:
+                            case DataTypeEnums.Double:
+                                return 0x10;  // 写多个寄存器
+                            default:
+                                return dataLength > 2 ? (byte)0x10 : (byte)0x06;
+                        }
+                    case 0x04:  // 输入寄存器 - 不支持写操作
+                        throw new ArgumentException("输入寄存器不支持写操作");
+                    default:
+                        // 如果没有指定寄存器类型，根据数据类型默认判断
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Bool:
+                                return dataLength > 1 ? (byte)0x0F : (byte)0x05;
+                            case DataTypeEnums.Int32:
+                            case DataTypeEnums.UInt32:
+                            case DataTypeEnums.Float:
+                            case DataTypeEnums.Int64:
+                            case DataTypeEnums.UInt64:
+                            case DataTypeEnums.Double:
+                                return 0x10;  // 多字节数据使用写多个寄存器
+                            default:
+                                return dataLength > 2 ? (byte)0x10 : (byte)0x06;
+                        }
+                }
+            }
+            else
+            {
+                switch (registerType)
+                {
+                    case 0x01:  // 线圈
+                        return 0x01;  // 读线圈
+                    case 0x02:  // 离散输入
+                        return 0x02;  // 读离散输入
+                    case 0x03:  // 保持寄存器
+                        return 0x03;  // 读保持寄存器
+                    case 0x04:  // 输入寄存器
+                        return 0x04;  // 读输入寄存器
+                    default:
+                        // 如果没有指定寄存器类型，根据数据类型默认判断
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Bool:
+                                return 0x01;  // 读线圈
+                            default:
+                                return 0x03;  // 默认读保持寄存器
+                        }
+                }
+            }
         }
     }
 }

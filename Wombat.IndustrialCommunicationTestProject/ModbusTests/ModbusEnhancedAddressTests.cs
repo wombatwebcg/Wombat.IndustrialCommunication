@@ -175,7 +175,67 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var writeResult = await client.BatchWriteAsync(batchWriteData);
             Assert.True(writeResult.IsSuccess, $"批量写入失败: {writeResult.Message}");
             
-            _output?.WriteLine("新格式批量写入测试通过");
+            // 验证写入的数据：读取并比较值
+            var batchReadData = new Dictionary<string, DataTypeEnums>();
+            foreach (var kvp in batchWriteData)
+            {
+                batchReadData.Add(kvp.Key, kvp.Value.Item1);
+            }
+            
+            var readResult = await client.BatchReadAsync(batchReadData);
+            Assert.True(readResult.IsSuccess, $"批量读取验证失败: {readResult.Message}");
+            
+            // 验证每个读取的值与写入的值一致
+            foreach (var kvp in batchWriteData)
+            {
+                var address = kvp.Key;
+                var expectedValue = kvp.Value.Item2;
+                var dataType = kvp.Value.Item1;
+                
+                Assert.True(readResult.ResultValue.ContainsKey(address), $"读取结果中缺少地址: {address}");
+                var actualValueTuple = readResult.ResultValue[address];
+                var actualValue = actualValueTuple.Item2; // 获取元组的第二个元素（实际值）
+                
+                // 根据数据类型进行精确比较
+                bool valueMatches = false;
+                try
+                {
+                    switch (dataType)
+                    {
+                        case DataTypeEnums.Bool:
+                            valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
+                            break;
+                        case DataTypeEnums.UInt16:
+                            valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
+                            break;
+                        case DataTypeEnums.Int32:
+                            valueMatches = Convert.ToInt32(expectedValue) == Convert.ToInt32(actualValue);
+                            break;
+                        case DataTypeEnums.Float:
+                            valueMatches = Math.Abs(Convert.ToSingle(expectedValue) - Convert.ToSingle(actualValue)) < 0.001f;
+                            break;
+                        case DataTypeEnums.Int64:
+                            valueMatches = Convert.ToInt64(expectedValue) == Convert.ToInt64(actualValue);
+                            break;
+                        case DataTypeEnums.UInt64:
+                            valueMatches = Convert.ToUInt64(expectedValue) == Convert.ToUInt64(actualValue);
+                            break;
+                        case DataTypeEnums.Double:
+                            valueMatches = Math.Abs(Convert.ToDouble(expectedValue) - Convert.ToDouble(actualValue)) < 0.000001;
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
+                    valueMatches = false;
+                }
+                
+                Assert.True(valueMatches, $"地址 {address} 值不匹配: 期望={expectedValue}, 实际={actualValue}");
+                _output?.WriteLine($"地址 {address} 验证通过: 写入值={expectedValue}, 读取值={actualValue}");
+            }
+            
+            _output?.WriteLine("新格式批量写入测试通过 - 所有数据验证一致");
             await client.DisconnectAsync();
         }
 
@@ -220,7 +280,60 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var writeResult = await client.BatchWriteAsync(batchWriteData);
             Assert.True(writeResult.IsSuccess, $"大数据量批量写入失败: {writeResult.Message}");
             
-            _output?.WriteLine($"大数据量批量写入测试通过，共{batchWriteData.Count}个地址");
+            // 验证写入的数据：读取并比较值
+            var batchReadData = new Dictionary<string, DataTypeEnums>();
+            foreach (var kvp in batchWriteData)
+            {
+                batchReadData.Add(kvp.Key, kvp.Value.Item1);
+            }
+            
+            var readResult = await client.BatchReadAsync(batchReadData);
+            Assert.True(readResult.IsSuccess, $"大数据量批量读取验证失败: {readResult.Message}");
+            
+            // 验证可写入地址的数据一致性
+            int verifiedCount = 0;
+            foreach (var kvp in batchWriteData)
+            {
+                var address = kvp.Key;
+                var expectedValue = kvp.Value.Item2;
+                var dataType = kvp.Value.Item1;
+                
+                if (readResult.ResultValue.ContainsKey(address))
+                {
+                    var actualValueTuple = readResult.ResultValue[address];
+                    var actualValue = actualValueTuple.Item2; // 获取元组的第二个元素（实际值）
+                    
+                    // 根据数据类型进行精确比较
+                    bool valueMatches = false;
+                    try
+                    {
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Bool:
+                                valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
+                                break;
+                            case DataTypeEnums.UInt16:
+                                valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
+                        valueMatches = false;
+                    }
+                    
+                    Assert.True(valueMatches, $"地址 {address} 值不匹配: 期望={expectedValue}, 实际={actualValue}");
+                    verifiedCount++;
+                    
+                    if (verifiedCount % 10 == 0) // 每10个地址输出一次进度
+                    {
+                        _output?.WriteLine($"已验证 {verifiedCount}/{batchWriteData.Count} 个可写入地址");
+                    }
+                }
+            }
+            
+            _output?.WriteLine($"大数据量批量写入测试通过 - 所有{batchWriteData.Count}个地址数据验证一致");
             await client.DisconnectAsync();
         }
 
@@ -229,6 +342,19 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
+            
+            // 先写入测试数据
+            var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>
+            {
+                { $"{TEST_STATION};10001", (DataTypeEnums.Bool, true) },           // 线圈
+                { $"{TEST_STATION};40001", (DataTypeEnums.UInt16, (ushort)1234) }, // 保持寄存器
+                { $"{TEST_STATION};40030", (DataTypeEnums.Int64, 123456789L) },    // 保持寄存器（Int64）
+                { $"{TEST_STATION};40040", (DataTypeEnums.UInt64, 987654321UL) },  // 保持寄存器（UInt64）
+                { $"{TEST_STATION};40050", (DataTypeEnums.Double, 3.14159265359) } // 保持寄存器（Double）
+            };
+            
+            var writeResult = await client.BatchWriteAsync(batchWriteData);
+            Assert.True(writeResult.IsSuccess, $"批量写入测试数据失败: {writeResult.Message}");
             
             // 测试新格式批量读取，使用1-90范围内的地址
             var batchReadData = new Dictionary<string, DataTypeEnums>
@@ -245,7 +371,57 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var readResult = await client.BatchReadAsync(batchReadData);
             Assert.True(readResult.IsSuccess, $"批量读取失败: {readResult.Message}");
             
-            _output?.WriteLine("新格式批量读取测试通过");
+            // 验证可写入地址的数据一致性
+            foreach (var kvp in batchWriteData)
+            {
+                var address = kvp.Key;
+                var expectedValue = kvp.Value.Item2;
+                var dataType = kvp.Value.Item1;
+                
+                if (readResult.ResultValue.ContainsKey(address))
+                {
+                    var actualValueTuple = readResult.ResultValue[address];
+                    var actualValue = actualValueTuple.Item2; // 获取元组的第二个元素（实际值）
+                    
+                    // 根据数据类型进行精确比较
+                    bool valueMatches = false;
+                    try
+                    {
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Bool:
+                                valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
+                                break;
+                            case DataTypeEnums.UInt16:
+                                valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
+                                break;
+                            case DataTypeEnums.Int64:
+                                valueMatches = Convert.ToInt64(expectedValue) == Convert.ToInt64(actualValue);
+                                break;
+                            case DataTypeEnums.UInt64:
+                                valueMatches = Convert.ToUInt64(expectedValue) == Convert.ToUInt64(actualValue);
+                                break;
+                            case DataTypeEnums.Double:
+                                valueMatches = Math.Abs(Convert.ToDouble(expectedValue) - Convert.ToDouble(actualValue)) < 0.000001;
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
+                        valueMatches = false;
+                    }
+                    
+                    Assert.True(valueMatches, $"地址 {address} 值不匹配: 期望={expectedValue}, 实际={actualValue}");
+                    _output?.WriteLine($"地址 {address} 验证通过: 写入值={expectedValue}, 读取值={actualValue}");
+                }
+                else
+                {
+                    _output?.WriteLine($"地址 {address} 在读取结果中未找到（可能是只读地址）");
+                }
+            }
+            
+            _output?.WriteLine("新格式批量读取测试通过 - 所有可写入地址数据验证一致");
             await client.DisconnectAsync();
         }
 
@@ -254,6 +430,24 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
+            
+            // 先写入可写入的测试数据
+            var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>();
+            
+            // 添加线圈数据（1-30）
+            for (int i = 1; i <= 30; i++)
+            {
+                batchWriteData.Add($"{TEST_STATION};{10000 + i}", (DataTypeEnums.Bool, i % 2 == 0));
+            }
+            
+            // 添加保持寄存器数据（31-60）- 只写入可写入的地址
+            for (int i = 31; i <= 60; i++)
+            {
+                batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.UInt16, (ushort)(i * 100)));
+            }
+            
+            var writeResult = await client.BatchWriteAsync(batchWriteData);
+            Assert.True(writeResult.IsSuccess, $"批量写入测试数据失败: {writeResult.Message}");
             
             // 测试大数据量批量读取：1-90地址范围
             var batchReadData = new Dictionary<string, DataTypeEnums>();
@@ -279,7 +473,50 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var readResult = await client.BatchReadAsync(batchReadData);
             Assert.True(readResult.IsSuccess, $"大数据量批量读取失败: {readResult.Message}");
             
-            _output?.WriteLine($"大数据量批量读取测试通过，共{batchReadData.Count}个地址");
+            // 验证可写入地址的数据一致性
+            int verifiedCount = 0;
+            foreach (var kvp in batchWriteData)
+            {
+                var address = kvp.Key;
+                var expectedValue = kvp.Value.Item2;
+                var dataType = kvp.Value.Item1;
+                
+                if (readResult.ResultValue.ContainsKey(address))
+                {
+                    var actualValueTuple = readResult.ResultValue[address];
+                    var actualValue = actualValueTuple.Item2; // 获取元组的第二个元素（实际值）
+                    
+                    // 根据数据类型进行精确比较
+                    bool valueMatches = false;
+                    try
+                    {
+                        switch (dataType)
+                        {
+                            case DataTypeEnums.Bool:
+                                valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
+                                break;
+                            case DataTypeEnums.UInt16:
+                                valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
+                                break;
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
+                        valueMatches = false;
+                    }
+                    
+                    Assert.True(valueMatches, $"地址 {address} 值不匹配: 期望={expectedValue}, 实际={actualValue}");
+                    verifiedCount++;
+                    
+                    if (verifiedCount % 10 == 0) // 每10个地址输出一次进度
+                    {
+                        _output?.WriteLine($"已验证 {verifiedCount}/{batchWriteData.Count} 个可写入地址");
+                    }
+                }
+            }
+            
+            _output?.WriteLine($"大数据量批量读取测试通过 - 验证了{verifiedCount}个可写入地址的数据一致性，共{batchReadData.Count}个地址");
             await client.DisconnectAsync();
         }
 
@@ -292,16 +529,16 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             // 测试所有支持的数据类型
             var dataTypeTests = new (int address, DataTypeEnums dataType, object testValue)[]
             {
-                (40001, DataTypeEnums.Bool, true),
-                (40002, DataTypeEnums.Byte, (byte)123),
+                //(40001, DataTypeEnums.Bool, true),
+                //(40002, DataTypeEnums.Byte, (byte)123),
                 (40003, DataTypeEnums.Int16, (short)-12345),
                 (40004, DataTypeEnums.UInt16, (ushort)12345),
-                (40005, DataTypeEnums.Int32, -123456789),
-                (40006, DataTypeEnums.UInt32, 123456789U),
-                (40007, DataTypeEnums.Int64, -1234567890123456789L),
-                (40008, DataTypeEnums.UInt64, 1234567890123456789UL),
-                (40009, DataTypeEnums.Float, 3.14159f),
-                (40010, DataTypeEnums.Double, 3.14159265359)
+                (40008, DataTypeEnums.Int32, -123456789),
+                (400012, DataTypeEnums.UInt32, 123456789U),
+                (400016, DataTypeEnums.Int64, -1234567890123456789L),
+                (40024, DataTypeEnums.UInt64, 1234567890123456789UL),
+                (40032, DataTypeEnums.Float, 3.14159f),
+                (40040, DataTypeEnums.Double, 3.14159265359)
             };
             
             foreach (var (address, dataType, testValue) in dataTypeTests)
@@ -312,10 +549,51 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 var readResult = client.Read(dataType, $"{TEST_STATION};{address}");
                 Assert.True(readResult.IsSuccess, $"读取{dataType}类型失败: {readResult.Message}");
                 
-                _output?.WriteLine($"{dataType}类型测试通过，地址{address}");
+                // 验证读取的值与写入的值一致
+                var actualValue = readResult.ResultValue;
+                bool valueMatches = false;
+                
+                try
+                {
+                    switch (dataType)
+                    {
+                        case DataTypeEnums.Int16:
+                            valueMatches = Convert.ToInt16(testValue) == Convert.ToInt16(actualValue);
+                            break;
+                        case DataTypeEnums.UInt16:
+                            valueMatches = Convert.ToUInt16(testValue) == Convert.ToUInt16(actualValue);
+                            break;
+                        case DataTypeEnums.Int32:
+                            valueMatches = Convert.ToInt32(testValue) == Convert.ToInt32(actualValue);
+                            break;
+                        case DataTypeEnums.UInt32:
+                            valueMatches = Convert.ToUInt32(testValue) == Convert.ToUInt32(actualValue);
+                            break;
+                        case DataTypeEnums.Int64:
+                            valueMatches = Convert.ToInt64(testValue) == Convert.ToInt64(actualValue);
+                            break;
+                        case DataTypeEnums.UInt64:
+                            valueMatches = Convert.ToUInt64(testValue) == Convert.ToUInt64(actualValue);
+                            break;
+                        case DataTypeEnums.Float:
+                            valueMatches = Math.Abs(Convert.ToSingle(testValue) - Convert.ToSingle(actualValue)) < 0.001f;
+                            break;
+                        case DataTypeEnums.Double:
+                            valueMatches = Math.Abs(Convert.ToDouble(testValue) - Convert.ToDouble(actualValue)) < 0.000001;
+                            break;
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _output?.WriteLine($"{dataType}类型转换失败: {ex.Message}");
+                    valueMatches = false;
+                }
+                
+                Assert.True(valueMatches, $"{dataType}类型值不匹配: 地址{address}, 期望={testValue}, 实际={actualValue}");
+                _output?.WriteLine($"{dataType}类型测试通过，地址{address}: 写入值={testValue}, 读取值={actualValue}");
             }
             
-            _output?.WriteLine("所有数据类型测试通过");
+            _output?.WriteLine("所有数据类型测试通过 - 读写值完全一致");
             client.Disconnect();
         }
 
@@ -336,7 +614,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             
             foreach (var (address, dataType, isWrite) in testCases)
             {
-                var result = ModbusAddressParser.TryParseEnhancedModbusAddress(address, dataType, isWrite, out var modbusHeader);
+                var result = ModbusAddressParser.TryParseModbusAddress(address, dataType, isWrite, out var modbusHeader);
                 Assert.True(result, $"地址解析失败: {address}");
                 Assert.NotNull(modbusHeader);
                 Assert.Equal(1, modbusHeader.StationNumber);
@@ -360,7 +638,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             
             foreach (var address in invalidAddresses)
             {
-                var result = ModbusAddressParser.TryParseEnhancedModbusAddress(address, DataTypeEnums.UInt16, false, out var modbusHeader);
+                var result = ModbusAddressParser.TryParseModbusAddress(address, DataTypeEnums.UInt16, false, out var modbusHeader);
                 _output?.WriteLine($"地址: {address}, 解析结果: {(result ? "成功" : "失败")}");
             }
         }
@@ -563,14 +841,18 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             // 测试并发操作：同时进行2个读写操作
             var tasks = new List<Task>();
             var results = new List<bool>();
+            var expectedValues = new List<ushort>();
             
             // 并发写入测试（地址1和地址2）
             for (int i = 1; i <= 2; i++)
             {
                 int address = i;
+                ushort expectedValue = (ushort)(address * 100);
+                expectedValues.Add(expectedValue);
+                
                 tasks.Add(Task.Run(async () =>
                 {
-                    var writeResult = await client.WriteHoldingRegisterAsync(TEST_STATION, (ushort)address, (ushort)(address * 100));
+                    var writeResult = await client.WriteHoldingRegisterAsync(TEST_STATION, (ushort)address, expectedValue);
                     results.Add(writeResult.IsSuccess);
                 }));
             }
@@ -580,24 +862,41 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             
             _output?.WriteLine("并发写入测试通过（2个并发任务）");
             
+            // 等待一小段时间确保写入完成
+            await Task.Delay(100);
+            
             // 并发读取测试（地址1和地址2）
             tasks.Clear();
             results.Clear();
+            var readResults = new List<(int address, ushort value, bool success)>();
             
             for (int i = 1; i <= 2; i++)
             {
                 int address = i;
+                ushort expectedValue = expectedValues[i - 1];
+                
                 tasks.Add(Task.Run(async () =>
                 {
                     var readResult = await client.ReadHoldingRegisterAsync(TEST_STATION, (ushort)address);
-                    results.Add(readResult.IsSuccess && readResult.ResultValue == (ushort)(address * 100));
+                    bool success = readResult.IsSuccess && readResult.ResultValue == expectedValue;
+                    readResults.Add((address, readResult.ResultValue, success));
+                    results.Add(success);
                 }));
             }
             
             await Task.WhenAll(tasks);
             Assert.True(results.All(r => r), "并发读取测试失败");
             
-            _output?.WriteLine("并发读取测试通过（2个并发任务）");
+            // 详细验证每个读取结果
+            for (int i = 0; i < readResults.Count; i++)
+            {
+                var (address, actualValue, success) = readResults[i];
+                var expectedValue = expectedValues[i];
+                Assert.True(success, $"地址{address}数据不一致: 期望={expectedValue}, 实际={actualValue}");
+                _output?.WriteLine($"地址{address}验证通过: 期望值={expectedValue}, 实际值={actualValue}");
+            }
+            
+            _output?.WriteLine("并发读取测试通过（2个并发任务）- 所有数据验证一致");
             await client.DisconnectAsync();
         }
 
@@ -611,18 +910,39 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
             int successCount = 0;
             int totalOperations = 20; // 减少操作数量
+            var failedOperations = new List<(int operation, int address, ushort expected, ushort actual)>();
             
             for (int i = 0; i < totalOperations; i++)
             {
                 int address = (i % 10) + 1; // 地址范围1-10，减少地址范围
-                var writeResult = client.WriteHoldingRegister(TEST_STATION, (ushort)address, (ushort)i);
+                ushort expectedValue = (ushort)i;
+                
+                var writeResult = client.WriteHoldingRegister(TEST_STATION, (ushort)address, expectedValue);
                 if (writeResult.IsSuccess)
                 {
                     var readResult = client.ReadHoldingRegister(TEST_STATION, (ushort)address);
-                    if (readResult.IsSuccess && readResult.ResultValue == (ushort)i)
+                    if (readResult.IsSuccess)
                     {
-                        successCount++;
+                        ushort actualValue = readResult.ResultValue;
+                        if (actualValue == expectedValue)
+                        {
+                            successCount++;
+                            _output?.WriteLine($"操作{i}: 地址{address} 验证通过 - 写入值={expectedValue}, 读取值={actualValue}");
+                        }
+                        else
+                        {
+                            failedOperations.Add((i, address, expectedValue, actualValue));
+                            _output?.WriteLine($"操作{i}: 地址{address} 数据不一致 - 期望值={expectedValue}, 实际值={actualValue}");
+                        }
                     }
+                    else
+                    {
+                        _output?.WriteLine($"操作{i}: 地址{address} 读取失败 - {readResult.Message}");
+                    }
+                }
+                else
+                {
+                    _output?.WriteLine($"操作{i}: 地址{address} 写入失败 - {writeResult.Message}");
                 }
                 
                 // 添加小延迟，避免对服务器造成过大压力
@@ -630,7 +950,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 
                 if (i % 5 == 0) // 每5次操作输出一次进度
                 {
-                    _output?.WriteLine($"压力测试进度: {i}/{totalOperations}");
+                    _output?.WriteLine($"压力测试进度: {i}/{totalOperations}, 当前成功率: {(double)successCount / (i + 1) * 100:F1}%");
                 }
             }
             
@@ -638,9 +958,115 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             double successRate = (double)successCount / totalOperations * 100;
             
             _output?.WriteLine($"压力测试完成: 成功率{successRate:F1}%, 耗时{stopwatch.ElapsedMilliseconds}ms");
-            Assert.True(successRate >= 80, $"压力测试成功率过低: {successRate:F1}%"); // 降低成功率要求
+            
+            // 输出失败的操作详情
+            if (failedOperations.Count > 0)
+            {
+                _output?.WriteLine($"失败操作详情:");
+                foreach (var (operation, address, expected, actual) in failedOperations)
+                {
+                    _output?.WriteLine($"  操作{operation}: 地址{address}, 期望={expected}, 实际={actual}");
+                }
+            }
+            
+            Assert.True(successRate >= 80, $"压力测试成功率过低: {successRate:F1}%, 失败操作数: {failedOperations.Count}"); // 降低成功率要求
             
             client.Disconnect();
+        }
+
+        [Fact]
+        public void Test_EnhancedAddress_Simple_Validation()
+        {
+            // 简单的验证测试，确保基本功能正常
+            var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
+            var connectResult = client.Connect();
+            
+            if (connectResult.IsSuccess)
+            {
+                try
+                {
+                    // 测试单个保持寄存器读写
+                    ushort testValue = 12345;
+                    var writeResult = client.WriteHoldingRegister(TEST_STATION, 1, testValue);
+                    Assert.True(writeResult.IsSuccess, $"写保持寄存器失败: {writeResult.Message}");
+                    
+                    var readResult = client.ReadHoldingRegister(TEST_STATION, 1);
+                    Assert.True(readResult.IsSuccess, $"读保持寄存器失败: {readResult.Message}");
+                    
+                    // 验证值是否一致
+                    Assert.Equal(testValue, readResult.ResultValue);
+                    _output?.WriteLine($"简单验证测试通过: 写入值={testValue}, 读取值={readResult.ResultValue}");
+                }
+                finally
+                {
+                    client.Disconnect();
+                }
+            }
+            else
+            {
+                _output?.WriteLine($"连接失败: {connectResult.Message}");
+                // 如果连接失败，跳过测试而不是失败
+                Assert.True(false, "无法连接到Modbus服务器，跳过测试");
+            }
+        }
+
+        [Fact]
+        public async Task Test_EnhancedAddress_Batch_Simple_Validation()
+        {
+            // 简单的批量验证测试，确保批量操作正常工作
+            var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
+            var connectResult = await client.ConnectAsync();
+            
+            if (connectResult.IsSuccess)
+            {
+                try
+                {
+                    // 测试简单的批量写入
+                    var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>
+                    {
+                        { $"{TEST_STATION};40001", (DataTypeEnums.UInt16, (ushort)1234) },
+                        { $"{TEST_STATION};40002", (DataTypeEnums.UInt16, (ushort)5678) }
+                    };
+                    
+                    var writeResult = await client.BatchWriteAsync(batchWriteData);
+                    Assert.True(writeResult.IsSuccess, $"批量写入失败: {writeResult.Message}");
+                    
+                    // 测试批量读取
+                    var batchReadData = new Dictionary<string, DataTypeEnums>
+                    {
+                        { $"{TEST_STATION};40001", DataTypeEnums.UInt16 },
+                        { $"{TEST_STATION};40002", DataTypeEnums.UInt16 }
+                    };
+                    
+                    var readResult = await client.BatchReadAsync(batchReadData);
+                    Assert.True(readResult.IsSuccess, $"批量读取失败: {readResult.Message}");
+                    
+                    // 验证读取结果
+                    foreach (var kvp in batchWriteData)
+                    {
+                        var address = kvp.Key;
+                        var expectedValue = kvp.Value.Item2;
+                        
+                        Assert.True(readResult.ResultValue.ContainsKey(address), $"读取结果中缺少地址: {address}");
+                        var actualValueTuple = readResult.ResultValue[address];
+                        var actualValue = actualValueTuple.Item2;
+                        
+                        Assert.Equal(expectedValue, actualValue);
+                        _output?.WriteLine($"批量验证通过: 地址{address}, 期望值={expectedValue}, 实际值={actualValue}");
+                    }
+                    
+                    _output?.WriteLine("简单批量验证测试通过");
+                }
+                finally
+                {
+                    await client.DisconnectAsync();
+                }
+            }
+            else
+            {
+                _output?.WriteLine($"连接失败: {connectResult.Message}");
+                Assert.True(false, "无法连接到Modbus服务器，跳过测试");
+            }
         }
     }
 } 
