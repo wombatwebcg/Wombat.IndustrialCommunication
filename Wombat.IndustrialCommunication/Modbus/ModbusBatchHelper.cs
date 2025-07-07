@@ -252,56 +252,16 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 if (currentBlock.Addresses.Count == 0)
                 {
-                    currentBlock.StartAddress = (ushort)address.Address;
+                    currentBlock.StartAddress = address.Address;
                     currentBlock.TotalLength = (ushort)address.Length;
                     currentBlock.Addresses.Add(address);
                     continue;
                 }
-                var newStartAddress = Math.Min(currentBlock.StartAddress, (ushort)address.Address);
-                
-                // 根据功能码计算当前块的结束地址
-                ushort currentEndAddress;
-                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
-                {
-                    // 寄存器类型：TotalLength 是字节数，需要转换为寄存器数量
-                    var registerCount = (ushort)(currentBlock.TotalLength / 2);
-                    currentEndAddress = (ushort)(currentBlock.StartAddress + registerCount);
-                }
-                else
-                {
-                    // 线圈类型：TotalLength 是字节数
-                    currentEndAddress = (ushort)(currentBlock.StartAddress + currentBlock.TotalLength);
-                }
-                
-                // 根据功能码计算地址结束位置
-                ushort addressEndAddress;
-                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
-                {
-                    // 寄存器类型：address.Length 是字节数，需要转换为寄存器数量
-                    var registerCount = (ushort)(address.Length / 2);
-                    addressEndAddress = (ushort)((ushort)address.Address + registerCount);
-                }
-                else
-                {
-                    // 线圈类型：address.Length 是字节数
-                    addressEndAddress = (ushort)((ushort)address.Address + address.Length);
-                }
-                
+                var newStartAddress = Math.Min(currentBlock.StartAddress, address.Address);
+                var currentEndAddress = currentBlock.StartAddress + currentBlock.TotalLength;
+                var addressEndAddress = address.Address + (ushort)address.Length;
                 var newEndAddress = Math.Max(currentEndAddress, addressEndAddress);
-                
-                // 根据功能码计算总长度
-                ushort newTotalLength;
-                if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
-                {
-                    // 寄存器类型：按寄存器数量计算，每个寄存器2字节
-                    var registerCount = (ushort)(newEndAddress - newStartAddress);
-                    newTotalLength = (ushort)(registerCount * 2);
-                }
-                else
-                {
-                    // 线圈类型：按字节数计算
-                    newTotalLength = (ushort)(newEndAddress - newStartAddress);
-                }
+                var newTotalLength = (ushort)(newEndAddress - newStartAddress);
                 if (newTotalLength > maxBlockSize)
                 {
                     currentBlock.EfficiencyRatio = CalculateModbusEfficiencyRatio(currentBlock);
@@ -310,7 +270,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         StationNumber = address.StationNumber,
                         FunctionCode = address.FunctionCode,
-                        StartAddress = (ushort)address.Address,
+                        StartAddress = address.Address,
                         TotalLength = (ushort)address.Length,
                         Addresses = new List<ModbusAddressInfo> { address }
                     };
@@ -339,7 +299,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         StationNumber = address.StationNumber,
                         FunctionCode = address.FunctionCode,
-                        StartAddress = (ushort)address.Address,
+                        StartAddress = address.Address,
                         TotalLength = (ushort)address.Length,
                         Addresses = new List<ModbusAddressInfo> { address }
                     };
@@ -379,7 +339,25 @@ namespace Wombat.IndustrialCommunication.Modbus
                     try
                     {
                         int relativeOffset;
-                        if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
+                        if (address.FunctionCode == 0x01 || address.FunctionCode == 0x02)
+                        {
+                            // 线圈和离散输入类型：按位打包，每8位一个字节
+                            int bitOffset = address.Address - block.StartAddress;
+                            int byteOffset = bitOffset / 8;
+                            int bitPosition = bitOffset % 8;
+                            
+                            if (byteOffset >= data.Length)
+                            {
+                                result[address.OriginalAddress] = null;
+                                continue;
+                            }
+                            
+                            // 提取位值
+                            bool bitValue = (data[byteOffset] & (1 << bitPosition)) != 0;
+                            result[address.OriginalAddress] = bitValue;
+                            continue;
+                        }
+                        else if (address.FunctionCode == 0x03 || address.FunctionCode == 0x04)
                         {
                             // 寄存器类型：地址差值转换为字节偏移量
                             var addressOffset = (ushort)address.Address - block.StartAddress;
@@ -387,7 +365,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         }
                         else
                         {
-                            // 线圈类型：直接使用地址差值作为字节偏移量
+                            // 其他功能码：直接使用地址差值作为字节偏移量
                             relativeOffset = (ushort)address.Address - block.StartAddress;
                         }
                         
@@ -482,6 +460,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     case DataTypeEnums.Double:
                         if (offset + 7 < data.Length)
                         {
+                            var uu = data.ToDouble(offset, dataFormat);
                             return data.ToDouble(offset, dataFormat);
                         }
                         return 0.0;

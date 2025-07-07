@@ -250,6 +250,10 @@ namespace Wombat.IndustrialCommunication.Modbus
                         return result.Complete();
                     foreach (var address in addresses)
                     {
+                        if(address.Value.Item2 is float dd)
+                        {
+
+                        }
                         var writeResult = await WriteAsync(address.Value.Item1,address.Key,address.Value.Item2);
                         if (writeResult.IsSuccess)
                         {

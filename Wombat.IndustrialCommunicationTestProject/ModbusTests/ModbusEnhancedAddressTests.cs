@@ -171,11 +171,11 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             {
                 { $"{TEST_STATION};10001", (DataTypeEnums.Bool, true) },           // 线圈
                 { $"{TEST_STATION};40001", (DataTypeEnums.UInt16, (ushort)1234) }, // 保持寄存器
-                { $"{TEST_STATION};40010", (DataTypeEnums.Int32, 56789) },         // 保持寄存器（Int32）
-                { $"{TEST_STATION};40020", (DataTypeEnums.Float, 3.14159f) },      // 保持寄存器（Float）
-                { $"{TEST_STATION};40030", (DataTypeEnums.Int64, 123456789L) },    // 保持寄存器（Int64）
-                { $"{TEST_STATION};40040", (DataTypeEnums.UInt64, 987654321UL) },  // 保持寄存器（UInt64）
-                { $"{TEST_STATION};40050", (DataTypeEnums.Double, 3.14159265359) } // 保持寄存器（Double）
+                { $"{TEST_STATION};40011", (DataTypeEnums.Int32, 56789) },         // 保持寄存器（Int32）
+                { $"{TEST_STATION};40021", (DataTypeEnums.Float, 3.14159f) },      // 保持寄存器（Float）
+                { $"{TEST_STATION};40031", (DataTypeEnums.Int64, 123456789L) },    // 保持寄存器（Int64）
+                { $"{TEST_STATION};40041", (DataTypeEnums.UInt64, 987654321UL) },  // 保持寄存器（UInt64）
+                { $"{TEST_STATION};40051", (DataTypeEnums.Double, 3.14159265359) } // 保持寄存器（Double）
             };
             
             var writeResult = await client.BatchWriteAsync(batchWriteData);
@@ -187,7 +187,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             {
                 batchReadData.Add(kvp.Key, kvp.Value.Item1);
             }
-            
+
             var readResult = await client.BatchReadAsync(batchReadData);
             Assert.True(readResult.IsSuccess, $"批量读取验证失败: {readResult.Message}");
             
@@ -250,96 +250,96 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
-            
-            // 测试大数据量批量写入：1-90地址范围
+
             var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>();
-            
-            // 添加线圈数据（1-30）
+
             for (int i = 1; i <= 30; i++)
-            {
                 batchWriteData.Add($"{TEST_STATION};{10000 + i}", (DataTypeEnums.Bool, i % 2 == 0));
-            }
-            
-            // 添加保持寄存器数据（31-60）
+
             for (int i = 31; i <= 60; i++)
-            {
                 batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.UInt16, (ushort)(i * 100)));
-            }
-            
-            // 添加大数据类型（61-90）
+
+            int complexAddress = 40100;
             for (int i = 61; i <= 90; i++)
             {
                 if (i % 3 == 0)
                 {
-                    batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.Int32, i * 1000));
+                    batchWriteData.Add($"{TEST_STATION};{complexAddress}", (DataTypeEnums.Int32, i * 1000));
+                    complexAddress += 4;
                 }
                 else if (i % 3 == 1)
                 {
-                    batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.Float, (float)(i * 1.5)));
+                    batchWriteData.Add($"{TEST_STATION};{complexAddress}", (DataTypeEnums.Float, (float)(i * 1.5)));
+                    complexAddress += 4;
                 }
                 else
                 {
-                    batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.Double, i * 2.5));
+                    batchWriteData.Add($"{TEST_STATION};{complexAddress}", (DataTypeEnums.Double, i * 2.5));
+                    complexAddress += 8;
                 }
             }
-            
+
             var writeResult = await client.BatchWriteAsync(batchWriteData);
-            Assert.True(writeResult.IsSuccess, $"大数据量批量写入失败: {writeResult.Message}");
-            
-            // 验证写入的数据：读取并比较值
-            var batchReadData = new Dictionary<string, DataTypeEnums>();
-            foreach (var kvp in batchWriteData)
-            {
-                batchReadData.Add(kvp.Key, kvp.Value.Item1);
-            }
-            
+            Assert.True(writeResult.IsSuccess, $"批量写入失败: {writeResult.Message}");
+
+            var batchReadData = batchWriteData.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Item1);
             var readResult = await client.BatchReadAsync(batchReadData);
-            Assert.True(readResult.IsSuccess, $"大数据量批量读取验证失败: {readResult.Message}");
-            
-            // 验证可写入地址的数据一致性
+            Assert.True(readResult.IsSuccess, $"批量读取失败: {readResult.Message}");
+
             int verifiedCount = 0;
+
             foreach (var kvp in batchWriteData)
             {
                 var address = kvp.Key;
                 var expectedValue = kvp.Value.Item2;
                 var dataType = kvp.Value.Item1;
-                
-                if (readResult.ResultValue.ContainsKey(address))
+
+                if (!readResult.ResultValue.TryGetValue(address, out var actualTuple))
                 {
-                    var actualValueTuple = readResult.ResultValue[address];
-                    var actualValue = actualValueTuple.Item2; // 获取元组的第二个元素（实际值）
-                    
-                    // 根据数据类型进行精确比较
-                    bool valueMatches = false;
-                    try
+                    Assert.True(false, $"地址 {address} 缺失读取结果");
+                    continue;
+                }
+
+                var actualValue = actualTuple.Item2;
+                bool valueMatches = false;
+
+                try
+                {
+                    switch (dataType)
                     {
-                        switch (dataType)
-                        {
-                            case DataTypeEnums.Bool:
-                                valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
-                                break;
-                            case DataTypeEnums.UInt16:
-                                valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
-                                break;
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
-                        valueMatches = false;
-                    }
-                    
-                    Assert.True(valueMatches, $"地址 {address} 值不匹配: 期望={expectedValue}, 实际={actualValue}");
-                    verifiedCount++;
-                    
-                    if (verifiedCount % 10 == 0) // 每10个地址输出一次进度
-                    {
-                        _output?.WriteLine($"已验证 {verifiedCount}/{batchWriteData.Count} 个可写入地址");
+                        case DataTypeEnums.Bool:
+                            valueMatches = Convert.ToBoolean(expectedValue) == Convert.ToBoolean(actualValue);
+                            break;
+                        case DataTypeEnums.UInt16:
+                            valueMatches = Convert.ToUInt16(expectedValue) == Convert.ToUInt16(actualValue);
+                            break;
+                        case DataTypeEnums.Int32:
+                            valueMatches = Convert.ToInt32(expectedValue) == Convert.ToInt32(actualValue);
+                            break;
+                        case DataTypeEnums.Float:
+                            valueMatches = Math.Abs(Convert.ToSingle(expectedValue) - Convert.ToSingle(actualValue)) < 0.0001;
+                            break;
+                        case DataTypeEnums.Double:
+                            valueMatches = Math.Abs(Convert.ToDouble(expectedValue) - Convert.ToDouble(actualValue)) < 0.0000001;
+                            break;
+                        default:
+                            throw new NotSupportedException($"不支持的数据类型: {dataType}");
                     }
                 }
+                catch (Exception ex)
+                {
+                    _output?.WriteLine($"地址 {address} 类型转换失败: {ex.Message}");
+                    valueMatches = false;
+                }
+
+                Assert.True(valueMatches, $"地址 {address} 值不匹配: 类型={dataType}, 期望={expectedValue}, 实际={actualValue}");
+                verifiedCount++;
+
+                if (verifiedCount % 10 == 0)
+                    _output?.WriteLine($"已验证 {verifiedCount}/{batchWriteData.Count} 个地址");
             }
-            
-            _output?.WriteLine($"大数据量批量写入测试通过 - 所有{batchWriteData.Count}个地址数据验证一致");
+
+            _output?.WriteLine($"全部验证通过，共 {batchWriteData.Count} 个地址");
             await client.DisconnectAsync();
         }
 
@@ -354,9 +354,9 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             {
                 { $"{TEST_STATION};10001", (DataTypeEnums.Bool, true) },           // 线圈
                 { $"{TEST_STATION};40001", (DataTypeEnums.UInt16, (ushort)1234) }, // 保持寄存器
-                { $"{TEST_STATION};40030", (DataTypeEnums.Int64, 123456789L) },    // 保持寄存器（Int64）
-                { $"{TEST_STATION};40040", (DataTypeEnums.UInt64, 987654321UL) },  // 保持寄存器（UInt64）
-                { $"{TEST_STATION};40050", (DataTypeEnums.Double, 3.14159265359) } // 保持寄存器（Double）
+                { $"{TEST_STATION};40031", (DataTypeEnums.Int64, 123456789L) },    // 保持寄存器（Int64）
+                { $"{TEST_STATION};40041", (DataTypeEnums.UInt64, 987654321UL) },  // 保持寄存器（UInt64）
+                { $"{TEST_STATION};40051", (DataTypeEnums.Double, 3.14159265359) } // 保持寄存器（Double）
             };
             
             var writeResult = await client.BatchWriteAsync(batchWriteData);
@@ -369,9 +369,9 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 { $"{TEST_STATION};20001", DataTypeEnums.Bool },   // 离散输入
                 { $"{TEST_STATION};30001", DataTypeEnums.UInt16 }, // 输入寄存器
                 { $"{TEST_STATION};40001", DataTypeEnums.UInt16 }, // 保持寄存器
-                { $"{TEST_STATION};40030", DataTypeEnums.Int64 },  // 保持寄存器（Int64）
-                { $"{TEST_STATION};40040", DataTypeEnums.UInt64 }, // 保持寄存器（UInt64）
-                { $"{TEST_STATION};40050", DataTypeEnums.Double }  // 保持寄存器（Double）
+                { $"{TEST_STATION};40031", DataTypeEnums.Int64 },  // 保持寄存器（Int64）
+                { $"{TEST_STATION};40041", DataTypeEnums.UInt64 }, // 保持寄存器（UInt64）
+                { $"{TEST_STATION};40051", DataTypeEnums.Double }  // 保持寄存器（Double）
             };
             
             var readResult = await client.BatchReadAsync(batchReadData);
