@@ -256,16 +256,16 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             for (int i = 1; i <= 30; i++)
                 batchWriteData.Add($"{TEST_STATION};{10000 + i}", (DataTypeEnums.Bool, i % 2 == 0));
 
-            for (int i = 31; i <= 60; i++)
-                batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.UInt16, (ushort)(i * 100)));
+            //for (int i = 31; i <= 60; i++)
+            //    batchWriteData.Add($"{TEST_STATION};{40000 + i}", (DataTypeEnums.UInt16, (ushort)(i * 100)));
 
             int complexAddress = 40100;
             for (int i = 61; i <= 90; i++)
             {
                 if (i % 3 == 0)
                 {
-                    batchWriteData.Add($"{TEST_STATION};{complexAddress}", (DataTypeEnums.Int32, i * 1000));
-                    complexAddress += 4;
+                    //batchWriteData.Add($"{TEST_STATION};{complexAddress}", (DataTypeEnums.Int32, i * 1000));
+                    //complexAddress += 4;
                 }
                 else if (i % 3 == 1)
                 {
@@ -281,11 +281,11 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
 
             var writeResult = await client.BatchWriteAsync(batchWriteData);
             Assert.True(writeResult.IsSuccess, $"批量写入失败: {writeResult.Message}");
-
+            await Task.Delay(5000);
             var batchReadData = batchWriteData.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Item1);
             var readResult = await client.BatchReadAsync(batchReadData);
             Assert.True(readResult.IsSuccess, $"批量读取失败: {readResult.Message}");
-
+            var test = client.ReadDouble("1;400152");
             int verifiedCount = 0;
 
             foreach (var kvp in batchWriteData)

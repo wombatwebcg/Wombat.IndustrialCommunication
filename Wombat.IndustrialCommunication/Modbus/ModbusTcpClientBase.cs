@@ -46,20 +46,101 @@ namespace Wombat.IndustrialCommunication.Modbus
             using (await _lock.LockAsync())
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
-                if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
+                
+                try
                 {
-                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber,modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
+                    if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
+                    {
+                        // Modbus TCP有帧长度限制，设置最大读取长度
+                        // 对于线圈/离散输入，按位读取，最大数量更大
+                        int maxLength = isBit ? 2000 : 120; // 最大寄存器数量约为120，线圈可以更多
+                        
+                        // 对于超过最大长度的请求，分段读取
+                        if (length > maxLength)
+                        {
+                            int alreadyFinished = 0;
+                            List<byte> bytesContent = new List<byte>();
+                            
+                            while (alreadyFinished < length)
+                            {
+                                ushort readLength = (ushort)Math.Min(length - alreadyFinished, maxLength);
+                                
+                                // 计算偏移地址
+                                string offsetAddress = CalculateOffsetAddress(address, alreadyFinished, modbusAddress, isBit);
+                                
+                                var tempResult = await InternalReadAsync(offsetAddress, readLength, dataType, isBit);
+                                if (tempResult.IsSuccess)
+                                {
+                                    result.Requsts.AddRange(tempResult.Requsts);
+                                    result.Responses.AddRange(tempResult.Responses);
+                                    bytesContent.AddRange(tempResult.ResultValue);
+                                    alreadyFinished += readLength;
+                                }
+                                else
+                                {
+                                    // 读取失败，直接返回失败结果，不再继续循环
+                                    return tempResult;
+                                }
+                            }
+                            
+                            result.ResultValue = bytesContent.ToArray();
+                            return result.Complete();
+                        }
+                        else
+                        {
+                            // 长度在限制范围内，直接读取
+                            return await InternalReadAsync(address, (ushort)length, dataType, isBit);
+                        }
+                    }
+                    
+                    return OperationResult.CreateFailedResult<byte[]>("无效的Modbus地址格式");
+                }
+                catch (Exception ex)
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(ex);
+                }
+            }
+            
+            // 内部读取方法，处理单段数据
+            async ValueTask<OperationResult<byte[]>> InternalReadAsync(string internalAddress, ushort internalLength, DataTypeEnums internalDataType, bool isInternalBit)
+            {
+                if (ModbusAddressParser.TryParseModbusAddress(internalAddress, internalDataType, false, out var modbusAddress))
+                {
+                    var request = new ModbusTcpRequest(GenerateTransactionId(), modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, internalLength);
                     var response = await Transport.UnicastReadMessageAsync(request);
+                    
                     if (response.IsSuccess)
                     {
                         var dataPackage = response.ResultValue.ProtocolMessageFrame;
                         var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
                         return new OperationResult<byte[]>(response, modbusTcpResponse.Data).Complete();
                     }
-
+                    
+                    return OperationResult.CreateFailedResult<byte[]>(response);
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
-
+                
+                return OperationResult.CreateFailedResult<byte[]>($"无效的Modbus地址格式: {internalAddress}");
+            }
+            
+            // 计算偏移地址
+            string CalculateOffsetAddress(string baseAddress, int offset, ModbusHeader originalHeader, bool isForBit)
+            {
+                // 对于不同功能码，地址的计算方式不同
+                ushort newAddress = originalHeader.Address;
+                
+                if (isForBit || originalHeader.FunctionCode == 0x01 || originalHeader.FunctionCode == 0x02)
+                {
+                    // 线圈/离散输入按位偏移
+                    newAddress = (ushort)(originalHeader.Address + offset);
+                }
+                else
+                {
+                    // 寄存器按字偏移
+                    newAddress = (ushort)(originalHeader.Address + offset);
+                }
+                
+                // 返回新地址
+                return $"{originalHeader.StationNumber};{originalHeader.FunctionCode};{newAddress}";
             }
         }
 
