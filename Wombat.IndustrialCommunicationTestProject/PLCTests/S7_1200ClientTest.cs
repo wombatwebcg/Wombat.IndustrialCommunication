@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         #region 测试配置常量
         
         /// <summary>测试PLC IP地址</summary>
-        private const string TEST_PLC_IP = "192.168.6.159";
+        private const string TEST_PLC_IP = "192.168.11.41";
         
         /// <summary>测试PLC端口</summary>
         private const int TEST_PLC_PORT = 102;
@@ -134,7 +134,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             LogTestStart(testName);
             
             client = new SiemensClient(TEST_PLC_IP, TEST_PLC_PORT, PLC_VERSION);
-            
+
             try
             {
                 // Act & Assert
@@ -599,39 +599,39 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // 测试布尔值 - 使用DB200的位地址
                 LogInfo("测试布尔值读写");
                 client.Write(BOOL_TEST_ADDRESS_1, true);
-                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_1).ResultValue == true);
+                AssertReadWriteEqual(true, client.ReadBoolean(BOOL_TEST_ADDRESS_1).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_1}");
                 client.Write(BOOL_TEST_ADDRESS_2, bool_value);
-                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_2).ResultValue == bool_value);
+                AssertReadWriteEqual(bool_value, client.ReadBoolean(BOOL_TEST_ADDRESS_2).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_2}");
                 client.Write(BOOL_TEST_ADDRESS_3, !bool_value);
-                Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_3).ResultValue == !bool_value);
+                AssertReadWriteEqual(!bool_value, client.ReadBoolean(BOOL_TEST_ADDRESS_3).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_3}");
 
                 // 测试16位整数
                 LogInfo("测试16位整数读写");
                 client.Write(INT16_TEST_ADDRESS, short_number);
-                Assert.True(client.ReadInt16(INT16_TEST_ADDRESS).ResultValue == short_number);
+                AssertReadWriteEqual(short_number, client.ReadInt16(INT16_TEST_ADDRESS).ResultValue, $"Int16断言失败: {INT16_TEST_ADDRESS}");
                 client.Write(UINT16_TEST_ADDRESS, short_number_1);
-                Assert.True(client.ReadUInt16(UINT16_TEST_ADDRESS).ResultValue == short_number_1);
+                AssertReadWriteEqual(short_number_1, client.ReadUInt16(UINT16_TEST_ADDRESS).ResultValue, $"UInt16断言失败: {UINT16_TEST_ADDRESS}");
 
                 // 测试32位整数
                 LogInfo("测试32位整数读写");
                 client.Write(INT32_TEST_ADDRESS, int_number);
-                Assert.True(client.ReadInt32(INT32_TEST_ADDRESS).ResultValue == int_number);
+                AssertReadWriteEqual(int_number, client.ReadInt32(INT32_TEST_ADDRESS).ResultValue, $"Int32断言失败: {INT32_TEST_ADDRESS}");
                 client.Write(UINT32_TEST_ADDRESS, int_number_1);
-                Assert.True(client.ReadUInt32(UINT32_TEST_ADDRESS).ResultValue == int_number_1);
+                AssertReadWriteEqual(int_number_1, client.ReadUInt32(UINT32_TEST_ADDRESS).ResultValue, $"UInt32断言失败: {UINT32_TEST_ADDRESS}");
 
                 // 测试64位整数
                 LogInfo("测试64位整数读写");
                 client.Write(INT64_TEST_ADDRESS, Convert.ToInt64(int_number));
-                Assert.True(client.ReadInt64(INT64_TEST_ADDRESS).ResultValue == Convert.ToInt64(int_number));
+                AssertReadWriteEqual(Convert.ToInt64(int_number), client.ReadInt64(INT64_TEST_ADDRESS).ResultValue, $"Int64断言失败: {INT64_TEST_ADDRESS}");
                 client.Write(UINT64_TEST_ADDRESS, Convert.ToUInt64(int_number_1));
-                Assert.True(client.ReadUInt64(UINT64_TEST_ADDRESS).ResultValue == Convert.ToUInt64(int_number_1));
+                AssertReadWriteEqual(Convert.ToUInt64(int_number_1), client.ReadUInt64(UINT64_TEST_ADDRESS).ResultValue, $"UInt64断言失败: {UINT64_TEST_ADDRESS}");
 
                 // 测试浮点数
                 LogInfo("测试浮点数读写");
                 client.Write(FLOAT_TEST_ADDRESS, float_number);
-                Assert.True(client.ReadFloat(FLOAT_TEST_ADDRESS).ResultValue == float_number);
+                AssertReadWriteEqual(float_number, client.ReadFloat(FLOAT_TEST_ADDRESS).ResultValue, $"Float断言失败: {FLOAT_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
                 client.Write(DOUBLE_TEST_ADDRESS, Convert.ToDouble(float_number));
-                Assert.True(client.ReadDouble(DOUBLE_TEST_ADDRESS).ResultValue == Convert.ToDouble(float_number));
+                AssertReadWriteEqual(Convert.ToDouble(float_number), client.ReadDouble(DOUBLE_TEST_ADDRESS).ResultValue, $"Double断言失败: {DOUBLE_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
             }
             
             LogInfo("执行数组读写测试");
@@ -660,39 +660,39 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // 测试布尔值
                 LogInfo("测试布尔值读写");
                 await client.WriteAsync(BOOL_TEST_ADDRESS_1, true);
-                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_1)).ResultValue == true);
+                AssertReadWriteEqual(true, (await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_1)).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_1}");
                 await client.WriteAsync(BOOL_TEST_ADDRESS_2, bool_value);
-                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_2)).ResultValue == bool_value);
+                AssertReadWriteEqual(bool_value, (await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_2)).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_2}");
                 await client.WriteAsync(BOOL_TEST_ADDRESS_3, !bool_value);
-                Assert.True((await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_3)).ResultValue == !bool_value);
+                AssertReadWriteEqual(!bool_value, (await client.ReadBooleanAsync(BOOL_TEST_ADDRESS_3)).ResultValue, $"布尔值断言失败: {BOOL_TEST_ADDRESS_3}");
 
                 // 测试16位整数
                 LogInfo("测试16位整数读写");
                 await client.WriteAsync(INT16_TEST_ADDRESS, short_number);
-                Assert.True((await client.ReadInt16Async(INT16_TEST_ADDRESS)).ResultValue == short_number);
+                AssertReadWriteEqual(short_number, (await client.ReadInt16Async(INT16_TEST_ADDRESS)).ResultValue, $"Int16断言失败: {INT16_TEST_ADDRESS}");
                 await client.WriteAsync(UINT16_TEST_ADDRESS, short_number_1);
-                Assert.True((await client.ReadUInt16Async(UINT16_TEST_ADDRESS)).ResultValue == short_number_1);
+                AssertReadWriteEqual(short_number_1, (await client.ReadUInt16Async(UINT16_TEST_ADDRESS)).ResultValue, $"UInt16断言失败: {UINT16_TEST_ADDRESS}");
 
                 // 测试32位整数
                 LogInfo("测试32位整数读写");
                 await client.WriteAsync(INT32_TEST_ADDRESS, int_number);
-                Assert.True((await client.ReadInt32Async(INT32_TEST_ADDRESS)).ResultValue == int_number);
+                AssertReadWriteEqual(int_number, (await client.ReadInt32Async(INT32_TEST_ADDRESS)).ResultValue, $"Int32断言失败: {INT32_TEST_ADDRESS}");
                 await client.WriteAsync(UINT32_TEST_ADDRESS, int_number_1);
-                Assert.True((await client.ReadUInt32Async(UINT32_TEST_ADDRESS)).ResultValue == int_number_1);
+                AssertReadWriteEqual(int_number_1, (await client.ReadUInt32Async(UINT32_TEST_ADDRESS)).ResultValue, $"UInt32断言失败: {UINT32_TEST_ADDRESS}");
 
                 // 测试64位整数
                 LogInfo("测试64位整数读写");
                 await client.WriteAsync(INT64_TEST_ADDRESS, Convert.ToInt64(int_number));
-                Assert.True((await client.ReadInt64Async(INT64_TEST_ADDRESS)).ResultValue == Convert.ToInt64(int_number));
+                AssertReadWriteEqual(Convert.ToInt64(int_number), (await client.ReadInt64Async(INT64_TEST_ADDRESS)).ResultValue, $"Int64断言失败: {INT64_TEST_ADDRESS}");
                 await client.WriteAsync(UINT64_TEST_ADDRESS, Convert.ToUInt64(int_number_1));
-                Assert.True((await client.ReadUInt64Async(UINT64_TEST_ADDRESS)).ResultValue == Convert.ToUInt64(int_number_1));
+                AssertReadWriteEqual(Convert.ToUInt64(int_number_1), (await client.ReadUInt64Async(UINT64_TEST_ADDRESS)).ResultValue, $"UInt64断言失败: {UINT64_TEST_ADDRESS}");
 
                 // 测试浮点数
                 LogInfo("测试浮点数读写");
                 await client.WriteAsync(FLOAT_TEST_ADDRESS, float_number);
-                Assert.True((await client.ReadFloatAsync(FLOAT_TEST_ADDRESS)).ResultValue == float_number);
+                AssertReadWriteEqual(float_number, (await client.ReadFloatAsync(FLOAT_TEST_ADDRESS)).ResultValue, $"Float断言失败: {FLOAT_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
                 await client.WriteAsync(DOUBLE_TEST_ADDRESS, Convert.ToDouble(float_number));
-                Assert.True((await client.ReadDoubleAsync(DOUBLE_TEST_ADDRESS)).ResultValue == Convert.ToDouble(float_number));
+                AssertReadWriteEqual(Convert.ToDouble(float_number), (await client.ReadDoubleAsync(DOUBLE_TEST_ADDRESS)).ResultValue, $"Double断言失败: {DOUBLE_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
             }
             
             await TestArrayReadWriteAsync();
@@ -710,29 +710,19 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                                    false, false, false, false, false, false, false, false, false, true };
             client.Write(BOOL_ARRAY_TEST_ADDRESS, bool_values);
             var bool_values_result = client.ReadBoolean(BOOL_ARRAY_TEST_ADDRESS, bool_values.Length);
-            for (int j = 0; j < bool_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(bool_values_result.ResultValue[j] == bool_values[j], $"布尔数组索引{j}不匹配");
-            }
+            AssertArrayEqual(bool_values, bool_values_result.ResultValue, $"布尔数组断言失败: {BOOL_ARRAY_TEST_ADDRESS}");
 
             // 整数数组测试
             int[] int_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             client.Write(INT_ARRAY_TEST_ADDRESS, int_values);
             var int_values_result = client.ReadInt32(INT_ARRAY_TEST_ADDRESS, int_values.Length);
-            for (int j = 0; j < int_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(int_values_result.ResultValue[j] == int_values[j], $"整数数组索引{j}不匹配");
-            }
+            AssertArrayEqual(int_values, int_values_result.ResultValue, $"整数数组断言失败: {INT_ARRAY_TEST_ADDRESS}");
 
             // 浮点数组测试
             float[] float_values = { 1.1f, 2.2f, 3.3f, 4.4f, 5.5f };
             client.Write(FLOAT_ARRAY_TEST_ADDRESS, float_values);
             var float_values_result = client.ReadFloat(FLOAT_ARRAY_TEST_ADDRESS, float_values.Length);
-            for (int j = 0; j < float_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(Math.Abs(float_values_result.ResultValue[j] - float_values[j]) < FLOAT_COMPARISON_PRECISION, 
-                    $"浮点数组索引{j}不匹配: 期望={float_values[j]}, 实际={float_values_result.ResultValue[j]}");
-            }
+            AssertArrayEqual(float_values, float_values_result.ResultValue, $"浮点数组断言失败: {FLOAT_ARRAY_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
         }
 
         /// <summary>
@@ -747,29 +737,19 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                                    false, false, false, false, false, false, false, false, false, true };
             await client.WriteAsync(BOOL_ARRAY_TEST_ADDRESS, bool_values);
             var bool_values_result = await client.ReadBooleanAsync(BOOL_ARRAY_TEST_ADDRESS, bool_values.Length);
-            for (int j = 0; j < bool_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(bool_values_result.ResultValue[j] == bool_values[j], $"布尔数组索引{j}不匹配");
-            }
+            AssertArrayEqual(bool_values, bool_values_result.ResultValue, $"布尔数组断言失败: {BOOL_ARRAY_TEST_ADDRESS}");
 
             // 整数数组测试
             int[] int_values = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10 };
             await client.WriteAsync(INT_ARRAY_TEST_ADDRESS, int_values);
             var int_values_result = await client.ReadInt32Async(INT_ARRAY_TEST_ADDRESS, int_values.Length);
-            for (int j = 0; j < int_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(int_values_result.ResultValue[j] == int_values[j], $"整数数组索引{j}不匹配");
-            }
+            AssertArrayEqual(int_values, int_values_result.ResultValue, $"整数数组断言失败: {INT_ARRAY_TEST_ADDRESS}");
 
             // 浮点数组测试
             float[] float_values = { 1.1f, 2.2f, 3.3f, 4.4f, 5.5f };
             await client.WriteAsync(FLOAT_ARRAY_TEST_ADDRESS, float_values);
             var float_values_result = await client.ReadFloatAsync(FLOAT_ARRAY_TEST_ADDRESS, float_values.Length);
-            for (int j = 0; j < float_values_result.ResultValue.Length; j++)
-            {
-                Assert.True(Math.Abs(float_values_result.ResultValue[j] - float_values[j]) < FLOAT_COMPARISON_PRECISION, 
-                    $"浮点数组索引{j}不匹配: 期望={float_values[j]}, 实际={float_values_result.ResultValue[j]}");
-            }
+            AssertArrayEqual(float_values, float_values_result.ResultValue, $"浮点数组断言失败: {FLOAT_ARRAY_TEST_ADDRESS}", FLOAT_COMPARISON_PRECISION);
         }
 
         /// <summary>
@@ -803,12 +783,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
         /// <summary>
         /// 测试批量读取性能
+        /// 使用PrepareTestData准备好的固定数据进行测试，避免重复写入随机数据
         /// </summary>
         private async Task TestBatchReadPerformance()
         {
             LogInfo("开始批量读取性能测试");
             
-            // 准备测试数据
+            // 准备固定的测试数据（一次性准备，后续测试直接使用）
             await PrepareTestData();
             
             // 测试场景1：连续地址批量读取
@@ -844,10 +825,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
         /// <summary>
         /// 准备测试数据
+        /// 为批量读取测试准备固定的测试数据，避免重复写入随机数据
         /// </summary>
         private async Task PrepareTestData()
         {
-            LogInfo("准备测试数据");
+            LogInfo("准备批量读取测试数据");
             
             // 准备Data0区域：Bool数组 [0..31] 占用 0.0-3.7 (4字节)
             LogInfo("准备Data0区域 - Bool数组数据");
@@ -881,15 +863,101 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 await client.WriteAsync($"DB200.DBD{196 + i * 4}", realValue);
             }
             
-            // 为大批量连续读取准备额外数据（Data1区域扩展到100个Word）
-            LogInfo("准备大批量连续读取数据 - 扩展Data1区域");
-            for (int i = 32; i < 100; i++)
+            LogInfo("批量读取测试数据准备完成");
+        }
+
+        /// <summary>
+        /// 生成期望值字典
+        /// 根据地址类型和索引生成与PrepareTestData中写入数据一致的期望值
+        /// </summary>
+        /// <param name="addresses">地址及类型字典</param>
+        /// <returns>地址-期望值字典</returns>
+        private Dictionary<string, object> GenerateExpectedValues(Dictionary<string, DataTypeEnums> addresses)
+        {
+            var expected = new Dictionary<string, object>();
+            
+            foreach (var kvp in addresses)
             {
-                var wordValue = (short)(2000 + i * 10);
-                await client.WriteAsync($"DB200.DBW{4 + i * 2}", wordValue);
+                var address = kvp.Key;
+                var dataType = kvp.Value;
+                
+                try
+                {
+                    if (address.Contains("DBX"))
+                    {
+                        // 解析Bool地址：DB200.DBX{byteIdx}.{bitIdx}
+                        var parts = address.Split('.');
+                        var bytePart = parts[1].Substring(3); // 去掉"DBX"
+                        var bitPart = parts[2];
+                        var byteIdx = int.Parse(bytePart);
+                        var bitIdx = int.Parse(bitPart);
+                        var index = byteIdx * 8 + bitIdx;
+                        
+                        // 与PrepareTestData中的逻辑一致：i % 2 == 0
+                        var expectedValue = index % 2 == 0;
+                        expected[address] = expectedValue;
+                    }
+                    else if (address.Contains("DBW"))
+                    {
+                        // 解析Word地址：DB200.DBW{offset}
+                        // 从 "DB200.DBW4" 中提取 "4"
+                        var offsetStr = address.Substring(address.IndexOf("DBW") + 3);
+                        var offset = int.Parse(offsetStr);
+                        
+                        // 检查地址是否在Data1区域范围内（4-67字节）
+                        if (offset >= 4 && offset <= 66)
+                        {
+                            // Data1区域：Word数组
+                            var index = (offset - 4) / 2; // 反向计算索引
+                            // 与PrepareTestData中的逻辑一致：(short)(1000 + i * 10)
+                            var expectedValue = (short)(1000 + index * 10);
+                            expected[address] = expectedValue;
+                        }
+                        else
+                        {
+                            // 超出Data1区域范围，可能是Data2区域的DWord数据
+                            LogWarning($"DBW地址 {address} 超出Data1区域范围，可能应该使用DBD地址");
+                            // 暂时跳过这个地址
+                            continue;
+                        }
+                    }
+                    else if (address.Contains("DBD"))
+                    {
+                        // 解析DWord地址：DB200.DBD{offset}
+                        // 从 "DB200.DBD68" 中提取 "68"
+                        var offsetStr = address.Substring(address.IndexOf("DBD") + 3);
+                        var offset = int.Parse(offsetStr);
+                        
+                        if (offset >= 196)
+                        {
+                            // Data3区域：Real数组
+                            var index = (offset - 196) / 4;
+                            // 与PrepareTestData中的逻辑一致：100.0f + i * 1.5f
+                            var expectedValue = 100.0f + index * 1.5f;
+                            expected[address] = expectedValue;
+                        }
+                        else
+                        {
+                            // Data2区域：DWord数组
+                            var index = (offset - 68) / 4;
+                            // 与PrepareTestData中的逻辑一致：1000000 + i * 10000
+                            var expectedValue = 1000000 + index * 10000;
+                            expected[address] = expectedValue;
+                        }
+                    }
+                    else
+                    {
+                        LogWarning($"未知的地址格式: {address}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    LogWarning($"解析地址 {address} 时发生错误: {ex.Message}");
+                    throw new FormatException($"无法解析地址 {address}: {ex.Message}", ex);
+                }
             }
             
-            LogInfo("测试数据准备完成");
+            return expected;
         }
 
         /// <summary>
@@ -897,19 +965,59 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private async Task TestContinuousAddressBatchRead()
         {
-            LogInfo("=== 连续地址批量读取测试 (100个Int16地址) ===");
+            LogInfo("=== 连续地址批量读取测试 (32个Int16地址+bool地址) ===");
             
-            // 准备连续地址的测试数据 - 使用Data1区域，100个连续的Word地址
+            // 准备连续地址的测试数据 - 使用Data1区域，32个连续的Word地址（避免与Data2区域重叠）
             var continuousAddresses = new Dictionary<string, DataTypeEnums>();
-            for (int i = 0; i < 100; i++)
+            for (int i = 0; i < 32; i++)
             {
                 continuousAddresses[$"DB200.DBW{4 + i * 2}"] = DataTypeEnums.Int16;
             }
+            // 补充连续bool地址
+            for (int i = 0; i < 32; i++)
+            {
+                int byteIdx = i / 8;
+                int bitIdx = i % 8;
+                continuousAddresses[$"DB200.DBX{byteIdx}.{bitIdx}"] = DataTypeEnums.Bool;
+            }
+            LogInfo($"准备测试 {continuousAddresses.Count} 个连续Int16+Bool地址");
+            LogInfo($"地址范围: DB200.DBW4 到 DB200.DBW66 (跨度64字节) + DB200.DBX0.0-DB200.DBX3.7");
+
+            // 使用PrepareTestData中准备好的数据，不再重新写入随机数据
+            LogInfo("使用PrepareTestData中准备好的数据进行测试");
+
+            // 生成期望值
+            var expected = GenerateExpectedValues(continuousAddresses);
+            LogInfo($"生成了 {expected.Count} 个期望值");
             
-            LogInfo($"准备测试 {continuousAddresses.Count} 个连续Int16地址");
-            LogInfo($"地址范围: DB200.DBW4 到 DB200.DBW202 (跨度200字节)");
+            // 调试：显示前几个期望值
+            var sampleCount = Math.Min(5, expected.Count);
+            var samples = expected.Take(sampleCount);
+            foreach (var sample in samples)
+            {
+                LogInfo($"期望值示例: {sample.Key} = {sample.Value} ({sample.Value?.GetType().Name})");
+            }
             
-            await CompareReadPerformance("连续地址(100个Int16)", continuousAddresses);
+            // 调试：验证地址范围
+            var dbwAddresses = continuousAddresses.Keys.Where(k => k.Contains("DBW")).ToList();
+            var minOffset = dbwAddresses.Select(a => int.Parse(a.Substring(a.IndexOf("DBW") + 3))).Min();
+            var maxOffset = dbwAddresses.Select(a => int.Parse(a.Substring(a.IndexOf("DBW") + 3))).Max();
+            LogInfo($"DBW地址范围: {minOffset} 到 {maxOffset} (应该在4-66范围内)");
+
+            // 批量读取
+            var batchResult = await client.BatchReadAsync(continuousAddresses);
+            Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
+            
+            // 验证读取到的数据
+            var actual = batchResult.ResultValue.ToDictionary(x => x.Key, x => x.Value.Item2);
+            var successCount = actual.Count(kvp => kvp.Value != null);
+            LogInfo($"成功读取 {successCount}/{continuousAddresses.Count} 个地址");
+            Assert.True(successCount > 0, "至少应该成功读取部分地址");
+            
+            // 数据一致性验证
+            LogInfo("开始数据一致性验证...");
+            AssertBatchReadWriteEqual(expected, actual, FLOAT_COMPARISON_PRECISION);
+            LogInfo("✓ 连续地址批量读取数据一致性验证通过");
         }
 
         /// <summary>
@@ -917,33 +1025,60 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         private async Task TestScatteredAddressBatchRead()
         {
-            LogInfo("=== 分散地址批量读取测试 (100个分散地址) ===");
+            LogInfo("=== 分散地址批量读取测试 (100个分散地址，含Bool) ===");
             
             // 准备分散地址的测试数据 - 分布在多个数据区域
             var scatteredAddresses = new Dictionary<string, DataTypeEnums>();
-            
             // Data0区域：32个Bool地址
             for (int i = 0; i < 32; i++)
             {
                 scatteredAddresses[$"DB200.DBX{i / 8}.{i % 8}"] = DataTypeEnums.Bool;
             }
-            
-            // Data1区域：34个Word地址（跳过一些地址使其分散）
-            for (int i = 0; i < 34; i++)
+            // Data1区域：32个Word地址（使用正确间隔避免重叠）
+            for (int i = 0; i < 32; i++)
             {
-                scatteredAddresses[$"DB200.DBW{4 + i * 3}"] = DataTypeEnums.Int16;
+                scatteredAddresses[$"DB200.DBW{4 + i * 2}"] = DataTypeEnums.Int16;
             }
-            
-            // Data2区域：34个DWord地址（跳过一些地址使其分散）
-            for (int i = 0; i < 34; i++)
+            // Data2区域：32个DWord地址（68-195字节，128字节）
+            for (int i = 0; i < 32; i++)
             {
-                scatteredAddresses[$"DB200.DBD{68 + i * 3}"] = DataTypeEnums.Int32;
+                scatteredAddresses[$"DB200.DBD{68 + i * 4}"] = DataTypeEnums.Int32;
             }
-            
+            // Data3区域：30个Float地址（196-316字节，120字节）
+            for (int i = 0; i < 30; i++)
+            {
+                scatteredAddresses[$"DB200.DBD{196 + i * 4}"] = DataTypeEnums.Float;
+            }
             LogInfo($"准备测试 {scatteredAddresses.Count} 个分散地址");
-            LogInfo($"分布: Data0区域(32个Bool) + Data1区域(34个Word) + Data2区域(34个DWord)");
+            LogInfo($"分布: Data0区域(32个Bool) + Data1区域(32个Word) + Data2区域(32个DWord) + Data3区域(30个Float)");
+
+            // 使用PrepareTestData中准备好的数据，不再重新写入随机数据
+            LogInfo("使用PrepareTestData中准备好的数据进行测试");
+
+            // 生成期望值
+            var expected = GenerateExpectedValues(scatteredAddresses);
+            LogInfo($"生成了 {expected.Count} 个期望值");
             
-            await CompareReadPerformance("分散地址(100个混合)", scatteredAddresses);
+            // 调试：验证地址范围
+            var dbwAddresses = scatteredAddresses.Keys.Where(k => k.Contains("DBW")).ToList();
+            var minOffset = dbwAddresses.Select(a => int.Parse(a.Substring(a.IndexOf("DBW") + 3))).Min();
+            var maxOffset = dbwAddresses.Select(a => int.Parse(a.Substring(a.IndexOf("DBW") + 3))).Max();
+            LogInfo($"分散地址DBW范围: {minOffset} 到 {maxOffset} (应该在4-66范围内)");
+
+            // 批量读取
+            var batchResult = await client.BatchReadAsync(scatteredAddresses);
+            Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
+            
+            // 验证读取到的数据
+            var actual = batchResult.ResultValue.ToDictionary(x => x.Key, x => x.Value.Item2);
+            var successCount = actual.Count(kvp => kvp.Value != null);
+            LogInfo($"成功读取 {successCount}/{scatteredAddresses.Count} 个地址");
+            Assert.True(successCount > 0, "至少应该成功读取部分地址");
+            
+            // 数据一致性验证
+            LogInfo("开始数据一致性验证...");
+            AssertBatchReadWriteEqual(expected, actual, FLOAT_COMPARISON_PRECISION);
+            LogInfo("✓ 分散地址批量读取数据一致性验证通过");
         }
 
         /// <summary>
@@ -955,35 +1090,50 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             
             // 准备混合数据类型的测试数据 - 覆盖所有数据类型
             var mixedAddresses = new Dictionary<string, DataTypeEnums>();
-            
             // Data0区域：32个Bool地址
             for (int i = 0; i < 32; i++)
             {
                 mixedAddresses[$"DB200.DBX{i / 8}.{i % 8}"] = DataTypeEnums.Bool;
             }
-            
             // Data1区域：30个Word地址
             for (int i = 0; i < 30; i++)
             {
                 mixedAddresses[$"DB200.DBW{4 + i * 2}"] = DataTypeEnums.Int16;
             }
-            
             // Data2区域：30个DWord地址
             for (int i = 0; i < 30; i++)
             {
                 mixedAddresses[$"DB200.DBD{68 + i * 4}"] = DataTypeEnums.Int32;
             }
-            
             // Data3区域：28个Real地址
             for (int i = 0; i < 28; i++)
             {
                 mixedAddresses[$"DB200.DBD{196 + i * 4}"] = DataTypeEnums.Float;
             }
-            
             LogInfo($"准备测试 {mixedAddresses.Count} 个混合类型地址");
             LogInfo($"分布: Data0区域(32个Bool) + Data1区域(30个Word) + Data2区域(30个DWord) + Data3区域(28个Real)");
+
+            // 使用PrepareTestData中准备好的数据，不再重新写入随机数据
+            LogInfo("使用PrepareTestData中准备好的数据进行测试");
+
+            // 生成期望值
+            var expected = GenerateExpectedValues(mixedAddresses);
+            LogInfo($"生成了 {expected.Count} 个期望值");
+
+            // 批量读取
+            var batchResult = await client.BatchReadAsync(mixedAddresses);
+            Assert.True(batchResult.IsSuccess, $"批量读取失败: {batchResult.Message}");
             
-            await CompareReadPerformance("混合数据类型(120个混合)", mixedAddresses);
+            // 验证读取到的数据
+            var actual = batchResult.ResultValue.ToDictionary(x => x.Key, x => x.Value.Item2);
+            var successCount = actual.Count(kvp => kvp.Value != null);
+            LogInfo($"成功读取 {successCount}/{mixedAddresses.Count} 个地址");
+            Assert.True(successCount > 0, "至少应该成功读取部分地址");
+            
+            // 数据一致性验证
+            LogInfo("开始数据一致性验证...");
+            AssertBatchReadWriteEqual(expected, actual, FLOAT_COMPARISON_PRECISION);
+            LogInfo("✓ 混合数据类型批量读取数据一致性验证通过");
         }
 
         /// <summary>
@@ -1034,9 +1184,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     }
                     else if (address.Contains("DBD"))
                     {
-                        // 尝试读取为int32，如果地址在浮点数范围则读取为float
-                        // 所有Data3区域（196-308）的地址都是浮点数
-                        if (address.Contains("DBD19") || address.Contains("DBD2") || address.Contains("DBD3"))
+                        // 解析DBD地址偏移量，判断是否为浮点数区域
+                        var offsetStr = address.Substring(address.IndexOf("DBD") + 3);
+                        var offset = int.Parse(offsetStr);
+                        
+                        // Data3区域（196-316）的地址都是浮点数
+                        if (offset >= 196 && offset <= 316)
                         {
                             var result = await client.ReadFloatAsync(address);
                             Assert.True(result.IsSuccess, $"单个读取失败: {result.Message}");
@@ -1126,19 +1279,24 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
                 else if (address.Contains("DBD"))
                 {
-                    // 尝试读取为int32，如果地址在浮点数范围则读取为float
-                    // 所有Data3区域（196-308）的地址都是浮点数
-                    if (address.Contains("DBD19") || address.Contains("DBD2") || address.Contains("DBD3"))
+                    // 解析DBD地址偏移量，判断是否为浮点数区域
+                    var offsetStr = address.Substring(address.IndexOf("DBD") + 3);
+                    var offset = int.Parse(offsetStr);
+                    
+                    // Data3区域（196-316）的地址都是浮点数
+                    if (offset >= 196 && offset <= 316)
                     {
                         var result = await client.ReadFloatAsync(address);
                         Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
                         individualValue = result.ResultValue;
+                        LogInfo($"DBD地址 {address} (偏移{offset}) 识别为浮点数，读取值: {result.ResultValue}");
                     }
                     else
                     {
                         var result = await client.ReadInt32Async(address);
                         Assert.True(result.IsSuccess, $"数据一致性验证：单个读取失败: {result.Message}");
                         individualValue = result.ResultValue;
+                        LogInfo($"DBD地址 {address} (偏移{offset}) 识别为整数，读取值: {result.ResultValue}");
                     }
                 }
                 
@@ -1171,12 +1329,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                         (batchValue is short || batchValue is ushort))
                     {
                         // 将两个值都转换为uint进行比较，这样可以避免符号位问题
-                        ushort val1 = individualValue is short ? (ushort)(short)individualValue : (ushort)individualValue;
-                        ushort val2 = batchValue is short ? (ushort)(short)batchValue : (ushort)batchValue;
+                        ushort expVal = individualValue is short ? unchecked((ushort)(short)individualValue) : (ushort)individualValue;
+                        ushort actVal = batchValue is short ? unchecked((ushort)(short)batchValue) : (ushort)batchValue;
                         
-                        if (val1 != val2)
+                        if (expVal != actVal)
                         {
-                            validationErrors.Add($"地址 {address}: 16位整数不匹配 (单个={individualValue}[{individualValue.GetType().Name}]={val1}, 批量={batchValue}[{batchValue.GetType().Name}]={val2})");
+                            validationErrors.Add($"地址 {address}: 16位整数不匹配 (单个={individualValue}[{individualValue.GetType().Name}]={expVal}, 批量={batchValue}[{batchValue.GetType().Name}]={actVal})");
                         }
                     }
                     else
@@ -1240,7 +1398,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 ["DB200.DBW142"] = (DataTypeEnums.Int16, (short)2222),
                 ["DB200.DBW144"] = (DataTypeEnums.Int16, (short)3333),
                 ["DB200.DBD146"] = (DataTypeEnums.Int32, 4444444),
-                ["DB200.DBD150"] = (DataTypeEnums.Int32, 5555555)
+                ["DB200.DBD150"] = (DataTypeEnums.Int32, 5555555),
+                // 补充bool类型连续地址
+                ["DB200.DBX0.0"] = (DataTypeEnums.Bool, true),
+                ["DB200.DBX0.1"] = (DataTypeEnums.Bool, false),
+                ["DB200.DBX1.0"] = (DataTypeEnums.Bool, true),
+                ["DB200.DBX2.7"] = (DataTypeEnums.Bool, false)
             };
             
             await CompareWritePerformance("连续地址", continuousWriteData);
@@ -1259,7 +1422,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 ["DB200.DBD80"] = (DataTypeEnums.Int32, 2002002),
                 ["DB200.DBD110"] = (DataTypeEnums.Int32, 3003003),
                 ["DB200.DBD260"] = (DataTypeEnums.Float, 123.789f),
-                ["DB200.DBW52"] = (DataTypeEnums.Int16, (short)4004)
+                ["DB200.DBW52"] = (DataTypeEnums.Int16, (short)4004),
+                // 补充bool类型分散地址
+                ["DB200.DBX0.7"] = (DataTypeEnums.Bool, true),
+                ["DB200.DBX3.0"] = (DataTypeEnums.Bool, false)
             };
             
             await CompareWritePerformance("分散地址", scatteredWriteData);
@@ -1278,7 +1444,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 ["DB200.DBX125.1"] = (DataTypeEnums.Bool, false),
                 ["DB200.DBW154"] = (DataTypeEnums.Int16, (short)9999),
                 ["DB200.DBD156"] = (DataTypeEnums.Int32, 8888888),
-                ["DB200.DBD262"] = (DataTypeEnums.Float, 999.123f)
+                ["DB200.DBD262"] = (DataTypeEnums.Float, 999.123f),
+                // 补充bool类型混合地址
+                ["DB200.DBX2.0"] = (DataTypeEnums.Bool, true),
+                ["DB200.DBX3.7"] = (DataTypeEnums.Bool, false)
             };
             
             await CompareWritePerformance("混合数据类型", mixedWriteData);
@@ -1352,27 +1521,33 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             foreach (var kvp in writeData)
             {
                 // 根据数据类型验证写入结果
+                object expected = kvp.Value.Item2;
+                object actual = null;
                 if (kvp.Value.Item1 == DataTypeEnums.Bool)
                 {
                     var result = await client.ReadBooleanAsync(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == (bool)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess, $"读取失败: {kvp.Key}");
+                    actual = result.ResultValue;
                 }
                 else if (kvp.Value.Item1 == DataTypeEnums.Int16)
                 {
                     var result = await client.ReadInt16Async(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == (short)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess, $"读取失败: {kvp.Key}");
+                    actual = result.ResultValue;
                 }
                 else if (kvp.Value.Item1 == DataTypeEnums.Int32)
                 {
                     var result = await client.ReadInt32Async(kvp.Key);
-                    Assert.True(result.IsSuccess && result.ResultValue == (int)kvp.Value.Item2, $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess, $"读取失败: {kvp.Key}");
+                    actual = result.ResultValue;
                 }
                 else if (kvp.Value.Item1 == DataTypeEnums.Float)
                 {
                     var result = await client.ReadFloatAsync(kvp.Key);
-                    Assert.True(result.IsSuccess && Math.Abs(result.ResultValue - (float)kvp.Value.Item2) < FLOAT_COMPARISON_PRECISION, 
-                        $"写入验证失败: {kvp.Key}");
+                    Assert.True(result.IsSuccess, $"读取失败: {kvp.Key}");
+                    actual = result.ResultValue;
                 }
+                AssertReadWriteEqual(expected, actual, $"批量写入验证失败: {kvp.Key}", FLOAT_COMPARISON_PRECISION);
             }
             
             LogInfo($"{testType} 写入验证完成");
@@ -1457,6 +1632,159 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             _output?.WriteLine($"警告: {message}");
         }
 
+        #endregion
+
+        #region 通用断言方法（提升可读性和一致性）
+
+        /// <summary>
+        /// 通用断言：比较写入值与读取值是否一致，支持基础类型、数组、浮点数
+        /// </summary>
+        private void AssertReadWriteEqual<T>(T expected, T actual, string message = null, double floatPrecision = 0.0001)
+        {
+            if (expected is Array && actual is Array)
+            {
+                AssertArrayEqual((Array)(object)expected, (Array)(object)actual, message, floatPrecision);
+            }
+            else if (expected is float || expected is double)
+            {
+                double exp = Convert.ToDouble(expected);
+                double act = Convert.ToDouble(actual);
+                Assert.True(Math.Abs(exp - act) < floatPrecision, message ?? $"浮点数不匹配: 期望={exp}, 实际={act}");
+            }
+            else
+            {
+                Assert.Equal(expected, actual);
+            }
+        }
+
+        /// <summary>
+        /// 通用断言：比较两个数组是否一致，支持基础类型和浮点数
+        /// </summary>
+        private void AssertArrayEqual(Array expected, Array actual, string message = null, double floatPrecision = 0.0001)
+        {
+            Assert.NotNull(expected);
+            Assert.NotNull(actual);
+            Assert.Equal(expected.Length, actual.Length);
+            for (int i = 0; i < expected.Length; i++)
+            {
+                var exp = expected.GetValue(i);
+                var act = actual.GetValue(i);
+                if (exp is float || exp is double)
+                {
+                    double expD = Convert.ToDouble(exp);
+                    double actD = Convert.ToDouble(act);
+                    Assert.True(Math.Abs(expD - actD) < floatPrecision, message ?? $"数组索引{i}浮点数不匹配: 期望={expD}, 实际={actD}");
+                }
+                else
+                {
+                    Assert.Equal(exp, act);
+                }
+            }
+        }
+
+        /// <summary>
+        /// 通用断言：批量读写一致性校验
+        /// </summary>
+        private void AssertBatchReadWriteEqual(Dictionary<string, object> expected, Dictionary<string, object> actual, double floatPrecision = 0.0001)
+        {
+            Assert.Equal(expected.Count, actual.Count);
+            foreach (var kvp in expected)
+            {
+                Assert.True(actual.ContainsKey(kvp.Key), $"批量结果缺少地址: {kvp.Key}");
+                var exp = kvp.Value;
+                var act = actual[kvp.Key];
+                if (exp is Array expArr && act is Array actArr)
+                {
+                    AssertArrayEqual(expArr, actArr, $"批量地址{kvp.Key}数组不一致\n期望: {exp}({exp?.GetType()?.Name})\n实际: {act}({act?.GetType()?.Name})", floatPrecision);
+                }
+                else if (exp is float || exp is double)
+                {
+                    double expD = Convert.ToDouble(exp);
+                    double actD = Convert.ToDouble(act);
+                    Assert.True(Math.Abs(expD - actD) < floatPrecision, $"批量地址{kvp.Key}浮点数不匹配\n期望: {expD}({exp?.GetType()?.Name})\n实际: {actD}({act?.GetType()?.Name})");
+                }
+                else
+                {
+                    // 类型归一化：Int16/UInt16、Int32/UInt32等
+                    if ((exp is short || exp is ushort) && (act is short || act is ushort))
+                    {
+                        ushort expVal = exp is short ? unchecked((ushort)(short)exp) : (ushort)exp;
+                        ushort actVal = act is short ? unchecked((ushort)(short)act) : (ushort)act;
+                        Assert.True(expVal == actVal, $"批量地址{kvp.Key}值不一致\n期望: {exp}({exp?.GetType()?.Name})\n实际: {act}({act?.GetType()?.Name})");
+                    }
+                    else if ((exp is int || exp is uint) && (act is int || act is uint))
+                    {
+                        var expVal = Convert.ToUInt32(exp);
+                        var actVal = Convert.ToUInt32(act);
+                        Assert.True(expVal == actVal, $"批量地址{kvp.Key}值不一致\n期望: {exp}({exp?.GetType()?.Name})\n实际: {act}({act?.GetType()?.Name})");
+                    }
+                    else if ((exp is long || exp is ulong) && (act is long || act is ulong))
+                    {
+                        var expVal = Convert.ToUInt64(exp);
+                        var actVal = Convert.ToUInt64(act);
+                        Assert.True(expVal == actVal, $"批量地址{kvp.Key}值不一致\n期望: {exp}({exp?.GetType()?.Name})\n实际: {act}({act?.GetType()?.Name})");
+                    }
+                    else
+                    {
+                        Assert.True(object.Equals(exp, act), $"批量地址{kvp.Key}值不一致\n期望: {exp}({exp?.GetType()?.Name})\n实际: {act}({act?.GetType()?.Name})");
+                    }
+                }
+            }
+        }
+
+
+        #endregion
+
+        #region 批量随机写入测试数据，并返回期望值字典
+        /// <summary>
+        /// 批量随机写入测试数据，并返回期望值字典
+        /// </summary>
+        /// <param name="addresses">地址及类型</param>
+        /// <param name="rnd">随机数生成器</param>
+        /// <returns>地址-期望值字典</returns>
+        private async Task<Dictionary<string, object>> WriteRandomTestDataAsync(Dictionary<string, DataTypeEnums> addresses, Random rnd)
+        {
+            var expected = new Dictionary<string, object>();
+            foreach (var kvp in addresses)
+            {
+                object value = null;
+                switch (kvp.Value)
+                {
+                    case DataTypeEnums.Bool:
+                        value = rnd.Next(0, 2) == 1;
+                        await client.WriteAsync(kvp.Key, (bool)value);
+                        break;
+                    case DataTypeEnums.Int16:
+                        value = (short)rnd.Next(short.MinValue, short.MaxValue);
+                        await client.WriteAsync(kvp.Key, (short)value);
+                        break;
+                    case DataTypeEnums.UInt16:
+                        value = (ushort)rnd.Next(ushort.MinValue, ushort.MaxValue);
+                        await client.WriteAsync(kvp.Key, (ushort)value);
+                        break;
+                    case DataTypeEnums.Int32:
+                        value = rnd.Next(int.MinValue, int.MaxValue);
+                        await client.WriteAsync(kvp.Key, (int)value);
+                        break;
+                    case DataTypeEnums.UInt32:
+                        value = (uint)rnd.Next(0, int.MaxValue);
+                        await client.WriteAsync(kvp.Key, (uint)value);
+                        break;
+                    case DataTypeEnums.Float:
+                        value = (float)(rnd.NextDouble() * 100000 - 50000);
+                        await client.WriteAsync(kvp.Key, (float)value);
+                        break;
+                    case DataTypeEnums.Double:
+                        value = rnd.NextDouble() * 100000 - 50000;
+                        await client.WriteAsync(kvp.Key, (double)value);
+                        break;
+                    default:
+                        throw new NotSupportedException($"暂不支持的类型: {kvp.Value}");
+                }
+                expected[kvp.Key] = value;
+            }
+            return expected;
+        }
         #endregion
     }
 }
