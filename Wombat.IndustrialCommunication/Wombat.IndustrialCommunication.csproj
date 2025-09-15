@@ -30,6 +30,7 @@
 
   <ItemGroup>
     <Folder Include="PLC\Base\" />
+    <Folder Include="PLC\FINS\" />
   </ItemGroup>
 
 </Project>

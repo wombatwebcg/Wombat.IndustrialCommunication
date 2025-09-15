@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
@@ -1069,6 +1069,42 @@ namespace Wombat.IndustrialCommunication
         public async Task<OperationResult> WriteAsync(string address, string value)
         {
             return await WriteAsync(address, value.ToByte(Encoding.ASCII), DataTypeEnums.String);
+        }
+
+        // 类型化写入方法别名
+        public async Task<OperationResult> WriteBooleanAsync(string address, bool value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteUInt16Async(string address, ushort value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteInt16Async(string address, short value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteUInt32Async(string address, uint value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteInt32Async(string address, int value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteFloatAsync(string address, float value)
+        {
+            return await WriteAsync(address, value);
+        }
+
+        public async Task<OperationResult> WriteDoubleAsync(string address, double value)
+        {
+            return await WriteAsync(address, value);
         }
 
         #endregion

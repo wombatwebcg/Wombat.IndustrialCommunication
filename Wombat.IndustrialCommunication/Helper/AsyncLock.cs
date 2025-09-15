@@ -9,9 +9,9 @@ using System.Threading.Tasks;
 namespace Wombat.IndustrialCommunication
 {
     /// <summary>
-    /// ¼ò»¯°æÒì²½Ëø£¬»ùÓÚSemaphoreSlimÊµÏÖ£¬±ÜÃâ¾²Ì¬¶ÔÏóºÍ¸´ÔÓµÄÒì²½ÊÍ·ÅÂß¼­
+    /// ï¿½ò»¯°ï¿½ï¿½ì²½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½SemaphoreSlimÊµï¿½Ö£ï¿½ï¿½ï¿½ï¿½â¾²Ì¬ï¿½ï¿½ï¿½ï¿½Í¸ï¿½ï¿½Óµï¿½ï¿½ì²½ï¿½Í·ï¿½ï¿½ß¼ï¿½
     /// </summary>
-    internal class AsyncLock
+    internal class AsyncLock : IDisposable
     {
         private SemaphoreSlim _reentrancy = new SemaphoreSlim(1, 1);
         private int _reentrances = 0;
@@ -508,6 +508,12 @@ namespace Wombat.IndustrialCommunication
                 lockDisposable.Dispose();
             }
             return true;
+        }
+
+        public void Dispose()
+        {
+            _reentrancy?.Dispose();
+            _retry?.Dispose();
         }
     }
 }
