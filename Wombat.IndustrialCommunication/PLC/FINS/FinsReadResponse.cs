@@ -91,6 +91,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     IsSuccess = false;
                     ErrorMessage = "响应数据长度不足";
+                    Data = new byte[0]; // 长度不足时初始化为空数组
                     return;
                 }
 
@@ -103,6 +104,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!IsSuccess)
                 {
                     ErrorMessage = FinsCommonMethods.GetErrorDescription(Header.MRC, Header.SRC);
+                    Data = new byte[0]; // 错误情况下初始化为空数组
                     return;
                 }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
@@ -69,6 +69,16 @@ namespace Wombat.IndustrialCommunication
             get => _sendTimeout;
             set => _sendTimeout = value;
         }
+
+        /// <summary>
+        /// IP地址
+        /// </summary>
+        public string IpAddress => _remoteEndPoint?.Address?.ToString();
+
+        /// <summary>
+        /// 端口号
+        /// </summary>
+        public int Port => _remoteEndPoint?.Port ?? 0;
 
 
 
