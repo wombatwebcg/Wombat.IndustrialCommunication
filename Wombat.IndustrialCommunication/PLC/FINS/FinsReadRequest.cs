@@ -69,6 +69,7 @@ namespace Wombat.IndustrialCommunication.PLC
             Length = length;
             DataType = dataType;
             ServiceId = serviceId;
+            RegisterCount = length; // 设置寄存器数量
             BuildMessage();
         }
 
@@ -84,6 +85,7 @@ namespace Wombat.IndustrialCommunication.PLC
             Length = length;
             DataType = finsAddress.DataType;
             ServiceId = serviceId;
+            RegisterCount = length; // 设置寄存器数量
             BuildMessage();
         }
 

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -57,35 +57,52 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {
+            Console.WriteLine($"[DeviceMessageTransport调试] 开始接收响应: offset={offset}, length={length}");
+            
             using (await _asyncLock.LockAsync())
             {
+                Console.WriteLine($"[DeviceMessageTransport调试] 获得异步锁，开始接收数据");
+                
                 int attempt = 1;
                 bool success = false;
                 do
                 {
+                    Console.WriteLine($"[DeviceMessageTransport调试] 尝试第 {attempt} 次接收");
+                    
                     try
                     {
                         using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
                         {
+                            Console.WriteLine($"[DeviceMessageTransport调试] 设置接收超时: {_streamResource.ReceiveTimeout}ms");
+                            
                             try
                             {
                                 byte[] buffer = new byte[length];
+                                Console.WriteLine($"[DeviceMessageTransport调试] 创建缓冲区，大小: {length} 字节");
+                                
                                 cts.Token.Register(() => _streamResource.StreamClose());
+                                Console.WriteLine($"[DeviceMessageTransport调试] 开始调用 _streamResource.Receive");
+                                
                                 var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
+                                Console.WriteLine($"[DeviceMessageTransport调试] _streamResource.Receive 返回结果: IsSuccess={read?.IsSuccess}");
+                                
                                 bool readAgain = true;
                                 do
                                 {
                                     if (read?.IsSuccess ?? false)
                                     {
+                                        Console.WriteLine($"[DeviceMessageTransport调试] 接收成功，数据: {string.Join(" ", buffer.Select(b => b.ToString("X2")))}");
                                         readAgain = false;
                                         success = true;
                                         return OperationResult.CreateSuccessResult(buffer);
                                     }
                                     else
                                     {
+                                        Console.WriteLine($"[DeviceMessageTransport调试] 接收失败，尝试次数: {attempt}, 最大重试次数: {_retries}");
+                                        
                                         if (attempt++ > _retries)
                                         {
-                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{_retries - attempt + 1},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}");
+                                            return OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{_retries},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}ms");
                                         }
                                         // 可选：等待一段时间后重试
                                         await Task.Delay(WaitToRetryMilliseconds, cts.Token);
@@ -126,20 +143,33 @@ namespace Wombat.IndustrialCommunication
         }
         public async Task<OperationResult> SendRequestAsync(byte[] request)
         {
+            Console.WriteLine($"[DeviceMessageTransport调试] 开始发送请求，数据长度: {request?.Length ?? 0}");
+            Console.WriteLine($"[DeviceMessageTransport调试] 请求数据: {string.Join(" ", request?.Select(b => b.ToString("X2")) ?? new string[0])}");
+            
             using (await _asyncLock.LockAsync())
             {
+                Console.WriteLine($"[DeviceMessageTransport调试] 获得异步锁，开始发送数据");
+                
                 int attempt = 1;
                 bool success = false;
                 bool readAgain = true;
                 do
                 {
+                    Console.WriteLine($"[DeviceMessageTransport调试] 尝试第 {attempt} 次发送");
+                    
                     try
                     {
                         using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                         {
+                            Console.WriteLine($"[DeviceMessageTransport调试] 设置发送超时: {_streamResource.SendTimeout}ms");
+                            
                             var ss = _streamResource.SendTimeout;
                             cts.Token.Register(() => _streamResource.StreamClose());
+                            Console.WriteLine($"[DeviceMessageTransport调试] 开始调用 _streamResource.Send");
+                            
                             var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
+                            Console.WriteLine($"[DeviceMessageTransport调试] _streamResource.Send 返回结果: IsSuccess={write?.IsSuccess}");
+                            
                             do
                             {
                                 try
@@ -147,12 +177,15 @@ namespace Wombat.IndustrialCommunication
 
                                     if (write?.IsSuccess ?? false)
                                     {
+                                        Console.WriteLine($"[DeviceMessageTransport调试] 发送成功");
                                         readAgain = false;
                                         success = true;
                                         return OperationResult.CreateSuccessResult(write);
                                     }
                                     else
                                     {
+                                        Console.WriteLine($"[DeviceMessageTransport调试] 发送失败，尝试次数: {attempt}, 最大重试次数: {_retries}");
+                                        
                                         if (attempt++ > _retries)
                                         {
                                             var retryResult = OperationResult.CreateFailedResult<byte[]>($"写入设备失败,重试次数:{_retries - attempt + 1},超时参数:{_streamResource.SendTimeout.TotalMilliseconds}");

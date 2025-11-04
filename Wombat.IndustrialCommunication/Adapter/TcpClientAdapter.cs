@@ -146,6 +146,11 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult<int>> Receive(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
+            Console.WriteLine($"[TcpClientAdapter调试] 开始接收数据: offset={offset}, size={size}");
+            Console.WriteLine($"[TcpClientAdapter调试] 连接状态: Connected={Connected}");
+            Console.WriteLine($"[TcpClientAdapter调试] 取消令牌状态: IsCancellationRequested={cancellationToken.IsCancellationRequested}");
+            Console.WriteLine($"[TcpClientAdapter调试] 接收超时设置: {_receiveTimeout.TotalMilliseconds}ms");
+            
             ValidateNotDisposed();
             ValidateConnected();
 
@@ -158,17 +163,45 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 var stream = _tcpClient.GetStream();
+                Console.WriteLine($"[TcpClientAdapter调试] 获取网络流成功，流状态: CanRead={stream.CanRead}, CanWrite={stream.CanWrite}");
+                Console.WriteLine($"[TcpClientAdapter调试] 流超时设置: ReadTimeout={stream.ReadTimeout}ms, WriteTimeout={stream.WriteTimeout}ms");
                 
-                int count = await stream.ReadAsync(buffer, offset, size, cancellationToken);
-                
-                return new OperationResult<int> { IsSuccess = true, ResultValue = count };
+                // 创建一个组合的取消令牌，包含外部取消令牌和超时
+                using (var timeoutCts = new CancellationTokenSource(_receiveTimeout))
+                using (var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
+                {
+                    Console.WriteLine($"[TcpClientAdapter调试] 开始调用 stream.ReadAsync，超时时间: {_receiveTimeout.TotalMilliseconds}ms");
+                    
+                    int count = await stream.ReadAsync(buffer, offset, size, combinedCts.Token);
+                    
+                    Console.WriteLine($"[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {count}");
+                    if (count > 0)
+                    {
+                        Console.WriteLine($"[TcpClientAdapter调试] 读取的数据: {string.Join(" ", buffer.Take(count).Select(b => b.ToString("X2")))}");
+                    }
+                    else
+                    {
+                        Console.WriteLine($"[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
+                    }
+                    
+                    return new OperationResult<int> { IsSuccess = true, ResultValue = count };
+                }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                Console.WriteLine($"[TcpClientAdapter调试] 接收操作被外部取消");
                 return new OperationResult<int> { IsSuccess = false, Message = "Receive operation was cancelled" };
+            }
+            catch (OperationCanceledException)
+            {
+                Console.WriteLine($"[TcpClientAdapter调试] 接收操作超时，超时时间: {_receiveTimeout.TotalMilliseconds}ms");
+                return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
             }
             catch (Exception ex)
             {
+                Console.WriteLine($"[TcpClientAdapter调试] 接收数据时发生异常: {ex.Message}");
+                Console.WriteLine($"[TcpClientAdapter调试] 异常类型: {ex.GetType().Name}");
+                Console.WriteLine($"[TcpClientAdapter调试] 异常堆栈: {ex.StackTrace}");
                 return new OperationResult<int> { IsSuccess = false, Message = $"Receive failed: {ex.Message}" };
             }
         }

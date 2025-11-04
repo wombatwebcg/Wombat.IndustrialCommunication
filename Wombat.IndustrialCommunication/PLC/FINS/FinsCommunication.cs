@@ -57,8 +57,8 @@ namespace Wombat.IndustrialCommunication.PLC
                         var result = new OperationResult();
                         try
                         {
-                            // FINS协议握手命令
-                            var handshakeCommand = FinsCommonMethods.BuildHandshakeCommand();
+                            // FINS协议握手命令（使用客户端节点地址1）
+                            var handshakeCommand = FinsCommonMethods.BuildHandshakeCommand(0x01);
                             
                             result.Requsts.Add(string.Join(" ", handshakeCommand.Select(t => t.ToString("X2"))));
                             
@@ -66,50 +66,42 @@ namespace Wombat.IndustrialCommunication.PLC
                             var handshakeRequestResult = await Transport.SendRequestAsync(handshakeCommand);
                             if (handshakeRequestResult.IsSuccess)
                             {
-                                // 接收握手响应头部
-                                var responseHeaderResult = await Transport.ReceiveResponseAsync(0, FinsConstants.FINS_HEADER_LENGTH);
-                                if (responseHeaderResult.IsSuccess)
+                                // 接收完整握手响应（24字节）
+                                var responseResult = await Transport.ReceiveResponseAsync(0, 24);
+                                if (responseResult.IsSuccess)
                                 {
-                                    var responseHeader = responseHeaderResult.ResultValue;
-                                    
-                                    // 获取完整响应长度
-                                    var contentLength = FinsCommonMethods.GetContentLength(responseHeader);
-                                    if (contentLength > 0)
-                                    {
-                                        var responseContentResult = await Transport.ReceiveResponseAsync(0, contentLength);
-                                        if (!responseContentResult.IsSuccess)
-                                        {
-                                            return responseContentResult;
-                                        }
-                                        var responseContent = responseContentResult.ResultValue;
-                                        result.Responses.Add(string.Join(" ", responseHeader.Concat(responseContent).Select(t => t.ToString("X2"))));
-                                    }
-                                    else
-                                    {
-                                        result.Responses.Add(string.Join(" ", responseHeader.Select(t => t.ToString("X2"))));
-                                    }
+                                    var response = responseResult.ResultValue;
+                                    result.Responses.Add(string.Join(" ", response.Select(t => t.ToString("X2"))));
                                     
                                     // 验证握手响应
-                                    if (FinsCommonMethods.ValidateHandshakeResponse(responseHeader))
+                                    if (FinsCommonMethods.ValidateHandshakeResponse(response, msg => Console.WriteLine($"[FINS握手调试] {msg}")))
                                     {
                                         // 提取节点地址信息
-                                        if (responseHeader.Length >= 24)
+                                        if (FinsCommonMethods.ExtractNodeAddresses(response, out byte clientNodeAddress, out byte serverNodeAddress))
                                         {
-                                            SourceNodeAddress = responseHeader[23]; // 客户端节点地址
+                                            SourceNodeAddress = clientNodeAddress;
+                                            DestinationNodeAddress = serverNodeAddress;
+                                            
+                                            result.IsSuccess = true;
+                                            result.Message = $"FINS协议初始化成功，客户端节点：{clientNodeAddress:X2}，服务器节点：{serverNodeAddress:X2}";
                                         }
-                                        result.IsSuccess = true;
-                                        result.Message = "FINS协议初始化成功";
+                                        else
+                                        {
+                                            result.IsSuccess = false;
+                                            result.Message = "FINS协议握手成功但无法提取节点地址";
+                                            result.ErrorCode = 501;
+                                        }
                                     }
                                     else
                                     {
                                         result.IsSuccess = false;
-                                        result.Message = "FINS协议握手失败";
+                                        result.Message = "FINS协议握手失败：响应格式无效";
                                         result.ErrorCode = 500;
                                     }
                                 }
                                 else
                                 {
-                                    return responseHeaderResult;
+                                    return responseResult;
                                 }
                             }
                             else
@@ -179,38 +171,46 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     var responseHeader = responseHeaderResult.ResultValue;
                     
-                    // 获取响应数据长度
-                    var contentLength = FinsCommonMethods.GetContentLength(responseHeader);
-                    if (contentLength > 0)
+                    // 接收响应码部分 (MRC, SRC)
+                    var responseCodeLength = FinsCommonMethods.GetContentLength(responseHeader);
+                    var responseCodeResult = await Transport.ReceiveResponseAsync(0, responseCodeLength);
+                    if (!responseCodeResult.IsSuccess)
                     {
-                        var responseContentResult = await Transport.ReceiveResponseAsync(0, contentLength);
-                        if (!responseContentResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>($"接收响应内容失败: {responseContentResult.Message}");
-                        }
-                        
-                        var fullResponse = responseHeader.Concat(responseContentResult.ResultValue).ToArray();
-                        
-                        // 解析响应
-                        var readResponse = new FinsReadResponse(fullResponse);
-                        if (!readResponse.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>(readResponse.ErrorMessage);
-                        }
+                        return OperationResult.CreateFailedResult<byte[]>($"接收响应码失败: {responseCodeResult.Message}");
+                    }
 
-                        return OperationResult.CreateSuccessResult<byte[]>(readResponse.Data);
+                    // 合并头部和响应码
+                    var headerAndCode = responseHeader.Concat(responseCodeResult.ResultValue).ToArray();
+                    
+                    // 根据响应码确定数据长度
+                    var dataLength = FinsCommonMethods.GetDataLength(headerAndCode, length, dataType);
+                    
+                    byte[] fullResponse;
+                    if (dataLength > 0)
+                    {
+                        // 接收数据部分
+                        var dataResult = await Transport.ReceiveResponseAsync(0, dataLength);
+                        if (!dataResult.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult<byte[]>($"接收响应数据失败: {dataResult.Message}");
+                        }
+                        
+                        fullResponse = headerAndCode.Concat(dataResult.ResultValue).ToArray();
                     }
                     else
                     {
-                        // 只有头部，检查错误码
-                        var readResponse = new FinsReadResponse(responseHeader);
-                        if (!readResponse.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>(readResponse.ErrorMessage);
-                        }
-                        
-                        return OperationResult.CreateSuccessResult<byte[]>(new byte[0]);
+                        // 没有数据部分，只有头部和响应码
+                        fullResponse = headerAndCode;
                     }
+                    
+                    // 解析响应
+                    var readResponse = new FinsReadResponse(fullResponse);
+                    if (!readResponse.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>(readResponse.ErrorMessage);
+                    }
+
+                    return OperationResult.CreateSuccessResult<byte[]>(readResponse.Data ?? new byte[0]);
                 }
                 catch (Exception ex)
                 {
@@ -260,38 +260,25 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     var responseHeader = responseHeaderResult.ResultValue;
                     
-                    // 获取响应数据长度
-                    var contentLength = FinsCommonMethods.GetContentLength(responseHeader);
-                    if (contentLength > 0)
+                    // 接收响应码部分 (MRC, SRC)
+                    var responseCodeLength = FinsCommonMethods.GetContentLength(responseHeader);
+                    var responseCodeResult = await Transport.ReceiveResponseAsync(0, responseCodeLength);
+                    if (!responseCodeResult.IsSuccess)
                     {
-                        var responseContentResult = await Transport.ReceiveResponseAsync(0, contentLength);
-                        if (!responseContentResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult($"接收响应内容失败: {responseContentResult.Message}");
-                        }
-                        
-                        var fullResponse = responseHeader.Concat(responseContentResult.ResultValue).ToArray();
-                        
-                        // 解析响应
-                        var writeResponse = new FinsWriteResponse(fullResponse);
-                        if (!writeResponse.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(writeResponse.ErrorMessage);
-                        }
+                        return OperationResult.CreateFailedResult($"接收响应码失败: {responseCodeResult.Message}");
+                    }
 
-                        return OperationResult.CreateSuccessResult();
-                    }
-                    else
+                    // 合并头部和响应码 (写入响应通常没有数据部分)
+                    var fullResponse = responseHeader.Concat(responseCodeResult.ResultValue).ToArray();
+                    
+                    // 解析响应
+                    var writeResponse = new FinsWriteResponse(fullResponse);
+                    if (!writeResponse.IsSuccess)
                     {
-                        // 只有头部，检查错误码
-                        var writeResponse = new FinsWriteResponse(responseHeader);
-                        if (!writeResponse.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(writeResponse.ErrorMessage);
-                        }
-                        
-                        return OperationResult.CreateSuccessResult();
+                        return OperationResult.CreateFailedResult(writeResponse.ErrorMessage);
                     }
+
+                    return OperationResult.CreateSuccessResult();
                 }
                 catch (Exception ex)
                 {
