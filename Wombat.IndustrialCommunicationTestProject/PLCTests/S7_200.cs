@@ -20,18 +20,18 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     /// S7-200 Smart PLC通讯测试类
     /// 测试包括：同步/异步读写、断线重连、短连接、模拟服务器、压力测试
     /// </summary>
-    public class S7_Smart200
+    public class S7_200
     {
         #region 测试配置常量
         
         /// <summary>测试PLC IP地址</summary>
-        private const string TEST_PLC_IP = "192.168.2.54";
+        private const string TEST_PLC_IP = "192.168.1.218";
         
         /// <summary>测试PLC端口</summary>
         private const int TEST_PLC_PORT = 102;
         
         /// <summary>PLC版本</summary>
-        private const SiemensVersion PLC_VERSION = SiemensVersion.S7_200Smart;
+        private const SiemensVersion PLC_VERSION = SiemensVersion.S7_200;
         
         /// <summary>基础测试循环次数</summary>
         private const int BASIC_TEST_CYCLES = 50;
@@ -62,9 +62,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         #region 测试地址常量
         
         /// <summary>布尔测试地址</summary>
-        private const string BOOL_TEST_ADDRESS_1 = "Q1.3";
-        private const string BOOL_TEST_ADDRESS_2 = "Q1.4";
-        private const string BOOL_TEST_ADDRESS_3 = "Q1.5";
+        private const string BOOL_TEST_ADDRESS_1 = "Q0.0";
+        private const string BOOL_TEST_ADDRESS_2 = "Q0.1";
+        private const string BOOL_TEST_ADDRESS_3 = "Q0.2";
         
         /// <summary>基础数据测试地址 - 使用双字地址支持32位数据</summary>
         private const string BASIC_DATA_ADDRESS = "VD700";
@@ -95,7 +95,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 初始化S7-200 Smart测试类
         /// </summary>
         /// <param name="output">测试输出助手</param>
-        public S7_Smart200(ITestOutputHelper output = null)
+        public S7_200(ITestOutputHelper output = null)
         {
             _output = output;
 
@@ -467,8 +467,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 client.Write(BOOL_TEST_ADDRESS_1, true);
                 Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_1).ResultValue == true, "布尔值应为true");
                 client.Write(BOOL_TEST_ADDRESS_2, bool_value);
+                var pp = client.ReadBoolean(BOOL_TEST_ADDRESS_2);
                 Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_2).ResultValue == bool_value, $"布尔值应为{bool_value}");
                 client.Write(BOOL_TEST_ADDRESS_3, !bool_value);
+                var sss = client.ReadBoolean(BOOL_TEST_ADDRESS_3);
                 Assert.True(client.ReadBoolean(BOOL_TEST_ADDRESS_3).ResultValue == !bool_value, $"布尔值应为{!bool_value}");
 
                 // 测试16位整数读写 - 使用字地址

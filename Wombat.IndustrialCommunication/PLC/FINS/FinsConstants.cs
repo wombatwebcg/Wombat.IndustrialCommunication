@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// FINS头部长度
         /// </summary>
-        public const int FINS_HEADER_LENGTH = 10;
+        public const int FINS_HEADER_LENGTH = 16;
 
         /// <summary>
         /// 命令码定义

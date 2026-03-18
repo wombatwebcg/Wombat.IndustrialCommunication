@@ -171,20 +171,26 @@ namespace Wombat.IndustrialCommunication
                 using (var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
                 {
                     Console.WriteLine($"[TcpClientAdapter调试] 开始调用 stream.ReadAsync，超时时间: {_receiveTimeout.TotalMilliseconds}ms");
-                    
-                    int count = await stream.ReadAsync(buffer, offset, size, combinedCts.Token);
-                    
-                    Console.WriteLine($"[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {count}");
-                    if (count > 0)
+
+                    int totalRead = 0;
+                    while (totalRead < size)
                     {
-                        Console.WriteLine($"[TcpClientAdapter调试] 读取的数据: {string.Join(" ", buffer.Take(count).Select(b => b.ToString("X2")))}");
+                        int currentRead = await stream.ReadAsync(buffer, offset + totalRead, size - totalRead, combinedCts.Token);
+                        Console.WriteLine($"[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {currentRead}");
+
+                        if (currentRead == 0)
+                        {
+                            Console.WriteLine($"[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
+                            return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
+                        }
+
+                        totalRead += currentRead;
                     }
-                    else
-                    {
-                        Console.WriteLine($"[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
-                    }
-                    
-                    return new OperationResult<int> { IsSuccess = true, ResultValue = count };
+
+                    Console.WriteLine($"[TcpClientAdapter调试] 读取完成，总字节数: {totalRead}");
+                    Console.WriteLine($"[TcpClientAdapter调试] 读取的数据: {string.Join(" ", buffer.Take(totalRead).Select(b => b.ToString("X2")))}");
+
+                    return new OperationResult<int> { IsSuccess = true, ResultValue = totalRead };
                 }
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

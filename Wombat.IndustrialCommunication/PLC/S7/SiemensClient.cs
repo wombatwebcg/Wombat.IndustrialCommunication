@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -206,7 +206,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         // 连接成功后初始化S7协议
                         
                         var initStartTime = DateTime.Now;
-                        var initResult = await InitAsync(ConnectTimeout);
+                        var initResult = await InitWithoutLockAsync(ConnectTimeout);
                         var initTime = (DateTime.Now - initStartTime).TotalMilliseconds;
                         Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, ConnectTimeout);
                         
