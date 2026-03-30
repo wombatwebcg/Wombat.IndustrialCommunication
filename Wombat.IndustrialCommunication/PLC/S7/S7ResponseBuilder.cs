@@ -147,7 +147,7 @@ namespace Wombat.IndustrialCommunication.PLC
             
             // S7头 (7字节)
             response[7] = 0x32; // 协议ID
-            response[8] = 0x01; // 消息类型 (Job Request)
+            response[8] = 0x03; // 消息类型 (Acknowledge)
             response[9] = 0x00; // 冗余标识
             response[10] = 0x00; // 协议数据单元引用
             response[11] = 0x00; // 参数长度 (高字节)
@@ -306,63 +306,39 @@ namespace Wombat.IndustrialCommunication.PLC
 
             try
             {
-                // 解析请求参数
-                int itemCount = request[18];
+                if (!TryParseRequestFrame(request, out int s7Offset, out int parameterOffset, out int itemCount, out int[] requestLengths, out bool[] requestBitTypes))
+                {
+                    return CreateErrorResponse(request, 0x01);
+                }
+
                 if (itemCount != readData.Count)
                     return CreateErrorResponse(request, 0x02); // 数据项数量不匹配
 
-                // 创建响应头
-                byte[] responseHeader = new byte[19];
-                Array.Copy(request, responseHeader, 19);
-                
-                // 设置响应类型为确认
-                responseHeader[8] = 0x03; // 服务器响应
-
-                // 创建响应数据
                 List<byte> responseData = new List<byte>();
-                
-                // 为每个读取项创建响应
+
                 for (int i = 0; i < itemCount; i++)
                 {
                     var data = readData[i];
                     if (data == null)
                     {
-                        // 读取失败
-                        responseData.Add(0xFF); // 数据项标记
-                        responseData.Add(0x0A); // 返回码 (0x0A = 资源不可用)
-                        responseData.Add(0x00); // 数据长度 (高字节)
-                        responseData.Add(0x00); // 数据长度 (低字节)
+                        responseData.Add(0x0A);
+                        responseData.Add(0x00);
+                        responseData.Add(0x00);
+                        responseData.Add(0x00);
                     }
                     else
                     {
-                        // 读取成功
-                        responseData.Add(0xFF); // 数据项标记
-                        responseData.Add(0xFF); // 返回码 (0xFF = 成功)
-                        responseData.Add((byte)(data.Length >> 8)); // 数据长度 (高字节)
-                        responseData.Add((byte)(data.Length & 0xFF)); // 数据长度 (低字节)
-                        responseData.AddRange(data); // 数据内容
+                        int lengthInBits = requestBitTypes[i] ? requestLengths[i] : data.Length * 8;
+                        responseData.Add(0xFF);
+                        responseData.Add(requestBitTypes[i] ? (byte)0x03 : (byte)0x04);
+                        responseData.Add((byte)(lengthInBits >> 8));
+                        responseData.Add((byte)(lengthInBits & 0xFF));
+                        responseData.AddRange(data);
                     }
                 }
 
-                // 计算总长度
-                int totalLength = responseHeader.Length + responseData.Count;
-                
-                // 创建完整响应
-                byte[] response = new byte[totalLength];
-                Array.Copy(responseHeader, response, responseHeader.Length);
-                responseData.CopyTo(0, response, responseHeader.Length, responseData.Count);
-
-                // 设置TPKT长度
-                response[2] = (byte)(totalLength >> 8);
-                response[3] = (byte)(totalLength & 0xFF);
-
-                // 设置参数和数据长度
-                response[13] = 0x00; // 参数长度 (高字节)
-                response[14] = 0x00; // 参数长度 (低字节)
-                response[15] = (byte)(responseData.Count >> 8); // 数据长度 (高字节)
-                response[16] = (byte)(responseData.Count & 0xFF); // 数据长度 (低字节)
-
-                return response;
+                byte[] parameter = { 0x04, (byte)itemCount };
+                return BuildAckDataResponse(request, s7Offset, parameter, responseData.ToArray());
             }
             catch (Exception)
             {
@@ -383,57 +359,23 @@ namespace Wombat.IndustrialCommunication.PLC
 
             try
             {
-                // 解析请求参数
-                int itemCount = request[18];
+                if (!TryParseRequestFrame(request, out int s7Offset, out int _, out int itemCount, out int[] _, out bool[] _))
+                {
+                    return CreateErrorResponse(request, 0x01);
+                }
+
                 if (itemCount != writeResults.Count)
                     return CreateErrorResponse(request, 0x02); // 数据项数量不匹配
 
-                // 创建响应头
-                byte[] responseHeader = new byte[19];
-                Array.Copy(request, responseHeader, 19);
-                
-                // 设置响应类型为确认
-                responseHeader[8] = 0x03; // 服务器响应
-
-                // 创建响应数据
                 List<byte> responseData = new List<byte>();
-                
-                // 为每个写入项创建响应
+
                 for (int i = 0; i < itemCount; i++)
                 {
-                    if (writeResults[i])
-                    {
-                        // 写入成功
-                        responseData.Add(0xFF); // 数据项标记
-                        responseData.Add(0xFF); // 返回码 (0xFF = 成功)
-                    }
-                    else
-                    {
-                        // 写入失败
-                        responseData.Add(0xFF); // 数据项标记
-                        responseData.Add(0x0A); // 返回码 (0x0A = 资源不可用)
-                    }
+                    responseData.Add(writeResults[i] ? (byte)0xFF : (byte)0x0A);
                 }
 
-                // 计算总长度
-                int totalLength = responseHeader.Length + responseData.Count;
-                
-                // 创建完整响应
-                byte[] response = new byte[totalLength];
-                Array.Copy(responseHeader, response, responseHeader.Length);
-                responseData.CopyTo(0, response, responseHeader.Length, responseData.Count);
-
-                // 设置TPKT长度
-                response[2] = (byte)(totalLength >> 8);
-                response[3] = (byte)(totalLength & 0xFF);
-
-                // 设置参数和数据长度
-                response[13] = 0x00; // 参数长度 (高字节)
-                response[14] = 0x00; // 参数长度 (低字节)
-                response[15] = (byte)(responseData.Count >> 8); // 数据长度 (高字节)
-                response[16] = (byte)(responseData.Count & 0xFF); // 数据长度 (低字节)
-
-                return response;
+                byte[] parameter = { 0x05, (byte)itemCount };
+                return BuildAckDataResponse(request, s7Offset, parameter, responseData.ToArray());
             }
             catch (Exception)
             {
@@ -454,42 +396,107 @@ namespace Wombat.IndustrialCommunication.PLC
 
             try
             {
-                // 创建响应头
-                byte[] responseHeader = new byte[19];
-                Array.Copy(request, responseHeader, 19);
-                
-                // 设置响应类型为确认
-                responseHeader[8] = 0x03; // 服务器响应
+                if (!TryParseRequestFrame(request, out int s7Offset, out int _, out int itemCount, out int[] _, out bool[] _))
+                {
+                    return null;
+                }
 
-                // 创建错误数据
-                List<byte> errorData = new List<byte>();
-                errorData.Add(0xFF); // 数据项标记
-                errorData.Add(errorCode); // 错误码
-
-                // 计算总长度
-                int totalLength = responseHeader.Length + errorData.Count;
-                
-                // 创建完整响应
-                byte[] response = new byte[totalLength];
-                Array.Copy(responseHeader, response, responseHeader.Length);
-                errorData.CopyTo(0, response, responseHeader.Length, errorData.Count);
-
-                // 设置TPKT长度
-                response[2] = (byte)(totalLength >> 8);
-                response[3] = (byte)(totalLength & 0xFF);
-
-                // 设置参数和数据长度
-                response[13] = 0x00; // 参数长度 (高字节)
-                response[14] = 0x00; // 参数长度 (低字节)
-                response[15] = (byte)(errorData.Count >> 8); // 数据长度 (高字节)
-                response[16] = (byte)(errorData.Count & 0xFF); // 数据长度 (低字节)
-
-                return response;
+                byte[] parameter = { request[s7Offset + 10], (byte)itemCount };
+                byte[] errorData = { errorCode, 0x00, 0x00, 0x00 };
+                return BuildAckDataResponse(request, s7Offset, parameter, errorData);
             }
             catch (Exception)
             {
                 return null;
             }
+        }
+
+        private static byte[] BuildAckDataResponse(byte[] request, int s7Offset, byte[] parameter, byte[] data)
+        {
+            int cotpTotalLength = 1 + request[4];
+            int totalLength = 4 + cotpTotalLength + 12 + parameter.Length + data.Length;
+            byte[] response = new byte[totalLength];
+
+            response[0] = 0x03;
+            response[1] = 0x00;
+            response[2] = (byte)(totalLength >> 8);
+            response[3] = (byte)(totalLength & 0xFF);
+
+            Array.Copy(request, 4, response, 4, cotpTotalLength);
+
+            int responseS7Offset = 4 + cotpTotalLength;
+            response[responseS7Offset] = 0x32;
+            response[responseS7Offset + 1] = 0x03;
+            response[responseS7Offset + 2] = request[s7Offset + 2];
+            response[responseS7Offset + 3] = request[s7Offset + 3];
+            response[responseS7Offset + 4] = request[s7Offset + 4];
+            response[responseS7Offset + 5] = request[s7Offset + 5];
+            response[responseS7Offset + 6] = (byte)(parameter.Length >> 8);
+            response[responseS7Offset + 7] = (byte)(parameter.Length & 0xFF);
+            response[responseS7Offset + 8] = (byte)(data.Length >> 8);
+            response[responseS7Offset + 9] = (byte)(data.Length & 0xFF);
+            response[responseS7Offset + 10] = 0x00;
+            response[responseS7Offset + 11] = 0x00;
+
+            int payloadOffset = responseS7Offset + 12;
+            Array.Copy(parameter, 0, response, payloadOffset, parameter.Length);
+            Array.Copy(data, 0, response, payloadOffset + parameter.Length, data.Length);
+
+            return response;
+        }
+
+        private static bool TryParseRequestFrame(byte[] request, out int s7Offset, out int parameterOffset, out int itemCount, out int[] requestLengths, out bool[] requestBitTypes)
+        {
+            s7Offset = 0;
+            parameterOffset = 0;
+            itemCount = 0;
+            requestLengths = Array.Empty<int>();
+            requestBitTypes = Array.Empty<bool>();
+
+            if (request == null || request.Length < 19 || request[0] != 0x03 || request[1] != 0x00)
+            {
+                return false;
+            }
+
+            int cotpTotalLength = 1 + request[4];
+            s7Offset = 4 + cotpTotalLength;
+            if (s7Offset + 10 > request.Length || request[s7Offset] != 0x32)
+            {
+                return false;
+            }
+
+            int parameterLength = (request[s7Offset + 6] << 8) | request[s7Offset + 7];
+            parameterOffset = s7Offset + 10;
+            if (parameterLength < 2 || parameterOffset + parameterLength > request.Length)
+            {
+                return false;
+            }
+
+            itemCount = request[parameterOffset + 1];
+            if (itemCount < 0)
+            {
+                return false;
+            }
+
+            requestLengths = new int[itemCount];
+            requestBitTypes = new bool[itemCount];
+
+            for (int i = 0; i < itemCount; i++)
+            {
+                int itemOffset = parameterOffset + 2 + i * 12;
+                if (itemOffset + 11 >= parameterOffset + parameterLength || itemOffset + 11 >= request.Length)
+                {
+                    return false;
+                }
+
+                bool isBit = request[itemOffset + 3] == 0x01;
+                int requestLength = (request[itemOffset + 4] << 8) | request[itemOffset + 5];
+
+                requestBitTypes[i] = isBit;
+                requestLengths[i] = requestLength;
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -514,16 +521,22 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (paramOffset + 11 >= request.Length)
                         break;
 
+                    bool isBit = request[paramOffset + 3] == 0x01;
+                    int rawLength = (request[paramOffset + 4] << 8) + request[paramOffset + 5];
+                    int byteLength = isBit ? (int)Math.Ceiling(rawLength / 8.0) : rawLength;
+                    int startAddressBits = (request[paramOffset + 9] << 16) +
+                                           (request[paramOffset + 10] << 8) +
+                                           request[paramOffset + 11];
+
                     var parameter = new S7ReadParameter
                     {
-                        AreaType = request[paramOffset + 3],
-                        DbNumber = request[paramOffset + 3] == (byte)S7Area.DB ? 
-                                  (request[paramOffset + 4] << 8) + request[paramOffset + 5] : 0,
-                        StartAddress = (request[paramOffset + 6] << 16) + 
-                                     (request[paramOffset + 7] << 8) + 
-                                     request[paramOffset + 8],
-                        Length = (request[paramOffset + 10] << 8) + request[paramOffset + 11],
-                        IsBit = request[paramOffset + 2] == 0x01
+                        AreaType = request[paramOffset + 8],
+                        DbNumber = request[paramOffset + 8] == (byte)S7Area.DB
+                            ? (request[paramOffset + 6] << 8) + request[paramOffset + 7]
+                            : 0,
+                        StartAddress = startAddressBits / 8,
+                        Length = byteLength,
+                        IsBit = isBit
                     };
                     
                     parameters.Add(parameter);
@@ -531,7 +544,6 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             catch (Exception)
             {
-                // 解析失败，返回空列表
             }
 
             return parameters;
@@ -557,41 +569,45 @@ namespace Wombat.IndustrialCommunication.PLC
                 for (int i = 0; i < itemCount; i++)
                 {
                     int paramOffset = 19 + i * 12;
-                    if (paramOffset + 11 >= request.Length)
+                    if (paramOffset + 11 >= request.Length || dataOffset + 4 > request.Length)
                         break;
 
-                    int length = (request[paramOffset + 10] << 8) + request[paramOffset + 11];
-                    bool isBit = request[paramOffset + 2] == 0x01;
-                    
-                    // 计算实际数据长度
-                    int actualLength = isBit ? (int)Math.Ceiling(length / 8.0) : length;
+                    bool isBit = request[paramOffset + 3] == 0x01;
+                    int startAddressBits = (request[paramOffset + 9] << 16) +
+                                           (request[paramOffset + 10] << 8) +
+                                           request[paramOffset + 11];
+                    int dataBitLength = (request[dataOffset + 2] << 8) + request[dataOffset + 3];
+                    int byteLength = (int)Math.Ceiling(dataBitLength / 8.0);
                     
                     var parameter = new S7WriteParameter
                     {
-                        AreaType = request[paramOffset + 3],
-                        DbNumber = request[paramOffset + 3] == (byte)S7Area.DB ? 
-                                  (request[paramOffset + 4] << 8) + request[paramOffset + 5] : 0,
-                        StartAddress = (request[paramOffset + 6] << 16) + 
-                                     (request[paramOffset + 7] << 8) + 
-                                     request[paramOffset + 8],
-                        Length = length,
+                        AreaType = request[paramOffset + 8],
+                        DbNumber = request[paramOffset + 8] == (byte)S7Area.DB
+                            ? (request[paramOffset + 6] << 8) + request[paramOffset + 7]
+                            : 0,
+                        StartAddress = startAddressBits / 8,
+                        Length = byteLength,
                         IsBit = isBit,
-                        Data = new byte[actualLength]
+                        Data = new byte[byteLength]
                     };
                     
-                    // 提取数据
-                    if (dataOffset + actualLength <= request.Length)
-                    {
-                        Array.Copy(request, dataOffset, parameter.Data, 0, actualLength);
-                        dataOffset += actualLength;
-                    }
+                    int payloadOffset = dataOffset + 4;
+                    if (payloadOffset + byteLength > request.Length)
+                        break;
+
+                    Array.Copy(request, payloadOffset, parameter.Data, 0, byteLength);
                     
                     parameters.Add(parameter);
+
+                    dataOffset = payloadOffset + byteLength;
+                    if (i < itemCount - 1 && (byteLength % 2 != 0) && dataOffset < request.Length)
+                    {
+                        dataOffset += 1;
+                    }
                 }
             }
             catch (Exception)
             {
-                // 解析失败，返回空列表
             }
 
             return parameters;

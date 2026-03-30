@@ -610,7 +610,9 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (dataPart.StartsWith("DBX"))
                         {
                             addressInfo.DataType = S7DataType.DBX;
-                            addressInfo.StartByte = int.Parse(dataPart.Substring(3));
+                            var bitAddress = dataPart.Substring(3);
+                            var splitIndex = bitAddress.IndexOf('.');
+                            addressInfo.StartByte = splitIndex > 0 ? int.Parse(bitAddress.Substring(0, splitIndex)) : int.Parse(bitAddress);
                             addressInfo.Length = 1;
                         }
                         else if (dataPart.StartsWith("DBB"))
@@ -637,28 +639,37 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     area = S7Area.M;
                     addressInfo.DataType = S7DataType.MB;
-                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    var memoryAddress = address.Substring(1);
+                    var splitIndex = memoryAddress.IndexOf('.');
+                    addressInfo.StartByte = splitIndex > 0 ? int.Parse(memoryAddress.Substring(0, splitIndex)) : int.Parse(memoryAddress);
                     addressInfo.Length = 1;
                 }
                 else if (address.StartsWith("I"))
                 {
                     area = S7Area.I;
                     addressInfo.DataType = S7DataType.IB;
-                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    var inputAddress = address.Substring(1);
+                    var splitIndex = inputAddress.IndexOf('.');
+                    addressInfo.StartByte = splitIndex > 0 ? int.Parse(inputAddress.Substring(0, splitIndex)) : int.Parse(inputAddress);
                     addressInfo.Length = 1;
                 }
                 else if (address.StartsWith("Q"))
                 {
                     area = S7Area.Q;
                     addressInfo.DataType = S7DataType.QB;
-                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    var outputAddress = address.Substring(1);
+                    var splitIndex = outputAddress.IndexOf('.');
+                    addressInfo.StartByte = splitIndex > 0 ? int.Parse(outputAddress.Substring(0, splitIndex)) : int.Parse(outputAddress);
                     addressInfo.Length = 1;
                 }
                 else if (address.StartsWith("V"))
                 {
                     area = S7Area.DB; // V区映射到DB1
+                    addressInfo.DbNumber = 1;
                     addressInfo.DataType = S7DataType.VB;
-                    addressInfo.StartByte = int.Parse(address.Substring(1));
+                    var vAddress = address.Substring(1);
+                    var splitIndex = vAddress.IndexOf('.');
+                    addressInfo.StartByte = splitIndex > 0 ? int.Parse(vAddress.Substring(0, splitIndex)) : int.Parse(vAddress);
                     addressInfo.Length = 1;
                 }
 
@@ -685,32 +696,34 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (data == null || data.Length == 0)
                     return null;
 
+                byte[] normalized = NormalizeS7BytesForRead(data, dataType);
+
                 switch (dataType)
                 {
                     case DataTypeEnums.Bool:
-                        return data[0] != 0;
+                        return normalized[0] != 0;
                     case DataTypeEnums.Byte:
-                        return data[0];
+                        return normalized[0];
                     case DataTypeEnums.Int16:
-                        return BitConverter.ToInt16(data, 0);
+                        return BitConverter.ToInt16(normalized, 0);
                     case DataTypeEnums.UInt16:
-                        return BitConverter.ToUInt16(data, 0);
+                        return BitConverter.ToUInt16(normalized, 0);
                     case DataTypeEnums.Int32:
-                        return BitConverter.ToInt32(data, 0);
+                        return BitConverter.ToInt32(normalized, 0);
                     case DataTypeEnums.UInt32:
-                        return BitConverter.ToUInt32(data, 0);
+                        return BitConverter.ToUInt32(normalized, 0);
                     case DataTypeEnums.Int64:
-                        return BitConverter.ToInt64(data, 0);
+                        return BitConverter.ToInt64(normalized, 0);
                     case DataTypeEnums.UInt64:
-                        return BitConverter.ToUInt64(data, 0);
+                        return BitConverter.ToUInt64(normalized, 0);
                     case DataTypeEnums.Float:
-                        return BitConverter.ToSingle(data, 0);
+                        return BitConverter.ToSingle(normalized, 0);
                     case DataTypeEnums.Double:
-                        return BitConverter.ToDouble(data, 0);
+                        return BitConverter.ToDouble(normalized, 0);
                     case DataTypeEnums.String:
-                        return Encoding.ASCII.GetString(data);
+                        return Encoding.ASCII.GetString(normalized);
                     default:
-                        return data;
+                        return normalized;
                 }
             }
             catch (Exception ex)
@@ -740,21 +753,21 @@ namespace Wombat.IndustrialCommunication.PLC
                     case DataTypeEnums.Byte:
                         return new byte[] { (byte)value };
                     case DataTypeEnums.Int16:
-                        return BitConverter.GetBytes((short)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((short)value));
                     case DataTypeEnums.UInt16:
-                        return BitConverter.GetBytes((ushort)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((ushort)value));
                     case DataTypeEnums.Int32:
-                        return BitConverter.GetBytes((int)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((int)value));
                     case DataTypeEnums.UInt32:
-                        return BitConverter.GetBytes((uint)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((uint)value));
                     case DataTypeEnums.Int64:
-                        return BitConverter.GetBytes((long)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((long)value));
                     case DataTypeEnums.UInt64:
-                        return BitConverter.GetBytes((ulong)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((ulong)value));
                     case DataTypeEnums.Float:
-                        return BitConverter.GetBytes((float)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((float)value));
                     case DataTypeEnums.Double:
-                        return BitConverter.GetBytes((double)value);
+                        return NormalizeS7BytesForWrite(BitConverter.GetBytes((double)value));
                     case DataTypeEnums.String:
                         return Encoding.ASCII.GetBytes((string)value);
                     default:
@@ -767,6 +780,46 @@ namespace Wombat.IndustrialCommunication.PLC
                 Logger?.LogError(ex, "值转换为字节数组失败: {DataType}", dataType);
                 return null;
             }
+        }
+
+        private static byte[] NormalizeS7BytesForRead(byte[] data, DataTypeEnums dataType)
+        {
+            if (data == null)
+                return null;
+
+            var result = (byte[])data.Clone();
+            if (!BitConverter.IsLittleEndian)
+                return result;
+
+            switch (dataType)
+            {
+                case DataTypeEnums.Int16:
+                case DataTypeEnums.UInt16:
+                case DataTypeEnums.Int32:
+                case DataTypeEnums.UInt32:
+                case DataTypeEnums.Int64:
+                case DataTypeEnums.UInt64:
+                case DataTypeEnums.Float:
+                case DataTypeEnums.Double:
+                    Array.Reverse(result);
+                    break;
+            }
+
+            return result;
+        }
+
+        private static byte[] NormalizeS7BytesForWrite(byte[] data)
+        {
+            if (data == null)
+                return null;
+
+            var result = (byte[])data.Clone();
+            if (BitConverter.IsLittleEndian)
+            {
+                Array.Reverse(result);
+            }
+
+            return result;
         }
         
         #endregion
@@ -1011,262 +1064,433 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
         
+        private OperationResult<object> ToObjectResult<T>(OperationResult<T> result)
+        {
+            if (result.IsSuccess)
+            {
+                return OperationResult.CreateSuccessResult<object>(result.ResultValue);
+            }
+
+            return OperationResult.CreateFailedResult<object>(result.Message);
+        }
+
+        private static bool TryConvertValue<T>(object value, out T converted)
+        {
+            if (value is T typed)
+            {
+                converted = typed;
+                return true;
+            }
+
+            try
+            {
+                converted = (T)Convert.ChangeType(value, typeof(T));
+                return true;
+            }
+            catch
+            {
+                converted = default;
+                return false;
+            }
+        }
+
+        private int GetTypeByteLength(DataTypeEnums dataType)
+        {
+            switch (dataType)
+            {
+                case DataTypeEnums.Bool:
+                case DataTypeEnums.Byte:
+                    return 1;
+                case DataTypeEnums.Int16:
+                case DataTypeEnums.UInt16:
+                    return 2;
+                case DataTypeEnums.Int32:
+                case DataTypeEnums.UInt32:
+                case DataTypeEnums.Float:
+                    return 4;
+                case DataTypeEnums.Int64:
+                case DataTypeEnums.UInt64:
+                case DataTypeEnums.Double:
+                    return 8;
+                default:
+                    return 1;
+            }
+        }
+
+        private OperationResult<T> ReadSingleValue<T>(string address, DataTypeEnums dataType)
+        {
+            var readBytes = ReadByte(address, GetTypeByteLength(dataType));
+            if (!readBytes.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<T>(readBytes.Message);
+            }
+
+            var value = ConvertBytesToValue(readBytes.ResultValue, dataType, readBytes.ResultValue.Length);
+            if (!TryConvertValue(value, out T converted))
+            {
+                return OperationResult.CreateFailedResult<T>($"数据类型转换失败: {dataType}");
+            }
+
+            return OperationResult.CreateSuccessResult(converted);
+        }
+
+        private OperationResult<T[]> ReadArrayValue<T>(string address, int length, DataTypeEnums dataType)
+        {
+            if (length <= 0)
+            {
+                return OperationResult.CreateFailedResult<T[]>("读取长度必须大于0");
+            }
+
+            int unitLength = GetTypeByteLength(dataType);
+            var readBytes = ReadByte(address, unitLength * length);
+            if (!readBytes.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<T[]>(readBytes.Message);
+            }
+
+            var result = new T[length];
+            for (int i = 0; i < length; i++)
+            {
+                var segment = new byte[unitLength];
+                Array.Copy(readBytes.ResultValue, i * unitLength, segment, 0, unitLength);
+                var value = ConvertBytesToValue(segment, dataType, unitLength);
+                if (!TryConvertValue(value, out T converted))
+                {
+                    return OperationResult.CreateFailedResult<T[]>($"第{i}项数据类型转换失败: {dataType}");
+                }
+
+                result[i] = converted;
+            }
+
+            return OperationResult.CreateSuccessResult(result);
+        }
+
+        private OperationResult WriteSingleValue(string address, DataTypeEnums dataType, object value)
+        {
+            var bytes = ConvertValueToBytes(value, dataType);
+            if (bytes == null || bytes.Length == 0)
+            {
+                return OperationResult.CreateFailedResult("写入数据转换失败");
+            }
+
+            return Write(address, bytes);
+        }
+
+        private OperationResult WriteArrayValue<T>(string address, T[] value, DataTypeEnums dataType)
+        {
+            if (value == null || value.Length == 0)
+            {
+                return OperationResult.CreateFailedResult("写入数据不能为空");
+            }
+
+            var writeBytes = new List<byte>();
+            foreach (var item in value)
+            {
+                var bytes = ConvertValueToBytes(item, dataType);
+                if (bytes == null || bytes.Length == 0)
+                {
+                    return OperationResult.CreateFailedResult($"数组写入转换失败: {dataType}");
+                }
+
+                writeBytes.AddRange(bytes);
+            }
+
+            return Write(address, writeBytes.ToArray());
+        }
+        
         // ReadUInt16
         public OperationResult<ushort> ReadUInt16(string address)
         {
-            return CreateNotSupportedResult<ushort>();
+            return ReadSingleValue<ushort>(address, DataTypeEnums.UInt16);
         }
         
         // ReadUInt16
         public OperationResult<ushort[]> ReadUInt16(string address, int length)
         {
-            return CreateNotSupportedResult<ushort[]>();
+            return ReadArrayValue<ushort>(address, length, DataTypeEnums.UInt16);
         }
         
         // ReadInt16
         public OperationResult<short> ReadInt16(string address)
         {
-            return CreateNotSupportedResult<short>();
+            return ReadSingleValue<short>(address, DataTypeEnums.Int16);
         }
         
         // ReadInt16
         public OperationResult<short[]> ReadInt16(string address, int length)
         {
-            return CreateNotSupportedResult<short[]>();
+            return ReadArrayValue<short>(address, length, DataTypeEnums.Int16);
         }
         
         // ReadUInt32
         public OperationResult<uint> ReadUInt32(string address)
         {
-            return CreateNotSupportedResult<uint>();
+            return ReadSingleValue<uint>(address, DataTypeEnums.UInt32);
         }
         
         // ReadUInt32
         public OperationResult<uint[]> ReadUInt32(string address, int length)
         {
-            return CreateNotSupportedResult<uint[]>();
+            return ReadArrayValue<uint>(address, length, DataTypeEnums.UInt32);
         }
         
         // ReadInt32
         public OperationResult<int> ReadInt32(string address)
         {
-            return CreateNotSupportedResult<int>();
+            return ReadSingleValue<int>(address, DataTypeEnums.Int32);
         }
         
         // ReadInt32
         public OperationResult<int[]> ReadInt32(string address, int length)
         {
-            return CreateNotSupportedResult<int[]>();
+            return ReadArrayValue<int>(address, length, DataTypeEnums.Int32);
         }
         
         // ReadUInt64
         public OperationResult<ulong> ReadUInt64(string address)
         {
-            return CreateNotSupportedResult<ulong>();
+            return ReadSingleValue<ulong>(address, DataTypeEnums.UInt64);
         }
         
         // ReadUInt64
         public OperationResult<ulong[]> ReadUInt64(string address, int length)
         {
-            return CreateNotSupportedResult<ulong[]>();
+            return ReadArrayValue<ulong>(address, length, DataTypeEnums.UInt64);
         }
         
         // ReadInt64
         public OperationResult<long> ReadInt64(string address)
         {
-            return CreateNotSupportedResult<long>();
+            return ReadSingleValue<long>(address, DataTypeEnums.Int64);
         }
         
         // ReadInt64
         public OperationResult<long[]> ReadInt64(string address, int length)
         {
-            return CreateNotSupportedResult<long[]>();
+            return ReadArrayValue<long>(address, length, DataTypeEnums.Int64);
         }
         
         // ReadFloat
         public OperationResult<float> ReadFloat(string address)
         {
-            return CreateNotSupportedResult<float>();
+            return ReadSingleValue<float>(address, DataTypeEnums.Float);
         }
         
         // ReadFloat
         public OperationResult<float[]> ReadFloat(string address, int length)
         {
-            return CreateNotSupportedResult<float[]>();
+            return ReadArrayValue<float>(address, length, DataTypeEnums.Float);
         }
         
         // ReadDouble
         public OperationResult<double> ReadDouble(string address)
         {
-            return CreateNotSupportedResult<double>();
+            return ReadSingleValue<double>(address, DataTypeEnums.Double);
         }
         
         // ReadDouble
         public OperationResult<double[]> ReadDouble(string address, int length)
         {
-            return CreateNotSupportedResult<double[]>();
+            return ReadArrayValue<double>(address, length, DataTypeEnums.Double);
         }
         
         // ReadString
         public OperationResult<string> ReadString(string address, int length)
         {
-            return CreateNotSupportedResult<string>();
+            if (length <= 0)
+            {
+                return OperationResult.CreateFailedResult<string>("读取长度必须大于0");
+            }
+
+            var readResult = ReadByte(address, length);
+            if (!readResult.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<string>(readResult.Message);
+            }
+
+            return OperationResult.CreateSuccessResult<string>(Encoding.ASCII.GetString(readResult.ResultValue));
         }
         
         // Read
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address)
         {
-            return CreateNotSupportedResult<object>();
+            return Read(dataTypeEnum, address, 1);
         }
         
         // Read
         public OperationResult<object> Read(DataTypeEnums dataTypeEnum, string address, int length)
         {
-            return CreateNotSupportedResult<object>();
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnums.Bool:
+                    return length <= 1 ? ToObjectResult(ReadBoolean(address)) : ToObjectResult(ReadBoolean(address, length));
+                case DataTypeEnums.Byte:
+                    return length <= 1 ? ToObjectResult(ReadByte(address)) : ToObjectResult(ReadByte(address, length));
+                case DataTypeEnums.UInt16:
+                    return length <= 1 ? ToObjectResult(ReadUInt16(address)) : ToObjectResult(ReadUInt16(address, length));
+                case DataTypeEnums.Int16:
+                    return length <= 1 ? ToObjectResult(ReadInt16(address)) : ToObjectResult(ReadInt16(address, length));
+                case DataTypeEnums.UInt32:
+                    return length <= 1 ? ToObjectResult(ReadUInt32(address)) : ToObjectResult(ReadUInt32(address, length));
+                case DataTypeEnums.Int32:
+                    return length <= 1 ? ToObjectResult(ReadInt32(address)) : ToObjectResult(ReadInt32(address, length));
+                case DataTypeEnums.UInt64:
+                    return length <= 1 ? ToObjectResult(ReadUInt64(address)) : ToObjectResult(ReadUInt64(address, length));
+                case DataTypeEnums.Int64:
+                    return length <= 1 ? ToObjectResult(ReadInt64(address)) : ToObjectResult(ReadInt64(address, length));
+                case DataTypeEnums.Float:
+                    return length <= 1 ? ToObjectResult(ReadFloat(address)) : ToObjectResult(ReadFloat(address, length));
+                case DataTypeEnums.Double:
+                    return length <= 1 ? ToObjectResult(ReadDouble(address)) : ToObjectResult(ReadDouble(address, length));
+                case DataTypeEnums.String:
+                    return ToObjectResult(ReadString(address, length));
+                default:
+                    return OperationResult.CreateFailedResult<object>($"不支持的数据类型: {dataTypeEnum}");
+            }
         }
         
         // BatchReadAsync
         public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
-            return new ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>(CreateNotSupportedResult<Dictionary<string, (DataTypeEnums, object)>>());
+            return new ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>(BatchRead(addresses));
         }
         
         // ReadByteAsync
         public ValueTask<OperationResult<byte>> ReadByteAsync(string address)
         {
-            return new ValueTask<OperationResult<byte>>(CreateNotSupportedResult<byte>());
+            return new ValueTask<OperationResult<byte>>(ReadByte(address));
         }
         
         // ReadByteAsync
         public ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<byte[]>>(CreateNotSupportedResult<byte[]>());
+            return new ValueTask<OperationResult<byte[]>>(ReadByte(address, length));
         }
         
         // ReadBooleanAsync
         public ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
         {
-            return new ValueTask<OperationResult<bool>>(CreateNotSupportedResult<bool>());
+            return new ValueTask<OperationResult<bool>>(ReadBoolean(address));
         }
         
         // ReadBooleanAsync
         public ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<bool[]>>(CreateNotSupportedResult<bool[]>());
+            return new ValueTask<OperationResult<bool[]>>(ReadBoolean(address, length));
         }
         
         // ReadUInt16Async
         public ValueTask<OperationResult<ushort>> ReadUInt16Async(string address)
         {
-            return new ValueTask<OperationResult<ushort>>(CreateNotSupportedResult<ushort>());
+            return new ValueTask<OperationResult<ushort>>(ReadUInt16(address));
         }
         
         // ReadUInt16Async
         public ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
         {
-            return new ValueTask<OperationResult<ushort[]>>(CreateNotSupportedResult<ushort[]>());
+            return new ValueTask<OperationResult<ushort[]>>(ReadUInt16(address, length));
         }
         
         // ReadInt16Async
         public ValueTask<OperationResult<short>> ReadInt16Async(string address)
         {
-            return new ValueTask<OperationResult<short>>(CreateNotSupportedResult<short>());
+            return new ValueTask<OperationResult<short>>(ReadInt16(address));
         }
         
         // ReadInt16Async
         public ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length)
         {
-            return new ValueTask<OperationResult<short[]>>(CreateNotSupportedResult<short[]>());
+            return new ValueTask<OperationResult<short[]>>(ReadInt16(address, length));
         }
         
         // ReadUInt32Async
         public ValueTask<OperationResult<uint>> ReadUInt32Async(string address)
         {
-            return new ValueTask<OperationResult<uint>>(CreateNotSupportedResult<uint>());
+            return new ValueTask<OperationResult<uint>>(ReadUInt32(address));
         }
         
         // ReadUInt32Async
         public ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
         {
-            return new ValueTask<OperationResult<uint[]>>(CreateNotSupportedResult<uint[]>());
+            return new ValueTask<OperationResult<uint[]>>(ReadUInt32(address, length));
         }
         
         // ReadInt32Async
         public ValueTask<OperationResult<int>> ReadInt32Async(string address)
         {
-            return new ValueTask<OperationResult<int>>(CreateNotSupportedResult<int>());
+            return new ValueTask<OperationResult<int>>(ReadInt32(address));
         }
         
         // ReadInt32Async
         public ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length)
         {
-            return new ValueTask<OperationResult<int[]>>(CreateNotSupportedResult<int[]>());
+            return new ValueTask<OperationResult<int[]>>(ReadInt32(address, length));
         }
         
         // ReadUInt64Async
         public ValueTask<OperationResult<ulong>> ReadUInt64Async(string address)
         {
-            return new ValueTask<OperationResult<ulong>>(CreateNotSupportedResult<ulong>());
+            return new ValueTask<OperationResult<ulong>>(ReadUInt64(address));
         }
         
         // ReadUInt64Async
         public ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
         {
-            return new ValueTask<OperationResult<ulong[]>>(CreateNotSupportedResult<ulong[]>());
+            return new ValueTask<OperationResult<ulong[]>>(ReadUInt64(address, length));
         }
         
         // ReadInt64Async
         public ValueTask<OperationResult<long>> ReadInt64Async(string address)
         {
-            return new ValueTask<OperationResult<long>>(CreateNotSupportedResult<long>());
+            return new ValueTask<OperationResult<long>>(ReadInt64(address));
         }
         
         // ReadInt64Async
         public ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length)
         {
-            return new ValueTask<OperationResult<long[]>>(CreateNotSupportedResult<long[]>());
+            return new ValueTask<OperationResult<long[]>>(ReadInt64(address, length));
         }
         
         // ReadFloatAsync
         public ValueTask<OperationResult<float>> ReadFloatAsync(string address)
         {
-            return new ValueTask<OperationResult<float>>(CreateNotSupportedResult<float>());
+            return new ValueTask<OperationResult<float>>(ReadFloat(address));
         }
         
         // ReadFloatAsync
         public ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<float[]>>(CreateNotSupportedResult<float[]>());
+            return new ValueTask<OperationResult<float[]>>(ReadFloat(address, length));
         }
         
         // ReadDoubleAsync
         public ValueTask<OperationResult<double>> ReadDoubleAsync(string address)
         {
-            return new ValueTask<OperationResult<double>>(CreateNotSupportedResult<double>());
+            return new ValueTask<OperationResult<double>>(ReadDouble(address));
         }
         
         // ReadDoubleAsync
         public ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<double[]>>(CreateNotSupportedResult<double[]>());
+            return new ValueTask<OperationResult<double[]>>(ReadDouble(address, length));
         }
         
         // ReadStringAsync
         public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<string>>(CreateNotSupportedResult<string>());
+            return new ValueTask<OperationResult<string>>(ReadString(address, length));
         }
         
         // ReadAsync
         public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
         {
-            return new ValueTask<OperationResult<object>>(CreateNotSupportedResult<object>());
+            return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address));
         }
         
         // ReadAsync
         public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
-            return new ValueTask<OperationResult<object>>(CreateNotSupportedResult<object>());
+            return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address, length));
         }
         
         // BatchWrite
@@ -1457,259 +1681,259 @@ namespace Wombat.IndustrialCommunication.PLC
         // Write
         public OperationResult Write(string address, ushort value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.UInt16, value);
         }
         
         // Write
         public OperationResult Write(string address, ushort[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt16);
         }
         
         // Write
         public OperationResult Write(string address, short value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.Int16, value);
         }
         
         // Write
         public OperationResult Write(string address, short[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int16);
         }
         
         // Write
         public OperationResult Write(string address, uint value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.UInt32, value);
         }
         
         // Write
         public OperationResult Write(string address, uint[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt32);
         }
         
         // Write
         public OperationResult Write(string address, int value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.Int32, value);
         }
         
         // Write
         public OperationResult Write(string address, int[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int32);
         }
         
         // Write
         public OperationResult Write(string address, ulong value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.UInt64, value);
         }
         
         // Write
         public OperationResult Write(string address, ulong[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt64);
         }
         
         // Write
         public OperationResult Write(string address, long value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.Int64, value);
         }
         
         // Write
         public OperationResult Write(string address, long[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int64);
         }
         
         // Write
         public OperationResult Write(string address, float value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.Float, value);
         }
         
         // Write
         public OperationResult Write(string address, float[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Float);
         }
         
         // Write
         public OperationResult Write(string address, double value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.Double, value);
         }
         
         // Write
         public OperationResult Write(string address, double[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Double);
         }
         
         // Write
         public OperationResult Write(string address, string value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, DataTypeEnums.String, value);
         }
         
         // Write
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value)
         {
-            return CreateNotSupportedResult();
+            return WriteSingleValue(address, dataTypeEnum, value);
         }
         
         // Write
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, dataTypeEnum);
         }
         
         // BatchWriteAsync
         public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
-            return new ValueTask<OperationResult>(CreateNotSupportedResult());
+            return new ValueTask<OperationResult>(BatchWrite(addresses));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, byte[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, bool value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, byte value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, ushort value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, ushort[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, short value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, short[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, int value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, long value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, float value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, double value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(string address, string value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(dataTypeEnum, address, value));
         }
         
         // WriteAsync
         public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(dataTypeEnum, address, value));
         }
         
         #endregion

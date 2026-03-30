@@ -32,7 +32,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         [Fact]
         public void Test_Connect_Disconnect()
         {
-            var client = new ModbusRTUClient(TEST_RTU_PORT, TEST_RTU_BAUD);
+            var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             var result = client.Connect();
             Assert.True(result.IsSuccess, $"RTU连接失败: {result.Message}");
             _output?.WriteLine("RTU连接成功");
@@ -43,7 +43,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         [Fact]
         public void Test_SyncReadWrite()
         {
-            var client = new ModbusRTUClient(TEST_RTU_PORT, TEST_RTU_BAUD);
+            var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             client.Connect();
             // Coil
             var writeCoil = client.WriteCoil(TEST_STATION, TEST_COIL_ADDR, true);
@@ -62,7 +62,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         [Fact]
         public async Task Test_AsyncReadWrite()
         {
-            var client = new ModbusRTUClient(TEST_RTU_PORT, TEST_RTU_BAUD);
+            var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             await client.ConnectAsync();
             // Coil
             var writeCoil = await client.WriteCoilAsync(TEST_STATION, TEST_COIL_ADDR, true);
@@ -81,7 +81,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         [Fact]
         public async Task Test_BatchReadWrite()
         {
-            var client = new ModbusRTUClient(TEST_RTU_PORT, TEST_RTU_BAUD);
+            var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             await client.ConnectAsync();
             var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {

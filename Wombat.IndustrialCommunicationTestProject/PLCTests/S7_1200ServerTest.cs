@@ -67,6 +67,28 @@ namespace Wombat.IndustrialCommunicationTestProject.PLCTests
         
         /// <summary>交叉测试地址2</summary>
         private const string CROSS_ADDRESS_2 = "DB1.DBD24";
+
+        /// <summary>M区测试地址</summary>
+        private const string MERKER_TEST_ADDRESS = "M10.1";
+
+        /// <summary>I区测试地址</summary>
+        private const string INPUT_TEST_ADDRESS = "I11.2";
+
+        /// <summary>Q区测试地址</summary>
+        private const string OUTPUT_TEST_ADDRESS = "Q12.3";
+
+        /// <summary>T区测试地址</summary>
+        private const string TIMER_TEST_ADDRESS = "T13.4";
+
+        /// <summary>C区测试地址</summary>
+        private const string COUNTER_TEST_ADDRESS = "C14.5";
+
+        /// <summary>V区测试地址（映射到DB1）</summary>
+        private const string V_MEMORY_TEST_ADDRESS = "V90.6";
+
+        private const string THIRD_PARTY_BOOL_ADDRESS = "DB1.DBX30.0";
+        private const string THIRD_PARTY_INT_ADDRESS = "DB1.DBD32";
+        private const string THIRD_PARTY_FLOAT_ADDRESS = "DB1.DBD36";
         
         #endregion
 
@@ -187,9 +209,171 @@ namespace Wombat.IndustrialCommunicationTestProject.PLCTests
             }
         }
 
+        /// <summary>
+        /// 测试客户端对服务器是否覆盖所有已支持的S7寄存器区域读写
+        /// 覆盖DB、M、I、Q、T、C以及V（映射到DB1）
+        /// </summary>
+        [Fact]
+        public async Task Test_S7Server_AllRegisterAreaReadWriteCoverage()
+        {
+            var testName = "S7服务器全寄存器区域读写覆盖测试";
+            LogTestStart(testName);
+
+            try
+            {
+                LogStep("启动S7服务器");
+                await StartServer();
+                Console.ReadKey();
+                LogStep("创建并连接两个客户端");
+                await CreateAndConnectClients();
+
+                var registerAreaCases = new List<(string AreaName, string Address, bool InitialValue, bool LatestValue)>
+                {
+                    ("DB", BOOL_TEST_ADDRESS, true, false),
+                    ("M", MERKER_TEST_ADDRESS, false, true),
+                    ("I", INPUT_TEST_ADDRESS, true, false),
+                    ("Q", OUTPUT_TEST_ADDRESS, false, true),
+                    ("T", TIMER_TEST_ADDRESS, true, false),
+                    ("C", COUNTER_TEST_ADDRESS, false, true),
+                    ("V", V_MEMORY_TEST_ADDRESS, true, false)
+                };
+
+                foreach (var testCase in registerAreaCases)
+                {
+                    LogStep($"验证区域 {testCase.AreaName} 地址 {testCase.Address}");
+
+                    var writeByClient1Result = await _client1.WriteAsync(testCase.Address, testCase.InitialValue);
+                    Assert.True(writeByClient1Result.IsSuccess, $"客户端1写入{testCase.AreaName}失败: {writeByClient1Result.Message}");
+
+                    var readByClient1Result = await _client1.ReadBooleanAsync(testCase.Address);
+                    Assert.True(readByClient1Result.IsSuccess, $"客户端1读取{testCase.AreaName}失败: {readByClient1Result.Message}");
+                    Assert.Equal(testCase.InitialValue, readByClient1Result.ResultValue);
+
+                    var writeByClient2Result = await _client2.WriteAsync(testCase.Address, testCase.LatestValue);
+                    Assert.True(writeByClient2Result.IsSuccess, $"客户端2写入{testCase.AreaName}失败: {writeByClient2Result.Message}");
+
+                    var readByClient2Result = await _client2.ReadBooleanAsync(testCase.Address);
+                    Assert.True(readByClient2Result.IsSuccess, $"客户端2读取{testCase.AreaName}失败: {readByClient2Result.Message}");
+                    Assert.Equal(testCase.LatestValue, readByClient2Result.ResultValue);
+
+                    var crossReadByClient1Result = await _client1.ReadBooleanAsync(testCase.Address);
+                    Assert.True(crossReadByClient1Result.IsSuccess, $"客户端1交叉读取{testCase.AreaName}失败: {crossReadByClient1Result.Message}");
+                    Assert.Equal(testCase.LatestValue, crossReadByClient1Result.ResultValue);
+                }
+
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await CleanupResources();
+            }
+        }
+
+        [Fact]
+        public async Task Test_S7Server_ThirdPartyClientReadWriteWithPreheatedData()
+        {
+            var testName = "S7服务器第三方客户端读写测试";
+            LogTestStart(testName);
+            SiemensClient thirdPartyClient = null;
+
+            try
+            {
+                LogStep("启动S7服务器");
+                await StartServer();
+
+                LogStep("预热寄存器数据");
+                PreheatThirdPartyRegisters();
+                Console.ReadKey();
+                thirdPartyClient = new SiemensClient(TEST_SERVER_IP, TEST_SERVER_PORT, PLC_VERSION);
+                thirdPartyClient.ConnectTimeout = TimeSpan.FromMilliseconds(CONNECT_TIMEOUT_MS);
+                thirdPartyClient.ReceiveTimeout = TimeSpan.FromMilliseconds(OPERATION_TIMEOUT_MS);
+                thirdPartyClient.SendTimeout = TimeSpan.FromMilliseconds(OPERATION_TIMEOUT_MS);
+
+                LogStep("连接第三方客户端");
+                var connectResult = await thirdPartyClient.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"第三方客户端连接失败: {connectResult.Message}");
+
+                var preheatedBoolRead = await thirdPartyClient.ReadBooleanAsync(THIRD_PARTY_BOOL_ADDRESS);
+                Assert.True(preheatedBoolRead.IsSuccess, $"第三方客户端读取预热布尔值失败: {preheatedBoolRead.Message}");
+                Assert.True(preheatedBoolRead.ResultValue);
+
+                var preheatedIntRead = await thirdPartyClient.ReadInt32Async(THIRD_PARTY_INT_ADDRESS);
+                Assert.True(preheatedIntRead.IsSuccess, $"第三方客户端读取预热整型值失败: {preheatedIntRead.Message}");
+                Assert.Equal(123456, preheatedIntRead.ResultValue);
+
+                var preheatedFloatRead = await thirdPartyClient.ReadFloatAsync(THIRD_PARTY_FLOAT_ADDRESS);
+                Assert.True(preheatedFloatRead.IsSuccess, $"第三方客户端读取预热浮点值失败: {preheatedFloatRead.Message}");
+                Assert.Equal(12.34f, preheatedFloatRead.ResultValue, 0.001f);
+
+                var writeBoolResult = await thirdPartyClient.WriteAsync(THIRD_PARTY_BOOL_ADDRESS, false);
+                Assert.True(writeBoolResult.IsSuccess, $"第三方客户端写入布尔值失败: {writeBoolResult.Message}");
+
+                var writeIntResult = await thirdPartyClient.WriteAsync(THIRD_PARTY_INT_ADDRESS, 654321);
+                Assert.True(writeIntResult.IsSuccess, $"第三方客户端写入整型值失败: {writeIntResult.Message}");
+
+                var writeFloatResult = await thirdPartyClient.WriteAsync(THIRD_PARTY_FLOAT_ADDRESS, 43.21f);
+                Assert.True(writeFloatResult.IsSuccess, $"第三方客户端写入浮点值失败: {writeFloatResult.Message}");
+
+                var serverBoolRead = _server.ReadBoolean(THIRD_PARTY_BOOL_ADDRESS);
+                Assert.True(serverBoolRead.IsSuccess, $"服务器读取第三方写入布尔值失败: {serverBoolRead.Message}");
+                Assert.False(serverBoolRead.ResultValue);
+
+                var serverIntRead = _server.ReadInt32(THIRD_PARTY_INT_ADDRESS);
+                Assert.True(serverIntRead.IsSuccess, $"服务器读取第三方写入整型值失败: {serverIntRead.Message}");
+                Assert.Equal(654321, serverIntRead.ResultValue);
+
+                var serverFloatRead = _server.ReadFloat(THIRD_PARTY_FLOAT_ADDRESS);
+                Assert.True(serverFloatRead.IsSuccess, $"服务器读取第三方写入浮点值失败: {serverFloatRead.Message}");
+                Assert.Equal(43.21f, serverFloatRead.ResultValue, 0.001f);
+
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                if (thirdPartyClient != null)
+                {
+                    try
+                    {
+                        await thirdPartyClient.DisconnectAsync();
+                    }
+                    catch
+                    {
+                    }
+                    finally
+                    {
+                        thirdPartyClient.Dispose();
+                    }
+                }
+
+                await CleanupResources();
+            }
+        }
+
         #endregion
 
         #region 私有方法
+
+        private void PreheatThirdPartyRegisters()
+        {
+            var writeBoolResult = _server.Write(THIRD_PARTY_BOOL_ADDRESS, true);
+            Assert.True(writeBoolResult.IsSuccess, $"预热布尔寄存器失败: {writeBoolResult.Message}");
+
+            var writeIntResult = _server.Write(THIRD_PARTY_INT_ADDRESS, 123456);
+            Assert.True(writeIntResult.IsSuccess, $"预热整型寄存器失败: {writeIntResult.Message}");
+
+            var writeFloatResult = _server.Write(THIRD_PARTY_FLOAT_ADDRESS, 12.34f);
+            Assert.True(writeFloatResult.IsSuccess, $"预热浮点寄存器失败: {writeFloatResult.Message}");
+        }
 
         /// <summary>
         /// 启动S7服务器

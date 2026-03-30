@@ -9,7 +9,7 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusRTUClient : ModbusRTUClientBase, IDeviceClient, IModbusClient
+    public class ModbusRtuClient : ModbusRtuClientBase, IDeviceClient, IModbusClient
     {
         private readonly SerialPortAdapter _serialPortAdapter;
         private readonly AsyncLock _lock = new AsyncLock();
@@ -35,7 +35,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         // 串口名称
         public string PortName => _serialPortAdapter?.PortName;
 
-        public ModbusRTUClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None
+        public ModbusRtuClient(string portName, int baudRate = 9600, int dataBits = 8, StopBits stopBits = StopBits.One, Parity parity = Parity.None, Handshake handshake = Handshake.None
             ) :base(new DeviceMessageTransport(new SerialPortAdapter(portName, baudRate,dataBits,stopBits,parity,handshake)))
         {
             _serialPortAdapter = (SerialPortAdapter)this.Transport.StreamResource;

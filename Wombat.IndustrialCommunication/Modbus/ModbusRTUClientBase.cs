@@ -7,18 +7,18 @@ using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
-    public class ModbusRTUClientBase : DeviceDataReaderWriterBase
+    public class ModbusRtuClientBase : DeviceDataReaderWriterBase
     {
         private AsyncLock _lock = new AsyncLock();
         private volatile int _transactionId = 0;
-        public ModbusRTUClientBase(DeviceMessageTransport transport):base(transport)
+        public ModbusRtuClientBase(DeviceMessageTransport transport):base(transport)
         {
             DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
             IsReverse = true;
 
         }
 
-        public override string Version => nameof(ModbusRTUClientBase);
+        public override string Version => nameof(ModbusRtuClientBase);
 
         // 批量读写相关结构体
         protected struct ModbusAddressInfo

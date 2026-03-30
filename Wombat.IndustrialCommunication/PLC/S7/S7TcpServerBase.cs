@@ -147,6 +147,9 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     case 0xE0: // 连接建立请求
                         return HandleConnectionRequest(request);
+
+                    case 0xF0: // Setup Communication 初始化请求
+                        return HandleConnectionRequest(request);
                         
                     case 0x04: // 读取请求
                         return HandleReadRequest(request);
@@ -223,9 +226,9 @@ namespace Wombat.IndustrialCommunication.PLC
                         return 0;
                 }
 
-                // 计算S7头的偏移量
-                int s7Offset = 4 + cotpLength;
-                if (s7Offset + 7 >= request.Length)
+                // 计算S7头的偏移量（COTP长度字段不包含自身1字节）
+                int s7Offset = 5 + cotpLength;
+                if (s7Offset + 10 >= request.Length)
                 {
                     Logger?.LogWarning("S7头长度不足");
                     return 0;
@@ -246,10 +249,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 switch (s7MessageType)
                 {
                     case 0x01: // Job Request
-                        // 进一步解析功能码
-                        if (s7Offset + 17 < request.Length)
+                        // 进一步解析功能码（参数区首字节）
+                        if (s7Offset + 10 < request.Length)
                         {
-                            byte functionCode = request[s7Offset + 17];
+                            byte functionCode = request[s7Offset + 10];
                             Logger?.LogDebug("S7功能码: {FunctionCode:X2}", functionCode);
                             return functionCode;
                         }
