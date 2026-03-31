@@ -15,11 +15,23 @@ namespace Wombat.IndustrialCommunication.Modbus
     {
         private readonly AsyncLock _lock = new AsyncLock();
         protected readonly ServerMessageTransport _transport;
+        private byte _slaveId = 1;
         
         /// <summary>
         /// 数据存储
         /// </summary>
         public DataStore DataStore { get; } = DataStoreFactory.CreateDefaultDataStore();
+
+        public byte SlaveId
+        {
+            get => _slaveId;
+            set
+            {
+                if (value < 1 || value > 247)
+                    throw new ArgumentOutOfRangeException(nameof(value), "SlaveId must be between 1 and 247.");
+                _slaveId = value;
+            }
+        }
 
         /// <summary>
         /// 是否正在监听
@@ -89,6 +101,10 @@ namespace Wombat.IndustrialCommunication.Modbus
                 // 解析请求
                 byte station = request[0];
                 byte functionCode = request[1];
+                bool isBroadcast = station == 0;
+
+                if (!isBroadcast && station != SlaveId)
+                    return;
                 
                 // 提取数据区域（不包括站号、功能码和CRC）
                 byte[] data = new byte[request.Length - 4];
@@ -131,8 +147,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                 
                 if (responseData != null)
                 {
+                    if (isBroadcast)
+                        return;
+
                     // 创建响应帧
-                    var responseGenerator = new ModbusRTUResponseGenerator(station, functionCode, responseData);
+                    var responseGenerator = new ModbusRTUResponseGenerator(SlaveId, functionCode, responseData);
                     byte[] response = responseGenerator.ResponseFrame;
                     
                     // 发送响应
@@ -141,11 +160,14 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             catch (InvalidModbusRequestException ex)
             {
+                if (request[0] == 0 || request[0] != SlaveId)
+                    return;
+
                 // 处理Modbus协议异常
                 byte[] exceptionResponse = CreateExceptionResponse(request[1], ex.ExceptionCode);
                 if (exceptionResponse != null)
                 {
-                    var responseGenerator = new ModbusRTUResponseGenerator(request[0], (byte)(request[1] | 0x80), new byte[] { ex.ExceptionCode });
+                    var responseGenerator = new ModbusRTUResponseGenerator(SlaveId, (byte)(request[1] | 0x80), new byte[] { ex.ExceptionCode });
                     _ = receivedMessage.Session.SendAsync(responseGenerator.ResponseFrame);
                 }
                 

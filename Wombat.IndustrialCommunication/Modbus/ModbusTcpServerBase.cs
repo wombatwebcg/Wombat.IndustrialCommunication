@@ -17,11 +17,23 @@ namespace Wombat.IndustrialCommunication.Modbus
     {
         private readonly AsyncLock _lock = new AsyncLock();
         protected readonly ServerMessageTransport _transport;
+        private byte _slaveId = 1;
         
         /// <summary>
         /// 数据存储
         /// </summary>
         public DataStore DataStore { get; } = DataStoreFactory.CreateDefaultDataStore();
+
+        public byte SlaveId
+        {
+            get => _slaveId;
+            set
+            {
+                if (value < 1 || value > 247)
+                    throw new ArgumentOutOfRangeException(nameof(value), "SlaveId must be between 1 and 247.");
+                _slaveId = value;
+            }
+        }
 
         /// <summary>
         /// 构造函数
@@ -85,6 +97,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                 ushort length = (ushort)((message.Data[4] << 8) | message.Data[5]);
                 byte unitId = message.Data[6];
                 byte functionCode = message.Data[7];
+
+                if (unitId != SlaveId)
+                    return;
 
                 Logger?.LogDebug(
                     "收到Modbus请求: TransactionId={TransactionId}, ProtocolId={ProtocolId}, Length={Length}, UnitId={UnitId}, FunctionCode={FunctionCode:X2}",
