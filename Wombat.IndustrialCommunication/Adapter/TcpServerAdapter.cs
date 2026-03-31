@@ -172,7 +172,10 @@ namespace Wombat.IndustrialCommunication
             set
             {
                 _backlog = value;
-                _listenerSocket.Listen(_backlog);
+                if (_listenerSocket?.IsBound == true)
+                {
+                    _listenerSocket.Listen(_backlog);
+                }
             }
         }
 
