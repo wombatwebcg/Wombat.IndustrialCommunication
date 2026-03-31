@@ -12,7 +12,7 @@ using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTestProject.PLCTests
+namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     /// <summary>
     /// S7-1200服务器并发读写测试类

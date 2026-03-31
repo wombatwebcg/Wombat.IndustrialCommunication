@@ -689,6 +689,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     case S7DataType.DBX:
                     case S7DataType.I:
                     case S7DataType.Q:
+                    case S7DataType.M:
                     case S7DataType.V:
                         // 位数据
                         if (offset < data.Length)
@@ -799,6 +800,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     case S7DataType.DBX:
                     case S7DataType.I:
                     case S7DataType.Q:
+                    case S7DataType.M:
                     case S7DataType.V:
                         // 位数据
                         if (value is bool boolValue)

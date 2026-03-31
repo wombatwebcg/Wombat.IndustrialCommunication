@@ -9,7 +9,7 @@ using Wombat.IndustrialCommunicationTestProject.Helper;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTestProject.PLCTests
+namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     /// <summary>
     /// FINS协议通信报文格式测试

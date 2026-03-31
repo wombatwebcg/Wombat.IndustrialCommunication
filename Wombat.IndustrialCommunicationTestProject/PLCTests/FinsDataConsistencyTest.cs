@@ -10,7 +10,7 @@ using Xunit;
 using Xunit.Abstractions;
 using Wombat.IndustrialCommunicationTestProject.Helper;
 
-namespace Wombat.IndustrialCommunicationTestProject.PLCTests
+namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
     /// <summary>
     /// FINS客户端数据一致性测试 - 连接到真实FINS服务器

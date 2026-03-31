@@ -880,53 +880,50 @@ namespace Wombat.IndustrialCommunication.PLC
                     return OperationResult.CreateSuccessResult(new Dictionary<string, (DataTypeEnums, object)>());
                 }
 
-                var result = new Dictionary<string, (DataTypeEnums, object)>();
+                var internalAddresses = addresses.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value, (object)null));
+                var addressInfos = S7BatchHelper.ParseS7Addresses(internalAddresses);
+                if (addressInfos.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("没有有效的S7地址可以读取");
+                }
+
+                var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos);
+                if (optimizedBlocks.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("S7地址块优化失败");
+                }
+
+                var blockData = new Dictionary<string, byte[]>();
                 var errors = new List<string>();
+
+                foreach (var block in optimizedBlocks)
+                {
+                    var readResult = ReadBlock(block);
+                    if (readResult.IsSuccess)
+                    {
+                        blockData[BuildBlockKey(block)] = readResult.ResultValue;
+                    }
+                    else
+                    {
+                        errors.Add($"读取块 {DescribeBlock(block)} 失败: {readResult.Message}");
+                    }
+                }
+
+                var extractedValues = ExtractValuesFromBlocks(blockData, optimizedBlocks);
+                var result = new Dictionary<string, (DataTypeEnums, object)>();
 
                 foreach (var kvp in addresses)
                 {
-                    try
-                    {
-                        var address = kvp.Key;
-                        var dataType = kvp.Value;
-                        
-                        // 解析S7地址
-                        var addressParseResult = ParseS7Address(address);
-                        if (addressParseResult == null)
-                        {
-                            errors.Add($"无效的S7地址: {address}");
-                            continue;
-                        }
-
-                        var addressInfo = addressParseResult.Value.AddressInfo;
-                        var area = addressParseResult.Value.Area;
-
-                        // 读取数据
-                        var readResult = ReadArea(area, addressInfo.DbNumber, addressInfo.StartByte, addressInfo.Length);
-                        if (readResult.IsSuccess)
-                        {
-                            // 转换数据类型
-                            var convertedValue = ConvertBytesToValue(readResult.ResultValue, dataType, addressInfo.Length);
-                            result[address] = (dataType, convertedValue);
-                        }
-                        else
-                        {
-                            errors.Add($"读取地址 {address} 失败: {readResult.Message}");
-                        }
-                    }
-                    catch (Exception ex)
-                    {
-                        errors.Add($"处理地址 {kvp.Key} 时发生错误: {ex.Message}");
-                    }
+                    extractedValues.TryGetValue(kvp.Key, out var value);
+                    result[kvp.Key] = (kvp.Value, value);
                 }
 
-                if (errors.Count > 0)
+                return new OperationResult<Dictionary<string, (DataTypeEnums, object)>>
                 {
-                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>(
-                        $"批量读取部分失败: {string.Join("; ", errors)}");
-                }
-
-                return OperationResult.CreateSuccessResult(result);
+                    IsSuccess = errors.Count == 0,
+                    Message = errors.Count == 0 ? string.Empty : string.Join("; ", errors),
+                    ResultValue = result
+                }.Complete();
             }
             catch (Exception ex)
             {
@@ -1503,64 +1500,249 @@ namespace Wombat.IndustrialCommunication.PLC
                     return OperationResult.CreateSuccessResult();
                 }
 
+                var addressInfos = S7BatchHelper.ParseS7Addresses(addresses);
+                if (addressInfos.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult("没有有效的S7地址可以写入");
+                }
+
+                var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos);
+                if (optimizedBlocks.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult("S7写入地址块优化失败");
+                }
+
                 var errors = new List<string>();
                 var successCount = 0;
 
-                foreach (var kvp in addresses)
+                foreach (var block in optimizedBlocks)
                 {
-                    try
+                    var buildResult = BuildWriteBuffer(block, addresses);
+                    if (!buildResult.IsSuccess)
                     {
-                        var address = kvp.Key;
-                        var (dataType, value) = kvp.Value;
-
-                        // 解析S7地址
-                        var addressParseResult = ParseS7Address(address);
-                        if (addressParseResult == null)
-                        {
-                            errors.Add($"无效的S7地址: {address}");
-                            continue;
-                        }
-
-                        var addressInfo = addressParseResult.Value.AddressInfo;
-                        var area = addressParseResult.Value.Area;
-
-                        // 将值转换为字节数组
-                        byte[] data = ConvertValueToBytes(value, dataType);
-                        if (data == null)
-                        {
-                            errors.Add($"地址 {address} 的值转换失败");
-                            continue;
-                        }
-
-                        // 写入数据
-                        var writeResult = WriteArea(area, addressInfo.DbNumber, addressInfo.StartByte, data);
-                        if (writeResult.IsSuccess)
-                        {
-                            successCount++;
-                        }
-                        else
-                        {
-                            errors.Add($"写入地址 {address} 失败: {writeResult.Message}");
-                        }
+                        errors.Add($"构建写入块 {DescribeBlock(block)} 失败: {buildResult.Message}");
+                        continue;
                     }
-                    catch (Exception ex)
+
+                    var writeResult = WriteBlock(block, buildResult.ResultValue);
+                    if (writeResult.IsSuccess)
                     {
-                        errors.Add($"处理地址 {kvp.Key} 时发生错误: {ex.Message}");
+                        successCount += block.Addresses.Count;
+                    }
+                    else
+                    {
+                        errors.Add($"写入块 {DescribeBlock(block)} 失败: {writeResult.Message}");
                     }
                 }
 
-                if (errors.Count > 0)
+                if (errors.Count == 0)
                 {
-                    return OperationResult.CreateFailedResult(
-                        $"批量写入部分失败: {string.Join("; ", errors)}");
+                    return OperationResult.CreateSuccessResult();
                 }
 
-                return OperationResult.CreateSuccessResult();
+                return OperationResult.CreateFailedResult($"批量写入部分失败: {string.Join("; ", errors)}");
             }
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "批量写入失败");
                 return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        private OperationResult<byte[]> ReadBlock(S7BatchHelper.S7AddressBlock block)
+        {
+            try
+            {
+                if (block.Addresses.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult<byte[]>("地址块为空");
+                }
+
+                var area = GetArea(block.Addresses[0]);
+                return ReadArea(area, block.DbNumber, block.StartByte, block.TotalLength);
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<byte[]>(ex.Message);
+            }
+        }
+
+        private OperationResult WriteBlock(S7BatchHelper.S7AddressBlock block, byte[] buffer)
+        {
+            try
+            {
+                if (block.Addresses.Count == 0)
+                {
+                    return OperationResult.CreateFailedResult("地址块为空");
+                }
+
+                var area = GetArea(block.Addresses[0]);
+                return WriteArea(area, block.DbNumber, block.StartByte, buffer);
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        private OperationResult<byte[]> BuildWriteBuffer(S7BatchHelper.S7AddressBlock block, Dictionary<string, (DataTypeEnums, object)> addresses)
+        {
+            try
+            {
+                var readResult = ReadBlock(block);
+                if (!readResult.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(readResult.Message);
+                }
+
+                var buffer = readResult.ResultValue.ToArray();
+                foreach (var addressInfo in block.Addresses)
+                {
+                    if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>($"地址 {addressInfo.OriginalAddress} 缺少写入值");
+                    }
+
+                    var converted = S7BatchHelper.ConvertValueToS7Bytes(valueTuple.Item2, addressInfo, IsReverse, DataFormat);
+                    if (converted == null || converted.Length == 0)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>($"地址 {addressInfo.OriginalAddress} 的值转换失败");
+                    }
+
+                    var offset = addressInfo.StartByte - block.StartByte;
+                    if (offset < 0 || offset >= buffer.Length)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>($"地址 {addressInfo.OriginalAddress} 的写入偏移超出范围");
+                    }
+
+                    if (S7BatchHelper.IsBitType(addressInfo.DataType))
+                    {
+                        if (converted[0] == 0)
+                        {
+                            buffer[offset] = (byte)(buffer[offset] & ~(1 << addressInfo.BitOffset));
+                        }
+                        else
+                        {
+                            buffer[offset] = (byte)(buffer[offset] | (1 << addressInfo.BitOffset));
+                        }
+                    }
+                    else
+                    {
+                        if (offset + converted.Length > buffer.Length)
+                        {
+                            return OperationResult.CreateFailedResult<byte[]>($"地址 {addressInfo.OriginalAddress} 的写入长度超出范围");
+                        }
+
+                        Array.Copy(converted, 0, buffer, offset, converted.Length);
+                    }
+                }
+
+                return new OperationResult<byte[]>
+                {
+                    ResultValue = buffer
+                }.Complete();
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<byte[]>(ex.Message);
+            }
+        }
+
+        private Dictionary<string, object> ExtractValuesFromBlocks(Dictionary<string, byte[]> blockData, List<S7BatchHelper.S7AddressBlock> blocks)
+        {
+            var result = new Dictionary<string, object>();
+
+            foreach (var block in blocks)
+            {
+                if (!blockData.TryGetValue(BuildBlockKey(block), out var data))
+                {
+                    foreach (var addressInfo in block.Addresses)
+                    {
+                        result[addressInfo.OriginalAddress] = null;
+                    }
+
+                    continue;
+                }
+
+                foreach (var addressInfo in block.Addresses)
+                {
+                    try
+                    {
+                        var offset = addressInfo.StartByte - block.StartByte;
+                        if (offset < 0 || offset >= data.Length)
+                        {
+                            result[addressInfo.OriginalAddress] = null;
+                            continue;
+                        }
+
+                        if (S7BatchHelper.IsBitType(addressInfo.DataType))
+                        {
+                            result[addressInfo.OriginalAddress] = (data[offset] & (1 << addressInfo.BitOffset)) != 0;
+                            continue;
+                        }
+
+                        if (offset + addressInfo.Length > data.Length)
+                        {
+                            result[addressInfo.OriginalAddress] = null;
+                            continue;
+                        }
+
+                        var segment = new byte[addressInfo.Length];
+                        Array.Copy(data, offset, segment, 0, addressInfo.Length);
+                        result[addressInfo.OriginalAddress] = ConvertBytesToValue(segment, addressInfo.TargetDataType, addressInfo.Length);
+                    }
+                    catch
+                    {
+                        result[addressInfo.OriginalAddress] = null;
+                    }
+                }
+            }
+
+            return result;
+        }
+
+        private static string BuildBlockKey(S7BatchHelper.S7AddressBlock block)
+        {
+            if (block.Addresses.Count == 0)
+            {
+                return $"{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
+            }
+
+            var areaType = S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType);
+            return areaType == "DB" || areaType == "V"
+                ? $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}"
+                : $"{areaType}_{block.StartByte}_{block.TotalLength}";
+        }
+
+        private static string DescribeBlock(S7BatchHelper.S7AddressBlock block)
+        {
+            if (block.Addresses.Count == 0)
+            {
+                return $"{block.StartByte}-{block.StartByte + block.TotalLength - 1}";
+            }
+
+            var areaType = S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType);
+            return areaType == "DB" || areaType == "V"
+                ? $"DB{block.DbNumber}:{block.StartByte}-{block.StartByte + block.TotalLength - 1}"
+                : $"{areaType}:{block.StartByte}-{block.StartByte + block.TotalLength - 1}";
+        }
+
+        private static S7Area GetArea(S7BatchHelper.S7AddressInfo addressInfo)
+        {
+            var areaType = S7BatchHelper.GetS7AreaType(addressInfo.DataType);
+            switch (areaType)
+            {
+                case "DB":
+                case "V":
+                    return S7Area.DB;
+                case "I":
+                    return S7Area.I;
+                case "Q":
+                    return S7Area.Q;
+                case "M":
+                    return S7Area.M;
+                default:
+                    throw new ArgumentException($"不支持的S7区域类型: {addressInfo.DataType}");
             }
         }
         
