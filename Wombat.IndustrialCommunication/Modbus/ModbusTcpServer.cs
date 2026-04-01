@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus.Data;
@@ -18,6 +20,10 @@ namespace Wombat.IndustrialCommunication.Modbus
         private readonly TcpServerAdapter _tcpServerAdapter;
         private readonly ServerMessageTransport _serverTransport;
         private const int DEFAULT_TIMEOUT_MS = 3000;
+        private readonly object _snapshotSyncRoot = new object();
+        private Timer _snapshotTimer;
+        private volatile bool _snapshotDirty;
+        private bool _enableSnapshotPersistence;
         
         /// <summary>
         /// IP终结点
@@ -61,6 +67,27 @@ namespace Wombat.IndustrialCommunication.Modbus
             set => _tcpServerAdapter.SendTimeout = value;
         }
 
+        public bool EnableSnapshotPersistence
+        {
+            get => _enableSnapshotPersistence;
+            set
+            {
+                _enableSnapshotPersistence = value;
+                if (value)
+                {
+                    StartSnapshotTimer();
+                }
+                else
+                {
+                    StopSnapshotTimer();
+                }
+            }
+        }
+
+        public string SnapshotFilePath { get; set; }
+
+        public TimeSpan SnapshotSaveInterval { get; set; } = TimeSpan.FromSeconds(5);
+
         /// <summary>
         /// 构造函数
         /// </summary>
@@ -79,6 +106,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             _tcpServerAdapter = (TcpServerAdapter)base._transport.StreamResource;
             _serverTransport = base._transport;
             IPEndPoint = ipEndPoint;
+            InitializeSnapshotPersistence();
         }
 
         /// <summary>
@@ -105,6 +133,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             
             IPEndPoint = new IPEndPoint(address, port);
+            InitializeSnapshotPersistence();
         }
 
         /// <summary>
@@ -113,6 +142,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns>操作结果</returns>
         public OperationResult Listen()
         {
+            if (EnableSnapshotPersistence)
+            {
+                TryLoadSnapshot();
+                StartSnapshotTimer();
+            }
+
             return StartAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
@@ -122,6 +157,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns>操作结果</returns>
         public OperationResult Shutdown()
         {
+            if (EnableSnapshotPersistence)
+            {
+                TrySaveSnapshot(true);
+                StopSnapshotTimer();
+            }
+
             return StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
@@ -156,6 +197,194 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             var adapter = new TcpServerAdapter(ip, port);
             return new ServerMessageTransport(adapter);
+        }
+
+        private void InitializeSnapshotPersistence()
+        {
+            SnapshotFilePath = GetDefaultSnapshotFilePath();
+            DataStore.DataStoreWrittenTo += HandleSnapshotDataWritten;
+        }
+
+        private string GetDefaultSnapshotFilePath()
+        {
+            return Path.Combine(AppContext.BaseDirectory, "Snapshots", $"ModbusTcpServer_{IPEndPoint.Port}.snapshot");
+        }
+
+        private void HandleSnapshotDataWritten(object sender, DataStoreEventArgs e)
+        {
+            if (!EnableSnapshotPersistence)
+            {
+                return;
+            }
+
+            _snapshotDirty = true;
+        }
+
+        private void StartSnapshotTimer()
+        {
+            if (!EnableSnapshotPersistence)
+            {
+                return;
+            }
+
+            var interval = SnapshotSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(5) : SnapshotSaveInterval;
+            lock (_snapshotSyncRoot)
+            {
+                if (_snapshotTimer == null)
+                {
+                    _snapshotTimer = new Timer(_ => TrySaveSnapshot(false), null, interval, interval);
+                    return;
+                }
+
+                _snapshotTimer.Change(interval, interval);
+            }
+        }
+
+        private void StopSnapshotTimer()
+        {
+            lock (_snapshotSyncRoot)
+            {
+                _snapshotTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+        }
+
+        private void TryLoadSnapshot()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(SnapshotFilePath) || !File.Exists(SnapshotFilePath))
+                {
+                    return;
+                }
+
+                ServerSnapshotPersistence.LoadModbusSnapshot(SnapshotFilePath, DataStore);
+                _snapshotDirty = false;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "加载Modbus TCP快照失败: {SnapshotFilePath}", SnapshotFilePath);
+            }
+        }
+
+        private void TrySaveSnapshot(bool force)
+        {
+            try
+            {
+                SaveSnapshot(force);
+            }
+            catch (Exception ex)
+            {
+                _snapshotDirty = true;
+                Logger?.LogError(ex, "保存Modbus TCP快照失败: {SnapshotFilePath}", SnapshotFilePath);
+            }
+        }
+
+        private void SaveSnapshot(bool force)
+        {
+            if (!EnableSnapshotPersistence || string.IsNullOrWhiteSpace(SnapshotFilePath))
+            {
+                return;
+            }
+
+            lock (_snapshotSyncRoot)
+            {
+                if (!force && !_snapshotDirty)
+                {
+                    return;
+                }
+
+                ServerSnapshotPersistence.SaveModbusSnapshot(SnapshotFilePath, DataStore);
+                _snapshotDirty = false;
+            }
+        }
+
+        public OperationResult DeleteSnapshot()
+        {
+            try
+            {
+                lock (_snapshotSyncRoot)
+                {
+                    ServerSnapshotPersistence.DeleteSnapshot(SnapshotFilePath);
+                    _snapshotDirty = false;
+                }
+
+                return OperationResult.CreateSuccessResult();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "删除Modbus TCP快照失败: {SnapshotFilePath}", SnapshotFilePath);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        public OperationResult ResetDataAndDeleteSnapshot()
+        {
+            try
+            {
+                lock (_snapshotSyncRoot)
+                {
+                    ResetDataStore();
+                    ServerSnapshotPersistence.DeleteSnapshot(SnapshotFilePath);
+                    _snapshotDirty = false;
+                }
+
+                return OperationResult.CreateSuccessResult();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "重置Modbus TCP数据并删除快照失败: {SnapshotFilePath}", SnapshotFilePath);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        public event EventHandler<DataStoreEventArgs> DataWritten
+        {
+            add { DataStore.DataStoreWrittenTo += value; }
+            remove { DataStore.DataStoreWrittenTo -= value; }
+        }
+
+        public event EventHandler<DataStoreEventArgs> DataRead
+        {
+            add { DataStore.DataStoreReadFrom += value; }
+            remove { DataStore.DataStoreReadFrom -= value; }
+        }
+
+        private void ResetDataStore()
+        {
+            lock (DataStore.SyncRoot)
+            {
+                if (DataStore.CoilDiscretes != null)
+                {
+                    for (var index = 0; index < DataStore.CoilDiscretes.Size; index++)
+                    {
+                        DataStore.CoilDiscretes[index] = false;
+                    }
+                }
+
+                if (DataStore.InputDiscretes != null)
+                {
+                    for (var index = 0; index < DataStore.InputDiscretes.Size; index++)
+                    {
+                        DataStore.InputDiscretes[index] = false;
+                    }
+                }
+
+                if (DataStore.HoldingRegisters != null)
+                {
+                    for (var index = 0; index < DataStore.HoldingRegisters.Size; index++)
+                    {
+                        DataStore.HoldingRegisters[index] = 0;
+                    }
+                }
+
+                if (DataStore.InputRegisters != null)
+                {
+                    for (var index = 0; index < DataStore.InputRegisters.Size; index++)
+                    {
+                        DataStore.InputRegisters[index] = 0;
+                    }
+                }
+            }
         }
         
         #region IReadWrite 接口实现
@@ -876,7 +1105,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         }
 
                         var boolValue = (bool)normalizedValue;
-                        DataStore.CoilDiscretes[addressInfo.Address] = boolValue;
+                        DataStore.WriteCoilsDirect(addressInfo.Address, new[] { boolValue });
                         return new OperationResult().Complete();
 
                     case 0x06:
@@ -1178,12 +1407,15 @@ namespace Wombat.IndustrialCommunication.Modbus
         private void WriteHoldingRegisters(ushort startAddress, byte[] bytes)
         {
             var registerCount = Math.Max(1, (bytes.Length + 1) / 2);
+            var values = new ushort[registerCount];
             for (var index = 0; index < registerCount; index++)
             {
                 var high = bytes[index * 2];
                 var low = index * 2 + 1 < bytes.Length ? bytes[index * 2 + 1] : (byte)0;
-                DataStore.HoldingRegisters[startAddress + index] = (ushort)((high << 8) | low);
+                values[index] = (ushort)((high << 8) | low);
             }
+
+            DataStore.WriteHoldingRegistersDirect(startAddress, values);
         }
 
         private OperationResult<byte[]> ReadBlockBytes(ModbusBatchHelper.ModbusAddressBlock block)
@@ -1363,11 +1595,13 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         private void ApplyCoilBlock(ModbusWriteBlock block)
         {
+            var values = new bool[block.Length];
             for (var index = 0; index < block.Length; index++)
             {
-                var bitValue = (block.Buffer[index / 8] & (1 << (index % 8))) != 0;
-                DataStore.CoilDiscretes[block.StartAddress + index] = bitValue;
+                values[index] = (block.Buffer[index / 8] & (1 << (index % 8))) != 0;
             }
+
+            DataStore.WriteCoilsDirect(block.StartAddress, values);
         }
 
         private static int GetEndAddress(ModbusWriteItem item)
@@ -1410,6 +1644,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             if (disposing)
             {
+                StopSnapshotTimer();
+                _snapshotTimer?.Dispose();
+
                 // 确保服务器已关闭
                 Shutdown();
                 

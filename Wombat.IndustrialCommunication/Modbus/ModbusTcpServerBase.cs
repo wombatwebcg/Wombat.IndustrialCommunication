@@ -489,8 +489,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             try
             {
-                // 写入数据
-                DataStore.CoilDiscretes[address] = value == 0xFF00;
+                DataStore.WriteCoilsDirect(address, new[] { value == 0xFF00 });
 
                 // 创建响应（与请求相同）
                 byte[] response = new byte[12];
@@ -520,8 +519,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             try
             {
-                // 写入数据
-                DataStore.HoldingRegisters[address] = value;
+                DataStore.WriteHoldingRegistersDirect(address, new[] { value });
 
                 // 创建响应（与请求相同）
                 byte[] response = new byte[12];
@@ -556,13 +554,14 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             try
             {
-                // 写入数据
+                var values = new bool[quantity];
                 for (int i = 0; i < quantity; i++)
                 {
                     byte byteValue = request[13 + i / 8];
-                    bool bitValue = (byteValue & (1 << (i % 8))) != 0;
-                    DataStore.CoilDiscretes[startAddress + i] = bitValue;
+                    values[i] = (byteValue & (1 << (i % 8))) != 0;
                 }
+
+                DataStore.WriteCoilsDirect(startAddress, values);
 
                 // 创建响应
                 byte[] response = new byte[12];
@@ -622,12 +621,13 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             try
             {
-                // 写入数据
+                var values = new ushort[quantity];
                 for (int i = 0; i < quantity; i++)
                 {
-                    ushort value = (ushort)((request[13 + i * 2] << 8) | request[14 + i * 2]);
-                    DataStore.HoldingRegisters[startAddress + i] = value;
+                    values[i] = (ushort)((request[13 + i * 2] << 8) | request[14 + i * 2]);
                 }
+
+                DataStore.WriteHoldingRegistersDirect(startAddress, values);
 
                 // 创建响应
                 byte[] response = new byte[12];

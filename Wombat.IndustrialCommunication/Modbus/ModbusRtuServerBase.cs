@@ -414,8 +414,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (value != 0 && value != 0xFF00)
                 throw new InvalidModbusRequestException(3); // 非法数据值
                 
-            // 设置线圈状态
-            DataStore.CoilDiscretes[address] = value == 0xFF00;
+            DataStore.WriteCoilsDirect(address, new[] { value == 0xFF00 });
             
             // 响应与请求相同
             return data;
@@ -435,8 +434,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             ushort address = (ushort)((data[0] << 8) | data[1]);
             ushort value = (ushort)((data[2] << 8) | data[3]);
             
-            // 设置寄存器值
-            DataStore.HoldingRegisters[address] = value;
+            DataStore.WriteHoldingRegistersDirect(address, new[] { value });
             
             // 响应与请求相同
             return data;
@@ -463,12 +461,13 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (data.Length < 5 + byteCount)
                 throw new InvalidModbusRequestException(3); // 非法数据值
                 
-            // 设置线圈状态
+            var values = new bool[quantity];
             for (int i = 0; i < quantity; i++)
             {
-                bool value = (data[5 + (i / 8)] & (1 << (i % 8))) != 0;
-                DataStore.CoilDiscretes[startAddress + i] = value;
+                values[i] = (data[5 + (i / 8)] & (1 << (i % 8))) != 0;
             }
+
+            DataStore.WriteCoilsDirect(startAddress, values);
             
             // 响应包含地址和数量
             byte[] response = new byte[4];
@@ -501,12 +500,13 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (data.Length < 5 + byteCount)
                 throw new InvalidModbusRequestException(3); // 非法数据值
                 
-            // 设置寄存器值
+            var values = new ushort[quantity];
             for (int i = 0; i < quantity; i++)
             {
-                ushort value = (ushort)((data[5 + i * 2] << 8) | data[5 + i * 2 + 1]);
-                DataStore.HoldingRegisters[startAddress + i] = value;
+                values[i] = (ushort)((data[5 + i * 2] << 8) | data[5 + i * 2 + 1]);
             }
+
+            DataStore.WriteHoldingRegistersDirect(startAddress, values);
             
             // 响应包含地址和数量
             byte[] response = new byte[4];

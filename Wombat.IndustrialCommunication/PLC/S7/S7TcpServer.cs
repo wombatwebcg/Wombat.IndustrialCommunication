@@ -1,9 +1,11 @@
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus.Data;
@@ -18,6 +20,10 @@ namespace Wombat.IndustrialCommunication.PLC
         private readonly TcpServerAdapter _tcpServerAdapter;
         private readonly ServerMessageTransport _serverTransport;
         private const int DEFAULT_TIMEOUT_MS = 3000;
+        private readonly object _snapshotSyncRoot = new object();
+        private Timer _snapshotTimer;
+        private volatile bool _snapshotDirty;
+        private bool _enableSnapshotPersistence;
         
         /// <summary>
         /// IP终结点
@@ -60,6 +66,27 @@ namespace Wombat.IndustrialCommunication.PLC
             get => _tcpServerAdapter.SendTimeout;
             set => _tcpServerAdapter.SendTimeout = value;
         }
+
+        public bool EnableSnapshotPersistence
+        {
+            get => _enableSnapshotPersistence;
+            set
+            {
+                _enableSnapshotPersistence = value;
+                if (value)
+                {
+                    StartSnapshotTimer();
+                }
+                else
+                {
+                    StopSnapshotTimer();
+                }
+            }
+        }
+
+        public string SnapshotFilePath { get; set; }
+
+        public TimeSpan SnapshotSaveInterval { get; set; } = TimeSpan.FromSeconds(5);
         
         /// <summary>
         /// 构造函数，使用默认IP和端口（0.0.0.0:102）
@@ -79,6 +106,7 @@ namespace Wombat.IndustrialCommunication.PLC
             _tcpServerAdapter = (TcpServerAdapter)base._transport.StreamResource;
             _serverTransport = base._transport;
             IPEndPoint = ipEndPoint;
+            InitializeSnapshotPersistence();
         }
         
         /// <summary>
@@ -105,6 +133,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             
             IPEndPoint = new IPEndPoint(address, port);
+            InitializeSnapshotPersistence();
         }
         
         /// <summary>
@@ -113,6 +142,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns>操作结果</returns>
         public OperationResult Listen()
         {
+            if (EnableSnapshotPersistence)
+            {
+                TryLoadSnapshot();
+                StartSnapshotTimer();
+            }
+
             return StartAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
         
@@ -122,6 +157,12 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns>操作结果</returns>
         public OperationResult Shutdown()
         {
+            if (EnableSnapshotPersistence)
+            {
+                TrySaveSnapshot(true);
+                StopSnapshotTimer();
+            }
+
             return StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
         
@@ -156,6 +197,135 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             var adapter = new TcpServerAdapter(ip, port);
             return new ServerMessageTransport(adapter);
+        }
+
+        private void InitializeSnapshotPersistence()
+        {
+            SnapshotFilePath = GetDefaultSnapshotFilePath();
+            DataStore.DataStoreWrittenTo += HandleSnapshotDataWritten;
+        }
+
+        private string GetDefaultSnapshotFilePath()
+        {
+            return Path.Combine(AppContext.BaseDirectory, "Snapshots", $"S7TcpServer_{IPEndPoint.Port}.snapshot");
+        }
+
+        private void HandleSnapshotDataWritten(object sender, S7DataStoreEventArgs e)
+        {
+            if (!EnableSnapshotPersistence)
+            {
+                return;
+            }
+
+            _snapshotDirty = true;
+        }
+
+        private void StartSnapshotTimer()
+        {
+            if (!EnableSnapshotPersistence)
+            {
+                return;
+            }
+
+            var interval = SnapshotSaveInterval <= TimeSpan.Zero ? TimeSpan.FromSeconds(5) : SnapshotSaveInterval;
+            lock (_snapshotSyncRoot)
+            {
+                if (_snapshotTimer == null)
+                {
+                    _snapshotTimer = new Timer(_ => TrySaveSnapshot(false), null, interval, interval);
+                    return;
+                }
+
+                _snapshotTimer.Change(interval, interval);
+            }
+        }
+
+        private void StopSnapshotTimer()
+        {
+            lock (_snapshotSyncRoot)
+            {
+                _snapshotTimer?.Change(Timeout.Infinite, Timeout.Infinite);
+            }
+        }
+
+        private void TryLoadSnapshot()
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(SnapshotFilePath) || !File.Exists(SnapshotFilePath))
+                {
+                    return;
+                }
+
+                ServerSnapshotPersistence.LoadS7Snapshot(SnapshotFilePath, DataStore);
+                _snapshotDirty = false;
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "加载S7快照失败: {SnapshotFilePath}", SnapshotFilePath);
+            }
+        }
+
+        private void TrySaveSnapshot(bool force)
+        {
+            try
+            {
+                SaveSnapshot(force);
+            }
+            catch (Exception ex)
+            {
+                _snapshotDirty = true;
+                Logger?.LogError(ex, "保存S7快照失败: {SnapshotFilePath}", SnapshotFilePath);
+            }
+        }
+
+        private void SaveSnapshot(bool force)
+        {
+            if (!EnableSnapshotPersistence || string.IsNullOrWhiteSpace(SnapshotFilePath))
+            {
+                return;
+            }
+
+            lock (_snapshotSyncRoot)
+            {
+                if (!force && !_snapshotDirty)
+                {
+                    return;
+                }
+
+                ServerSnapshotPersistence.SaveS7Snapshot(SnapshotFilePath, DataStore);
+                _snapshotDirty = false;
+            }
+        }
+
+        public OperationResult DeleteSnapshot()
+        {
+            try
+            {
+                lock (_snapshotSyncRoot)
+                {
+                    ServerSnapshotPersistence.DeleteSnapshot(SnapshotFilePath);
+                    _snapshotDirty = false;
+                }
+
+                return OperationResult.CreateSuccessResult();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "删除S7快照失败: {SnapshotFilePath}", SnapshotFilePath);
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        public OperationResult ResetDataAndDeleteSnapshot()
+        {
+            var resetResult = ResetAllDataAreas();
+            if (!resetResult.IsSuccess)
+            {
+                return resetResult;
+            }
+
+            return DeleteSnapshot();
         }
         
         #region 数据变化监听接口
@@ -2128,6 +2298,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (disposing)
             {
+                StopSnapshotTimer();
+                _snapshotTimer?.Dispose();
+
                 // 确保服务器已关闭
                 Shutdown();
                 

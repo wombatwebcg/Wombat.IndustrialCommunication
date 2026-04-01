@@ -141,6 +141,16 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
             WriteRegisters(dataStore, dataStore.InputRegisters, startAddress, values, ModbusDataType.InputRegister);
         }
 
+        internal void WriteCoilsDirect(ushort startAddress, IList<bool> values)
+        {
+            WriteDiscretesDirect(this, CoilDiscretes, startAddress, values, ModbusDataType.Coil);
+        }
+
+        internal void WriteHoldingRegistersDirect(ushort startAddress, IList<ushort> values)
+        {
+            WriteRegistersDirect(this, HoldingRegisters, startAddress, values, ModbusDataType.HoldingRegister);
+        }
+
         private static void WriteDiscretes(
             DataStore dataStore, 
             MemoryLite<bool> destination, 
@@ -186,6 +196,56 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
             }
 
             RaiseEvent(dataStore.DataStoreWrittenTo, dataStore, 
+                DataStoreEventArgs.CreateDataStoreEventArgs(startAddress, dataType, values));
+        }
+
+        private static void WriteDiscretesDirect(
+            DataStore dataStore,
+            MemoryLite<bool> destination,
+            ushort startAddress,
+            IList<bool> values,
+            ModbusDataType dataType)
+        {
+            if (values == null)
+                throw new ArgumentNullException(nameof(values));
+
+            if (destination.Size < startAddress + values.Count)
+                throw new InvalidModbusRequestException(2);
+
+            lock (dataStore.SyncRoot)
+            {
+                for (int i = 0; i < values.Count; i++)
+                {
+                    destination[startAddress + i] = values[i];
+                }
+            }
+
+            RaiseEvent(dataStore.DataStoreWrittenTo, dataStore,
+                DataStoreEventArgs.CreateDataStoreEventArgs(startAddress, dataType, values));
+        }
+
+        private static void WriteRegistersDirect(
+            DataStore dataStore,
+            MemoryLite<int> destination,
+            ushort startAddress,
+            IList<ushort> values,
+            ModbusDataType dataType)
+        {
+            if (values == null)
+                throw new ArgumentNullException(nameof(values));
+
+            if (destination.Size < startAddress + values.Count)
+                throw new InvalidModbusRequestException(2);
+
+            lock (dataStore.SyncRoot)
+            {
+                for (int i = 0; i < values.Count; i++)
+                {
+                    destination[startAddress + i] = values[i];
+                }
+            }
+
+            RaiseEvent(dataStore.DataStoreWrittenTo, dataStore,
                 DataStoreEventArgs.CreateDataStoreEventArgs(startAddress, dataType, values));
         }
     }
