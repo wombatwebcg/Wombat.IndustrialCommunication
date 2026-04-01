@@ -201,13 +201,13 @@ namespace Wombat.IndustrialCommunication.PLC
 
         private void InitializeSnapshotPersistence()
         {
-            SnapshotFilePath = GetDefaultSnapshotFilePath();
+            ConfigureSnapshotPersistence();
             DataStore.DataStoreWrittenTo += HandleSnapshotDataWritten;
         }
 
-        private string GetDefaultSnapshotFilePath()
+        public void ConfigureSnapshotPersistence(string name = null)
         {
-            return Path.Combine(AppContext.BaseDirectory, "Snapshots", $"S7TcpServer_{IPEndPoint.Port}.snapshot");
+            SnapshotFilePath = SnapshotFilePathHelper.Build("S7TcpServer", IPEndPoint.Port.ToString(), name);
         }
 
         private void HandleSnapshotDataWritten(object sender, S7DataStoreEventArgs e)

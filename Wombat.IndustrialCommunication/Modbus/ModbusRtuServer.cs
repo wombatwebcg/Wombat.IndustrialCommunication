@@ -213,13 +213,13 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         private void InitializeSnapshotPersistence()
         {
-            SnapshotFilePath = GetDefaultSnapshotFilePath();
+            ConfigureSnapshotPersistence();
             DataStore.DataStoreWrittenTo += HandleSnapshotDataWritten;
         }
 
-        private string GetDefaultSnapshotFilePath()
+        public void ConfigureSnapshotPersistence(string name = null)
         {
-            return Path.Combine(AppContext.BaseDirectory, "Snapshots", $"ModbusRtuServer_{PortName}.snapshot");
+            SnapshotFilePath = SnapshotFilePathHelper.Build("ModbusRtuServer", PortName, name);
         }
 
         private void HandleSnapshotDataWritten(object sender, DataStoreEventArgs e)

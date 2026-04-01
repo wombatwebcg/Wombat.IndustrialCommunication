@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.Modbus
     /// <summary>
     /// Modbus TCP服务器
     /// </summary>
-    public class ModbusTcpServer : ModbusTcpServerBase, IDeviceServer
+    public class ModbusTcpServer : ModbusTcpServerBase,IDeviceServer
     {
         private readonly TcpServerAdapter _tcpServerAdapter;
         private readonly ServerMessageTransport _serverTransport;
@@ -201,13 +201,13 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         private void InitializeSnapshotPersistence()
         {
-            SnapshotFilePath = GetDefaultSnapshotFilePath();
+            ConfigureSnapshotPersistence();
             DataStore.DataStoreWrittenTo += HandleSnapshotDataWritten;
         }
 
-        private string GetDefaultSnapshotFilePath()
+        public void ConfigureSnapshotPersistence(string name = null)
         {
-            return Path.Combine(AppContext.BaseDirectory, "Snapshots", $"ModbusTcpServer_{IPEndPoint.Port}.snapshot");
+            SnapshotFilePath = SnapshotFilePathHelper.Build("ModbusTcpServer", IPEndPoint.Port.ToString(), name);
         }
 
         private void HandleSnapshotDataWritten(object sender, DataStoreEventArgs e)
