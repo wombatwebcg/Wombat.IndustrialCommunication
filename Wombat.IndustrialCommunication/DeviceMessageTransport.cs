@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Wombat.IndustrialCommunication
 {
@@ -20,6 +21,19 @@ namespace Wombat.IndustrialCommunication
         private int _retries = 2;
         private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(100);
 
+        public ILogger Logger { get; set; }
+
+        public bool EnableDebugLog { get; set; } = false;
+
+        private void DebugLog(string message, params object[] args)
+        {
+            if (!EnableDebugLog)
+            {
+                return;
+            }
+
+            Logger?.LogDebug(message, args);
+        }
 
 
 
@@ -57,48 +71,48 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
         {
-            Console.WriteLine($"[DeviceMessageTransport调试] 开始接收响应: offset={offset}, length={length}");
+            DebugLog("[DeviceMessageTransport调试] 开始接收响应: offset={Offset}, length={Length}", offset, length);
             
             using (await _asyncLock.LockAsync())
             {
-                Console.WriteLine($"[DeviceMessageTransport调试] 获得异步锁，开始接收数据");
+                DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始接收数据");
                 
                 int attempt = 1;
                 bool success = false;
                 do
                 {
-                    Console.WriteLine($"[DeviceMessageTransport调试] 尝试第 {attempt} 次接收");
+                    DebugLog("[DeviceMessageTransport调试] 尝试第 {Attempt} 次接收", attempt);
                     
                     try
                     {
                         using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
                         {
-                            Console.WriteLine($"[DeviceMessageTransport调试] 设置接收超时: {_streamResource.ReceiveTimeout}ms");
+                            DebugLog("[DeviceMessageTransport调试] 设置接收超时: {ReceiveTimeout}ms", _streamResource.ReceiveTimeout);
                             
                             try
                             {
                                 byte[] buffer = new byte[length];
-                                Console.WriteLine($"[DeviceMessageTransport调试] 创建缓冲区，大小: {length} 字节");
+                                DebugLog("[DeviceMessageTransport调试] 创建缓冲区，大小: {Length} 字节", length);
                                 
                                 cts.Token.Register(() => _streamResource.StreamClose());
-                                Console.WriteLine($"[DeviceMessageTransport调试] 开始调用 _streamResource.Receive");
+                                DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Receive");
                                 
                                 var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
-                                Console.WriteLine($"[DeviceMessageTransport调试] _streamResource.Receive 返回结果: IsSuccess={read?.IsSuccess}");
+                                DebugLog("[DeviceMessageTransport调试] _streamResource.Receive 返回结果: IsSuccess={IsSuccess}", read?.IsSuccess);
                                 
                                 bool readAgain = true;
                                 do
                                 {
                                     if (read?.IsSuccess ?? false)
                                     {
-                                        Console.WriteLine($"[DeviceMessageTransport调试] 接收成功，数据: {string.Join(" ", buffer.Select(b => b.ToString("X2")))}");
+                                        DebugLog("[DeviceMessageTransport调试] 接收成功，数据: {Data}", string.Join(" ", buffer.Select(b => b.ToString("X2"))));
                                         readAgain = false;
                                         success = true;
                                         return OperationResult.CreateSuccessResult(buffer);
                                     }
                                     else
                                     {
-                                        Console.WriteLine($"[DeviceMessageTransport调试] 接收失败，尝试次数: {attempt}, 最大重试次数: {_retries}");
+                                        DebugLog("[DeviceMessageTransport调试] 接收失败，尝试次数: {Attempt}, 最大重试次数: {Retries}", attempt, _retries);
                                         
                                         if (attempt++ > _retries)
                                         {
@@ -143,32 +157,32 @@ namespace Wombat.IndustrialCommunication
         }
         public async Task<OperationResult> SendRequestAsync(byte[] request)
         {
-            Console.WriteLine($"[DeviceMessageTransport调试] 开始发送请求，数据长度: {request?.Length ?? 0}");
-            Console.WriteLine($"[DeviceMessageTransport调试] 请求数据: {string.Join(" ", request?.Select(b => b.ToString("X2")) ?? new string[0])}");
+            DebugLog("[DeviceMessageTransport调试] 开始发送请求，数据长度: {RequestLength}", request?.Length ?? 0);
+            DebugLog("[DeviceMessageTransport调试] 请求数据: {RequestData}", string.Join(" ", request?.Select(b => b.ToString("X2")) ?? new string[0]));
             
             using (await _asyncLock.LockAsync())
             {
-                Console.WriteLine($"[DeviceMessageTransport调试] 获得异步锁，开始发送数据");
+                DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始发送数据");
                 
                 int attempt = 1;
                 bool success = false;
                 bool readAgain = true;
                 do
                 {
-                    Console.WriteLine($"[DeviceMessageTransport调试] 尝试第 {attempt} 次发送");
+                    DebugLog("[DeviceMessageTransport调试] 尝试第 {Attempt} 次发送", attempt);
                     
                     try
                     {
                         using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
                         {
-                            Console.WriteLine($"[DeviceMessageTransport调试] 设置发送超时: {_streamResource.SendTimeout}ms");
+                            DebugLog("[DeviceMessageTransport调试] 设置发送超时: {SendTimeout}ms", _streamResource.SendTimeout);
                             
                             var ss = _streamResource.SendTimeout;
                             cts.Token.Register(() => _streamResource.StreamClose());
-                            Console.WriteLine($"[DeviceMessageTransport调试] 开始调用 _streamResource.Send");
+                            DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Send");
                             
                             var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
-                            Console.WriteLine($"[DeviceMessageTransport调试] _streamResource.Send 返回结果: IsSuccess={write?.IsSuccess}");
+                            DebugLog("[DeviceMessageTransport调试] _streamResource.Send 返回结果: IsSuccess={IsSuccess}", write?.IsSuccess);
                             
                             do
                             {
@@ -177,14 +191,14 @@ namespace Wombat.IndustrialCommunication
 
                                     if (write?.IsSuccess ?? false)
                                     {
-                                        Console.WriteLine($"[DeviceMessageTransport调试] 发送成功");
+                                        DebugLog("[DeviceMessageTransport调试] 发送成功");
                                         readAgain = false;
                                         success = true;
                                         return OperationResult.CreateSuccessResult(write);
                                     }
                                     else
                                     {
-                                        Console.WriteLine($"[DeviceMessageTransport调试] 发送失败，尝试次数: {attempt}, 最大重试次数: {_retries}");
+                                        DebugLog("[DeviceMessageTransport调试] 发送失败，尝试次数: {Attempt}, 最大重试次数: {Retries}", attempt, _retries);
                                         
                                         if (attempt++ > _retries)
                                         {

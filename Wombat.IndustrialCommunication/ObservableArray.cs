@@ -1,9 +1,10 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Concurrent;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 
 using System.Collections.Generic;
@@ -152,6 +153,10 @@ namespace Wombat.IndustrialCommunication
 
         // 后台任务取消令牌源
         private CancellationTokenSource cts = new CancellationTokenSource();
+
+        public ILogger Logger { get; set; }
+
+        public bool EnableDebugLog { get; set; } = false;
 
         /// <summary>
         /// 元素变更事件（索引，旧值，新值）
@@ -312,7 +317,10 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"变更处理线程异常: {ex.Message}");
+                if (EnableDebugLog)
+                {
+                    Logger?.LogDebug("变更处理线程异常: {Message}", ex.Message);
+                }
                 // 生产环境建议记录完整日志或触发异常事件
             }
         }

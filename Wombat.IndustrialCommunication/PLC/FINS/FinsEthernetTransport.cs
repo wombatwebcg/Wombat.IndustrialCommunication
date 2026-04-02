@@ -16,10 +16,6 @@ namespace Wombat.IndustrialCommunication.PLC
     /// </summary>
     public class FinsEthernetTransport : DeviceMessageTransport
     {
-        public ILogger Logger { get; set; }
-
-        public bool EnableDebugLog { get; set; } = false;
-
         private void DebugLog(string message, params object[] args)
         {
             if (!EnableDebugLog)
