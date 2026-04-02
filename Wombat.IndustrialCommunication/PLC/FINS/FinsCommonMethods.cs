@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Microsoft.Extensions.Logging;
 using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
@@ -50,7 +49,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="clientNodeAddress">客户端节点地址，默认为1</param>
         /// <returns>握手命令字节数组</returns>
-        public static byte[] BuildHandshakeCommand(byte clientNodeAddress = 0x01)
+        public static byte[] BuildHandshakeCommand(byte clientNodeAddress = 0x01, Action<string> debugOutput = null)
         {
             var command = new List<byte>();
             
@@ -89,8 +88,7 @@ namespace Wombat.IndustrialCommunication.PLC
             
             var result = command.ToArray();
             
-            // 打印发送的握手命令用于调试
-            Console.WriteLine($"[FINS握手调试] 发送握手命令 ({result.Length}字节): {string.Join(" ", result.Select(b => b.ToString("X2")))}");
+            debugOutput?.Invoke($"[FINS握手调试] 发送握手命令 ({result.Length}字节): {string.Join(" ", result.Select(b => b.ToString("X2")))}");
             
             return result;
         }
@@ -451,14 +449,12 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var message = $"[FINS握手调试] 响应数据无效: 长度={response?.Length ?? 0}, 期望>=24";
                 debugOutput?.Invoke(message);
-                Console.WriteLine(message);
                 return false;
             }
 
             // 打印完整的响应数据用于调试
             var responseMessage = $"[FINS握手调试] 接收到的响应数据 ({response.Length}字节): {string.Join(" ", response.Select(b => b.ToString("X2")))}";
             debugOutput?.Invoke(responseMessage);
-            Console.WriteLine(responseMessage);
 
             // 检查FINS握手响应的基本格式
             // 前4字节应该是FINS头部标识
@@ -467,7 +463,6 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var message = $"[FINS握手调试] FINS头部验证失败: {response[0]:X2} {response[1]:X2} {response[2]:X2} {response[3]:X2}, 期望: 46 49 4E 53";
                 debugOutput?.Invoke(message);
-                Console.WriteLine(message);
                 return false;
             }
 
@@ -478,7 +473,6 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var message = $"[FINS握手调试] 长度字段验证失败: {response[4]:X2} {response[5]:X2} {response[6]:X2} {response[7]:X2}, 期望: 00 00 00 10";
                 debugOutput?.Invoke(message);
-                Console.WriteLine(message);
                 return false;
             }
 
@@ -489,7 +483,6 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var message = $"[FINS握手调试] 命令字段验证失败: {response[8]:X2} {response[9]:X2} {response[10]:X2} {response[11]:X2}, 期望: 00 00 00 01";
                 debugOutput?.Invoke(message);
-                Console.WriteLine(message);
                 return false;
             }
 
@@ -500,13 +493,11 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 var message = $"[FINS握手调试] 错误码字段验证失败: {response[12]:X2} {response[13]:X2} {response[14]:X2} {response[15]:X2}, 期望: 00 00 00 00";
                 debugOutput?.Invoke(message);
-                Console.WriteLine(message);
                 return false;
             }
 
             var successMessage = "[FINS握手调试] 握手响应验证成功";
             debugOutput?.Invoke(successMessage);
-            Console.WriteLine(successMessage);
             return true;
         }
 

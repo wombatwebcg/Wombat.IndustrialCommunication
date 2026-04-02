@@ -16,6 +16,7 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         private TcpClientAdapter _tcpClientAdapter;
         private FinsEthernetTransport _transport;
+        private ILogger _logger;
 
         /// <summary>
         /// 构造函数
@@ -28,6 +29,10 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             _tcpClientAdapter = (TcpClientAdapter)this.Transport.StreamResource;
             _transport = (FinsEthernetTransport)Transport;
+            _transport.Logger = Logger;
+            _transport.EnableDebugLog = EnableDebugLog;
+            _tcpClientAdapter.Logger = Logger;
+            _tcpClientAdapter.EnableDebugLog = EnableDebugLog;
             
             if (timeout.HasValue)
             {
@@ -76,7 +81,40 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <summary>
         /// 日志记录器
         /// </summary>
-        public ILogger Logger { get; set; }
+        public new ILogger Logger
+        {
+            get => _logger;
+            set
+            {
+                _logger = value;
+                base.Logger = value;
+                if (_transport != null)
+                {
+                    _transport.Logger = value;
+                }
+                if (_tcpClientAdapter != null)
+                {
+                    _tcpClientAdapter.Logger = value;
+                }
+            }
+        }
+
+        public new bool EnableDebugLog
+        {
+            get => base.EnableDebugLog;
+            set
+            {
+                base.EnableDebugLog = value;
+                if (_transport != null)
+                {
+                    _transport.EnableDebugLog = value;
+                }
+                if (_tcpClientAdapter != null)
+                {
+                    _tcpClientAdapter.EnableDebugLog = value;
+                }
+            }
+        }
 
         /// <summary>
         /// 是否长连接

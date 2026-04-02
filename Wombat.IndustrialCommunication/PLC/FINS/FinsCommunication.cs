@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Logging;
 using System;
 using System.Buffers;
 using System.Collections.Generic;
@@ -16,6 +17,10 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         internal AsyncLock _lock = new AsyncLock();
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+
+        public ILogger Logger { get; set; }
+
+        public bool EnableDebugLog { get; set; } = false;
 
         public FinsCommunication(FinsEthernetTransport finsEthernetTransport) : base(finsEthernetTransport)
         {
@@ -57,8 +62,14 @@ namespace Wombat.IndustrialCommunication.PLC
                         var result = new OperationResult();
                         try
                         {
+                            Action<string> debugOutput = null;
+                            if (EnableDebugLog)
+                            {
+                                debugOutput = msg => Logger?.LogDebug("{Message}", msg);
+                            }
+
                             // FINS协议握手命令（使用客户端节点地址1）
-                            var handshakeCommand = FinsCommonMethods.BuildHandshakeCommand(0x01);
+                            var handshakeCommand = FinsCommonMethods.BuildHandshakeCommand(0x01, debugOutput);
                             
                             result.Requsts.Add(string.Join(" ", handshakeCommand.Select(t => t.ToString("X2"))));
                             
@@ -74,7 +85,7 @@ namespace Wombat.IndustrialCommunication.PLC
                                     result.Responses.Add(string.Join(" ", response.Select(t => t.ToString("X2"))));
                                     
                                     // 验证握手响应
-                                    if (FinsCommonMethods.ValidateHandshakeResponse(response, msg => Console.WriteLine($"[FINS握手调试] {msg}")))
+                                    if (FinsCommonMethods.ValidateHandshakeResponse(response, debugOutput))
                                     {
                                         // 提取节点地址信息
                                         if (FinsCommonMethods.ExtractNodeAddresses(response, out byte clientNodeAddress, out byte serverNodeAddress))

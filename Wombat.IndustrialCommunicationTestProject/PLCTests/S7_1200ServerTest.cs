@@ -223,7 +223,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             {
                 LogStep("启动S7服务器");
                 await StartServer();
-                Console.ReadKey();
                 LogStep("创建并连接两个客户端");
                 await CreateAndConnectClients();
 
@@ -288,7 +287,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
                 LogStep("预热寄存器数据");
                 PreheatThirdPartyRegisters();
-                Console.ReadKey();
                 thirdPartyClient = new SiemensClient(TEST_SERVER_IP, TEST_SERVER_PORT, PLC_VERSION);
                 thirdPartyClient.ConnectTimeout = TimeSpan.FromMilliseconds(CONNECT_TIMEOUT_MS);
                 thirdPartyClient.ReceiveTimeout = TimeSpan.FromMilliseconds(OPERATION_TIMEOUT_MS);
