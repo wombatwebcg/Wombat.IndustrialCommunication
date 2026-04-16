@@ -86,6 +86,33 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// <summary>V区测试地址（映射到DB1）</summary>
         private const string V_MEMORY_TEST_ADDRESS = "V90.6";
 
+        /// <summary>Q区字节地址</summary>
+        private const string QB_TEST_ADDRESS = "QB40";
+
+        /// <summary>Q区字地址</summary>
+        private const string QW_TEST_ADDRESS = "QW42";
+
+        /// <summary>Q区双字地址</summary>
+        private const string QD_TEST_ADDRESS = "QD44";
+
+        /// <summary>V区字节地址</summary>
+        private const string VB_TEST_ADDRESS = "VB50";
+
+        /// <summary>V区字地址</summary>
+        private const string VW_TEST_ADDRESS = "VW52";
+
+        /// <summary>V区双字地址</summary>
+        private const string VD_TEST_ADDRESS = "VD54";
+
+        /// <summary>M区字节地址</summary>
+        private const string MB_TEST_ADDRESS = "MB60";
+
+        /// <summary>M区字地址</summary>
+        private const string MW_TEST_ADDRESS = "MW62";
+
+        /// <summary>M区双字地址</summary>
+        private const string MD_TEST_ADDRESS = "MD64";
+
         private const string THIRD_PARTY_BOOL_ADDRESS = "DB1.DBX30.0";
         private const string THIRD_PARTY_INT_ADDRESS = "DB1.DBD32";
         private const string THIRD_PARTY_FLOAT_ADDRESS = "DB1.DBD36";
@@ -153,6 +180,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // 验证结果一致性
                 LogStep("验证结果一致性");
                 await VerifyDataConsistency();
+
+                // 验证 QB/QW/QD、VB/VW/VD、MB/MW/MD 读写
+                LogStep("验证 QB/QW/QD、VB/VW/VD、MB/MW/MD 读写");
+                await VerifyExtendedAreaReadWrite();
                 
                 LogTestComplete(testName);
             }
@@ -778,6 +809,96 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             {
                 LogError($"数据一致性验证失败: {ex.Message}");
                 throw;
+            }
+        }
+
+        /// <summary>
+        /// 验证扩展区域地址读写（QB/QW/QD、VB/VW/VD、MB/MW/MD）
+        /// </summary>
+        private async Task VerifyExtendedAreaReadWrite()
+        {
+            var byteCases = new List<(string Name, string Address, byte Client1Value, byte Client2Value)>
+            {
+                ("QB", QB_TEST_ADDRESS, (byte)0x12, (byte)0x34),
+                ("VB", VB_TEST_ADDRESS, (byte)0x56, (byte)0x78),
+                ("MB", MB_TEST_ADDRESS, (byte)0x9A, (byte)0xBC)
+            };
+
+            var wordCases = new List<(string Name, string Address, ushort Client1Value, ushort Client2Value)>
+            {
+                ("QW", QW_TEST_ADDRESS, (ushort)0x1234, (ushort)0x5678),
+                ("VW", VW_TEST_ADDRESS, (ushort)0x2345, (ushort)0x6789),
+                ("MW", MW_TEST_ADDRESS, (ushort)0x3456, (ushort)0x789A)
+            };
+
+            var dwordCases = new List<(string Name, string Address, uint Client1Value, uint Client2Value)>
+            {
+                ("QD", QD_TEST_ADDRESS, 0x12345678u, 0x87654321u),
+                ("VD", VD_TEST_ADDRESS, 0x23456789u, 0x98765432u),
+                ("MD", MD_TEST_ADDRESS, 0x3456789Au, 0xA9876543u)
+            };
+
+            foreach (var testCase in byteCases)
+            {
+                var writeByClient1 = await _client1.WriteAsync(testCase.Address, testCase.Client1Value);
+                Assert.True(writeByClient1.IsSuccess, $"客户端1写入{testCase.Name}失败: {writeByClient1.Message}");
+
+                var readByClient1 = await _client1.ReadByteAsync(testCase.Address);
+                Assert.True(readByClient1.IsSuccess, $"客户端1读取{testCase.Name}失败: {readByClient1.Message}");
+                Assert.Equal(testCase.Client1Value, readByClient1.ResultValue);
+
+                var writeByClient2 = await _client2.WriteAsync(testCase.Address, testCase.Client2Value);
+                Assert.True(writeByClient2.IsSuccess, $"客户端2写入{testCase.Name}失败: {writeByClient2.Message}");
+
+                var readByClient2 = await _client2.ReadByteAsync(testCase.Address);
+                Assert.True(readByClient2.IsSuccess, $"客户端2读取{testCase.Name}失败: {readByClient2.Message}");
+                Assert.Equal(testCase.Client2Value, readByClient2.ResultValue);
+
+                var crossReadByClient1 = await _client1.ReadByteAsync(testCase.Address);
+                Assert.True(crossReadByClient1.IsSuccess, $"客户端1交叉读取{testCase.Name}失败: {crossReadByClient1.Message}");
+                Assert.Equal(testCase.Client2Value, crossReadByClient1.ResultValue);
+            }
+
+            foreach (var testCase in wordCases)
+            {
+                var writeByClient1 = await _client1.WriteAsync(testCase.Address, testCase.Client1Value);
+                Assert.True(writeByClient1.IsSuccess, $"客户端1写入{testCase.Name}失败: {writeByClient1.Message}");
+
+                var readByClient1 = await _client1.ReadUInt16Async(testCase.Address);
+                Assert.True(readByClient1.IsSuccess, $"客户端1读取{testCase.Name}失败: {readByClient1.Message}");
+                Assert.Equal(testCase.Client1Value, readByClient1.ResultValue);
+
+                var writeByClient2 = await _client2.WriteAsync(testCase.Address, testCase.Client2Value);
+                Assert.True(writeByClient2.IsSuccess, $"客户端2写入{testCase.Name}失败: {writeByClient2.Message}");
+
+                var readByClient2 = await _client2.ReadUInt16Async(testCase.Address);
+                Assert.True(readByClient2.IsSuccess, $"客户端2读取{testCase.Name}失败: {readByClient2.Message}");
+                Assert.Equal(testCase.Client2Value, readByClient2.ResultValue);
+
+                var crossReadByClient1 = await _client1.ReadUInt16Async(testCase.Address);
+                Assert.True(crossReadByClient1.IsSuccess, $"客户端1交叉读取{testCase.Name}失败: {crossReadByClient1.Message}");
+                Assert.Equal(testCase.Client2Value, crossReadByClient1.ResultValue);
+            }
+
+            foreach (var testCase in dwordCases)
+            {
+                var writeByClient1 = await _client1.WriteAsync(testCase.Address, testCase.Client1Value);
+                Assert.True(writeByClient1.IsSuccess, $"客户端1写入{testCase.Name}失败: {writeByClient1.Message}");
+
+                var readByClient1 = await _client1.ReadUInt32Async(testCase.Address);
+                Assert.True(readByClient1.IsSuccess, $"客户端1读取{testCase.Name}失败: {readByClient1.Message}");
+                Assert.Equal(testCase.Client1Value, readByClient1.ResultValue);
+
+                var writeByClient2 = await _client2.WriteAsync(testCase.Address, testCase.Client2Value);
+                Assert.True(writeByClient2.IsSuccess, $"客户端2写入{testCase.Name}失败: {writeByClient2.Message}");
+
+                var readByClient2 = await _client2.ReadUInt32Async(testCase.Address);
+                Assert.True(readByClient2.IsSuccess, $"客户端2读取{testCase.Name}失败: {readByClient2.Message}");
+                Assert.Equal(testCase.Client2Value, readByClient2.ResultValue);
+
+                var crossReadByClient1 = await _client1.ReadUInt32Async(testCase.Address);
+                Assert.True(crossReadByClient1.IsSuccess, $"客户端1交叉读取{testCase.Name}失败: {crossReadByClient1.Message}");
+                Assert.Equal(testCase.Client2Value, crossReadByClient1.ResultValue);
             }
         }
 

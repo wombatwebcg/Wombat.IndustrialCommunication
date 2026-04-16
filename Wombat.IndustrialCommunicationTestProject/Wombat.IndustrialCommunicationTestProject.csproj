@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
@@ -24,6 +24,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj" />
+    <ProjectReference Include="..\Wombat.IndustrialCommunication.Extensions.Bluetooth\Wombat.IndustrialCommunication.Extensions.Bluetooth.csproj" />
   </ItemGroup>
 
 </Project>

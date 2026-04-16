@@ -219,7 +219,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 return addressInfo;
             }
             // 判断是否是复合地址格式（VW、VD等）
-            else if (address.Length > 2 && (address[1] == 'W' || address[1] == 'D' || address[1] == 'B'))
+            else if (address.Length > 2 && (address[1] == 'W' || address[1] == 'D' || address[1] == 'B' || address[1] == 'M'))
             {
                 var dataType = address[1];
                 var offsetStr = address.Substring(2); // 去掉VW、VD、VB前缀
@@ -234,6 +234,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 switch (dataType)
                 {
                     case 'B':
+                    case 'M':
                         addressInfo.DataType = S7DataType.VB;
                         addressInfo.Length = 1;
                         break;
@@ -273,7 +274,7 @@ namespace Wombat.IndustrialCommunication.PLC
             // Q区地址的DbNumber初始化为0
             addressInfo.DbNumber = 0;
 
-            if (address.Contains("."))
+            if (address.Contains(".") && address.Length > 1 && char.IsDigit(address[1]))
             {
                 // Q区位地址，如 Q1.3
                 var parts = address.Substring(1).Split('.'); // 去掉Q前缀并分割
@@ -288,16 +289,42 @@ namespace Wombat.IndustrialCommunication.PLC
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
             }
+            else if (address.Length > 2 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
+            {
+                // Q区复合地址，如 QB10/QW10/QD10
+                var offsetStr = address.Substring(2);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"Q区地址偏移解析失败: {address}");
+
+                addressInfo.StartByte = offset;
+                addressInfo.BitOffset = 0;
+
+                switch (address[1])
+                {
+                    case 'B':
+                        addressInfo.DataType = S7DataType.QB;
+                        addressInfo.Length = 1;
+                        break;
+                    case 'W':
+                        addressInfo.DataType = S7DataType.QW;
+                        addressInfo.Length = 2;
+                        break;
+                    case 'D':
+                        addressInfo.DataType = S7DataType.QD;
+                        addressInfo.Length = 4;
+                        break;
+                }
+            }
             else
             {
-                // Q区字节地址，如 Q10
+                // Q区默认字节地址，如 Q10
                 var offsetStr = address.Substring(1); // 去掉Q前缀
                 if (!int.TryParse(offsetStr, out int offset))
                     throw new ArgumentException($"Q区地址偏移解析失败: {address}");
 
-                addressInfo.DataType = S7DataType.DBW; // Q区字地址使用DB字类型
+                addressInfo.DataType = S7DataType.QB;
                 addressInfo.StartByte = offset;
-                addressInfo.Length = 2;
+                addressInfo.Length = 1;
                 addressInfo.BitOffset = 0;
             }
 
@@ -312,7 +339,7 @@ namespace Wombat.IndustrialCommunication.PLC
             // I区地址的DbNumber初始化为0
             addressInfo.DbNumber = 0;
 
-            if (address.Contains("."))
+            if (address.Contains(".") && address.Length > 1 && char.IsDigit(address[1]))
             {
                 // I区位地址，如 I1.3
                 var parts = address.Substring(1).Split('.'); // 去掉I前缀并分割
@@ -327,16 +354,42 @@ namespace Wombat.IndustrialCommunication.PLC
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
             }
+            else if (address.Length > 2 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
+            {
+                // I区复合地址，如 IB10/IW10/ID10
+                var offsetStr = address.Substring(2);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"I区地址偏移解析失败: {address}");
+
+                addressInfo.StartByte = offset;
+                addressInfo.BitOffset = 0;
+
+                switch (address[1])
+                {
+                    case 'B':
+                        addressInfo.DataType = S7DataType.IB;
+                        addressInfo.Length = 1;
+                        break;
+                    case 'W':
+                        addressInfo.DataType = S7DataType.IW;
+                        addressInfo.Length = 2;
+                        break;
+                    case 'D':
+                        addressInfo.DataType = S7DataType.ID;
+                        addressInfo.Length = 4;
+                        break;
+                }
+            }
             else
             {
-                // I区字节地址，如 I10
+                // I区默认字节地址，如 I10
                 var offsetStr = address.Substring(1); // 去掉I前缀
                 if (!int.TryParse(offsetStr, out int offset))
                     throw new ArgumentException($"I区地址偏移解析失败: {address}");
 
-                addressInfo.DataType = S7DataType.IW; // 默认按字处理
+                addressInfo.DataType = S7DataType.IB;
                 addressInfo.StartByte = offset;
-                addressInfo.Length = 2;
+                addressInfo.Length = 1;
                 addressInfo.BitOffset = 0;
             }
 
@@ -351,7 +404,7 @@ namespace Wombat.IndustrialCommunication.PLC
             // M区地址（内部存储区）使用特殊的DB号标识
             addressInfo.DbNumber = 0; 
 
-            if (address.Contains("."))
+            if (address.Contains(".") && address.Length > 1 && char.IsDigit(address[1]))
             {
                 // M区位地址，如 M1.3
                 var parts = address.Substring(1).Split('.'); // 去掉M前缀并分割
@@ -365,6 +418,32 @@ namespace Wombat.IndustrialCommunication.PLC
                 addressInfo.StartByte = byteOffset;
                 addressInfo.BitOffset = bitOffset;
                 addressInfo.Length = 1; // 位长度为1
+            }
+            else if (address.Length > 2 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
+            {
+                // M区复合地址，如 MB10/MW10/MD10
+                var offsetStr = address.Substring(2);
+                if (!int.TryParse(offsetStr, out int offset))
+                    throw new ArgumentException($"M区地址偏移解析失败: {address}");
+
+                addressInfo.StartByte = offset;
+                addressInfo.BitOffset = 0;
+
+                switch (address[1])
+                {
+                    case 'B':
+                        addressInfo.DataType = S7DataType.MB;
+                        addressInfo.Length = 1;
+                        break;
+                    case 'W':
+                        addressInfo.DataType = S7DataType.MW;
+                        addressInfo.Length = 2;
+                        break;
+                    case 'D':
+                        addressInfo.DataType = S7DataType.MD;
+                        addressInfo.Length = 4;
+                        break;
+                }
             }
             else
             {

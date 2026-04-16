@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -102,8 +102,16 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 addressInfo.DbBlock = 1;
                 
-                // V地址格式解析：V1.0（位）、V1（字节）、VW1（字）、VD1（双字）
-                if (address.Length >= 3 && address[1] == 'W')
+                // V地址格式解析：V1.0（位）、V1（字节）、VB1/VM1（字节）、VW1（字）、VD1（双字）
+                if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'M'))
+                {
+                    // VB/VM格式：字节地址
+                    addressInfo.DataType = DataTypeEnums.Byte;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
+                }
+                else if (address.Length >= 3 && address[1] == 'W')
                 {
                     // VW格式：字地址
                     addressInfo.DataType = DataTypeEnums.Int16;
@@ -139,13 +147,35 @@ namespace Wombat.IndustrialCommunication.PLC
             else if (firstChar == 'Q' || firstChar == 'I' || firstChar == 'M')
             {
                 // Q区、I区、M区地址格式解析
-                if (address.Contains('.'))
+                if (address.Contains('.') && address.Length > 1 && address[1] >= '0' && address[1] <= '9')
                 {
                     // Q2.0、I1.3、M5.7格式：位地址
                     addressInfo.DataType = DataTypeEnums.Bool;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = true;
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
+                else if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
+                {
+                    // QB/IB/MB、QW/IW/MW、QD/ID/MD格式
+                    if (address[1] == 'B')
+                    {
+                        addressInfo.DataType = DataTypeEnums.Byte;
+                        addressInfo.ReadWriteLength = 1;
+                    }
+                    else if (address[1] == 'W')
+                    {
+                        addressInfo.DataType = DataTypeEnums.Int16;
+                        addressInfo.ReadWriteLength = 2;
+                    }
+                    else
+                    {
+                        addressInfo.DataType = DataTypeEnums.Int32;
+                        addressInfo.ReadWriteLength = 4;
+                    }
+
+                    addressInfo.IsBit = false;
+                    addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 else
                 {

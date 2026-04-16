@@ -1,0 +1,19 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>netstandard2.0</TargetFramework>
+    <Version>1.0.0</Version>
+    <Authors>wombatwebcg</Authors>
+    <Company>wombatwebcg</Company>
+    <Product>wombatwebcg</Product>
+    <Description>Wombat 工业通信蓝牙扩展，提供蓝牙透传 Modbus RTU 能力</Description>
+    <PackageTags>plc;modbus;bluetooth;</PackageTags>
+    <RepositoryType>git</RepositoryType>
+    <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj" />
+  </ItemGroup>
+
+</Project>

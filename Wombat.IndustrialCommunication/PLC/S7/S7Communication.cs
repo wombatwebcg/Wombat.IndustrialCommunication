@@ -12,7 +12,7 @@ using System.Threading;
 namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
-    /// S7��������ö��
+    /// S7 地址数据类型枚举
     /// </summary>
     public enum S7DataType
     {
@@ -21,12 +21,12 @@ namespace Wombat.IndustrialCommunication.PLC
         DBW,  
         DBD,  
         
-        I,    // I��λ����
+        I,    
         IB,   
         IW,   
         ID,   
         
-        Q,    // Q��λ����
+        Q,    
         QB,  
         QW,  
         QD,  
@@ -36,14 +36,14 @@ namespace Wombat.IndustrialCommunication.PLC
         MW,   
         MD,  
         
-        V,    // V��λ����
+        V,    
         VB,   
         VW,  
         VD 
     }
 
     /// <summary>
-    /// S7��ַ��Ϣ�ṹ��
+    /// S7 地址信息结构
     /// </summary>
     public struct S7AddressInfo
     {
@@ -52,11 +52,11 @@ namespace Wombat.IndustrialCommunication.PLC
         public int StartByte { get; set; }
         public int Length { get; set; }
         public S7DataType DataType { get; set; }
-        public int BitOffset { get; set; }  // λƫ�ƣ�����DBX������Ч
+        public int BitOffset { get; set; }  // 位偏移，仅对位地址有效
     }
 
     /// <summary>
-    /// S7�Ż���ַ��
+    /// S7 优化地址块
     /// </summary>
     public class S7AddressBlock
     {
@@ -81,12 +81,12 @@ namespace Wombat.IndustrialCommunication.PLC
         public override string Version => SiemensVersion.ToString();
 
         /// <summary>
-        /// ��ۺ� 
+        /// 插槽号
         /// </summary>
         public byte Slot { get; set; }
 
         /// <summary>
-        /// ���ܺ�
+        /// 机架号
         /// </summary>
         public byte Rack { get;set; }
 
@@ -105,11 +105,11 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 catch (OperationCanceledException)
                 {
-                    return OperationResult.CreateFailedResult("S7Э���ʼ����ʱ");
+                    return OperationResult.CreateFailedResult("S7 协议初始化超时");
                 }
                 catch (Exception ex)
                 {
-                    return OperationResult.CreateFailedResult($"S7Э���ʼ���쳣: {ex.Message}");
+                    return OperationResult.CreateFailedResult($"S7 协议初始化异常: {ex.Message}");
                 }
             }
         }
@@ -124,11 +124,11 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 catch (OperationCanceledException)
                 {
-                    return OperationResult.CreateFailedResult("S7Э���ʼ����ʱ");
+                    return OperationResult.CreateFailedResult("S7 协议初始化超时");
                 }
                 catch (Exception ex)
                 {
-                    return OperationResult.CreateFailedResult($"S7Э���ʼ���쳣: {ex.Message}");
+                    return OperationResult.CreateFailedResult($"S7 协议初始化异常: {ex.Message}");
                 }
             }
         }
@@ -145,7 +145,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.Requsts.Add(string.Join(" ", command1.Select(t => t.ToString("X2"))));
                 if (!handshake1Result.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult(result, $"S7初始化失败(首次握手): {handshake1Result.Message}");
+                    return OperationResult.CreateFailedResult(result, $"S7 初始化失败(首次握手): {handshake1Result.Message}");
                 }
                 result.Responses.Add(string.Join(" ", handshake1Result.ResultValue.Select(t => t.ToString("X2"))));
 
@@ -159,7 +159,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 result.Requsts.Add(string.Join(" ", command2.Select(t => t.ToString("X2"))));
                 if (!handshake2Result.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult(result, $"S7初始化失败(二次握手): {handshake2Result.Message}");
+                    return OperationResult.CreateFailedResult(result, $"S7 初始化失败(二次握手): {handshake2Result.Message}");
                 }
                 result.Responses.Add(string.Join(" ", handshake2Result.ResultValue.Select(t => t.ToString("X2"))));
 
@@ -281,12 +281,12 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (response == null || response.Length < 7)
             {
-                return OperationResult.CreateFailedResult("S7初始化失败: 首次握手响应长度不足");
+                return OperationResult.CreateFailedResult("S7 初始化失败: 首次握手响应长度不足");
             }
 
             if (response[5] != 0xD0 && response[5] != 0xE0)
             {
-                return OperationResult.CreateFailedResult($"S7初始化失败: 首次握手COTP类型异常 {response[5]:X2}");
+                return OperationResult.CreateFailedResult($"S7 初始化失败: 首次握手COTP类型异常 {response[5]:X2}");
             }
 
             return OperationResult.CreateSuccessResult();
@@ -296,27 +296,27 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (response == null || response.Length < 21)
             {
-                return OperationResult.CreateFailedResult("S7初始化失败: 二次握手响应长度不足");
+                return OperationResult.CreateFailedResult("S7 初始化失败: 二次握手响应长度不足");
             }
 
             if (response[5] != 0xF0)
             {
-                return OperationResult.CreateFailedResult($"S7初始化失败: 二次握手COTP类型异常 {response[5]:X2}");
+                return OperationResult.CreateFailedResult($"S7 初始化失败: 二次握手COTP类型异常 {response[5]:X2}");
             }
 
             if (response[7] != 0x32)
             {
-                return OperationResult.CreateFailedResult($"S7初始化失败: 二次握手协议ID异常 {response[7]:X2}");
+                return OperationResult.CreateFailedResult($"S7 初始化失败: 二次握手协议ID异常 {response[7]:X2}");
             }
 
             if (response[8] != 0x03)
             {
-                return OperationResult.CreateFailedResult($"S7初始化失败: 二次握手ROSCTR异常 {response[8]:X2}");
+                return OperationResult.CreateFailedResult($"S7 初始化失败: 二次握手ROSCTR异常 {response[8]:X2}");
             }
 
             if (response[17] != 0x00 || response[18] != 0x00)
             {
-                return OperationResult.CreateFailedResult($"S7初始化失败: 二次握手错误码 {response[17]:X2} {response[18]:X2}");
+                return OperationResult.CreateFailedResult($"S7 初始化失败: 二次握手错误码 {response[17]:X2} {response[18]:X2}");
             }
 
             return OperationResult.CreateSuccessResult();
@@ -348,7 +348,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             }
                             else
                             {
-                                // ��ȡʧ�ܣ�ֱ�ӷ���ʧ�ܽ������������ѭ��
+                                // 读取失败时直接返回，避免继续累加错误数据
                                 return tempResult;
                             }
                         }
@@ -376,25 +376,25 @@ namespace Wombat.IndustrialCommunication.PLC
                     byte[] responseData = new byte[realLength];
                     try
                     {
-                        //0x04 �� 0x01 ��ȡһ������ //�����������ȡ��������ȡ������������֤
+                        // 0x04 0x01 表示读取响应；21 位非 0xFF 时表示异常
                         if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
                         {
                             if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"��ȡ{internalAddress}ʧ�ܣ���ȷ���Ƿ���ڵ�ַ{internalAddress}";
+                                tempResult.Message = $"读取 {internalAddress} 失败，请确认地址是否存在";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"��ȡ{internalAddress}ʧ�ܣ���ȷ���Ƿ���ڵ�ַ{internalAddress}";
+                                tempResult.Message = $"读取 {internalAddress} 失败，请确认地址是否存在";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                             else if (dataPackage[21] != 0xFF)
                             {
                                 tempResult.IsSuccess = false;
-                                tempResult.Message = $"��ȡ{internalAddress}ʧ�ܣ��쳣����[{21}]:{dataPackage[21]}";
+                                tempResult.Message = $"读取 {internalAddress} 失败，异常状态[{21}]:{dataPackage[21]}";
                                 return OperationResult.CreateFailedResult<byte[]>(tempResult);
                             }
                         }
@@ -404,7 +404,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     catch (Exception ex)
                     {
                         tempResult.Exception = ex;
-                        tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} ��ȡԤ�ڳ����뷵�����ݳ��Ȳ�һ��";
+                        tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} 读取预期长度与返回数据长度不一致";
                         return OperationResult.CreateFailedResult<byte[]>(tempResult);
                     }
                     return new OperationResult<byte[]>(response, responseData).Complete();
@@ -432,17 +432,17 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (dataPackage[offset] == 0x0A)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"д��{address}ʧ�ܣ���ȷ���Ƿ���ڵ�ַ{address}���쳣����[{offset}]:{dataPackage[offset]}";
+                            result.Message = $"写入 {address} 失败，请确认地址是否存在，异常码[{offset}]:{dataPackage[offset]}";
                         }
                         else if (dataPackage[offset] == 0x05)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"д��{address}ʧ�ܣ���ȷ���Ƿ���ڵ�ַ{address}���쳣����[{offset}]:{dataPackage[offset]}";
+                            result.Message = $"写入 {address} 失败，请确认地址是否存在，异常码[{offset}]:{dataPackage[offset]}";
                         }
                         else if (dataPackage[offset] != 0xFF)
                         {
                             result.IsSuccess = false;
-                            result.Message = $"д��{address}ʧ�ܣ��쳣����[{offset}]:{dataPackage[offset]}";
+                            result.Message = $"写入 {address} 失败，异常状态[{offset}]:{dataPackage[offset]}";
                         }
                         return OperationResult.CreateSuccessResult(response);
                     }
@@ -456,10 +456,10 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         /// <summary>
-        /// ������ȡ����
+        /// 批量读取数据
         /// </summary>
-        /// <param name="addresses">��ַ�ֵ䣬��Ϊ��ַ��ֵΪ��������</param>
-        /// <returns>��ȡ���</returns>
+        /// <param name="addresses">地址字典，键为地址，值为数据类型</param>
+        /// <returns>读取结果</returns>
         public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
             using (await _lock.LockAsync())
@@ -468,41 +468,41 @@ namespace Wombat.IndustrialCommunication.PLC
                 
                 try
                 {
-                    // ������֤
+                    // 参数校验
                     if (addresses == null || addresses.Count == 0)
                     {
                         result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // ����ַ�ֵ�ת��Ϊ�ڲ���ʽ
+                    // 地址字典转换为内部格式
                     var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                     {
-                        internalAddresses[kvp.Key] = (kvp.Value, null); // ��ȡʱֵΪnull
+                        internalAddresses[kvp.Key] = (kvp.Value, null); // 读取时值为 null
                     }
 
-                    // ������ַ��Ϣ
+                    // 解析地址信息
                     var addressInfos = S7BatchHelper.ParseS7Addresses(internalAddresses);
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = "û����Ч�ĵ�ַ���Զ�ȡ";
+                        result.Message = "没有有效地址可读取";
                         result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // �Ż���ַ��
+                    // 优化地址块
                     var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos);
                     if (optimizedBlocks.Count == 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = "��ַ�Ż�ʧ��";
+                        result.Message = "地址优化失败";
                         result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // ִ��������ȡ
+                    // 执行批量读取
                     var blockDataDict = new Dictionary<string, byte[]>();
                     var errors = new List<string>();
 
@@ -510,7 +510,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         try
                         {
-                            // ���ݵ�ַ���͹�����ȷ�Ŀ��ַ
+                            // 根据地址类型构造块地址和块键
                             string blockAddress = "";
                             string blockKey = "";
                             
@@ -542,13 +542,13 @@ namespace Wombat.IndustrialCommunication.PLC
                                         blockKey = $"V_{block.StartByte}_{block.TotalLength}";
                                         break;
                                     default:
-                                        errors.Add($"��֧�ֵ���������: {areaType}");
+                                        errors.Add($"不支持的地址区域类型: {areaType}");
                                         continue;
                                 }
                             }
                             else
                             {
-                                errors.Add($"����û�е�ַ��Ϣ");
+                                errors.Add("地址块中没有地址信息");
                                 continue;
                             }
                             
@@ -558,26 +558,26 @@ namespace Wombat.IndustrialCommunication.PLC
                             {
                                 blockDataDict[blockKey] = readResult.ResultValue;
                                 
-                                // �ϲ��������Ӧ��־
+                                // 合并请求和响应记录
                                 result.Requsts.AddRange(readResult.Requsts);
                                 result.Responses.AddRange(readResult.Responses);
                             }
                             else
                             {
                                 var areaType = S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType);
-                                errors.Add($"��ȡ�� {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} ʧ��: {readResult.Message}");
+                                errors.Add($"读取块 {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} 失败: {readResult.Message}");
                             }
                         }
                         catch (Exception ex)
                         {
                             var areaType = block.Addresses.Count > 0 ? S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType) : "UNKNOWN";
-                            errors.Add($"��ȡ�� {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} �쳣: {ex.Message}");
+                            errors.Add($"读取块 {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} 异常: {ex.Message}");
                         }
                     }
 
                     if (errors.Count > 0)
                     {
-                        result.IsSuccess = blockDataDict.Count > 0; // ���ֳɹ�
+                        result.IsSuccess = blockDataDict.Count > 0; // 允许部分成功
                         result.Message = string.Join("; ", errors);
                     }
                     else
@@ -585,10 +585,10 @@ namespace Wombat.IndustrialCommunication.PLC
                         result.IsSuccess = true;
                     }
 
-                    // �ӿ���������ȡ������ַ��ֵ
+                    // 从块数据中提取各地址对应值
                     var extractedData = S7BatchHelper.ExtractDataFromS7Blocks(blockDataDict, optimizedBlocks, addressInfos);
 
-                    // ת��Ϊ�µķ��ظ�ʽ
+                    // 转换为返回格式
                     var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                     {
@@ -610,7 +610,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"������ȡ�쳣: {ex.Message}";
+                    result.Message = $"批量读取异常: {ex.Message}";
                     result.Exception = ex;
                     result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                 }
@@ -620,10 +620,10 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         /// <summary>
-        /// ����д������
+        /// 批量写入数据
         /// </summary>
-        /// <param name="addresses">��ַ�ֵ䣬��Ϊ��ַ��ֵΪ(��������, ֵ)Ԫ��</param>
-        /// <returns>д����</returns>
+        /// <param name="addresses">地址字典，键为地址，值为(数据类型, 值)</param>
+        /// <returns>写入结果</returns>
         public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
         {
             using (await _lock.LockAsync())
@@ -632,22 +632,22 @@ namespace Wombat.IndustrialCommunication.PLC
                 
                 try
                 {
-                    // ������֤
+                    // 参数校验
                     if (addresses == null || addresses.Count == 0)
                     {
                         return result.Complete();
                     }
 
-                    // ������ַ��Ϣ
+                    // 解析地址信息
                     var addressInfos = S7BatchHelper.ParseS7Addresses(addresses);
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = "û����Ч�ĵ�ַ����д��";
+                        result.Message = "没有有效地址可写入";
                         return result.Complete();
                     }
 
-                    // ִ������д��
+                    // 执行批量写入
                     var writeErrors = new List<string>();
                     var successCount = 0;
 
@@ -655,72 +655,72 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         try
                         {
-                            // ��ȡ��Ӧ��ֵ
+                            // 获取对应值
                             if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
                             {
-                                writeErrors.Add($"��ַ {addressInfo.OriginalAddress} û�ж�Ӧ��ֵ");
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
                                 continue;
                             }
 
                             var value = valueTuple.Item2;
 
-                            // ��ֵת��Ϊ�ֽ�����
+                            // 值转换为字节数组
                             byte[] data = S7BatchHelper.ConvertValueToS7Bytes(value, addressInfo, IsReverse, DataFormat);
                             if (data == null)
                             {
-                                writeErrors.Add($"��ַ {addressInfo.OriginalAddress} ��ֵת��ʧ��");
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 数值转换失败");
                                 continue;
                             }
 
-                            // ����д���ַ
+                            // 构造写入地址
                             string writeAddress = S7BatchHelper.ConstructS7WriteAddress(addressInfo);
                             if (string.IsNullOrEmpty(writeAddress))
                             {
-                                writeErrors.Add($"��ַ {addressInfo.OriginalAddress} ����д���ַʧ��");
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
                                 continue;
                             }
 
-                            // ִ�е���д��
-                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, addressInfo.DataType == S7DataType.DBX);
+                            // 执行单点写入
+                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, S7BatchHelper.IsBitType(addressInfo.DataType));
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;
-                                // �ϲ��������Ӧ��־
+                                // 合并请求和响应记录
                                 result.Requsts.AddRange(writeResult.Requsts);
                                 result.Responses.AddRange(writeResult.Responses);
                             }
                             else
                             {
-                                writeErrors.Add($"д���ַ {addressInfo.OriginalAddress} ʧ��: {writeResult.Message}");
+                                writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            writeErrors.Add($"д���ַ {addressInfo.OriginalAddress} �쳣: {ex.Message}");
+                            writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
                         }
                     }
 
-                    // ���ý��
+                    // 设置结果
                     if (successCount == addressInfos.Count)
                     {
                         result.IsSuccess = true;
-                        result.Message = $"�ɹ�д�� {successCount} ����ַ";
+                        result.Message = $"成功写入 {successCount} 个地址";
                     }
                     else if (successCount > 0)
                     {
                         result.IsSuccess = false;
-                        result.Message = $"����д��ɹ� ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
+                        result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
                     }
                     else
                     {
                         result.IsSuccess = false;
-                        result.Message = $"����д��ʧ��: {string.Join("; ", writeErrors)}";
+                        result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
                     }
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
-                    result.Message = $"����д���쳣: {ex.Message}";
+                    result.Message = $"批量写入异常: {ex.Message}";
                     result.Exception = ex;
                 }
 
