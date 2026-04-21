@@ -27,12 +27,23 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         /// </summary>
         public DateTime ExpiresAtUtc { get; set; }
 
+        /// <summary>
+        /// 租约来源说明。
+        /// </summary>
+        public string Source { get; set; }
+
         public ConnectionLease()
         {
             LeaseId = string.Empty;
             Identity = new ConnectionIdentity();
             AcquiredAtUtc = DateTime.UtcNow;
             ExpiresAtUtc = DateTime.UtcNow;
+            Source = string.Empty;
+        }
+
+        public bool IsExpired(DateTime utcNow)
+        {
+            return ExpiresAtUtc <= utcNow;
         }
     }
 }

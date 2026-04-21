@@ -50,6 +50,14 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
                     return OperationResult.CreateSuccessResult();
                 }
 
+                try
+                {
+                    Client.Disconnect();
+                }
+                catch
+                {
+                }
+
                 State = ConnectionEntryState.Connecting;
                 var result = await Client.ConnectAsync().ConfigureAwait(false);
                 if (result.IsSuccess)
@@ -77,6 +85,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             try
             {
                 var result = Client.Disconnect();
+                LastActiveTimeUtc = DateTime.UtcNow;
                 State = ConnectionEntryState.Disposed;
                 return result;
             }
@@ -102,7 +111,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
 
             try
             {
-                State = ConnectionEntryState.Leased;
                 var result = await action(Client).ConfigureAwait(false);
                 LastActiveTimeUtc = DateTime.UtcNow;
                 State = Client.Connected ? ConnectionEntryState.Ready : ConnectionEntryState.Faulted;
@@ -130,7 +138,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
 
             try
             {
-                State = ConnectionEntryState.Leased;
                 var result = await action(Client).ConfigureAwait(false);
                 LastActiveTimeUtc = DateTime.UtcNow;
                 State = Client.Connected ? ConnectionEntryState.Ready : ConnectionEntryState.Faulted;

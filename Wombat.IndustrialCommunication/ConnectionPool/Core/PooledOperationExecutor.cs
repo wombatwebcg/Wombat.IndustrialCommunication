@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             while (true)
             {
                 attempt++;
-                var ensure = await entry.EnsureConnectedAsync().ConfigureAwait(false);
+                var ensure = await entry.EnsureConnectedAsync(ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 if (!ensure.IsSuccess)
                 {
                     if (attempt > maxRetry + 1)
@@ -37,11 +37,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                         return OperationResult.CreateFailedResult<T>(ensure);
                     }
 
+                    await entry.NotifyRetryingAsync(attempt, maxRetry, retryBackoff, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                     await Task.Delay(retryBackoff).ConfigureAwait(false);
                     continue;
                 }
 
-                var executeResult = await entry.ExecuteAsync(action).ConfigureAwait(false);
+                var executeResult = await entry.ExecuteAsync(action, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 if (executeResult.IsSuccess)
                 {
                     return executeResult;
@@ -53,8 +54,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return executeResult;
                 }
 
-
-                await entry.MarkFailureAsync().ConfigureAwait(false);
+                await entry.MarkFailureAsync(executeResult.Message, executeResult.Exception, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+                await entry.NotifyRetryingAsync(attempt, maxRetry, retryBackoff, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+                await entry.TryRecoverAsync("检测到可恢复异常，准备重连", ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 await Task.Delay(retryBackoff).ConfigureAwait(false);
             }
         }

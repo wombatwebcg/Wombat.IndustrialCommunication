@@ -30,6 +30,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
                     return OperationResult.CreateFailedResult<IPooledDeviceConnection>("连接标识不能为空");
                 }
 
+                if (string.IsNullOrWhiteSpace(descriptor.Identity.DeviceId)
+                    || string.IsNullOrWhiteSpace(descriptor.Identity.ProtocolType)
+                    || string.IsNullOrWhiteSpace(descriptor.Identity.Endpoint))
+                {
+                    return OperationResult.CreateFailedResult<IPooledDeviceConnection>("连接标识缺少必要字段");
+                }
+
                 var type = ResolveConnectionType(descriptor);
                 switch (type)
                 {

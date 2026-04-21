@@ -15,7 +15,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
         ConnectionIdentity Identity { get; }
 
         /// <summary>
-        /// 当前连接条目状态。
+        /// 当前底层连接状态（主要用于诊断，不表达池级租约状态）。
         /// </summary>
         ConnectionEntryState State { get; }
 
