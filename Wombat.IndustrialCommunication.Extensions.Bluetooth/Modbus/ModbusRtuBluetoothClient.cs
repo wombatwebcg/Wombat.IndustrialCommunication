@@ -1,7 +1,9 @@
 using Microsoft.Extensions.Logging;
 using System;
-using System.Threading;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
 
 namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
@@ -9,16 +11,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
     public class ModbusRtuBluetoothClient : ModbusRtuClientBase, IDeviceClient, IModbusClient
     {
         private readonly BluetoothStreamAdapter _bluetoothAdapter;
-        private readonly SemaphoreSlim _lock = new SemaphoreSlim(1, 1);
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
-
-        public ModbusRtuBluetoothClient(IBluetoothChannel channel)
-            : base(new DeviceMessageTransport(new BluetoothStreamAdapter(channel)))
-        {
-            _bluetoothAdapter = (BluetoothStreamAdapter)Transport.StreamResource;
-        }
-
-        public ILogger Logger { get; set; }
+        private readonly AsyncLock _lock = new AsyncLock();
 
         public bool EnableAutoReconnect { get; set; } = true;
 
@@ -26,307 +19,1020 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
 
         public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(2);
 
+        public TimeSpan ConnectionCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
+
+        public int ShortConnectionReconnectAttempts { get; set; } = 1;
+
+        private DateTime _lastReconnectAttempt = DateTime.MinValue;
+
+        public ModbusRtuBluetoothClient(IBluetoothChannel channel)
+            : base(new DeviceMessageTransport(new BluetoothStreamAdapter(channel)))
+        {
+            _bluetoothAdapter = (BluetoothStreamAdapter)this.Transport.StreamResource;
+        }
+
+        public ILogger Logger { get; set; }
+
         public override string Version => nameof(ModbusRtuBluetoothClient);
 
         public TimeSpan ConnectTimeout
         {
-            get => _bluetoothAdapter.ConnectTimeout;
-            set => _bluetoothAdapter.ConnectTimeout = value;
+            get
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    return _bluetoothAdapter.ConnectTimeout;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    _bluetoothAdapter.ConnectTimeout = value;
+                }
+            }
         }
 
         public TimeSpan ReceiveTimeout
         {
-            get => _bluetoothAdapter.ReceiveTimeout;
-            set => _bluetoothAdapter.ReceiveTimeout = value;
+            get
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    return _bluetoothAdapter.ReceiveTimeout;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    _bluetoothAdapter.ReceiveTimeout = value;
+                }
+            }
         }
 
         public TimeSpan SendTimeout
         {
-            get => _bluetoothAdapter.SendTimeout;
-            set => _bluetoothAdapter.SendTimeout = value;
+            get
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    return _bluetoothAdapter.SendTimeout;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    _bluetoothAdapter.SendTimeout = value;
+                }
+            }
         }
 
-        public bool Connected => _bluetoothAdapter.Connected;
+        public bool Connected
+        {
+            get
+            {
+                if (_bluetoothAdapter != null)
+                {
+                    return _bluetoothAdapter.Connected;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+        }
 
         public int Retries
         {
-            get => Transport.Retries;
-            set => Transport.Retries = value;
+            get
+            {
+                if (Transport != null)
+                {
+                    return Transport.Retries;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (Transport != null)
+                {
+                    Transport.Retries = value;
+                }
+            }
         }
 
         public TimeSpan WaitToRetryMilliseconds
         {
-            get => Transport.WaitToRetryMilliseconds;
-            set => Transport.WaitToRetryMilliseconds = value;
+            get
+            {
+                if (Transport != null)
+                {
+                    return Transport.WaitToRetryMilliseconds;
+                }
+                else
+                {
+                    return default;
+                }
+            }
+            set
+            {
+                if (Transport != null)
+                {
+                    Transport.WaitToRetryMilliseconds = value;
+                }
+            }
         }
 
         public bool IsLongConnection { get; set; } = true;
 
-        public TimeSpan ResponseInterval
-        {
-            get => Transport.ResponseInterval;
-            set => Transport.ResponseInterval = value;
-        }
+        public TimeSpan ResponseInterval { get; set; }
 
         public OperationResult Connect()
         {
-            return ConnectAsync().GetAwaiter().GetResult();
+            try
+            {
+                return ConnectAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"Modbus Rtu蓝牙客户端连接失败: {ex.Message}");
+            }
         }
 
         public async Task<OperationResult> ConnectAsync()
         {
-            await _lock.WaitAsync().ConfigureAwait(false);
-            try
+            using (await _lock.LockAsync())
             {
                 if (Connected)
                 {
+                    Logger?.LogDebug("Modbus RTU蓝牙已连接");
                     return OperationResult.CreateSuccessResult("已连接");
                 }
 
-                return await _bluetoothAdapter.ConnectAsync().ConfigureAwait(false);
-            }
-            finally
-            {
-                _lock.Release();
+                try
+                {
+                    Logger?.LogDebug("正在连接Modbus RTU蓝牙");
+                    var startTime = DateTime.Now;
+                    var result = await _bluetoothAdapter.ConnectAsync();
+
+                    if (result.IsSuccess)
+                    {
+                        var timeConsuming = (DateTime.Now - startTime).TotalMilliseconds;
+                        Logger?.LogInformation("成功连接Modbus RTU蓝牙，耗时：{TimeConsuming}ms", timeConsuming);
+                    }
+                    else
+                    {
+                        Logger?.LogWarning("连接Modbus RTU蓝牙失败，错误：{Error}", result.Message);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "连接Modbus RTU蓝牙时发生异常");
+                    return OperationResult.CreateFailedResult($"连接异常: {ex.Message}");
+                }
             }
         }
 
         public OperationResult Disconnect()
         {
-            return DisconnectAsync().GetAwaiter().GetResult();
+            try
+            {
+                return DisconnectAsync().GetAwaiter().GetResult();
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"Modbus Rtu蓝牙客户端断开连接失败: {ex.Message}");
+            }
         }
 
         public async Task<OperationResult> DisconnectAsync()
         {
-            await _lock.WaitAsync().ConfigureAwait(false);
-            try
+            using (await _lock.LockAsync())
             {
                 if (!Connected)
                 {
+                    Logger?.LogDebug("Modbus RTU蓝牙已断开连接");
                     return OperationResult.CreateSuccessResult("已断开连接");
                 }
 
-                return await _bluetoothAdapter.DisconnectAsync().ConfigureAwait(false);
+                try
+                {
+                    Logger?.LogDebug("正在断开Modbus RTU蓝牙连接");
+                    var startTime = DateTime.Now;
+                    var result = await _bluetoothAdapter.DisconnectAsync();
+
+                    if (result.IsSuccess)
+                    {
+                        var timeConsuming = (DateTime.Now - startTime).TotalMilliseconds;
+                        Logger?.LogInformation("成功断开Modbus RTU蓝牙连接，耗时：{TimeConsuming}ms", timeConsuming);
+                    }
+                    else
+                    {
+                        Logger?.LogWarning("断开Modbus RTU蓝牙连接失败，错误：{Error}", result.Message);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "断开Modbus RTU蓝牙连接时发生异常");
+                    return OperationResult.CreateFailedResult($"断开连接异常: {ex.Message}");
+                }
             }
-            finally
+        }
+
+        public async Task<OperationResult> CheckAndReconnectAsync()
+        {
+            if (Connected)
             {
-                _lock.Release();
+                return OperationResult.CreateSuccessResult("连接正常");
+            }
+
+            if (!EnableAutoReconnect)
+            {
+                return OperationResult.CreateFailedResult("未启用自动重连");
+            }
+
+            var now = DateTime.Now;
+            if ((now - _lastReconnectAttempt) < ReconnectDelay)
+            {
+                return OperationResult.CreateFailedResult("重连间隔未到");
+            }
+
+            _lastReconnectAttempt = now;
+
+            Logger?.LogInformation("尝试重连Modbus RTU蓝牙");
+
+            return await ConnectAsync();
+        }
+
+        protected override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
+        {
+            if (IsLongConnection)
+            {
+                if (!Connected)
+                {
+                    if (EnableAutoReconnect)
+                    {
+                        var reconnectResult = await CheckAndReconnectAsync();
+                        if (!reconnectResult.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙自动重连失败，无法读取数据");
+                        }
+                    }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙客户端没有连接");
+                    }
+                }
+
+                try
+                {
+                    Logger?.LogDebug("开始读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
+                    var result = await base.ReadAsync(address, length, dataType, isBit);
+
+                    if (result.IsSuccess)
+                    {
+                        Logger?.LogDebug("成功读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
+                    }
+                    else
+                    {
+                        Logger?.LogWarning("读取Modbus RTU蓝牙数据失败，地址：{Address}，长度：{Length}，错误：{Error}", address, length, result.Message);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "读取Modbus RTU蓝牙数据时发生异常，地址：{Address}，长度：{Length}", address, length);
+                    return OperationResult.CreateFailedResult<byte[]>($"读取数据失败：{ex.Message}");
+                }
+            }
+            else
+            {
+                bool connected = false;
+                try
+                {
+                    await DisconnectAsync();
+
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>($"短连接模式连接失败：{connectResult.Message}");
+                    }
+
+                    connected = true;
+
+                    var result = await base.ReadAsync(address, length, dataType, isBit);
+                    if (result.IsSuccess)
+                    {
+                        Logger?.LogDebug("短连接模式成功读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "短连接模式读取Modbus RTU蓝牙数据时发生异常，地址：{Address}，长度：{Length}", address, length);
+                    return OperationResult.CreateFailedResult<byte[]>($"短连接读取失败：{ex.Message}");
+                }
+                finally
+                {
+                    if (connected)
+                    {
+                        try
+                        {
+                            await DisconnectAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger?.LogWarning(ex, "短连接模式操作后断开蓝牙连接时发生异常");
+                        }
+                    }
+                }
+            }
+        }
+
+        protected  override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data, dataType, isBit), address);
+        }
+
+        public override async Task<OperationResult> WriteAsync(string address, bool[] data)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data), address);
+        }
+
+        public override async Task<OperationResult> WriteAsync(string address, bool data)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data), address);
+        }
+
+        private async Task<OperationResult> HandleWriteAsync(Func<Task<OperationResult>> writeAction, string address)
+        {
+            if (IsLongConnection)
+            {
+                if (!Connected)
+                {
+                    if (EnableAutoReconnect)
+                    {
+                        var reconnectResult = await CheckAndReconnectAsync();
+                        if (!reconnectResult.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult("Modbus RTU蓝牙自动重连失败，无法写入数据");
+                        }
+                    }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult("Modbus RTU蓝牙客户端没有连接");
+                    }
+                }
+
+                try
+                {
+                    Logger?.LogDebug("开始写入Modbus RTU蓝牙数据，地址：{Address}", address);
+                    var result = await writeAction();
+
+                    if (result.IsSuccess)
+                    {
+                        Logger?.LogDebug("成功写入Modbus RTU蓝牙数据，地址：{Address}", address);
+                    }
+                    else
+                    {
+                        Logger?.LogWarning("写入Modbus RTU蓝牙数据失败，地址：{Address}，错误：{Error}", address, result.Message);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "写入Modbus RTU蓝牙数据时发生异常，地址：{Address}", address);
+                    return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
+                }
+            }
+            else
+            {
+                bool connected = false;
+                try
+                {
+                    await DisconnectAsync();
+
+                    var connectResult = await ConnectAsync();
+                    if (!connectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                    }
+
+                    connected = true;
+
+                    var result = await writeAction();
+                    if (result.IsSuccess)
+                    {
+                        Logger?.LogDebug("短连接模式成功写入Modbus RTU蓝牙数据，地址：{Address}", address);
+                    }
+
+                    return result;
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "短连接模式写入Modbus RTU蓝牙数据时发生异常，地址：{Address}", address);
+                    return OperationResult.CreateFailedResult($"短连接写入失败：{ex.Message}");
+                }
+                finally
+                {
+                    if (connected)
+                    {
+                        try
+                        {
+                            await DisconnectAsync();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger?.LogWarning(ex, "短连接模式操作后断开蓝牙连接时发生异常");
+                        }
+                    }
+                }
             }
         }
 
         public OperationResult<bool> ReadCoil(byte stationNumber, ushort address)
         {
-            return ReadCoilAsync(stationNumber, address).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};1;{address}";
+                var result = ReadBoolean(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool>($"读取线圈失败: {ex.Message}");
+            }
         }
 
         public OperationResult<bool[]> ReadCoils(byte stationNumber, ushort startAddress, ushort count)
         {
-            return ReadCoilsAsync(stationNumber, startAddress, count).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};1;{startAddress}";
+                var result = ReadBoolean(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool[]>($"读取多个线圈失败: {ex.Message}");
+            }
         }
 
         public OperationResult<bool> ReadDiscreteInput(byte stationNumber, ushort address)
         {
-            return ReadDiscreteInputAsync(stationNumber, address).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};2;{address}";
+                var result = ReadBoolean(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool>($"读取离散输入失败: {ex.Message}");
+            }
         }
 
         public OperationResult<bool[]> ReadDiscreteInputs(byte stationNumber, ushort startAddress, ushort count)
         {
-            return ReadDiscreteInputsAsync(stationNumber, startAddress, count).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};2;{startAddress}";
+                var result = ReadBoolean(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool[]>($"读取多个离散输入失败: {ex.Message}");
+            }
         }
 
         public OperationResult<ushort> ReadHoldingRegister(byte stationNumber, ushort address)
         {
-            return ReadHoldingRegisterAsync(stationNumber, address).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};3;{address}";
+                var result = ReadUInt16(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort>($"读取保持寄存器失败: {ex.Message}");
+            }
         }
 
         public OperationResult<ushort[]> ReadHoldingRegisters(byte stationNumber, ushort startAddress, ushort count)
         {
-            return ReadHoldingRegistersAsync(stationNumber, startAddress, count).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};3;{startAddress}";
+                var result = ReadUInt16(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort[]>($"读取多个保持寄存器失败: {ex.Message}");
+            }
         }
 
         public OperationResult<ushort> ReadInputRegister(byte stationNumber, ushort address)
         {
-            return ReadInputRegisterAsync(stationNumber, address).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};4;{address}";
+                var result = ReadUInt16(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort>($"读取输入寄存器失败: {ex.Message}");
+            }
         }
 
         public OperationResult<ushort[]> ReadInputRegisters(byte stationNumber, ushort startAddress, ushort count)
         {
-            return ReadInputRegistersAsync(stationNumber, startAddress, count).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};4;{startAddress}";
+                var result = ReadUInt16(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort[]>($"读取多个输入寄存器失败: {ex.Message}");
+            }
         }
 
         public OperationResult WriteCoil(byte stationNumber, ushort address, bool value)
         {
-            return WriteCoilAsync(stationNumber, address, value).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};5;{address}";
+                var result = Write(modbusAddress, value);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"写入线圈失败: {ex.Message}");
+            }
         }
 
         public OperationResult WriteCoils(byte stationNumber, ushort startAddress, bool[] values)
         {
-            return WriteCoilsAsync(stationNumber, startAddress, values).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};15;{startAddress}";
+                var result = Write(modbusAddress, values);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"写入多个线圈失败: {ex.Message}");
+            }
         }
 
         public OperationResult WriteHoldingRegister(byte stationNumber, ushort address, ushort value)
         {
-            return WriteHoldingRegisterAsync(stationNumber, address, value).GetAwaiter().GetResult();
+            try
+            {
+                string modbusAddress = $"{stationNumber};6;{address}";
+                var result = Write(modbusAddress, value);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"写入保持寄存器失败: {ex.Message}");
+            }
         }
 
         public OperationResult WriteHoldingRegisters(byte stationNumber, ushort startAddress, ushort[] values)
         {
-            return WriteHoldingRegistersAsync(stationNumber, startAddress, values).GetAwaiter().GetResult();
-        }
-
-        public Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address)
-        {
-            var modbusAddress = stationNumber + ";1;" + address;
-            return ExecuteWithConnectionAsync(async () => await ReadBooleanAsync(modbusAddress));
-        }
-
-        public Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count)
-        {
-            var modbusAddress = stationNumber + ";1;" + startAddress;
-            return ExecuteWithConnectionAsync(async () => await ReadBooleanAsync(modbusAddress, count));
-        }
-
-        public Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address)
-        {
-            var modbusAddress = stationNumber + ";2;" + address;
-            return ExecuteWithConnectionAsync(async () => await ReadBooleanAsync(modbusAddress));
-        }
-
-        public Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count)
-        {
-            var modbusAddress = stationNumber + ";2;" + startAddress;
-            return ExecuteWithConnectionAsync(async () => await ReadBooleanAsync(modbusAddress, count));
-        }
-
-        public Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address)
-        {
-            var modbusAddress = stationNumber + ";3;" + address;
-            return ExecuteWithConnectionAsync(async () => await ReadUInt16Async(modbusAddress));
-        }
-
-        public Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
-        {
-            var modbusAddress = stationNumber + ";3;" + startAddress;
-            return ExecuteWithConnectionAsync(async () => await ReadUInt16Async(modbusAddress, count));
-        }
-
-        public Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address)
-        {
-            var modbusAddress = stationNumber + ";4;" + address;
-            return ExecuteWithConnectionAsync(async () => await ReadUInt16Async(modbusAddress));
-        }
-
-        public Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
-        {
-            var modbusAddress = stationNumber + ";4;" + startAddress;
-            return ExecuteWithConnectionAsync(async () => await ReadUInt16Async(modbusAddress, count));
-        }
-
-        public Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value)
-        {
-            var modbusAddress = stationNumber + ";5;" + address;
-            return ExecuteWithConnectionAsync(() => WriteAsync(modbusAddress, value));
-        }
-
-        public Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values)
-        {
-            var modbusAddress = stationNumber + ";15;" + startAddress;
-            return ExecuteWithConnectionAsync(() => WriteAsync(modbusAddress, values));
-        }
-
-        public Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value)
-        {
-            var modbusAddress = stationNumber + ";6;" + address;
-            return ExecuteWithConnectionAsync(() => WriteAsync(modbusAddress, value));
-        }
-
-        public Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values)
-        {
-            var modbusAddress = stationNumber + ";16;" + startAddress;
-            return ExecuteWithConnectionAsync(() => WriteAsync(modbusAddress, values));
-        }
-
-        private async Task<OperationResult> EnsureConnectedAsync()
-        {
-            if (Connected)
-            {
-                return OperationResult.CreateSuccessResult();
-            }
-
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("蓝牙未连接");
-            }
-
-            if (DateTime.Now - _lastReconnectAttempt < ReconnectDelay)
-            {
-                return OperationResult.CreateFailedResult("重连间隔未到");
-            }
-
-            _lastReconnectAttempt = DateTime.Now;
-
-            for (var i = 0; i < MaxReconnectAttempts; i++)
-            {
-                var result = await ConnectAsync().ConfigureAwait(false);
-                if (result.IsSuccess)
-                {
-                    return result;
-                }
-
-                await Task.Delay(ReconnectDelay).ConfigureAwait(false);
-            }
-
-            return OperationResult.CreateFailedResult("自动重连失败");
-        }
-
-        private async Task<OperationResult<T>> ExecuteWithConnectionAsync<T>(Func<Task<OperationResult<T>>> action)
-        {
-            var shouldDisconnect = !IsLongConnection;
-            if (!Connected)
-            {
-                var connectResult = shouldDisconnect ? await ConnectAsync().ConfigureAwait(false) : await EnsureConnectedAsync().ConfigureAwait(false);
-                if (!connectResult.IsSuccess)
-                {
-                    return OperationResult.CreateFailedResult<T>(connectResult);
-                }
-            }
-
             try
             {
-                return await action().ConfigureAwait(false);
+                string modbusAddress = $"{stationNumber};16;{startAddress}";
+                var result = Write(modbusAddress, values);
+                return result;
             }
-            finally
+            catch (Exception ex)
             {
-                if (shouldDisconnect && Connected)
-                {
-                    await DisconnectAsync().ConfigureAwait(false);
-                }
+                return OperationResult.CreateFailedResult($"写入多个保持寄存器失败: {ex.Message}");
             }
         }
 
-        private async Task<OperationResult> ExecuteWithConnectionAsync(Func<Task<OperationResult>> action)
+        public async Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address)
         {
-            var shouldDisconnect = !IsLongConnection;
-            if (!Connected)
+            try
             {
-                var connectResult = shouldDisconnect ? await ConnectAsync().ConfigureAwait(false) : await EnsureConnectedAsync().ConfigureAwait(false);
-                if (!connectResult.IsSuccess)
+                string modbusAddress = $"{stationNumber};1;{address}";
+                var result = await ReadBooleanAsync(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool>($"异步读取线圈失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};1;{startAddress}";
+                var result = await ReadBooleanAsync(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool[]>($"异步读取多个线圈失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};2;{address}";
+                var result = await ReadBooleanAsync(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool>($"异步读取离散输入失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};2;{startAddress}";
+                var result = await ReadBooleanAsync(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<bool[]>($"异步读取多个离散输入失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};3;{address}";
+                var result = await ReadUInt16Async(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort>($"异步读取保持寄存器失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};3;{startAddress}";
+                var result = await ReadUInt16Async(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort[]>($"异步读取多个保持寄存器失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};4;{address}";
+                var result = await ReadUInt16Async(modbusAddress);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort>($"异步读取输入寄存器失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};4;{startAddress}";
+                var result = await ReadUInt16Async(modbusAddress, count);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<ushort[]>($"异步读取多个输入寄存器失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};5;{address}";
+                var result = await WriteAsync(modbusAddress, value);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"异步写入线圈失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};15;{startAddress}";
+                var result = await WriteAsync(modbusAddress, values);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"异步写入多个线圈失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};6;{address}";
+                var result = await WriteAsync(modbusAddress, value);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"异步写入保持寄存器失败: {ex.Message}");
+            }
+        }
+
+        public async Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values)
+        {
+            try
+            {
+                string modbusAddress = $"{stationNumber};16;{startAddress}";
+                var result = await WriteAsync(modbusAddress, values);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult($"异步写入多个保持寄存器失败: {ex.Message}");
+            }
+        }
+
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
+                try
                 {
-                    return connectResult;
+                    if (addresses == null || addresses.Count == 0)
+                    {
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
+                        return result.Complete();
+                    }
+
+                    var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
+                    foreach (var kvp in addresses)
+                    {
+                        internalAddresses[kvp.Key] = (kvp.Value, null);
+                    }
+
+                    var addressInfos = ModbusBatchHelper.ParseModbusAddresses(internalAddresses, false);
+                    if (addressInfos.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "没有有效的地址可以读取";
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
+                        return result.Complete();
+                    }
+
+                    var optimizedBlocks = ModbusBatchHelper.OptimizeModbusAddressBlocks(addressInfos);
+                    if (optimizedBlocks.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "地址优化失败";
+                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
+                        return result.Complete();
+                    }
+
+                    var blockDataDict = new Dictionary<string, byte[]>();
+                    var errors = new List<string>();
+                    foreach (var block in optimizedBlocks)
+                    {
+                        try
+                        {
+                            string blockAddress = $"{block.StationNumber};{block.FunctionCode};{block.StartAddress}";
+                            string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
+                            var readResult = await InternalModbusReadAsync(blockAddress, block.TotalLength, block.FunctionCode == 0x01 || block.FunctionCode == 0x02);
+                            if (readResult.IsSuccess)
+                            {
+                                blockDataDict[blockKey] = readResult.ResultValue;
+                                result.Requsts.AddRange(readResult.Requsts);
+                                result.Responses.AddRange(readResult.Responses);
+                            }
+                            else
+                            {
+                                errors.Add($"读取块 {blockAddress} 失败: {readResult.Message}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 异常: {ex.Message}");
+                        }
+                    }
+
+                    if (errors.Count > 0)
+                    {
+                        result.IsSuccess = blockDataDict.Count > 0;
+                        result.Message = string.Join("; ", errors);
+                    }
+                    else
+                    {
+                        result.IsSuccess = true;
+                    }
+
+                    var extractedData = ModbusBatchHelper.ExtractDataFromModbusBlocks(blockDataDict, optimizedBlocks, addressInfos);
+                    var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
+                    foreach (var kvp in addresses)
+                    {
+                        var address = kvp.Key;
+                        var dataType = kvp.Value;
+                        if (extractedData.TryGetValue(address, out var value))
+                        {
+                            finalResult[address] = (dataType, value);
+                        }
+                        else
+                        {
+                            finalResult[address] = (dataType, null);
+                        }
+                    }
+
+                    result.ResultValue = finalResult;
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"批量读取异常: {ex.Message}";
+                    result.Exception = ex;
+                    result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
+                }
+
+                return result.Complete();
+            }
+        }
+
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        {
+            using (await _lock.LockAsync())
+            {
+                var result = new OperationResult();
+                try
+                {
+                    if (addresses == null || addresses.Count == 0)
+                    {
+                        return result.Complete();
+                    }
+
+                    var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
+                    foreach (var kvp in addresses)
+                    {
+                        internalAddresses[kvp.Key] = (kvp.Value.Item1, kvp.Value.Item2);
+                    }
+
+                    var addressInfos = ModbusBatchHelper.ParseModbusAddresses(internalAddresses);
+                    if (addressInfos.Count == 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = "没有有效的地址可以写入";
+                        return result.Complete();
+                    }
+
+                    var writeErrors = new List<string>();
+                    var successCount = 0;
+                    foreach (var addressInfo in addressInfos)
+                    {
+                        try
+                        {
+                            if (!internalAddresses.TryGetValue(addressInfo.OriginalAddress, out var value))
+                            {
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
+                                continue;
+                            }
+
+                            byte[] data = ModbusBatchHelper.ConvertValueToModbusBytes(value, addressInfo, IsReverse, DataFormat);
+                            if (data == null)
+                            {
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 的值转换失败");
+                                continue;
+                            }
+
+                            string writeAddress = ModbusBatchHelper.ConstructModbusWriteAddress(addressInfo);
+                            if (string.IsNullOrEmpty(writeAddress))
+                            {
+                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
+                                continue;
+                            }
+
+                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
+                            if (writeResult.IsSuccess)
+                            {
+                                successCount++;
+                                result.Requsts.AddRange(writeResult.Requsts);
+                                result.Responses.AddRange(writeResult.Responses);
+                            }
+                            else
+                            {
+                                writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
+                        }
+                    }
+
+                    if (successCount == addressInfos.Count)
+                    {
+                        result.IsSuccess = true;
+                        result.Message = $"成功写入 {successCount} 个地址";
+                    }
+                    else if (successCount > 0)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
+                    }
+                    else
+                    {
+                        result.IsSuccess = false;
+                        result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
+                    }
+                }
+                catch (Exception ex)
+                {
+                    result.IsSuccess = false;
+                    result.Message = $"批量写入异常: {ex.Message}";
+                    result.Exception = ex;
+                }
+
+                return result.Complete();
+            }
+        }
+
+        private async ValueTask<OperationResult<byte[]>> InternalModbusReadAsync(string address, int length, bool isBit = false)
+        {
+            var dataType = isBit ? DataTypeEnums.Bool : DataTypeEnums.UInt16;
+            if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
+            {
+                var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
+                var response = await Transport.UnicastReadMessageAsync(request);
+                if (response.IsSuccess)
+                {
+                    var dataPackage = response.ResultValue.ProtocolMessageFrame;
+                    var modbusRtuResponse = new ModbusRTUResponse(dataPackage);
+                    var result = new OperationResult<byte[]>(response, modbusRtuResponse.Data);
+                    result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                    result.Responses.Add(string.Join(" ", response.ResultValue.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                    return result.Complete();
+                }
+                else
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(response);
                 }
             }
 
-            try
-            {
-                return await action().ConfigureAwait(false);
-            }
-            finally
-            {
-                if (shouldDisconnect && Connected)
-                {
-                    await DisconnectAsync().ConfigureAwait(false);
-                }
-            }
+            return OperationResult.CreateFailedResult<byte[]>();
         }
 
         protected new virtual void Dispose(bool disposing)

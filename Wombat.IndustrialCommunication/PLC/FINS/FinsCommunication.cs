@@ -149,7 +149,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="dataType">数据类型</param>
         /// <param name="isBit">是否为位操作</param>
         /// <returns>读取结果</returns>
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -238,7 +238,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <param name="dataType">数据类型</param>
         /// <param name="isBit">是否为位操作</param>
         /// <returns>写入结果</returns>
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {

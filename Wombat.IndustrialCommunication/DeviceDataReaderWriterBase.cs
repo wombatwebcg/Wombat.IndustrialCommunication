@@ -190,7 +190,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 异步读取数据
         /// </summary>
-        internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType,bool isBit = false);
+        protected internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType,bool isBit = false);
 
         /// <summary>
         /// 异步读取单个字节
@@ -859,7 +859,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="data">值</param>
         /// <param name="isBit">值</param>
         /// <returns></returns>
-        internal abstract Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false);
+        protected internal abstract Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false);
 
         public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, DataTypeEnums.Byte, false);
 

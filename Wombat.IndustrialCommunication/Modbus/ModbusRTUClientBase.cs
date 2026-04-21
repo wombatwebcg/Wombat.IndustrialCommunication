@@ -40,7 +40,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             public double EfficiencyRatio { get; set; }
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address,int length,DataTypeEnums dataType, bool isBit = false)
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address,int length,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -81,7 +81,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         }
 
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
         {
             using (await _lock.LockAsync())
             {

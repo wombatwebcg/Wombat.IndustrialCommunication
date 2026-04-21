@@ -322,7 +322,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return OperationResult.CreateSuccessResult();
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {
@@ -416,7 +416,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
+      protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
             {

@@ -315,7 +315,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return await ConnectAsync();
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             // 获取操作名称，用于日志记录
             string operationName = $"Read_{(isBit ? "Bit" : "Byte")}";
@@ -424,7 +424,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
         {
             return await HandleWriteAsync(() => base.WriteAsync(address, data,dataType, isBit), address);
         }

@@ -326,7 +326,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return await ConnectAsync();
         }
 
-        internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
             {
@@ -423,7 +423,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
             {

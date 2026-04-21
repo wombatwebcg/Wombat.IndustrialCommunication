@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// �򻯰��첽��������SemaphoreSlimʵ�֣����⾲̬����͸��ӵ��첽�ͷ��߼�
     /// </summary>
-    internal class AsyncLock : IDisposable
+    public class AsyncLock : IDisposable
     {
         private SemaphoreSlim _reentrancy = new SemaphoreSlim(1, 1);
         private int _reentrances = 0;
