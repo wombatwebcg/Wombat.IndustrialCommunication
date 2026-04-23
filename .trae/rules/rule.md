@@ -1,2 +1,3 @@
-1#这是一个工业设备通讯库，用于与工业设备进行通讯。
-2#使用.net standard2.0框架,只使用.net standard2.0框架默认支持的C#语法。
+1#Wombat.IndustrialCommunication这是一个工业设备通讯库，用于与工业设备进行通讯。
+2#Wombat.IndustrialCommunication使用.net standard2.0框架,只使用.net standard2.0框架默认支持的C#语法。
+3#Wombat.IndustrialCommunication.Tools是一个工具库，用于通过Wombat.IndustrialCommunication库进行工业设备通讯。
