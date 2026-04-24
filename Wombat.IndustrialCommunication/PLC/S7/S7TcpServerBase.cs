@@ -305,38 +305,9 @@ namespace Wombat.IndustrialCommunication.PLC
                 Logger?.LogDebug("连接建立请求详情: 长度={Length}, TPKT版本={TPKTVersion:X2}, COTP类型={COTPType:X2}", 
                     request.Length, request[0], request[5]);
 
-                // 根据不同的PLC型号和请求类型处理连接
-                byte[] response = null;
-                
-                switch (SiemensVersion)
-                {
-                    case SiemensVersion.S7_200:
-                        Logger?.LogDebug("处理S7_200连接建立请求");
-                        response = HandleS7_200ConnectionRequest(request);
-                        break;
-                        
-                    case SiemensVersion.S7_200Smart:
-                        Logger?.LogDebug("处理S7_200Smart连接建立请求");
-                        response = HandleS7_200SmartConnectionRequest(request);
-                        break;
-                        
-                    case SiemensVersion.S7_300:
-                    case SiemensVersion.S7_400:
-                        Logger?.LogDebug("处理S7_300/400连接建立请求");
-                        response = HandleS7_300_400ConnectionRequest(request);
-                        break;
-                        
-                    case SiemensVersion.S7_1200:
-                    case SiemensVersion.S7_1500:
-                        Logger?.LogDebug("处理S7_1200/1500连接建立请求");
-                        response = HandleS7_1200_1500ConnectionRequest(request);
-                        break;
-                        
-                    default:
-                        Logger?.LogWarning("不支持的PLC型号: {SiemensVersion}", SiemensVersion);
-                        response = S7ResponseBuilder.CreateErrorResponse(request, 0x01); // 不支持的功能
-                        break;
-                }
+                // ISO-on-TCP 建连和 S7 Setup Communication 属于协议协商层，
+                // 响应应尽量依据请求内容自动适配，而不是依赖预设 PLC 型号。
+                byte[] response = S7ResponseBuilder.CreateConnectionResponse(request, SiemensVersion, Rack, Slot);
 
                 if (response != null)
                 {

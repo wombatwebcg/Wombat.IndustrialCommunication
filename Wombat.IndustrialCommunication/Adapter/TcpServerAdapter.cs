@@ -532,9 +532,17 @@ namespace Wombat.IndustrialCommunication
         /// <param name="count">数量</param>
         private void HandleReceivedData(ClientSession session, byte[] data, int offset, int count)
         {
+            if (session == null || data == null || count <= 0)
+            {
+                return;
+            }
+
+            byte[] actualData = new byte[count];
+            Buffer.BlockCopy(data, offset, actualData, 0, count);
+
             // 创建会话包装器
             var networkSession = new ClientSessionWrapper(session);
-            DataReceived?.Invoke(this, new DataReceivedEventArgs(networkSession, data, offset, count));
+            DataReceived?.Invoke(this, new DataReceivedEventArgs(networkSession, actualData));
         }
 
         /// <summary>

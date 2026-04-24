@@ -12,4 +12,8 @@
     <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj" />
+  </ItemGroup>
+
 </Project>

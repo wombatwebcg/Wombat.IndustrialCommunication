@@ -23,8 +23,9 @@ namespace Wombat.IndustrialCommunication.PLC
             if (request == null || request.Length < 10)
                 return null;
 
-            // 检查是否是COTP连接请求
-            if (request[0] == 0x03 && request[1] == 0x00 && request[4] == 0x11 && request[5] == 0xE0)
+            // 检查是否是COTP连接请求。不同PLC会携带不同长度的TSAP参数，
+            // 不能把长度固定写死为 0x11。
+            if (request[0] == 0x03 && request[1] == 0x00 && request.Length >= 7 && request[5] == 0xE0)
             {
                 // 第一阶段：COTP连接建立响应
                 return CreateCOTPConnectionResponse(request, siemensVersion);
@@ -60,64 +61,36 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns>COTP连接响应</returns>
         private static byte[] CreateCOTPConnectionResponse(byte[] request, SiemensVersion siemensVersion)
         {
-            // COTP连接建立响应格式
-            byte[] response = new byte[22];
-            
-            // TPKT头 (4字节)
-            response[0] = 0x03; // 版本
-            response[1] = 0x00; // 保留
-            response[2] = 0x00; // 长度高字节
-            response[3] = 0x16; // 长度低字节 (22)
-            
-            // COTP头 (18字节)
-            response[4] = 0x11; // 长度
-            response[5] = 0xE0; // CR = Connection Response
-            response[6] = 0x00; // Destination Reference (High Byte)
-            response[7] = 0x00; // Destination Reference (Low Byte)
-            response[8] = 0x00; // Source Reference (High Byte)
-            response[9] = 0x01; // Source Reference (Low Byte)
-            response[10] = 0x00; // Flags
-            
-            // TPDU Number
-            response[11] = 0xC1; // TPDU Number
-            response[12] = 0x02; // 长度
-            response[13] = 0x10; // 目标TSAP
-            response[14] = 0x00; // 源TSAP
-            
-            // 根据PLC型号设置不同的参数
-            switch (siemensVersion)
+            if (request == null || request.Length < 11)
+                return null;
+
+            byte[] response = new byte[request.Length];
+
+            // TPKT头直接沿用请求长度，避免对可变参数长度的请求产生截断。
+            response[0] = 0x03;
+            response[1] = 0x00;
+            response[2] = (byte)(response.Length >> 8);
+            response[3] = (byte)(response.Length & 0xFF);
+
+            // COTP Connection Confirm
+            response[4] = request[4];
+            response[5] = 0xD0;
+
+            // CC 的目标引用应回填客户端在 CR 中的源引用。
+            response[6] = request[8];
+            response[7] = request[9];
+
+            // 服务器源引用可固定，当前实现保持为 0 以兼容现有客户端。
+            response[8] = 0x00;
+            response[9] = 0x00;
+            response[10] = request[10];
+
+            // C0/C1/C2 参数使用请求中的协商值原样回显，避免 TSAP/TPDU 大小不一致。
+            if (request.Length > 11)
             {
-                case SiemensVersion.S7_200:
-                    response[15] = 0xC2; // 参数代码
-                    response[16] = 0x02; // 长度
-                    response[17] = 0x03; // 参数值
-                    response[18] = 0x00;
-                    response[19] = 0xC0; // 参数代码
-                    response[20] = 0x01; // 长度
-                    response[21] = 0x0A; // 参数值
-                    break;
-                    
-                case SiemensVersion.S7_200Smart:
-                    response[15] = 0xC2; // 参数代码
-                    response[16] = 0x02; // 长度
-                    response[17] = 0x03; // 参数值
-                    response[18] = 0x00;
-                    response[19] = 0xC0; // 参数代码
-                    response[20] = 0x01; // 长度
-                    response[21] = 0x0A; // 参数值
-                    break;
-                    
-                default:
-                    response[15] = 0xC2; // 参数代码
-                    response[16] = 0x02; // 长度
-                    response[17] = 0x01; // 参数值
-                    response[18] = 0x02;
-                    response[19] = 0xC0; // 参数代码
-                    response[20] = 0x01; // 长度
-                    response[21] = 0x0A; // 参数值
-                    break;
+                Array.Copy(request, 11, response, 11, request.Length - 11);
             }
-            
+
             return response;
         }
 
@@ -131,43 +104,75 @@ namespace Wombat.IndustrialCommunication.PLC
         /// <returns>S7通信响应</returns>
         private static byte[] CreateS7CommunicationResponse(byte[] request, SiemensVersion siemensVersion, byte rack, byte slot)
         {
-            // S7通信建立响应格式
-            byte[] response = new byte[25];
-            
-            // TPKT头 (4字节)
-            response[0] = 0x03; // 版本
-            response[1] = 0x00; // 保留
-            response[2] = 0x00; // 长度高字节
-            response[3] = 0x19; // 长度低字节 (25)
-            
-            // COTP头 (3字节)
-            response[4] = 0x02; // 长度
-            response[5] = 0xF0; // DT = Data Transfer
-            response[6] = 0x80; // TPDU Number
-            
-            // S7头 (7字节)
-            response[7] = 0x32; // 协议ID
-            response[8] = 0x03; // 消息类型 (Acknowledge)
-            response[9] = 0x00; // 冗余标识
-            response[10] = 0x00; // 协议数据单元引用
-            response[11] = 0x00; // 参数长度 (高字节)
-            response[12] = 0x00; // 参数长度 (低字节)
-            response[13] = 0x00; // 数据长度 (高字节)
-            response[14] = 0x00; // 数据长度 (低字节)
-            
-            // 参数 (8字节)
-            response[15] = 0x00; // 参数代码
-            response[16] = 0x00; // 参数长度 (高字节)
-            response[17] = 0x00; // 参数长度 (低字节)
-            response[18] = 0x00; // 参数代码
-            response[19] = 0x00; // 参数长度 (高字节)
-            response[20] = 0x00; // 参数长度 (低字节)
-            response[21] = 0x00; // 参数代码
-            response[22] = 0x00; // 参数长度 (高字节)
-            response[23] = 0x00; // 参数长度 (低字节)
-            response[24] = 0x00; // 参数代码
-            
+            if (request == null || request.Length < 25)
+                return null;
+
+            const int responseLength = 27;
+            const ushort serverMaxAmq = 1;
+            const ushort serverMaxPduLength = 0x01E0;
+
+            byte[] response = new byte[responseLength];
+
+            response[0] = 0x03;
+            response[1] = 0x00;
+            response[2] = 0x00;
+            response[3] = 0x1B;
+
+            // COTP Data Transfer 头保持与请求一致。
+            response[4] = request[4];
+            response[5] = request[5];
+            response[6] = request[6];
+
+            // S7 Ack-Data 头共 12 字节。
+            response[7] = 0x32;
+            response[8] = 0x03;
+            response[9] = request[9];
+            response[10] = request[10];
+            response[11] = request[11];
+            response[12] = request[12];
+            response[13] = 0x00;
+            response[14] = 0x08;
+            response[15] = 0x00;
+            response[16] = 0x00;
+            response[17] = 0x00;
+            response[18] = 0x00;
+
+            ushort requestedAmqCalling = ReadUInt16BigEndian(request, 19);
+            ushort requestedAmqCalled = ReadUInt16BigEndian(request, 21);
+            ushort requestedPduLength = ReadUInt16BigEndian(request, 23);
+
+            ushort negotiatedAmqCalling = requestedAmqCalling == 0 ? serverMaxAmq : Math.Min(requestedAmqCalling, serverMaxAmq);
+            ushort negotiatedAmqCalled = requestedAmqCalled == 0 ? serverMaxAmq : Math.Min(requestedAmqCalled, serverMaxAmq);
+            ushort negotiatedPduLength = requestedPduLength == 0 ? serverMaxPduLength : Math.Min(requestedPduLength, serverMaxPduLength);
+
+            response[19] = 0xF0;
+            response[20] = 0x00;
+            WriteUInt16BigEndian(response, 21, negotiatedAmqCalling);
+            WriteUInt16BigEndian(response, 23, negotiatedAmqCalled);
+            WriteUInt16BigEndian(response, 25, negotiatedPduLength);
+
             return response;
+        }
+
+        private static ushort ReadUInt16BigEndian(byte[] buffer, int offset)
+        {
+            if (buffer == null || offset < 0 || offset + 1 >= buffer.Length)
+            {
+                return 0;
+            }
+
+            return (ushort)((buffer[offset] << 8) | buffer[offset + 1]);
+        }
+
+        private static void WriteUInt16BigEndian(byte[] buffer, int offset, ushort value)
+        {
+            if (buffer == null || offset < 0 || offset + 1 >= buffer.Length)
+            {
+                return;
+            }
+
+            buffer[offset] = (byte)(value >> 8);
+            buffer[offset + 1] = (byte)(value & 0xFF);
         }
 
         /// <summary>

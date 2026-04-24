@@ -1,0 +1,70 @@
+11:21:09.272 info: Wombat.IndustrialCommunication.ServerTest.Program[0] Logger configured for TcpServerAdapter
+11:21:09.280 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 启用S7数据变化监听
+11:21:09.292 info: Wombat.IndustrialCommunication.ServerTest.Program[0] DataWritten Area=DB DB=1 Start=0 Length=1 Data=80
+11:21:09.295 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 开始在 172.168.1.99:102 上监听
+11:21:09.299 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 成功在 172.168.1.99:102 上开始监听
+11:21:09.299 info: Wombat.IndustrialCommunication.ServerTest.Program[0] S7 监视服务器已启动，监听地址: 172.168.1.99:102
+11:21:09.299 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 当前固定测试值: DB1.DBB0 = 0x80
+11:21:09.299 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 请让实体PLC持续读取 DB1.DBB0，控制台会输出原始十六进制报文和 DataRead 事件
+11:21:10.625 info: Wombat.IndustrialCommunication.ServerTest.Program[0] 客户端 172.168.1.66:60783 已连接
+11:21:10.627 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 从客户端 172.168.1.66:60783 接收到 36 字节数据
+11:21:10.636 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 收到S7请求: 03 00 00 24 1F E0 00 00 00 03 00 C1 10 53 49 4D 41 54 49 43 2D 41 43 43 31 30 30 30 31 C2 02 03 00 C0 01 0A
+11:21:10.637 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] COTP头: 长度=31, 类型=E0
+11:21:10.637 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 检测到COTP连接请求
+11:21:10.637 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7请求，消息类型: E0
+11:21:10.638 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7连接建立请求，PLC型号：S7_1200，机架号：0，槽号：1
+11:21:10.638 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 连接建立请求详情: 长度=36, TPKT版本=03, COTP类型=E0
+11:21:10.639 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7连接建立响应已生成，响应长度: 36
+11:21:10.639 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 发送S7响应: 03 00 00 24 1F D0 00 03 00 00 00 C1 10 53 49 4D 41 54 49 43 2D 41 43 43 31 30 30 30 31 C2 02 03 00 C0 01 0A
+11:21:10.653 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 从客户端 172.168.1.66:60783 接收到 25 字节数据
+11:21:10.666 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 收到S7请求: 03 00 00 19 02 F0 80 32 01 00 00 00 01 00 08 00 00 F0 00 00 03 00 03 00 F0
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] COTP头: 长度=2, 类型=F0
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7消息类型: 01
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7功能码: F0
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7请求，消息类型: F0
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7连接建立请求，PLC型号：S7_1200，机架号：0，槽号：1
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 连接建立请求详情: 长度=25, TPKT版本=03, COTP类型=F0
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7连接建立响应已生成，响应长度: 27
+11:21:10.667 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 发送S7响应: 03 00 00 1B 02 F0 80 32 03 00 00 00 01 00 08 00 00 00 00 F0 00 00 01 00 01 00 F0
+11:21:11.781 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 从客户端 172.168.1.66:60783 接收到 31 字节数据
+11:21:11.793 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 收到S7请求: 03 00 00 1F 02 F0 80 32 01 00 00 00 02 00 0E 00 00 04 01 12 0A 10 02 00 03 00 00 81 00 00 00
+11:21:11.793 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] COTP头: 长度=2, 类型=F0
+11:21:11.793 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7消息类型: 01
+11:21:11.793 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7功能码: 04
+11:21:11.793 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7请求，消息类型: 04
+11:21:11.795 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7读取请求，PLC型号：S7_1200
+11:21:11.795 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取请求详情: 长度=31, TPKT版本=03, COTP类型=F0
+11:21:11.795 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取请求包含 1 个读取项
+11:21:11.797 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 开始读取: 区域类型=I, DB号=0, 起始地址=0, 长度=3, 位操作=False
+11:21:11.798 info: Wombat.IndustrialCommunication.ServerTest.Program[0] DataRead Area=I DB=0 Start=0 Length=3 Data=00 00 00
+11:21:11.798 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 成功读取区域 I，DB0，地址 0，长度 3，数据长度 3
+11:21:11.799 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取响应已生成，响应长度: 28
+11:21:11.799 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 发送S7响应: 03 00 00 1C 02 F0 80 32 03 00 00 00 02 00 02 00 07 00 00 04 01 FF 04 00 18 00 00 00
+11:21:11.807 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 从客户端 172.168.1.66:60783 接收到 31 字节数据
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 收到S7请求: 03 00 00 1F 02 F0 80 32 01 00 00 00 03 00 0E 00 00 04 01 12 0A 10 02 00 05 00 01 84 00 00 00
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] COTP头: 长度=2, 类型=F0
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7消息类型: 01
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7功能码: 04
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7请求，消息类型: 04
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7读取请求，PLC型号：S7_1200
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取请求详情: 长度=31, TPKT版本=03, COTP类型=F0
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取请求包含 1 个读取项
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 开始读取: 区域类型=DB, DB号=1, 起始地址=0, 长度=5, 位操作=False
+11:21:11.809 info: Wombat.IndustrialCommunication.ServerTest.Program[0] DataRead Area=DB DB=1 Start=0 Length=5 Data=80 00 00 00 00
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 成功读取区域 DB，DB1，地址 0，长度 5，数据长度 5
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7读取响应已生成，响应长度: 30
+11:21:11.809 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 发送S7响应: 03 00 00 1E 02 F0 80 32 03 00 00 00 03 00 02 00 09 00 00 04 01 FF 04 00 28 80 00 00 00 00
+11:21:11.817 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 从客户端 172.168.1.66:60783 接收到 40 字节数据
+11:21:11.825 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 收到S7请求: 03 00 00 28 02 F0 80 32 01 00 00 00 04 00 0E 00 09 05 01 12 0A 10 02 00 05 00 01 84 00 00 28 00 04 00 28 02 00 00 00 00
+11:21:11.825 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] COTP头: 长度=2, 类型=F0
+11:21:11.825 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7消息类型: 01
+11:21:11.825 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7功能码: 05
+11:21:11.825 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7请求，消息类型: 05
+11:21:11.826 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 处理S7写入请求，PLC型号：S7_1200
+11:21:11.826 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7写入请求详情: 长度=40, TPKT版本=03, COTP类型=F0
+11:21:11.826 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7写入请求包含 1 个写入项
+11:21:11.827 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 开始写入: 区域类型=DB, DB号=1, 起始地址=5, 长度=5, 位操作=False
+11:21:11.827 info: Wombat.IndustrialCommunication.ServerTest.Program[0] DataWritten Area=DB DB=1 Start=5 Length=5 Data=02 00 00 00 00
+11:21:11.827 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 成功写入区域 DB，DB1，地址 5，长度 5
+11:21:11.827 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] S7写入响应已生成，响应长度: 22
+11:21:11.827 dbug: Wombat.IndustrialCommunication.ServerTest.Program[0] 发送S7响应: 03 00 00 16 02 F0 80 32 03 00 00 00 04 00 02 00 01 00 00 05 01 FF
