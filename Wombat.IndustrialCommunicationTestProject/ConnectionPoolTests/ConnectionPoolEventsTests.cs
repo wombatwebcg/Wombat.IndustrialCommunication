@@ -28,11 +28,76 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
 
-            Assert.Contains(ConnectionEntryState.Connecting, states);
+            Assert.Contains(ConnectionEntryState.Disconnected, states);
             Assert.Contains(ConnectionEntryState.Ready, states);
-            Assert.Contains(ConnectionEntryState.Leased, states);
+            Assert.Contains(ConnectionEntryState.Busy, states);
             Assert.Contains(ConnectionPoolEventType.LeaseAcquired, leases);
             Assert.Contains(ConnectionPoolEventType.LeaseReleased, leases);
+        }
+
+        [Fact]
+        public async Task Should_Isolate_Subscriber_Exception_And_Keep_Main_Flow_Running()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "evt-isolate", ProtocolType = "Mock", Endpoint = "evt-isolate" };
+            var pool = new DeviceConnectionPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var invokedCount = 0;
+
+            pool.LeaseChanged += (sender, args) =>
+            {
+                if (args.EventType == ConnectionPoolEventType.LeaseAcquired)
+                {
+                    throw new InvalidOperationException("subscriber boom");
+                }
+            };
+            pool.LeaseChanged += (sender, args) =>
+            {
+                if (args.EventType == ConnectionPoolEventType.LeaseAcquired)
+                {
+                    invokedCount++;
+                }
+            };
+
+            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
+
+            Assert.True(lease.IsSuccess);
+            Assert.Equal(1, invokedCount);
+            Assert.True(pool.Release(lease.ResultValue).IsSuccess);
+        }
+
+        [Fact]
+        public async Task Should_Dispatch_Events_Outside_Entry_Lock()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "evt-outside-lock", ProtocolType = "Mock", Endpoint = "evt-outside-lock" };
+            var pool = new DeviceConnectionPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var handlerStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var handlerRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
+            Assert.True(lease.IsSuccess);
+
+            pool.LeaseChanged += (sender, args) =>
+            {
+                if (args.EventType == ConnectionPoolEventType.LeaseReleased)
+                {
+                    handlerStarted.TrySetResult(true);
+                    handlerRelease.Task.GetAwaiter().GetResult();
+                }
+            };
+
+            var releaseTask = Task.Run(() => pool.Release(lease.ResultValue));
+            await handlerStarted.Task.ConfigureAwait(false);
+
+            var snapshotTask = Task.Run(() => pool.GetState(identity));
+            var completed = await Task.WhenAny(snapshotTask, Task.Delay(200)).ConfigureAwait(false);
+
+            handlerRelease.TrySetResult(true);
+            var releaseResult = await releaseTask.ConfigureAwait(false);
+
+            Assert.Same(snapshotTask, completed);
+            Assert.True(snapshotTask.Result.IsSuccess);
+            Assert.True(releaseResult.IsSuccess);
         }
 
         private sealed class EventConnectionFactory : IPooledDeviceConnectionFactory
@@ -53,13 +118,13 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             public EventConnection(ConnectionIdentity identity)
             {
                 Identity = identity;
-                State = ConnectionEntryState.Uninitialized;
+                State = ConnectionEntryLifecycleState.Uninitialized;
                 LastActiveTimeUtc = DateTime.UtcNow;
             }
 
             public ConnectionIdentity Identity { get; private set; }
 
-            public ConnectionEntryState State { get; private set; }
+            public ConnectionEntryLifecycleState State { get; private set; }
 
             public DateTime LastActiveTimeUtc { get; private set; }
 
@@ -67,7 +132,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public OperationResult EnsureConnected()
             {
-                State = ConnectionEntryState.Ready;
+                State = ConnectionEntryLifecycleState.Ready;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateSuccessResult();
             }
@@ -77,15 +142,24 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 return Task.FromResult(EnsureConnected());
             }
 
+            public Task<OperationResult> ProbeAsync(TimeSpan timeout)
+            {
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return Task.FromResult(State == ConnectionEntryLifecycleState.Invalidated
+                    ? OperationResult.CreateFailedResult("连接已失效")
+                    : OperationResult.CreateSuccessResult());
+            }
+
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryState.Invalidated;
+                State = ConnectionEntryLifecycleState.Invalidated;
+                LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }
 
             public OperationResult Disconnect()
             {
-                State = ConnectionEntryState.Disposed;
+                State = ConnectionEntryLifecycleState.Disposed;
                 return OperationResult.CreateSuccessResult();
             }
 

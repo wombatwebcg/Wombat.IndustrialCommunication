@@ -12,17 +12,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public int ReadyEntries { get; set; }
 
-        public int LeasedEntries { get; set; }
+        public int BusyEntries { get; set; }
 
-        public int ConnectingEntries { get; set; }
+        public int DisconnectedEntries { get; set; }
 
-        public int ReconnectingEntries { get; set; }
-
-        public int FaultedEntries { get; set; }
-
-        public int InvalidatedEntries { get; set; }
-
-        public int DisposedEntries { get; set; }
+        public int UnavailableEntries { get; set; }
 
         public int TotalActiveLeases { get; set; }
 

@@ -14,6 +14,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
 
         public ConnectionEntryState State { get; set; }
 
+        public ConnectionEntryLifecycleState LifecycleState { get; set; }
+
         public string Message { get; set; }
 
         public Exception Exception { get; set; }
@@ -32,6 +34,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
             Message = string.Empty;
             TriggerMode = ConnectionPoolMaintenanceMode.Unknown;
             OccurredAtUtc = DateTime.UtcNow;
+            LifecycleState = ConnectionEntryLifecycleState.Uninitialized;
         }
     }
 }

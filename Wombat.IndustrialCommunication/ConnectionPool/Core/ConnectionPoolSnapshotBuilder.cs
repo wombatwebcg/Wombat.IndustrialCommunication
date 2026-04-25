@@ -18,12 +18,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 CapturedAtUtc = DateTime.UtcNow,
                 TotalEntries = safeEntries.Count,
                 ReadyEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Ready),
-                LeasedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Leased),
-                ConnectingEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Connecting),
-                ReconnectingEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Reconnecting),
-                FaultedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Faulted),
-                InvalidatedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Invalidated),
-                DisposedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Disposed),
+                BusyEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Busy),
+                DisconnectedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Disconnected),
+                UnavailableEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Unavailable),
                 TotalActiveLeases = safeEntries.Sum(t => t.ActiveLeaseCount),
                 Entries = safeEntries
             };

@@ -28,6 +28,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         public TimeSpan HealthCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
 
         /// <summary>
+        /// 单次协议探活允许的最长时间。
+        /// </summary>
+        public TimeSpan ProbeTimeout { get; set; } = TimeSpan.FromSeconds(3);
+
+        /// <summary>
         /// 是否启用后台维护循环。
         /// </summary>
         public bool EnableBackgroundMaintenance { get; set; } = true;
@@ -46,6 +51,16 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         /// 故障态再次尝试恢复前的冷却时长。
         /// </summary>
         public TimeSpan FaultedReconnectCooldown { get; set; } = TimeSpan.FromSeconds(2);
+
+        /// <summary>
+        /// 后台维护同时允许执行的最大条目数。
+        /// </summary>
+        public int MaxConcurrentMaintenanceOperations { get; set; } = 4;
+
+        /// <summary>
+        /// 是否隔离事件订阅者异常，避免异常向主流程传播。
+        /// </summary>
+        public bool IsolateEventSubscriberExceptions { get; set; } = true;
 
         /// <summary>
         /// 健康检查连续失败阈值，超过后转为失效。

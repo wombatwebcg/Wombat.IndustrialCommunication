@@ -10,10 +10,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
     internal sealed class ConnectionPoolEventDispatcher : IConnectionPoolEventPublisher
     {
         private readonly object _sender;
+        private readonly bool _isolateSubscriberExceptions;
 
-        public ConnectionPoolEventDispatcher(object sender)
+        public ConnectionPoolEventDispatcher(object sender, bool isolateSubscriberExceptions)
         {
             _sender = sender ?? throw new ArgumentNullException(nameof(sender));
+            _isolateSubscriberExceptions = isolateSubscriberExceptions;
         }
 
         public event EventHandler<ConnectionPoolEventArgs> PoolEventOccurred;
@@ -26,22 +28,55 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public void Publish(ConnectionPoolEventArgs args)
         {
-            PoolEventOccurred?.Invoke(_sender, args);
+            Raise(PoolEventOccurred, args);
         }
 
         public void PublishStateChanged(ConnectionStateChangedEventArgs args)
         {
-            ConnectionStateChanged?.Invoke(_sender, args);
+            Raise(ConnectionStateChanged, args);
         }
 
         public void PublishLeaseEvent(ConnectionLeaseEventArgs args)
         {
-            LeaseChanged?.Invoke(_sender, args);
+            Raise(LeaseChanged, args);
         }
 
         public void PublishMaintenanceEvent(ConnectionMaintenanceEventArgs args)
         {
-            MaintenanceCompleted?.Invoke(_sender, args);
+            Raise(MaintenanceCompleted, args);
+        }
+
+        private void Raise<TEventArgs>(EventHandler<TEventArgs> handler, TEventArgs args) where TEventArgs : EventArgs
+        {
+            if (handler == null)
+            {
+                return;
+            }
+
+            var delegates = handler.GetInvocationList();
+            for (var i = 0; i < delegates.Length; i++)
+            {
+                var subscriber = delegates[i] as EventHandler<TEventArgs>;
+                if (subscriber == null)
+                {
+                    continue;
+                }
+
+                if (_isolateSubscriberExceptions)
+                {
+                    try
+                    {
+                        subscriber(_sender, args);
+                    }
+                    catch
+                    {
+                    }
+
+                    continue;
+                }
+
+                subscriber(_sender, args);
+            }
         }
     }
 }

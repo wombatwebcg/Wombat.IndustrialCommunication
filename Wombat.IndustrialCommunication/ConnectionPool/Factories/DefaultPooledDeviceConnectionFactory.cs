@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO.Ports;
 using System.Threading.Tasks;
+using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.ConnectionPool.Interfaces;
 using Wombat.IndustrialCommunication.ConnectionPool.Models;
 using Wombat.IndustrialCommunication.ConnectionPool.Wrappers;
@@ -96,7 +97,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var port = GetInt(parameters, "port", 502);
             var client = new ModbusTcpClient(ip, port);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusTcpPooledConnection(descriptor.Identity, client));
+            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusTcpPooledConnection(
+                descriptor.Identity,
+                client,
+                GetOptionalString(parameters, "probeAddress"),
+                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
+                GetInt(parameters, "probeLength", 1)));
         }
 
         private static OperationResult<IPooledDeviceConnection> CreateModbusRtu(DeviceConnectionDescriptor descriptor)
@@ -115,7 +121,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var handshake = GetEnum(parameters, "handshake", Handshake.None);
             var client = new ModbusRtuClient(portName, baudRate, dataBits, stopBits, parity, handshake);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusRtuPooledConnection(descriptor.Identity, client));
+            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusRtuPooledConnection(
+                descriptor.Identity,
+                client,
+                GetOptionalString(parameters, "probeAddress"),
+                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
+                GetInt(parameters, "probeLength", 1)));
         }
 
         private static OperationResult<IPooledDeviceConnection> CreateSiemens(DeviceConnectionDescriptor descriptor)
@@ -133,7 +144,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var rack = (byte)GetInt(parameters, "rack", 0);
             var client = new SiemensClient(ip, port, version, slot, rack);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new SiemensPooledConnection(descriptor.Identity, client));
+            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new SiemensPooledConnection(
+                descriptor.Identity,
+                client,
+                GetOptionalString(parameters, "probeAddress"),
+                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
+                GetInt(parameters, "probeLength", 1)));
         }
 
         private static OperationResult<IPooledDeviceConnection> CreateFins(DeviceConnectionDescriptor descriptor)
@@ -150,7 +166,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             TimeSpan? timeout = timeoutMilliseconds > 0 ? TimeSpan.FromMilliseconds(timeoutMilliseconds) : (TimeSpan?)null;
             var client = new FinsClient(ip, port, timeout);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new FinsPooledConnection(descriptor.Identity, client));
+            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new FinsPooledConnection(
+                descriptor.Identity,
+                client,
+                GetOptionalString(parameters, "probeAddress"),
+                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
+                GetInt(parameters, "probeLength", 1)));
         }
 
         private static void ApplyCommonOptions(IDictionary<string, object> parameters, IClientConfiguration client)
@@ -190,6 +211,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             }
 
             return Convert.ToString(value, CultureInfo.InvariantCulture);
+        }
+
+        private static string GetOptionalString(IDictionary<string, object> parameters, string key)
+        {
+            return GetRequiredString(parameters, key);
         }
 
         private static int GetInt(IDictionary<string, object> parameters, string key, int defaultValue)

@@ -1,0 +1,11 @@
+- [x] 公开状态模型仅暴露 `Disconnected`、`Ready`、`Busy`、`Unavailable` 四态
+- [x] `PooledConnectionEntry` 内部生命周期与外部状态投影已分离
+- [x] `ISimpleDeviceConnectionPool` 已提供默认简化入口且不破坏现有高级接口
+- [x] 执行入口支持显式执行策略模型并区分读、写、诊断操作
+- [x] 写操作默认不自动重试，读操作仍支持受控重试
+- [x] 事件派发已改为锁外执行，并对单个订阅者异常进行隔离
+- [x] `IPooledDeviceConnection` 及各协议包装类已支持 `ProbeAsync`
+- [x] 维护流程优先使用协议级探活，并应用恢复冷却与有界并发
+- [x] 连接失效时执行最佳努力断链，避免继续复用底层连接
+- [x] 测试覆盖状态收敛、执行策略、事件隔离、探活和恢复节流
+- [x] `ConnectionPool.README.md` 已更新默认用法与工业级边界说明

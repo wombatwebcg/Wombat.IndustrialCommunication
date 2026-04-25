@@ -10,5 +10,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
         public ConnectionEntryState PreviousState { get; set; }
 
         public ConnectionEntryState CurrentState { get; set; }
+
+        public ConnectionEntryLifecycleState PreviousLifecycleState { get; set; }
+
+        public ConnectionEntryLifecycleState CurrentLifecycleState { get; set; }
     }
 }

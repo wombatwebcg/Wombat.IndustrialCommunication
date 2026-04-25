@@ -55,16 +55,17 @@
 7. 应用退出时调用 `Dispose()` 释放所有条目。
 
 ### 单连接状态机
-`PooledConnectionEntry` 的状态定义如下：
+`PooledConnectionEntry` 维护两套视图：
 
-- `Uninitialized`：已注册，但尚未真正建立底层连接。
-- `Connecting`：正在建立连接。
-- `Ready`：连接可用，当前无活跃租约。
-- `Leased`：连接已被租用，当前至少存在一个活跃租约。
-- `Reconnecting`：正在执行恢复性重连。
-- `Faulted`：连接执行或建立失败，处于故障状态。
-- `Invalidated`：已被显式失效，不再允许新租约。
-- `Disposed`：底层资源已释放，生命周期结束。
+- 对外公开稳定状态（业务默认消费）：`Disconnected`、`Ready`、`Busy`、`Unavailable`。
+- 对内生命周期状态（用于诊断与事件扩展）：`Uninitialized`、`Connecting`、`Ready`、`Leased`、`Reconnecting`、`Faulted`、`Invalidated`、`Disposed`。
+
+公开状态映射规则：
+
+- `Ready` -> `Ready`
+- `Leased` -> `Busy`
+- `Faulted` / `Invalidated` -> `Unavailable`
+- `Uninitialized` / `Connecting` / `Reconnecting` / `Disposed` -> `Disconnected`
 
 常见状态流转：
 
@@ -199,13 +200,25 @@ else
 - `IdleTimeout`：连接在“无租约”状态下允许空闲多久，超时后可被 `CleanupIdle()` 清理。
 - `LeaseTimeout`：每个租约的默认过期时间。
 - `HealthCheckInterval`：后台健康检查周期。
+- `ProbeTimeout`：协议级探活超时时间。
 - `EnableBackgroundMaintenance`：是否启用内部后台维护循环。
 - `HealthCheckLeaseFreeOnly`：是否仅检查无活跃租约的条目，默认 `true`。
 - `LeaseExpirationSweepInterval`：过期租约扫描周期。
-- `FaultedReconnectCooldown`：故障恢复冷却时间，当前更多用于配置表达和后续策略扩展。
+- `FaultedReconnectCooldown`：故障恢复冷却时间，用于限制故障态的连续重连风暴。
+- `MaxConcurrentMaintenanceOperations`：后台维护并发上限。
+- `IsolateEventSubscriberExceptions`：是否隔离事件订阅者异常，避免影响主流程。
 - `MaxConsecutiveHealthCheckFailures`：健康检查连续失败多少次后自动失效。
 - `MaxRetryCount`：池级执行时的最大恢复重试次数。
 - `RetryBackoff`：每次池级重试之间的退避时间。
+
+## 执行策略模型
+连接池执行入口支持显式策略 `ConnectionExecutionOptions`，用于区分读、写、诊断三类行为：
+
+- `Read`：默认启用恢复性重试。
+- `Write`：默认不启用自动重试。
+- `Diagnostic`：默认不启用自动重试。
+
+调用方可通过 `EnableRetry`、`MaxRetryCount`、`RetryBackoff` 显式覆盖默认策略。
 
 建议：
 
@@ -221,7 +234,7 @@ else
 - 获取租约。
 - 确保连接已建立。
 - 执行读写委托。
-- 识别可恢复故障并自动重试/重连。
+- 识别可恢复故障并按执行策略决定是否重试/重连。
 - 在执行结束后释放租约。
 
 ```csharp
@@ -231,6 +244,23 @@ var result = await pool.ExecuteAsync(
 ```
 
 如果业务只关心“执行一次动作”，这是最稳妥也最不容易出错的入口。
+
+补充说明（与当前实现一致）：
+
+- `ExecuteAsync(...)` 默认使用 `ConnectionExecutionOptions.CreateDiagnostic()`，`Diagnostic` 默认不启用恢复性重试。
+- `ReadPointsAsync(...)` 默认使用 `CreateRead()`，读操作默认启用恢复性重试。
+- `WritePointsAsync(...)` 默认使用 `CreateWrite()`，写操作默认不启用恢复性重试。
+- 若希望 `ExecuteAsync(...)` 启用重试，请显式传入 `ConnectionExecutionOptions` 并设置 `EnableRetry = true`。
+
+### 默认简化入口
+普通调用场景可直接依赖 `ISimpleDeviceConnectionPool`，仅使用注册、执行与快照查询，不必显式处理高级维护控制接口：
+
+```csharp
+ISimpleDeviceConnectionPool simplePool = new DeviceConnectionPool(options, factory);
+var registerResult = simplePool.Register(descriptor);
+var readResult = await simplePool.ReadPointsAsync(identity, points);
+var snapshotResult = simplePool.GetPoolSnapshot();
+```
 
 ### 方式二：手动 Acquire / Release
 当你需要显式保留一个“连接占用标记”、控制某条目的租约数量，或者与外部调度逻辑协同时，可以手动租用：
@@ -635,12 +665,9 @@ var pointWriteResult = await pool.WritePointsAsync(identity, writePoints);
 
 - `TotalEntries`
 - `ReadyEntries`
-- `LeasedEntries`
-- `ConnectingEntries`
-- `ReconnectingEntries`
-- `FaultedEntries`
-- `InvalidatedEntries`
-- `DisposedEntries`
+- `BusyEntries`
+- `DisconnectedEntries`
+- `UnavailableEntries`
 - `TotalActiveLeases`
 - `CapturedAtUtc`
 - `Entries`
@@ -654,7 +681,7 @@ var poolSnapshot = pool.GetPoolSnapshot();
 if (poolSnapshot.IsSuccess)
 {
     Console.WriteLine("总条目数: " + poolSnapshot.ResultValue.TotalEntries);
-    Console.WriteLine("故障条目数: " + poolSnapshot.ResultValue.FaultedEntries);
+    Console.WriteLine("不可用条目数: " + poolSnapshot.ResultValue.UnavailableEntries);
     Console.WriteLine("活跃租约总数: " + poolSnapshot.ResultValue.TotalActiveLeases);
 }
 ```
@@ -771,7 +798,7 @@ pool.MaintenanceCompleted += (sender, args) =>
 - `ConnectionIdentity` 保持稳定且唯一，不要动态拼接无意义字段。
 - 同一设备只注册一次，避免重复建条目。
 - 让 `EnableBackgroundMaintenance` 保持开启，除非你确定由外部统一调度维护动作。
-- 定期抓取 `GetPoolSnapshot()` 做监控，尤其关注 `FaultedEntries`、`InvalidatedEntries`、`TotalActiveLeases`。
+- 定期抓取 `GetPoolSnapshot()` 做监控，尤其关注 `UnavailableEntries`、`TotalActiveLeases`。
 - 对重要写操作，结合 `OperationResult.Message`、事件和快照做统一诊断日志。
 - 业务如果手动 `Acquire()`，必须使用 `try/finally` 保证 `Release()`。
 

@@ -30,7 +30,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             Options = options ?? new ConnectionPoolOptions();
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
             _executor = new PooledOperationExecutor();
-            _eventDispatcher = new ConnectionPoolEventDispatcher(this);
+            _eventDispatcher = new ConnectionPoolEventDispatcher(this, Options.IsolateEventSubscriberExceptions);
             _entries = new ConcurrentDictionary<ConnectionIdentity, PooledConnectionEntry>();
             _poolLock = new AsyncLock();
             var monitor = new ConnectionStateMonitor();
@@ -112,6 +112,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     Identity = descriptor.Identity,
                     EventType = ConnectionPoolEventType.Registered,
                     State = entry.State,
+                    LifecycleState = entry.LifecycleState,
                     Message = "连接条目注册成功",
                     TriggerMode = ConnectionPoolMaintenanceMode.UserCall
                 };
@@ -250,7 +251,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 Identity = identity,
                 EventType = ConnectionPoolEventType.Unregistered,
-                State = ConnectionEntryState.Disposed,
+                State = ConnectionEntryState.Disconnected,
+                LifecycleState = ConnectionEntryLifecycleState.Disposed,
                 Message = string.IsNullOrWhiteSpace(reason) ? "连接条目已注销" : reason,
                 Exception = dispose.Exception,
                 TriggerMode = ConnectionPoolMaintenanceMode.UserCall
@@ -262,6 +264,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         }
 
         public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult<T>>> action, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return await ExecuteAsync(identity, action, ConnectionExecutionOptions.CreateDiagnostic(), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult<T>>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (identity == null)
             {
@@ -286,7 +293,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             try
             {
-                return await _executor.ExecuteAsync(entry, action, Options).ConfigureAwait(false);
+                return await _executor.ExecuteAsync(entry, action, Options, executionOptions).ConfigureAwait(false);
             }
             finally
             {
@@ -295,6 +302,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         }
 
         public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult>> action, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return await ExecuteAsync(identity, action, ConnectionExecutionOptions.CreateDiagnostic(), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             ThrowIfDisposed();
             if (action == null)
@@ -311,12 +323,22 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
 
                 return OperationResult.CreateFailedResult<object>(result);
-            }, cancellationToken).ConfigureAwait(false);
+            }, executionOptions, cancellationToken).ConfigureAwait(false);
 
-            return wrapped.IsSuccess ? OperationResult.CreateSuccessResult() : OperationResult.CreateFailedResult(wrapped);
+            if (wrapped.IsSuccess)
+            {
+                return new OperationResult().SetInfo(wrapped).Complete();
+            }
+
+            return OperationResult.CreateFailedResult(wrapped);
         }
 
         public async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointReadRequest> points, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return await ReadPointsAsync(identity, points, ConnectionExecutionOptions.CreateRead(), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointReadRequest> points, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             ThrowIfDisposed();
 
@@ -327,10 +349,15 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             return await ExecuteAsync<IList<DevicePointReadResult>>(identity, client =>
-                PointListOperationHelper.ReadPointsAsync(client, normalized.ResultValue), cancellationToken).ConfigureAwait(false);
+                PointListOperationHelper.ReadPointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointWriteRequest> points, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            return await WritePointsAsync(identity, points, ConnectionExecutionOptions.CreateWrite(), cancellationToken).ConfigureAwait(false);
+        }
+
+        public async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointWriteRequest> points, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             ThrowIfDisposed();
 
@@ -341,7 +368,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             return await ExecuteAsync<IList<DevicePointWriteResult>>(identity, client =>
-                PointListOperationHelper.WritePointsAsync(client, normalized.ResultValue), cancellationToken).ConfigureAwait(false);
+                PointListOperationHelper.WritePointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
         }
 
         public OperationResult<int> CleanupIdle()
@@ -393,7 +420,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 {
                     Identity = pair.Key,
                     EventType = ConnectionPoolEventType.IdleCleaned,
-                    State = ConnectionEntryState.Disposed,
+                    State = ConnectionEntryState.Disconnected,
+                    LifecycleState = ConnectionEntryLifecycleState.Disposed,
                     Message = "空闲连接已回收",
                     TriggerMode = ConnectionPoolMaintenanceMode.Cleanup
                 });
@@ -423,7 +451,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         public OperationResult<IDictionary<ConnectionIdentity, ConnectionEntryState>> GetStates()
         {
             ThrowIfDisposed();
-            IDictionary<ConnectionIdentity, ConnectionEntryState> snapshot = _entries.ToDictionary(t => t.Key, t => t.Value.State);
+            IDictionary<ConnectionIdentity, ConnectionEntryState> snapshot = _entries.ToDictionary(t => t.Key, t => t.Value.CreateSnapshot().State);
             return OperationResult.CreateSuccessResult(snapshot);
         }
 

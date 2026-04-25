@@ -11,6 +11,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public ConnectionEntryState State { get; set; }
 
+        public ConnectionEntryLifecycleState LifecycleState { get; set; }
+
         public int ActiveLeaseCount { get; set; }
 
         public int FailureCount { get; set; }
@@ -38,6 +40,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
             Identity = new ConnectionIdentity();
             LastFailureReason = string.Empty;
             LastMaintenanceMode = ConnectionPoolMaintenanceMode.Unknown;
+            LifecycleState = ConnectionEntryLifecycleState.Uninitialized;
         }
     }
 }

@@ -6,10 +6,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
     /// 设备连接池统一接口。
     /// </summary>
     public interface IDeviceConnectionPool :
+        ISimpleDeviceConnectionPool,
         IDeviceConnectionPoolEvents,
-        IDeviceConnectionPoolQuery,
         IDeviceConnectionPoolControl,
-        IDeviceConnectionPoolExecution,
         System.IDisposable
     {
     }

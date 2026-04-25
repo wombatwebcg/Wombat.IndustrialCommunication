@@ -17,13 +17,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             Identity = identity ?? throw new ArgumentNullException(nameof(identity));
             Client = client ?? throw new ArgumentNullException(nameof(client));
             Client.IsLongConnection = true;
-            State = ConnectionEntryState.Uninitialized;
+            State = ConnectionEntryLifecycleState.Uninitialized;
             LastActiveTimeUtc = DateTime.UtcNow;
         }
 
         public ConnectionIdentity Identity { get; private set; }
 
-        public ConnectionEntryState State { get; protected set; }
+        public ConnectionEntryLifecycleState State { get; protected set; }
 
         public DateTime LastActiveTimeUtc { get; protected set; }
 
@@ -38,45 +38,62 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
         {
             using (await _sync.LockAsync().ConfigureAwait(false))
             {
-                if (State == ConnectionEntryState.Invalidated || State == ConnectionEntryState.Disposed)
+                if (State == ConnectionEntryLifecycleState.Invalidated || State == ConnectionEntryLifecycleState.Disposed)
                 {
                     return OperationResult.CreateFailedResult("连接已失效或已释放");
                 }
 
                 if (Client.Connected)
                 {
-                    State = ConnectionEntryState.Ready;
+                    State = ConnectionEntryLifecycleState.Ready;
                     LastActiveTimeUtc = DateTime.UtcNow;
                     return OperationResult.CreateSuccessResult();
                 }
 
-                try
-                {
-                    Client.Disconnect();
-                }
-                catch
-                {
-                }
-
-                State = ConnectionEntryState.Connecting;
+                BestEffortDisconnectCore();
+                State = ConnectionEntryLifecycleState.Connecting;
                 var result = await Client.ConnectAsync().ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    State = ConnectionEntryState.Ready;
+                    State = ConnectionEntryLifecycleState.Ready;
                     LastActiveTimeUtc = DateTime.UtcNow;
                 }
                 else
                 {
-                    State = ConnectionEntryState.Faulted;
+                    State = ConnectionEntryLifecycleState.Faulted;
                 }
 
                 return result;
             }
         }
 
+        public async Task<OperationResult> ProbeAsync(TimeSpan timeout)
+        {
+            using (await _sync.LockAsync().ConfigureAwait(false))
+            {
+                if (State == ConnectionEntryLifecycleState.Invalidated || State == ConnectionEntryLifecycleState.Disposed)
+                {
+                    return OperationResult.CreateFailedResult("连接已失效或已释放");
+                }
+
+                if (!Client.Connected)
+                {
+                    State = ConnectionEntryLifecycleState.Faulted;
+                    return OperationResult.CreateFailedResult("底层连接未建立");
+                }
+
+                var result = await ExecuteProbeWithTimeoutAsync(timeout).ConfigureAwait(false);
+                LastActiveTimeUtc = DateTime.UtcNow;
+                State = result.IsSuccess ? ConnectionEntryLifecycleState.Ready : ConnectionEntryLifecycleState.Faulted;
+                return result;
+            }
+        }
+
         public OperationResult Invalidate(string reason)
         {
-            State = ConnectionEntryState.Invalidated;
+            State = ConnectionEntryLifecycleState.Invalidated;
+            LastActiveTimeUtc = DateTime.UtcNow;
+            BestEffortDisconnectCore();
             return OperationResult.CreateFailedResult(string.IsNullOrEmpty(reason) ? "连接已失效" : reason);
         }
 
@@ -86,12 +103,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             {
                 var result = Client.Disconnect();
                 LastActiveTimeUtc = DateTime.UtcNow;
-                State = ConnectionEntryState.Disposed;
+                State = ConnectionEntryLifecycleState.Disposed;
                 return result;
             }
             catch (Exception ex)
             {
-                State = ConnectionEntryState.Faulted;
+                State = ConnectionEntryLifecycleState.Faulted;
                 return OperationResult.CreateFailedResult(ex);
             }
         }
@@ -113,12 +130,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             {
                 var result = await action(Client).ConfigureAwait(false);
                 LastActiveTimeUtc = DateTime.UtcNow;
-                State = Client.Connected ? ConnectionEntryState.Ready : ConnectionEntryState.Faulted;
+                State = Client.Connected ? ConnectionEntryLifecycleState.Ready : ConnectionEntryLifecycleState.Faulted;
                 return result;
             }
             catch (Exception ex)
             {
-                State = ConnectionEntryState.Faulted;
+                State = ConnectionEntryLifecycleState.Faulted;
                 return OperationResult.CreateFailedResult<T>(ex);
             }
         }
@@ -140,13 +157,49 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             {
                 var result = await action(Client).ConfigureAwait(false);
                 LastActiveTimeUtc = DateTime.UtcNow;
-                State = Client.Connected ? ConnectionEntryState.Ready : ConnectionEntryState.Faulted;
+                State = Client.Connected ? ConnectionEntryLifecycleState.Ready : ConnectionEntryLifecycleState.Faulted;
                 return result;
             }
             catch (Exception ex)
             {
-                State = ConnectionEntryState.Faulted;
+                State = ConnectionEntryLifecycleState.Faulted;
                 return OperationResult.CreateFailedResult(ex);
+            }
+        }
+
+        protected virtual Task<OperationResult> ProbeCoreAsync()
+        {
+            return Task.FromResult(Client.Connected
+                ? OperationResult.CreateSuccessResult("连接探活成功")
+                : OperationResult.CreateFailedResult("底层连接未建立"));
+        }
+
+        private async Task<OperationResult> ExecuteProbeWithTimeoutAsync(TimeSpan timeout)
+        {
+            if (timeout <= TimeSpan.Zero)
+            {
+                return await ProbeCoreAsync().ConfigureAwait(false);
+            }
+
+            var probeTask = ProbeCoreAsync();
+            var timeoutTask = Task.Delay(timeout);
+            var completedTask = await Task.WhenAny(probeTask, timeoutTask).ConfigureAwait(false);
+            if (!ReferenceEquals(completedTask, probeTask))
+            {
+                return OperationResult.CreateFailedResult(string.Format("连接探活超时，超时时间 {0} ms", timeout.TotalMilliseconds));
+            }
+
+            return await probeTask.ConfigureAwait(false);
+        }
+
+        private void BestEffortDisconnectCore()
+        {
+            try
+            {
+                Client.Disconnect();
+            }
+            catch
+            {
             }
         }
     }

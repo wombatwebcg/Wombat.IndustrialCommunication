@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
         /// <summary>
         /// 当前底层连接状态（主要用于诊断，不表达池级租约状态）。
         /// </summary>
-        ConnectionEntryState State { get; }
+        ConnectionEntryLifecycleState State { get; }
 
         /// <summary>
         /// 最近一次活跃时间（UTC）。
@@ -38,6 +38,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
         /// 异步确保连接可用。
         /// </summary>
         Task<OperationResult> EnsureConnectedAsync();
+
+        /// <summary>
+        /// 对已连接会话执行协议级探活。
+        /// </summary>
+        Task<OperationResult> ProbeAsync(TimeSpan timeout);
 
         /// <summary>
         /// 将连接标记为失效，不再允许新租约。
