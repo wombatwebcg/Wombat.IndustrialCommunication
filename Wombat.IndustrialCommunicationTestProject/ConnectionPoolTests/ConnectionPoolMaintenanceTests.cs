@@ -27,7 +27,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromSeconds(5)
             };
 
-            var pool = new DeviceConnectionPool(options, new MaintenanceConnectionFactory());
+            var pool = new DeviceClientPool(options, new MaintenanceConnectionFactory());
             var maintenanceRaised = false;
             pool.MaintenanceCompleted += (sender, args) =>
             {
@@ -37,7 +37,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 }
             };
 
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
             await pool.AcquireAsync(identity);
             for (var i = 0; i < 20 && !maintenanceRaised; i++)
             {
@@ -59,8 +59,8 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromSeconds(5)
             };
 
-            var pool = new DeviceConnectionPool(options, new MaintenanceConnectionFactory());
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var pool = new DeviceClientPool(options, new MaintenanceConnectionFactory());
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
 
             await Task.Delay(80).ConfigureAwait(false);
             var unregister = pool.Unregister(identity, "后台维护下注销");
@@ -85,8 +85,8 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 LeaseExpirationSweepInterval = TimeSpan.FromMilliseconds(20),
                 IdleTimeout = TimeSpan.FromSeconds(5)
             };
-            var pool = new DeviceConnectionPool(options, factory);
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var pool = new DeviceClientPool(options, factory);
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -96,7 +96,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             await WaitUntilAsync(() => Volatile.Read(ref connection.ProbeCount) > 0).ConfigureAwait(false);
 
             Assert.True(connection.ProbeCount > 0);
-            Assert.Equal(1, connection.EnsureConnectedCount);
+            Assert.Equal(1, connection.EnsureAvailableCount);
         }
 
         [Fact]
@@ -117,20 +117,20 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 FaultedReconnectCooldown = TimeSpan.FromMilliseconds(200),
                 MaxConsecutiveHealthCheckFailures = 10
             };
-            var pool = new DeviceConnectionPool(options, factory);
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var pool = new DeviceClientPool(options, factory);
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
 
             var connection = factory.Get(identity);
-            await WaitUntilAsync(() => Volatile.Read(ref connection.EnsureConnectedCount) >= 2).ConfigureAwait(false);
-            var countAfterFirstRecovery = connection.EnsureConnectedCount;
+            await WaitUntilAsync(() => Volatile.Read(ref connection.EnsureAvailableCount) >= 2).ConfigureAwait(false);
+            var countAfterFirstRecovery = connection.EnsureAvailableCount;
 
             await Task.Delay(100).ConfigureAwait(false);
 
-            Assert.Equal(countAfterFirstRecovery, connection.EnsureConnectedCount);
+            Assert.Equal(countAfterFirstRecovery, connection.EnsureAvailableCount);
         }
 
         [Fact]
@@ -152,7 +152,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromSeconds(5),
                 MaxConcurrentMaintenanceOperations = 2
             };
-            var pool = new DeviceConnectionPool(options, factory);
+            var pool = new DeviceClientPool(options, factory);
             var maintenanceCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             pool.MaintenanceCompleted += (sender, args) =>
             {
@@ -164,7 +164,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             for (var i = 0; i < identities.Length; i++)
             {
-                pool.Register(new DeviceConnectionDescriptor { Identity = identities[i], DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+                pool.Register(new ResourceDescriptor { Identity = identities[i], DeviceConnectionType = DeviceConnectionType.ModbusTcp });
                 var lease = await pool.AcquireAsync(identities[i]).ConfigureAwait(false);
                 Assert.True(lease.IsSuccess);
                 Assert.True(pool.Release(lease.ResultValue).IsSuccess);
@@ -193,8 +193,8 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromSeconds(5),
                 MaxConsecutiveHealthCheckFailures = 1
             };
-            var pool = new DeviceConnectionPool(options, factory);
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            var pool = new DeviceClientPool(options, factory);
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -206,9 +206,9 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(connection.DisconnectCount > 0);
         }
 
-        private sealed class MaintenanceConnectionFactory : IPooledDeviceConnectionFactory
+        private sealed class MaintenanceConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
         {
-            private readonly Func<DeviceConnectionDescriptor, MaintenanceConnection> _connectionFactory;
+            private readonly Func<ResourceDescriptor, MaintenanceConnection> _connectionFactory;
             private readonly ConcurrentDictionary<ConnectionIdentity, MaintenanceConnection> _connections = new ConcurrentDictionary<ConnectionIdentity, MaintenanceConnection>();
 
             public MaintenanceConnectionFactory()
@@ -216,19 +216,19 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             {
             }
 
-            public MaintenanceConnectionFactory(Func<DeviceConnectionDescriptor, MaintenanceConnection> connectionFactory)
+            public MaintenanceConnectionFactory(Func<ResourceDescriptor, MaintenanceConnection> connectionFactory)
             {
                 _connectionFactory = connectionFactory ?? throw new ArgumentNullException(nameof(connectionFactory));
             }
 
-            public OperationResult<IPooledDeviceConnection> Create(DeviceConnectionDescriptor descriptor)
+            public OperationResult<IPooledResourceConnection<IDeviceClient>> Create(ResourceDescriptor descriptor)
             {
                 var connection = _connectionFactory(descriptor);
                 _connections[descriptor.Identity] = connection;
-                return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(connection);
+                return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(connection);
             }
 
-            public Task<OperationResult<IPooledDeviceConnection>> CreateAsync(DeviceConnectionDescriptor descriptor)
+            public Task<OperationResult<IPooledResourceConnection<IDeviceClient>>> CreateAsync(ResourceDescriptor descriptor)
             {
                 return Task.FromResult(Create(descriptor));
             }
@@ -240,7 +240,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             }
         }
 
-        private sealed class MaintenanceConnection : IPooledDeviceConnection
+        private sealed class MaintenanceConnection : IPooledResourceConnection<IDeviceClient>
         {
             private readonly ProbeConcurrencyTracker _tracker;
 
@@ -258,7 +258,9 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public DateTime LastActiveTimeUtc { get; private set; }
 
-            public IDeviceClient Client => null;
+            public bool IsAvailable => State == ConnectionEntryLifecycleState.Ready || State == ConnectionEntryLifecycleState.Leased;
+
+            public IDeviceClient Resource => null;
 
             public TimeSpan ProbeDelay { get; set; }
 
@@ -266,7 +268,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public int RemainingEnsureSuccessCount { get; set; } = int.MaxValue;
 
-            public int EnsureConnectedCount;
+            public int EnsureAvailableCount;
 
             public int ProbeCount;
 
@@ -274,9 +276,9 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public int InvalidateCount;
 
-            public OperationResult EnsureConnected()
+            public OperationResult EnsureAvailable()
             {
-                EnsureConnectedCount++;
+                EnsureAvailableCount++;
                 if (RemainingEnsureSuccessCount <= 0)
                 {
                     State = ConnectionEntryLifecycleState.Faulted;
@@ -290,9 +292,9 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 return OperationResult.CreateSuccessResult();
             }
 
-            public Task<OperationResult> EnsureConnectedAsync()
+            public Task<OperationResult> EnsureAvailableAsync()
             {
-                return Task.FromResult(EnsureConnected());
+                return Task.FromResult(EnsureAvailable());
             }
 
             public async Task<OperationResult> ProbeAsync(TimeSpan timeout)
@@ -331,7 +333,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 return OperationResult.CreateFailedResult(reason);
             }
 
-            public OperationResult Disconnect()
+            public OperationResult DisconnectOrShutdown()
             {
                 DisconnectCount++;
                 State = ConnectionEntryLifecycleState.Disposed;
@@ -400,3 +402,5 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
     }
 }
+
+

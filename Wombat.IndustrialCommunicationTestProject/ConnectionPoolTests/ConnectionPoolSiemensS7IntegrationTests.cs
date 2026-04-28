@@ -115,7 +115,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             }
         }
 
-        private static DeviceConnectionPool CreatePool()
+        private static DeviceClientPool CreatePool()
         {
             var options = new ConnectionPoolOptions
             {
@@ -126,12 +126,12 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromMinutes(5)
             };
 
-            return new DeviceConnectionPool(options, new DefaultPooledDeviceConnectionFactory());
+            return new DeviceClientPool(options, new DefaultPooledDeviceClientConnectionFactory());
         }
 
-        private static DeviceConnectionDescriptor CreateDescriptor()
+        private static ResourceDescriptor CreateDescriptor()
         {
-            var descriptor = new DeviceConnectionDescriptor
+            var descriptor = new ResourceDescriptor
             {
                 Identity = CreateIdentity(),
                 DeviceConnectionType = DeviceConnectionType.SiemensS7
@@ -158,7 +158,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             };
         }
 
-        private static async Task AssertRoundTripAsync(DeviceConnectionPool pool, DataTypeEnums dataType, string address, object expectedValue)
+        private static async Task AssertRoundTripAsync(DeviceClientPool pool, DataTypeEnums dataType, string address, object expectedValue)
         {
             var identity = CreateIdentity();
             var writeResult = await pool.ExecuteAsync(identity, async client =>
@@ -255,3 +255,5 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
     }
 }
+
+

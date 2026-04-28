@@ -10,6 +10,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
     {
         public ConnectionIdentity Identity { get; set; }
 
+        public ResourceRole ResourceRole { get; set; }
+
         public ConnectionPoolEventType EventType { get; set; }
 
         public ConnectionEntryState State { get; set; }
@@ -31,6 +33,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
         public ConnectionPoolEventArgs()
         {
             Identity = new ConnectionIdentity();
+            ResourceRole = ResourceRole.Unknown;
             Message = string.Empty;
             TriggerMode = ConnectionPoolMaintenanceMode.Unknown;
             OccurredAtUtc = DateTime.UtcNow;

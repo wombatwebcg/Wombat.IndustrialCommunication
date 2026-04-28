@@ -16,14 +16,14 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         public async Task Should_Raise_State_And_Lease_Events()
         {
             var identity = new ConnectionIdentity { DeviceId = "evt", ProtocolType = "Mock", Endpoint = "evt" };
-            var pool = new DeviceConnectionPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
             var states = new List<ConnectionEntryState>();
             var leases = new List<ConnectionPoolEventType>();
 
             pool.ConnectionStateChanged += (sender, args) => states.Add(args.CurrentState);
             pool.LeaseChanged += (sender, args) => leases.Add(args.EventType);
 
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
             var lease = await pool.AcquireAsync(identity);
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
@@ -39,7 +39,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         public async Task Should_Isolate_Subscriber_Exception_And_Keep_Main_Flow_Running()
         {
             var identity = new ConnectionIdentity { DeviceId = "evt-isolate", ProtocolType = "Mock", Endpoint = "evt-isolate" };
-            var pool = new DeviceConnectionPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
             var invokedCount = 0;
 
             pool.LeaseChanged += (sender, args) =>
@@ -57,7 +57,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 }
             };
 
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
 
             Assert.True(lease.IsSuccess);
@@ -69,11 +69,11 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         public async Task Should_Dispatch_Events_Outside_Entry_Lock()
         {
             var identity = new ConnectionIdentity { DeviceId = "evt-outside-lock", ProtocolType = "Mock", Endpoint = "evt-outside-lock" };
-            var pool = new DeviceConnectionPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
             var handlerStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var handlerRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            pool.Register(new DeviceConnectionDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
 
@@ -100,20 +100,20 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(releaseResult.IsSuccess);
         }
 
-        private sealed class EventConnectionFactory : IPooledDeviceConnectionFactory
+        private sealed class EventConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
         {
-            public OperationResult<IPooledDeviceConnection> Create(DeviceConnectionDescriptor descriptor)
+            public OperationResult<IPooledResourceConnection<IDeviceClient>> Create(ResourceDescriptor descriptor)
             {
-                return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new EventConnection(descriptor.Identity));
+                return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new EventConnection(descriptor.Identity));
             }
 
-            public Task<OperationResult<IPooledDeviceConnection>> CreateAsync(DeviceConnectionDescriptor descriptor)
+            public Task<OperationResult<IPooledResourceConnection<IDeviceClient>>> CreateAsync(ResourceDescriptor descriptor)
             {
                 return Task.FromResult(Create(descriptor));
             }
         }
 
-        private sealed class EventConnection : IPooledDeviceConnection
+        private sealed class EventConnection : IPooledResourceConnection<IDeviceClient>
         {
             public EventConnection(ConnectionIdentity identity)
             {
@@ -128,18 +128,20 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public DateTime LastActiveTimeUtc { get; private set; }
 
-            public IDeviceClient Client => null;
+            public bool IsAvailable => State == ConnectionEntryLifecycleState.Ready || State == ConnectionEntryLifecycleState.Leased;
 
-            public OperationResult EnsureConnected()
+            public IDeviceClient Resource => null;
+
+            public OperationResult EnsureAvailable()
             {
                 State = ConnectionEntryLifecycleState.Ready;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateSuccessResult();
             }
 
-            public Task<OperationResult> EnsureConnectedAsync()
+            public Task<OperationResult> EnsureAvailableAsync()
             {
-                return Task.FromResult(EnsureConnected());
+                return Task.FromResult(EnsureAvailable());
             }
 
             public Task<OperationResult> ProbeAsync(TimeSpan timeout)
@@ -157,7 +159,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 return OperationResult.CreateFailedResult(reason);
             }
 
-            public OperationResult Disconnect()
+            public OperationResult DisconnectOrShutdown()
             {
                 State = ConnectionEntryLifecycleState.Disposed;
                 return OperationResult.CreateSuccessResult();
@@ -177,3 +179,5 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
     }
 }
+
+

@@ -50,7 +50,7 @@ namespace Wombat.IndustrialCommunication
             _streamResource = streamResource ?? throw new ArgumentNullException(nameof(streamResource));
             
             // 注册事件处理程序
-            if (_streamResource is TcpServerAdapter serverAdapter)
+            if (_streamResource is IServerListener serverAdapter)
             {
                 serverAdapter.DataReceived += OnDataReceived;
                 serverAdapter.ClientConnected += OnClientConnected;
@@ -85,7 +85,7 @@ namespace Wombat.IndustrialCommunication
             StartMessageProcessing();
             
             // 启动监听
-            if (_streamResource is TcpServerAdapter serverAdapter)
+            if (_streamResource is IServerListener serverAdapter)
             {
                 return await serverAdapter.ListenAsync();
             }
@@ -106,7 +106,7 @@ namespace Wombat.IndustrialCommunication
             StopMessageProcessing();
             
             // 停止监听
-            if (_streamResource is TcpServerAdapter serverAdapter)
+            if (_streamResource is IServerListener serverAdapter)
             {
                 return await serverAdapter.ShutdownAsync();
             }
@@ -464,7 +464,7 @@ namespace Wombat.IndustrialCommunication
                     StopMessageProcessing();
                     
                     // 取消事件注册
-                    if (_streamResource is TcpServerAdapter serverAdapter)
+                    if (_streamResource is IServerListener serverAdapter)
                     {
                         serverAdapter.DataReceived -= OnDataReceived;
                         serverAdapter.ClientConnected -= OnClientConnected;

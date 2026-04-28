@@ -11,30 +11,38 @@ using Wombat.IndustrialCommunication.ConnectionPool.Models;
 namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 {
     /// <summary>
-    /// 默认设备连接池实现。
+    /// 通用资源池基类，封装客户端与服务端共享的核心池化逻辑。
     /// </summary>
-    public class DeviceConnectionPool : IDeviceConnectionPool, IConnectionPoolEventPublisher
+    public abstract class ResourcePool<TResource> : IResourcePool<TResource>, IConnectionPoolEventPublisher
     {
-        private readonly ConcurrentDictionary<ConnectionIdentity, PooledConnectionEntry> _entries;
-        private readonly IPooledDeviceConnectionFactory _factory;
-        private readonly PooledOperationExecutor _executor;
+        private readonly ConcurrentDictionary<ConnectionIdentity, PooledResourceEntry<TResource>> _entries;
+        private readonly IPooledResourceConnectionFactory<TResource> _factory;
+        private readonly PooledResourceExecutor<TResource> _executor;
         private readonly ConnectionPoolEventDispatcher _eventDispatcher;
-        private readonly ConnectionPoolMaintenanceService _maintenanceService;
+        private readonly ConnectionPoolMaintenanceService<TResource> _maintenanceService;
         private readonly AsyncLock _poolLock;
         private readonly CancellationTokenSource _maintenanceCancellationTokenSource;
         private readonly Task _maintenanceTask;
+        private readonly ResourceRole _poolRole;
+        private readonly string _roleMismatchMessage;
         private bool _disposed;
 
-        public DeviceConnectionPool(ConnectionPoolOptions options, IPooledDeviceConnectionFactory factory)
+        protected ResourcePool(
+            ConnectionPoolOptions options,
+            IPooledResourceConnectionFactory<TResource> factory,
+            ResourceRole poolRole,
+            string roleMismatchMessage)
         {
             Options = options ?? new ConnectionPoolOptions();
             _factory = factory ?? throw new ArgumentNullException(nameof(factory));
-            _executor = new PooledOperationExecutor();
+            _poolRole = poolRole;
+            _roleMismatchMessage = string.IsNullOrWhiteSpace(roleMismatchMessage) ? "资源角色不匹配" : roleMismatchMessage;
+            _executor = new PooledResourceExecutor<TResource>();
             _eventDispatcher = new ConnectionPoolEventDispatcher(this, Options.IsolateEventSubscriberExceptions);
-            _entries = new ConcurrentDictionary<ConnectionIdentity, PooledConnectionEntry>();
+            _entries = new ConcurrentDictionary<ConnectionIdentity, PooledResourceEntry<TResource>>();
             _poolLock = new AsyncLock();
             var monitor = new ConnectionStateMonitor();
-            _maintenanceService = new ConnectionPoolMaintenanceService(
+            _maintenanceService = new ConnectionPoolMaintenanceService<TResource>(
                 Options,
                 monitor,
                 GetEntriesForMaintenance,
@@ -73,11 +81,16 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             remove { _eventDispatcher.MaintenanceCompleted -= value; }
         }
 
-        public OperationResult Register(DeviceConnectionDescriptor descriptor)
+        public OperationResult Register(ResourceDescriptor descriptor)
         {
             if (descriptor == null || descriptor.Identity == null)
             {
                 return OperationResult.CreateFailedResult("连接描述不能为空");
+            }
+
+            if (descriptor.ResourceRole != ResourceRole.Unknown && descriptor.ResourceRole != _poolRole)
+            {
+                return OperationResult.CreateFailedResult(_roleMismatchMessage);
             }
 
             ConnectionPoolEventArgs registerEvent;
@@ -94,22 +107,24 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateFailedResult("连接池容量已满");
                 }
 
-                var created = _factory.Create(descriptor);
+                var normalizedDescriptor = NormalizeDescriptor(descriptor);
+                var created = _factory.Create(normalizedDescriptor);
                 if (!created.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult(created);
                 }
 
-                var entry = new PooledConnectionEntry(descriptor, created.ResultValue, this);
-                if (!_entries.TryAdd(descriptor.Identity, entry))
+                var entry = new PooledResourceEntry<TResource>(normalizedDescriptor, created.ResultValue, this);
+                if (!_entries.TryAdd(normalizedDescriptor.Identity, entry))
                 {
-                    created.ResultValue.Disconnect();
+                    created.ResultValue.DisconnectOrShutdown();
                     return OperationResult.CreateFailedResult("连接已注册");
                 }
 
                 registerEvent = new ConnectionPoolEventArgs
                 {
-                    Identity = descriptor.Identity,
+                    Identity = normalizedDescriptor.Identity,
+                    ResourceRole = normalizedDescriptor.ResourceRole,
                     EventType = ConnectionPoolEventType.Registered,
                     State = entry.State,
                     LifecycleState = entry.LifecycleState,
@@ -139,7 +154,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult<ConnectionLease>("操作已取消");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
             {
                 ThrowIfDisposed();
@@ -163,7 +178,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateFailedResult<ConnectionLease>("连接池已释放");
                 }
 
-                PooledConnectionEntry current;
+                PooledResourceEntry<TResource> current;
                 if (!_entries.TryGetValue(identity, out current) || !ReferenceEquals(current, entry))
                 {
                     entry.ReleaseAsync(lease.ResultValue, false, ConnectionPoolMaintenanceMode.UserCall).GetAwaiter().GetResult();
@@ -181,7 +196,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("租约不能为空");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
             {
                 _entries.TryGetValue(lease.Identity, out entry);
@@ -202,7 +217,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("连接标识不能为空");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
             {
                 ThrowIfDisposed();
@@ -222,12 +237,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("连接标识不能为空");
             }
 
-            PooledConnectionEntry removedEntry;
+            PooledResourceEntry<TResource> removedEntry;
             using (_poolLock.Lock())
             {
                 ThrowIfDisposed();
 
-                PooledConnectionEntry entry;
+                PooledResourceEntry<TResource> entry;
                 if (!_entries.TryGetValue(identity, out entry))
                 {
                     return OperationResult.CreateFailedResult("连接条目不存在");
@@ -250,6 +265,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             Publish(new ConnectionPoolEventArgs
             {
                 Identity = identity,
+                ResourceRole = _poolRole,
                 EventType = ConnectionPoolEventType.Unregistered,
                 State = ConnectionEntryState.Disconnected,
                 LifecycleState = ConnectionEntryLifecycleState.Disposed,
@@ -263,19 +279,19 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 : OperationResult.CreateFailedResult(dispose);
         }
 
-        public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult<T>>> action, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<TResource, Task<OperationResult<T>>> action, CancellationToken cancellationToken = default(CancellationToken))
         {
             return await ExecuteAsync(identity, action, ConnectionExecutionOptions.CreateDiagnostic(), cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult<T>>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<TResource, Task<OperationResult<T>>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (identity == null)
             {
                 return OperationResult.CreateFailedResult<T>("连接标识不能为空");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
             {
                 ThrowIfDisposed();
@@ -301,12 +317,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
         }
 
-        public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult>> action, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<TResource, Task<OperationResult>> action, CancellationToken cancellationToken = default(CancellationToken))
         {
             return await ExecuteAsync(identity, action, ConnectionExecutionOptions.CreateDiagnostic(), cancellationToken).ConfigureAwait(false);
         }
 
-        public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<IDeviceClient, Task<OperationResult>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
+        public async Task<OperationResult> ExecuteAsync(ConnectionIdentity identity, Func<TResource, Task<OperationResult>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
             ThrowIfDisposed();
             if (action == null)
@@ -314,9 +330,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("执行委托不能为空");
             }
 
-            var wrapped = await ExecuteAsync<object>(identity, async client =>
+            var wrapped = await ExecuteAsync<object>(identity, async resource =>
             {
-                var result = await action(client).ConfigureAwait(false);
+                var result = await action(resource).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
                     return OperationResult.CreateSuccessResult<object>(null);
@@ -333,101 +349,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return OperationResult.CreateFailedResult(wrapped);
         }
 
-        public async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointReadRequest> points, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            return await ReadPointsAsync(identity, points, ConnectionExecutionOptions.CreateRead(), cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointReadRequest> points, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            ThrowIfDisposed();
-
-            var normalized = PointListOperationHelper.NormalizeReadRequests(points);
-            if (!normalized.IsSuccess)
-            {
-                return OperationResult.CreateFailedResult<IList<DevicePointReadResult>>(normalized);
-            }
-
-            return await ExecuteAsync<IList<DevicePointReadResult>>(identity, client =>
-                PointListOperationHelper.ReadPointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointWriteRequest> points, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            return await WritePointsAsync(identity, points, ConnectionExecutionOptions.CreateWrite(), cancellationToken).ConfigureAwait(false);
-        }
-
-        public async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointWriteRequest> points, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
-        {
-            ThrowIfDisposed();
-
-            var normalized = PointListOperationHelper.NormalizeWriteRequests(points);
-            if (!normalized.IsSuccess)
-            {
-                return OperationResult.CreateFailedResult<IList<DevicePointWriteResult>>(normalized);
-            }
-
-            return await ExecuteAsync<IList<DevicePointWriteResult>>(identity, client =>
-                PointListOperationHelper.WritePointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
-        }
-
         public OperationResult<int> CleanupIdle()
         {
             ThrowIfDisposed();
             return OperationResult.CreateSuccessResult(CleanupIdleCore());
-        }
-
-        private int CleanupIdleCore()
-        {
-            var removedEntries = new List<KeyValuePair<ConnectionIdentity, PooledConnectionEntry>>();
-            using (_poolLock.Lock())
-            {
-                if (_disposed)
-                {
-                    return 0;
-                }
-
-                var candidates = _entries.ToArray();
-                foreach (var pair in candidates)
-                {
-                    if (!pair.Value.CanCleanup(Options.IdleTimeout))
-                    {
-                        continue;
-                    }
-
-                    var prepare = pair.Value.PrepareForRemovalAsync(false, ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
-                    if (!prepare.IsSuccess)
-                    {
-                        continue;
-                    }
-
-                    PooledConnectionEntry removedEntry;
-                    if (_entries.TryRemove(pair.Key, out removedEntry))
-                    {
-                        removedEntries.Add(new KeyValuePair<ConnectionIdentity, PooledConnectionEntry>(pair.Key, removedEntry));
-                    }
-                    else
-                    {
-                        pair.Value.CancelPendingRemovalAsync(ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
-                    }
-                }
-            }
-
-            foreach (var pair in removedEntries)
-            {
-                pair.Value.DisposeAsync(ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
-                Publish(new ConnectionPoolEventArgs
-                {
-                    Identity = pair.Key,
-                    EventType = ConnectionPoolEventType.IdleCleaned,
-                    State = ConnectionEntryState.Disconnected,
-                    LifecycleState = ConnectionEntryLifecycleState.Disposed,
-                    Message = "空闲连接已回收",
-                    TriggerMode = ConnectionPoolMaintenanceMode.Cleanup
-                });
-            }
-
-            return removedEntries.Count;
         }
 
         public OperationResult<int> CleanupExpiredLeases()
@@ -463,7 +388,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult<ConnectionEntrySnapshot>("连接标识不能为空");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             if (!_entries.TryGetValue(identity, out entry))
             {
                 return OperationResult.CreateFailedResult<ConnectionEntrySnapshot>("连接条目不存在");
@@ -494,7 +419,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("连接标识不能为空");
             }
 
-            PooledConnectionEntry entry;
+            PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
             {
                 ThrowIfDisposed();
@@ -509,7 +434,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public void Dispose()
         {
-            List<PooledConnectionEntry> entriesToDispose = null;
+            List<PooledResourceEntry<TResource>> entriesToDispose = null;
             using (_poolLock.Lock())
             {
                 if (_disposed)
@@ -519,11 +444,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
                 _disposed = true;
                 _maintenanceCancellationTokenSource.Cancel();
-                entriesToDispose = new List<PooledConnectionEntry>();
+                entriesToDispose = new List<PooledResourceEntry<TResource>>();
                 foreach (var pair in _entries.ToArray())
                 {
                     pair.Value.PrepareForRemovalAsync(true, ConnectionPoolMaintenanceMode.Dispose).GetAwaiter().GetResult();
-                    PooledConnectionEntry removedEntry;
+                    PooledResourceEntry<TResource> removedEntry;
                     if (_entries.TryRemove(pair.Key, out removedEntry))
                     {
                         entriesToDispose.Add(removedEntry);
@@ -559,34 +484,136 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public void Publish(ConnectionPoolEventArgs args)
         {
+            NormalizeEventRole(args);
             _eventDispatcher.Publish(args);
         }
 
         public void PublishStateChanged(ConnectionStateChangedEventArgs args)
         {
+            NormalizeEventRole(args);
             _eventDispatcher.PublishStateChanged(args);
         }
 
         public void PublishLeaseEvent(ConnectionLeaseEventArgs args)
         {
+            NormalizeEventRole(args);
             _eventDispatcher.PublishLeaseEvent(args);
         }
 
         public void PublishMaintenanceEvent(ConnectionMaintenanceEventArgs args)
         {
+            NormalizeEventRole(args);
             _eventDispatcher.PublishMaintenanceEvent(args);
         }
 
-        private IList<PooledConnectionEntry> GetEntriesForMaintenance()
+        protected OperationResult<PooledResourceEntry<TResource>> GetRegisteredEntry(ConnectionIdentity identity, string notFoundMessage)
+        {
+            if (identity == null)
+            {
+                return OperationResult.CreateFailedResult<PooledResourceEntry<TResource>>("连接标识不能为空");
+            }
+
+            using (_poolLock.Lock())
+            {
+                ThrowIfDisposed();
+                PooledResourceEntry<TResource> entry;
+                if (!_entries.TryGetValue(identity, out entry))
+                {
+                    var message = string.IsNullOrWhiteSpace(notFoundMessage) ? "连接未注册" : notFoundMessage;
+                    return OperationResult.CreateFailedResult<PooledResourceEntry<TResource>>(message);
+                }
+
+                return OperationResult.CreateSuccessResult(entry);
+            }
+        }
+
+        protected void ThrowIfDisposed()
+        {
+            if (_disposed)
+            {
+                throw new ObjectDisposedException(GetType().Name);
+            }
+        }
+
+        private ResourceDescriptor NormalizeDescriptor(ResourceDescriptor descriptor)
+        {
+            if (descriptor.ResourceRole == ResourceRole.Unknown)
+            {
+                descriptor.ResourceRole = _poolRole;
+            }
+
+            return descriptor;
+        }
+
+        private int CleanupIdleCore()
+        {
+            var removedEntries = new List<KeyValuePair<ConnectionIdentity, PooledResourceEntry<TResource>>>();
+            using (_poolLock.Lock())
+            {
+                if (_disposed)
+                {
+                    return 0;
+                }
+
+                var candidates = _entries.ToArray();
+                foreach (var pair in candidates)
+                {
+                    if (!pair.Value.CanCleanup(Options.IdleTimeout))
+                    {
+                        continue;
+                    }
+
+                    var prepare = pair.Value.PrepareForRemovalAsync(false, ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
+                    if (!prepare.IsSuccess)
+                    {
+                        continue;
+                    }
+
+                    PooledResourceEntry<TResource> removedEntry;
+                    if (_entries.TryRemove(pair.Key, out removedEntry))
+                    {
+                        removedEntries.Add(new KeyValuePair<ConnectionIdentity, PooledResourceEntry<TResource>>(pair.Key, removedEntry));
+                    }
+                    else
+                    {
+                        pair.Value.CancelPendingRemovalAsync(ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
+                    }
+                }
+            }
+
+            foreach (var pair in removedEntries)
+            {
+                pair.Value.DisposeAsync(ConnectionPoolMaintenanceMode.Cleanup).GetAwaiter().GetResult();
+                Publish(new ConnectionPoolEventArgs
+                {
+                    Identity = pair.Key,
+                    ResourceRole = _poolRole,
+                    EventType = ConnectionPoolEventType.IdleCleaned,
+                    State = ConnectionEntryState.Disconnected,
+                    LifecycleState = ConnectionEntryLifecycleState.Disposed,
+                    Message = "空闲连接已回收",
+                    TriggerMode = ConnectionPoolMaintenanceMode.Cleanup
+                });
+            }
+
+            return removedEntries.Count;
+        }
+
+        private IList<PooledResourceEntry<TResource>> GetEntriesForMaintenance()
         {
             return _entries.Values.ToList();
         }
 
-        private void ThrowIfDisposed()
+        private void NormalizeEventRole(ConnectionPoolEventArgs args)
         {
-            if (_disposed)
+            if (args == null)
             {
-                throw new ObjectDisposedException(nameof(DeviceConnectionPool));
+                return;
+            }
+
+            if (args.ResourceRole == ResourceRole.Unknown)
+            {
+                args.ResourceRole = _poolRole;
             }
         }
     }

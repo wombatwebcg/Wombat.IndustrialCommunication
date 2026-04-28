@@ -16,6 +16,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         private readonly AsyncLock _lock = new AsyncLock();
         protected readonly ServerMessageTransport _transport;
         private byte _slaveId = 1;
+
+        public event EventHandler<PacketTraceEventArgs> PacketTraced;
         
         /// <summary>
         /// 数据存储
@@ -36,7 +38,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 是否正在监听
         /// </summary>
-        public bool IsListening => _transport?.StreamResource is SerialPortServerAdapter adapter && adapter.IsListening;
+        public bool IsListening => _transport?.StreamResource is IServerListener adapter && adapter.Connected;
 
         /// <summary>
         /// 构造函数
@@ -105,6 +107,8 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 if (!isBroadcast && station != SlaveId)
                     return;
+
+                OnPacketTraced(PacketTraceDirection.Received, GetRequestMeaning(functionCode), request);
                 
                 // 提取数据区域（不包括站号、功能码和CRC）
                 byte[] data = new byte[request.Length - 4];
@@ -153,6 +157,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                     // 创建响应帧
                     var responseGenerator = new ModbusRTUResponseGenerator(SlaveId, functionCode, responseData);
                     byte[] response = responseGenerator.ResponseFrame;
+
+                    OnPacketTraced(PacketTraceDirection.Sent, GetResponseMeaning(response[1]), response);
                     
                     // 发送响应
                     _ = receivedMessage.Session.SendAsync(response);
@@ -178,6 +184,66 @@ namespace Wombat.IndustrialCommunication.Modbus
                 // 一般异常处理
                 Logger?.LogError(ex, "处理Modbus RTU请求时发生异常");
             }
+        }
+
+        protected virtual void OnPacketTraced(PacketTraceDirection direction, string meaning, byte[] data)
+        {
+            PacketTraced?.Invoke(this, new PacketTraceEventArgs(direction, meaning, data));
+        }
+
+        private static string GetRequestMeaning(byte functionCode)
+        {
+            return GetFunctionMeaning(functionCode, false);
+        }
+
+        private static string GetResponseMeaning(byte functionCode)
+        {
+            return GetFunctionMeaning(functionCode, true);
+        }
+
+        private static string GetFunctionMeaning(byte functionCode, bool isResponse)
+        {
+            bool isException = (functionCode & 0x80) == 0x80;
+            byte actualCode = (byte)(functionCode & 0x7F);
+            string action;
+
+            switch (actualCode)
+            {
+                case 0x01:
+                    action = "读取线圈";
+                    break;
+                case 0x02:
+                    action = "读取离散输入";
+                    break;
+                case 0x03:
+                    action = "读取保持寄存器";
+                    break;
+                case 0x04:
+                    action = "读取输入寄存器";
+                    break;
+                case 0x05:
+                    action = "写入单个线圈";
+                    break;
+                case 0x06:
+                    action = "写入单个寄存器";
+                    break;
+                case 0x0F:
+                    action = "写入多个线圈";
+                    break;
+                case 0x10:
+                    action = "写入多个寄存器";
+                    break;
+                default:
+                    action = "未知功能码";
+                    break;
+            }
+
+            if (isException)
+            {
+                return string.Format("Modbus RTU异常响应({0})", action);
+            }
+
+            return string.Format("Modbus RTU{0}({1})", isResponse ? "响应" : "请求", action);
         }
         
         /// <summary>

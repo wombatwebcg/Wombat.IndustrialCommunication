@@ -10,18 +10,18 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
     /// <summary>
     /// 连接池后台维护服务。
     /// </summary>
-    internal sealed class ConnectionPoolMaintenanceService
+    internal sealed class ConnectionPoolMaintenanceService<TResource>
     {
         private readonly ConnectionPoolOptions _options;
         private readonly ConnectionStateMonitor _monitor;
-        private readonly Func<IList<PooledConnectionEntry>> _entryProvider;
+        private readonly Func<IList<PooledResourceEntry<TResource>>> _entryProvider;
         private readonly Func<int> _cleanupIdle;
         private readonly Action<ConnectionMaintenanceEventArgs> _publishMaintenance;
 
         public ConnectionPoolMaintenanceService(
             ConnectionPoolOptions options,
             ConnectionStateMonitor monitor,
-            Func<IList<PooledConnectionEntry>> entryProvider,
+            Func<IList<PooledResourceEntry<TResource>>> entryProvider,
             Func<int> cleanupIdle,
             Action<ConnectionMaintenanceEventArgs> publishMaintenance)
         {
@@ -83,7 +83,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
         }
 
-        private async Task<MaintenanceBatchResult> RunHealthChecksAsync(IList<PooledConnectionEntry> entries, CancellationToken cancellationToken)
+        private async Task<MaintenanceBatchResult> RunHealthChecksAsync(IList<PooledResourceEntry<TResource>> entries, CancellationToken cancellationToken)
         {
             var maxConcurrency = _options == null ? 1 : _options.MaxConcurrentMaintenanceOperations;
             if (maxConcurrency <= 1)
@@ -125,7 +125,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return batchResult;
         }
 
-        private async Task<OperationResult> RunHealthCheckWithGateAsync(PooledConnectionEntry entry, SemaphoreSlim gate, CancellationToken cancellationToken)
+        private async Task<OperationResult> RunHealthCheckWithGateAsync(PooledResourceEntry<TResource> entry, SemaphoreSlim gate, CancellationToken cancellationToken)
         {
             await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try

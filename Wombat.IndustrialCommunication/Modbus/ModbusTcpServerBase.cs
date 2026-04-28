@@ -18,6 +18,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         private readonly AsyncLock _lock = new AsyncLock();
         protected readonly ServerMessageTransport _transport;
         private byte _slaveId = 1;
+
+        public event EventHandler<PacketTraceEventArgs> PacketTraced;
         
         /// <summary>
         /// 数据存储
@@ -101,6 +103,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (unitId != SlaveId)
                     return;
 
+                OnPacketTraced(PacketTraceDirection.Received, GetRequestMeaning(functionCode), message.Data);
+
                 Logger?.LogDebug(
                     "收到Modbus请求: TransactionId={TransactionId}, ProtocolId={ProtocolId}, Length={Length}, UnitId={UnitId}, FunctionCode={FunctionCode:X2}",
                     transactionId, protocolId, length, unitId, functionCode);
@@ -111,6 +115,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 // 向客户端发送响应
                 if (response != null)
                 {
+                    OnPacketTraced(PacketTraceDirection.Sent, GetResponseMeaning(response[7]), response);
                     Task.Run(async () =>
                     {
                         var result = await _transport.SendToSessionAsync(message.Session, response);
@@ -125,6 +130,66 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 Logger?.LogError(ex, "处理Modbus消息时发生错误");
             }
+        }
+
+        protected virtual void OnPacketTraced(PacketTraceDirection direction, string meaning, byte[] data)
+        {
+            PacketTraced?.Invoke(this, new PacketTraceEventArgs(direction, meaning, data));
+        }
+
+        private static string GetRequestMeaning(byte functionCode)
+        {
+            return GetFunctionMeaning(functionCode, false);
+        }
+
+        private static string GetResponseMeaning(byte functionCode)
+        {
+            return GetFunctionMeaning(functionCode, true);
+        }
+
+        private static string GetFunctionMeaning(byte functionCode, bool isResponse)
+        {
+            bool isException = (functionCode & 0x80) == 0x80;
+            byte actualCode = (byte)(functionCode & 0x7F);
+            string action;
+
+            switch (actualCode)
+            {
+                case 0x01:
+                    action = "读取线圈";
+                    break;
+                case 0x02:
+                    action = "读取离散输入";
+                    break;
+                case 0x03:
+                    action = "读取保持寄存器";
+                    break;
+                case 0x04:
+                    action = "读取输入寄存器";
+                    break;
+                case 0x05:
+                    action = "写入单个线圈";
+                    break;
+                case 0x06:
+                    action = "写入单个寄存器";
+                    break;
+                case 0x0F:
+                    action = "写入多个线圈";
+                    break;
+                case 0x10:
+                    action = "写入多个寄存器";
+                    break;
+                default:
+                    action = "未知功能码";
+                    break;
+            }
+
+            if (isException)
+            {
+                return string.Format("Modbus TCP异常响应({0})", action);
+            }
+
+            return string.Format("Modbus TCP{0}({1})", isResponse ? "响应" : "请求", action);
         }
 
         /// <summary>

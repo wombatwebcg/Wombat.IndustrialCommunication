@@ -157,7 +157,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             }
         }
 
-        private static DeviceConnectionPool CreatePool()
+        private static DeviceClientPool CreatePool()
         {
             var options = new ConnectionPoolOptions
             {
@@ -168,10 +168,10 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromMinutes(5)
             };
 
-            return new DeviceConnectionPool(options, new DefaultPooledDeviceConnectionFactory());
+            return new DeviceClientPool(options, new DefaultPooledDeviceClientConnectionFactory());
         }
 
-        private static void RegisterDefaultDescriptors(DeviceConnectionPool pool)
+        private static void RegisterDefaultDescriptors(DeviceClientPool pool)
         {
             foreach (var descriptor in CreateDescriptors())
             {
@@ -180,16 +180,16 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             }
         }
 
-        private static IEnumerable<DeviceConnectionDescriptor> CreateDescriptors()
+        private static IEnumerable<ResourceDescriptor> CreateDescriptors()
         {
             yield return CreateDescriptor(502);
             yield return CreateDescriptor(503);
             yield return CreateDescriptor(504);
         }
 
-        private static DeviceConnectionDescriptor CreateDescriptor(int port)
+        private static ResourceDescriptor CreateDescriptor(int port)
         {
-            var descriptor = new DeviceConnectionDescriptor
+            var descriptor = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity
                 {
@@ -208,7 +208,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             return descriptor;
         }
 
-        private static async Task AssertRoundTripAsync(DeviceConnectionPool pool, int port, DataTypeEnums dataType, string address, object expectedValue)
+        private static async Task AssertRoundTripAsync(DeviceClientPool pool, int port, DataTypeEnums dataType, string address, object expectedValue)
         {
             var identity = CreateIdentity(port);
             var writeResult = await pool.ExecuteAsync(identity, async client =>
@@ -222,7 +222,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             AssertValue(dataType, expectedValue, readResult.ResultValue);
         }
 
-        private static async Task AssertStringRoundTripAsync(DeviceConnectionPool pool, int port, string writeAddress, string readAddress, string expectedValue)
+        private static async Task AssertStringRoundTripAsync(DeviceClientPool pool, int port, string writeAddress, string readAddress, string expectedValue)
         {
             var identity = CreateIdentity(port);
             var result = await pool.ExecuteAsync<string>(identity, async client =>
@@ -240,7 +240,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.Equal(expectedValue, result.ResultValue);
         }
 
-        private static async Task AssertPointListRoundTripAsync(DeviceConnectionPool pool, int port, params DevicePointWriteRequest[] writes)
+        private static async Task AssertPointListRoundTripAsync(DeviceClientPool pool, int port, params DevicePointWriteRequest[] writes)
         {
             var identity = CreateIdentity(port);
             var writeResult = await pool.WritePointsAsync(identity, writes).ConfigureAwait(false);
@@ -384,3 +384,5 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
     }
 }
+
+

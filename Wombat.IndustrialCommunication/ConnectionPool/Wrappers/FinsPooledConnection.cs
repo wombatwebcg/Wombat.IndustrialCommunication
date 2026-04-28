@@ -5,7 +5,7 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
 {
-    public sealed class FinsPooledConnection : BasePooledDeviceConnection
+    public sealed class FinsPooledConnection : BasePooledDeviceClientConnection
     {
         private readonly string _probeAddress;
         private readonly DataTypeEnums _probeDataType;

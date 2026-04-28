@@ -16,7 +16,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// TCP服务器适配器，实现IStreamResource接口，用于服务器端通信
     /// </summary>
-    public class TcpServerAdapter : IStreamResource, IDisposable
+    public class TcpServerAdapter : IServerListener, IDisposable
     {
         private Socket _listenerSocket;
         private CancellationTokenSource _cancellationTokenSource;

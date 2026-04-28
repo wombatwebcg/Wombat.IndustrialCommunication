@@ -12,7 +12,7 @@ namespace Wombat.IndustrialCommunication
     /// <summary>
     /// 串口服务器适配器，提供串口通信的服务器端功能
     /// </summary>
-    public class SerialPortServerAdapter : IStreamResource, IDisposable
+    public class SerialPortServerAdapter : IServerListener, IDisposable
     {
         #region 字段和属性
 

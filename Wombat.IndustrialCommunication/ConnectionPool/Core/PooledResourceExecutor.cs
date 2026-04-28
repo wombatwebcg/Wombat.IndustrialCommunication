@@ -5,16 +5,13 @@ using Wombat.IndustrialCommunication.ConnectionPool.Models;
 
 namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 {
-    /// <summary>
-    /// 池化执行器，负责统一重试与重连策略。
-    /// </summary>
-    public class PooledOperationExecutor
+    public class PooledResourceExecutor<TResource>
     {
-        public async Task<OperationResult<T>> ExecuteAsync<T>(PooledConnectionEntry entry, Func<IDeviceClient, Task<OperationResult<T>>> action, ConnectionPoolOptions options, ConnectionExecutionOptions executionOptions)
+        public async Task<OperationResult<T>> ExecuteAsync<T>(PooledResourceEntry<TResource> entry, System.Func<TResource, Task<OperationResult<T>>> action, ConnectionPoolOptions options, ConnectionExecutionOptions executionOptions)
         {
             if (entry == null)
             {
-                return OperationResult.CreateFailedResult<T>("连接条目不能为空");
+                return OperationResult.CreateFailedResult<T>("资源条目不能为空");
             }
 
             if (action == null)
@@ -32,7 +29,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             while (true)
             {
                 attempt++;
-                var ensure = await entry.EnsureConnectedAsync(ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+                var ensure = await entry.EnsureAvailableAsync(ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 MergeDiagnostics(diagnostics, ensure);
                 if (!ensure.IsSuccess)
                 {
@@ -65,22 +62,22 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 await entry.MarkFailureAsync(executeResult.Message, executeResult.Exception, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 await entry.NotifyRetryingAsync(attempt, maxRetry, retryBackoff, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 AddRetryDecisionInfo(diagnostics, effectiveExecutionOptions, executeResult, true, attempt, maxRetry);
-                await entry.TryRecoverAsync("检测到可恢复异常，准备重连", ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+                await entry.TryRecoverAsync("检测到可恢复异常，准备重建资源", ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 await Task.Delay(retryBackoff).ConfigureAwait(false);
             }
         }
 
-        public async Task<OperationResult> ExecuteAsync(PooledConnectionEntry entry, Func<IDeviceClient, Task<OperationResult>> action, ConnectionPoolOptions options, ConnectionExecutionOptions executionOptions)
+        public async Task<OperationResult> ExecuteAsync(PooledResourceEntry<TResource> entry, System.Func<TResource, Task<OperationResult>> action, ConnectionPoolOptions options, ConnectionExecutionOptions executionOptions)
         {
-            var wrapped = await ExecuteAsync<object>(entry, async c =>
+            var wrapped = await ExecuteAsync<object>(entry, async resource =>
             {
-                var r = await action(c).ConfigureAwait(false);
-                if (r.IsSuccess)
+                var result = await action(resource).ConfigureAwait(false);
+                if (result.IsSuccess)
                 {
                     return OperationResult.CreateSuccessResult<object>(null);
                 }
 
-                return OperationResult.CreateFailedResult<object>(r);
+                return OperationResult.CreateFailedResult<object>(result);
             }, options, executionOptions).ConfigureAwait(false);
 
             if (wrapped.IsSuccess)
@@ -116,28 +113,19 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             if (willRetry)
             {
-                AddOperationInfo(diagnostics,
-                    string.Format("执行分类 {0} 第 {1}/{2} 次失败，命中恢复性重试条件。",
-                        executionOptions.Kind,
-                        attempt,
-                        maxRetry + 1));
+                AddOperationInfo(diagnostics, string.Format("执行分类 {0} 第 {1}/{2} 次失败，命中恢复性重试条件。", executionOptions.Kind, attempt, maxRetry + 1));
                 return;
             }
 
             if (!executionOptions.ResolveRetryEnabled() && IsRecoverable(result))
             {
-                AddOperationInfo(diagnostics,
-                    string.Format("执行分类 {0} 默认或显式禁用恢复性重试，失败后直接返回。",
-                        executionOptions.Kind));
+                AddOperationInfo(diagnostics, string.Format("执行分类 {0} 默认或显式禁用恢复性重试，失败后直接返回。", executionOptions.Kind));
                 return;
             }
 
             if (executionOptions.ResolveRetryEnabled() && IsRecoverable(result) && attempt > maxRetry)
             {
-                AddOperationInfo(diagnostics,
-                    string.Format("执行分类 {0} 已达到最大恢复性重试次数 {1}。",
-                        executionOptions.Kind,
-                        maxRetry));
+                AddOperationInfo(diagnostics, string.Format("执行分类 {0} 已达到最大恢复性重试次数 {1}。", executionOptions.Kind, maxRetry));
             }
         }
 
@@ -199,9 +187,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return false;
             }
 
-            if (result.Exception is TimeoutException
-                || result.Exception is IOException
-                || result.Exception is ObjectDisposedException)
+            if (result.Exception is TimeoutException || result.Exception is IOException || result.Exception is ObjectDisposedException)
             {
                 return true;
             }
@@ -212,11 +198,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             var message = result.Message.ToLowerInvariant();
-            return message.Contains("timeout")
-                || message.Contains("timed out")
-                || message.Contains("connection")
-                || message.Contains("socket")
-                || message.Contains("closed");
+            return message.Contains("timeout") || message.Contains("timed out") || message.Contains("connection") || message.Contains("socket") || message.Contains("closed") || message.Contains("listen") || message.Contains("port");
         }
     }
 }

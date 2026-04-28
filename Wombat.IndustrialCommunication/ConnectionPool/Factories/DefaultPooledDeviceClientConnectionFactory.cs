@@ -13,29 +13,34 @@ using Wombat.IndustrialCommunication.PLC;
 namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 {
     /// <summary>
-    /// 默认池化连接工厂。
+    /// 默认池化设备客户端连接工厂。
     /// </summary>
-    public class DefaultPooledDeviceConnectionFactory : IPooledDeviceConnectionFactory
+    public class DefaultPooledDeviceClientConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
     {
-        public OperationResult<IPooledDeviceConnection> Create(DeviceConnectionDescriptor descriptor)
+        public OperationResult<IPooledResourceConnection<IDeviceClient>> Create(ResourceDescriptor descriptor)
         {
             try
             {
                 if (descriptor == null)
                 {
-                    return OperationResult.CreateFailedResult<IPooledDeviceConnection>("连接描述不能为空");
+                    return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("连接描述不能为空");
+                }
+
+                if (descriptor.ResourceRole != ResourceRole.Unknown && descriptor.ResourceRole != ResourceRole.Client)
+                {
+                    return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("资源角色不是客户端");
                 }
 
                 if (descriptor.Identity == null)
                 {
-                    return OperationResult.CreateFailedResult<IPooledDeviceConnection>("连接标识不能为空");
+                    return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("连接标识不能为空");
                 }
 
                 if (string.IsNullOrWhiteSpace(descriptor.Identity.DeviceId)
                     || string.IsNullOrWhiteSpace(descriptor.Identity.ProtocolType)
                     || string.IsNullOrWhiteSpace(descriptor.Identity.Endpoint))
                 {
-                    return OperationResult.CreateFailedResult<IPooledDeviceConnection>("连接标识缺少必要字段");
+                    return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("连接标识缺少必要字段");
                 }
 
                 var type = ResolveConnectionType(descriptor);
@@ -50,21 +55,21 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
                     case DeviceConnectionType.Fins:
                         return CreateFins(descriptor);
                     default:
-                        return OperationResult.CreateFailedResult<IPooledDeviceConnection>("不支持的连接类型");
+                        return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("不支持的连接类型");
                 }
             }
             catch (Exception ex)
             {
-                return OperationResult.CreateFailedResult<IPooledDeviceConnection>(ex);
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(ex);
             }
         }
 
-        public Task<OperationResult<IPooledDeviceConnection>> CreateAsync(DeviceConnectionDescriptor descriptor)
+        public Task<OperationResult<IPooledResourceConnection<IDeviceClient>>> CreateAsync(ResourceDescriptor descriptor)
         {
             return Task.FromResult(Create(descriptor));
         }
 
-        private static DeviceConnectionType ResolveConnectionType(DeviceConnectionDescriptor descriptor)
+        private static DeviceConnectionType ResolveConnectionType(ResourceDescriptor descriptor)
         {
             if (descriptor.DeviceConnectionType != DeviceConnectionType.Unknown)
             {
@@ -85,19 +90,19 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             return DeviceConnectionType.Unknown;
         }
 
-        private static OperationResult<IPooledDeviceConnection> CreateModbusTcp(DeviceConnectionDescriptor descriptor)
+        private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateModbusTcp(ResourceDescriptor descriptor)
         {
             var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
             var ip = GetRequiredString(parameters, "ip");
             if (string.IsNullOrWhiteSpace(ip))
             {
-                return OperationResult.CreateFailedResult<IPooledDeviceConnection>("ModbusTcp 参数缺少 ip");
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusTcp 参数缺少 ip");
             }
 
             var port = GetInt(parameters, "port", 502);
             var client = new ModbusTcpClient(ip, port);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusTcpPooledConnection(
+            return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusTcpPooledConnection(
                 descriptor.Identity,
                 client,
                 GetOptionalString(parameters, "probeAddress"),
@@ -105,13 +110,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
                 GetInt(parameters, "probeLength", 1)));
         }
 
-        private static OperationResult<IPooledDeviceConnection> CreateModbusRtu(DeviceConnectionDescriptor descriptor)
+        private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateModbusRtu(ResourceDescriptor descriptor)
         {
             var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
             var portName = GetRequiredString(parameters, "portName");
             if (string.IsNullOrWhiteSpace(portName))
             {
-                return OperationResult.CreateFailedResult<IPooledDeviceConnection>("ModbusRtu 参数缺少 portName");
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusRtu 参数缺少 portName");
             }
 
             var baudRate = GetInt(parameters, "baudRate", 9600);
@@ -121,7 +126,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var handshake = GetEnum(parameters, "handshake", Handshake.None);
             var client = new ModbusRtuClient(portName, baudRate, dataBits, stopBits, parity, handshake);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new ModbusRtuPooledConnection(
+            return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusRtuPooledConnection(
                 descriptor.Identity,
                 client,
                 GetOptionalString(parameters, "probeAddress"),
@@ -129,13 +134,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
                 GetInt(parameters, "probeLength", 1)));
         }
 
-        private static OperationResult<IPooledDeviceConnection> CreateSiemens(DeviceConnectionDescriptor descriptor)
+        private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateSiemens(ResourceDescriptor descriptor)
         {
             var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
             var ip = GetRequiredString(parameters, "ip");
             if (string.IsNullOrWhiteSpace(ip))
             {
-                return OperationResult.CreateFailedResult<IPooledDeviceConnection>("Siemens 参数缺少 ip");
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("Siemens 参数缺少 ip");
             }
 
             var port = GetInt(parameters, "port", 102);
@@ -144,7 +149,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var rack = (byte)GetInt(parameters, "rack", 0);
             var client = new SiemensClient(ip, port, version, slot, rack);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new SiemensPooledConnection(
+            return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new SiemensPooledConnection(
                 descriptor.Identity,
                 client,
                 GetOptionalString(parameters, "probeAddress"),
@@ -152,13 +157,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
                 GetInt(parameters, "probeLength", 1)));
         }
 
-        private static OperationResult<IPooledDeviceConnection> CreateFins(DeviceConnectionDescriptor descriptor)
+        private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateFins(ResourceDescriptor descriptor)
         {
             var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
             var ip = GetRequiredString(parameters, "ip");
             if (string.IsNullOrWhiteSpace(ip))
             {
-                return OperationResult.CreateFailedResult<IPooledDeviceConnection>("Fins 参数缺少 ip");
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("Fins 参数缺少 ip");
             }
 
             var port = GetInt(parameters, "port", 9600);
@@ -166,7 +171,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             TimeSpan? timeout = timeoutMilliseconds > 0 ? TimeSpan.FromMilliseconds(timeoutMilliseconds) : (TimeSpan?)null;
             var client = new FinsClient(ip, port, timeout);
             ApplyCommonOptions(parameters, client);
-            return OperationResult.CreateSuccessResult<IPooledDeviceConnection>(new FinsPooledConnection(
+            return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new FinsPooledConnection(
                 descriptor.Identity,
                 client,
                 GetOptionalString(parameters, "probeAddress"),

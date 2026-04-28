@@ -11,7 +11,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
     /// <summary>
     /// 连接池条目，负责统一维护单设备连接的生命周期。
     /// </summary>
-    public class PooledConnectionEntry
+    public class PooledResourceEntry<TResource>
     {
         private static readonly TimeSpan DefaultProbeTimeout = TimeSpan.FromSeconds(3);
         private readonly AsyncLock _entryLock = new AsyncLock();
@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         private ConnectionPoolMaintenanceMode _lastMaintenanceMode;
         private ConnectionEntryLifecycleState _lifecycleState;
 
-        public PooledConnectionEntry(DeviceConnectionDescriptor descriptor, IPooledDeviceConnection connection, IConnectionPoolEventPublisher eventPublisher)
+        public PooledResourceEntry(ResourceDescriptor descriptor, IPooledResourceConnection<TResource> connection, IConnectionPoolEventPublisher eventPublisher)
         {
             Descriptor = descriptor ?? throw new ArgumentNullException(nameof(descriptor));
             Connection = connection ?? throw new ArgumentNullException(nameof(connection));
@@ -40,11 +40,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             _lastMaintenanceMode = ConnectionPoolMaintenanceMode.Unknown;
         }
 
-        public DeviceConnectionDescriptor Descriptor { get; private set; }
+        public ResourceDescriptor Descriptor { get; private set; }
 
         public ConnectionIdentity Identity => Descriptor.Identity;
 
-        public IPooledDeviceConnection Connection { get; private set; }
+        public IPooledResourceConnection<TResource> Connection { get; private set; }
 
         public ConnectionEntryState State => MapPublicState(_lifecycleState);
 
@@ -65,7 +65,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public int FailureCount => _failureCount;
 
-        public async Task<OperationResult> EnsureConnectedAsync(ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
+        public async Task<OperationResult> EnsureAvailableAsync(ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
             var notifications = new List<Action>();
             OperationResult result;
@@ -272,7 +272,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return OperationResult.CreateSuccessResult();
         }
 
-        public async Task<OperationResult<T>> ExecuteAsync<T>(Func<IDeviceClient, Task<OperationResult<T>>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
+        public async Task<OperationResult<T>> ExecuteAsync<T>(Func<TResource, Task<OperationResult<T>>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
             var notifications = new List<Action>();
             OperationResult<T> result;
@@ -301,7 +301,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return result;
         }
 
-        public async Task<OperationResult> ExecuteAsync(Func<IDeviceClient, Task<OperationResult>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
+        public async Task<OperationResult> ExecuteAsync(Func<TResource, Task<OperationResult>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
             var notifications = new List<Action>();
             OperationResult result;
@@ -480,7 +480,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
                 _leases.Clear();
                 _isRemoving = true;
-                disconnect = Connection.Disconnect();
+                disconnect = Connection.DisconnectOrShutdown();
                 TransitionState(ConnectionEntryLifecycleState.Disposed, ConnectionPoolEventType.Disposed, "连接条目已释放", mode, disconnect.Exception, false, notifications);
             }
 
@@ -504,7 +504,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 false,
                 notifications);
 
-            var result = await Connection.EnsureConnectedAsync().ConfigureAwait(false);
+            var result = await Connection.EnsureAvailableAsync().ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 _failureCount = 0;
@@ -538,7 +538,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var utcNow = DateTime.UtcNow;
             var hasEstablishedSession = Connection.State == ConnectionEntryLifecycleState.Ready
                 || Connection.State == ConnectionEntryLifecycleState.Leased
-                || (Connection.Client != null && Connection.Client.Connected);
+                || Connection.IsAvailable;
             if (hasEstablishedSession)
             {
                 var probeResult = await Connection.ProbeAsync(GetProbeTimeout(options)).ConfigureAwait(false);
@@ -594,7 +594,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             TransitionState(ConnectionEntryLifecycleState.Reconnecting, ConnectionPoolEventType.Reconnecting, "连接恢复中", mode, null, false, notifications);
             try
             {
-                Connection.Disconnect();
+                Connection.DisconnectOrShutdown();
             }
             catch
             {
@@ -672,6 +672,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var args = new ConnectionPoolEventArgs
             {
                 Identity = Identity,
+                ResourceRole = Descriptor.ResourceRole,
                 EventType = eventType,
                 State = state,
                 LifecycleState = lifecycleState,
@@ -691,6 +692,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var args = new ConnectionStateChangedEventArgs
             {
                 Identity = Identity,
+                ResourceRole = Descriptor.ResourceRole,
                 EventType = eventType,
                 PreviousState = previousState,
                 CurrentState = currentState,
@@ -714,6 +716,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var args = new ConnectionLeaseEventArgs
             {
                 Identity = Identity,
+                ResourceRole = Descriptor.ResourceRole,
                 EventType = eventType,
                 State = State,
                 LifecycleState = _lifecycleState,

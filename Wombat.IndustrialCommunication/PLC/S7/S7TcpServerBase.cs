@@ -15,6 +15,8 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         private readonly AsyncLock _lock = new AsyncLock();
         protected readonly ServerMessageTransport _transport;
+
+        public event EventHandler<PacketTraceEventArgs> PacketTraced;
         
         /// <summary>
         /// 数据存储
@@ -92,6 +94,9 @@ namespace Wombat.IndustrialCommunication.PLC
 
             try
             {
+                byte messageType = DetermineS7MessageType(message.Data);
+                OnPacketTraced(PacketTraceDirection.Received, DescribeMessageMeaning(messageType, false), message.Data);
+
                 // 解析S7消息
                 // S7协议的消息结构与Modbus不同，需要特殊处理
                 
@@ -105,6 +110,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 // 向客户端发送响应
                 if (response != null)
                 {
+                    OnPacketTraced(PacketTraceDirection.Sent, DescribeMessageMeaning(messageType, true), response);
                     Task.Run(async () =>
                     {
                         Logger?.LogDebug(
@@ -122,6 +128,34 @@ namespace Wombat.IndustrialCommunication.PLC
             catch (Exception ex)
             {
                 Logger?.LogError(ex, "处理S7消息时发生错误");
+            }
+        }
+
+        protected virtual void OnPacketTraced(PacketTraceDirection direction, string meaning, byte[] data)
+        {
+            PacketTraced?.Invoke(this, new PacketTraceEventArgs(direction, meaning, data));
+        }
+
+        private static string DescribeMessageMeaning(byte messageType, bool isResponse)
+        {
+            string prefix = isResponse ? "S7响应" : "S7请求";
+
+            switch (messageType)
+            {
+                case 0xE0:
+                    return prefix + "(建立连接)";
+                case 0xF0:
+                    return prefix + "(协商通信参数)";
+                case 0x04:
+                    return prefix + "(读取数据)";
+                case 0x05:
+                    return prefix + "(写入数据)";
+                case 0x03:
+                    return prefix + "(确认报文)";
+                case 0x07:
+                    return prefix + "(用户数据)";
+                default:
+                    return prefix + "(原始报文)";
             }
         }
         
