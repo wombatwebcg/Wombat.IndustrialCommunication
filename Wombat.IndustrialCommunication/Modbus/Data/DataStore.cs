@@ -146,9 +146,19 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
             WriteDiscretesDirect(this, CoilDiscretes, startAddress, values, ModbusDataType.Coil);
         }
 
+        internal void WriteInputDiscretesDirect(ushort startAddress, IList<bool> values)
+        {
+            WriteDiscretesDirect(this, InputDiscretes, startAddress, values, ModbusDataType.Input);
+        }
+
         internal void WriteHoldingRegistersDirect(ushort startAddress, IList<ushort> values)
         {
             WriteRegistersDirect(this, HoldingRegisters, startAddress, values, ModbusDataType.HoldingRegister);
+        }
+
+        internal void WriteInputRegistersDirect(ushort startAddress, IList<ushort> values)
+        {
+            WriteRegistersDirect(this, InputRegisters, startAddress, values, ModbusDataType.InputRegister);
         }
 
         private static void WriteDiscretes(

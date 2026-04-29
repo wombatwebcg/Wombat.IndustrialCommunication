@@ -950,13 +950,25 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 foreach (var block in BuildWriteBlocks(writeItems))
                 {
-                    if (block.IsBit)
+                    if (block.Target == ModbusWriteTarget.Coil)
                     {
                         ApplyCoilBlock(block);
                     }
-                    else
+                    else if (block.Target == ModbusWriteTarget.InputDiscrete)
+                    {
+                        ApplyInputDiscreteBlock(block);
+                    }
+                    else if (block.Target == ModbusWriteTarget.HoldingRegister)
                     {
                         WriteHoldingRegisters(block.StartAddress, block.Buffer);
+                    }
+                    else if (block.Target == ModbusWriteTarget.InputRegister)
+                    {
+                        WriteInputRegisters(block.StartAddress, block.Buffer);
+                    }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult("存在不支持的写入目标区域");
                     }
                 }
 
@@ -1143,11 +1155,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                var addressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum, true);
+                // 服务器本地API允许写入输入区，因此按读地址语义解析，再在本地选择写入目标区。
+                var addressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum, false);
                 var normalizedValue = NormalizeSingleValue(dataTypeEnum, value);
 
                 switch (addressInfo.FunctionCode)
                 {
+                    case 0x01:
                     case 0x05:
                     case 0x0F:
                         if (!(normalizedValue is bool))
@@ -1159,6 +1173,16 @@ namespace Wombat.IndustrialCommunication.Modbus
                         DataStore.WriteCoilsDirect(addressInfo.Address, new[] { boolValue });
                         return new OperationResult().Complete();
 
+                    case 0x02:
+                        if (!(normalizedValue is bool inputBoolValue))
+                        {
+                            return OperationResult.CreateFailedResult("写入离散输入的值不是布尔类型");
+                        }
+
+                        DataStore.WriteInputDiscretesDirect(addressInfo.Address, new[] { inputBoolValue });
+                        return new OperationResult().Complete();
+
+                    case 0x03:
                     case 0x06:
                     case 0x10:
                         var bytes = ModbusBatchHelper.ConvertValueToModbusBytes((dataTypeEnum, normalizedValue), addressInfo, IsReverse, DataFormat);
@@ -1168,6 +1192,16 @@ namespace Wombat.IndustrialCommunication.Modbus
                         }
 
                         WriteHoldingRegisters(addressInfo.Address, bytes);
+                        return new OperationResult().Complete();
+
+                    case 0x04:
+                        var inputBytes = ModbusBatchHelper.ConvertValueToModbusBytes((dataTypeEnum, normalizedValue), addressInfo, IsReverse, DataFormat);
+                        if (inputBytes == null || inputBytes.Length == 0)
+                        {
+                            return OperationResult.CreateFailedResult("写入值转换失败");
+                        }
+
+                        WriteInputRegisters(addressInfo.Address, inputBytes);
                         return new OperationResult().Complete();
 
                     default:
@@ -1510,7 +1544,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             try
             {
-                var baseAddressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum, true);
+                var baseAddressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum, false);
                 var step = GetWriteAddressStep(baseAddressInfo, dataTypeEnum);
                 var writeDict = new Dictionary<string, (DataTypeEnums, object)>();
 
@@ -1669,6 +1703,20 @@ namespace Wombat.IndustrialCommunication.Modbus
             DataStore.WriteHoldingRegistersDirect(startAddress, values);
         }
 
+        private void WriteInputRegisters(ushort startAddress, byte[] bytes)
+        {
+            var registerCount = Math.Max(1, (bytes.Length + 1) / 2);
+            var values = new ushort[registerCount];
+            for (var index = 0; index < registerCount; index++)
+            {
+                var high = bytes[index * 2];
+                var low = index * 2 + 1 < bytes.Length ? bytes[index * 2 + 1] : (byte)0;
+                values[index] = (ushort)((high << 8) | low);
+            }
+
+            DataStore.WriteInputRegistersDirect(startAddress, values);
+        }
+
         private OperationResult<byte[]> ReadBlockBytes(ModbusBatchHelper.ModbusAddressBlock block)
         {
             switch (block.FunctionCode)
@@ -1725,7 +1773,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 try
                 {
-                    var addressInfo = ModbusBatchHelper.ParseSingleModbusAddress(kvp.Key, kvp.Value.Item1, true);
+                    var addressInfo = ModbusBatchHelper.ParseSingleModbusAddress(kvp.Key, kvp.Value.Item1, false);
                     var normalizedValue = NormalizeSingleValue(kvp.Value.Item1, kvp.Value.Item2);
                     var buffer = ModbusBatchHelper.ConvertValueToModbusBytes((kvp.Value.Item1, normalizedValue), addressInfo, IsReverse, DataFormat);
                     if (buffer == null || buffer.Length == 0)
@@ -1734,11 +1782,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                         continue;
                     }
 
+                    if (!TryResolveWriteTarget(addressInfo.FunctionCode, out var target))
+                    {
+                        errors.Add($"地址 {kvp.Key} 的功能码不支持写入: {addressInfo.FunctionCode}");
+                        continue;
+                    }
+
                     result.Add(new ModbusWriteItem
                     {
                         AddressInfo = addressInfo,
                         Buffer = buffer,
-                        IsBit = addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F
+                        Target = target
                     });
                 }
                 catch (Exception ex)
@@ -1753,7 +1807,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         private List<ModbusWriteBlock> BuildWriteBlocks(List<ModbusWriteItem> items)
         {
             var blocks = new List<ModbusWriteBlock>();
-            foreach (var group in items.GroupBy(item => new { item.AddressInfo.StationNumber, item.IsBit }))
+            foreach (var group in items.GroupBy(item => new { item.AddressInfo.StationNumber, item.Target }))
             {
                 var orderedItems = group.OrderBy(item => item.AddressInfo.Address).ToList();
                 if (orderedItems.Count == 0)
@@ -1782,7 +1836,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     else
                     {
-                        blocks.Add(CreateWriteBlock(group.Key.StationNumber, group.Key.IsBit, startAddress, endAddress, currentItems));
+                        blocks.Add(CreateWriteBlock(group.Key.StationNumber, group.Key.Target, startAddress, endAddress, currentItems));
                         currentItems = new List<ModbusWriteItem> { item };
                         startAddress = item.AddressInfo.Address;
                         endAddress = GetEndAddress(item);
@@ -1791,16 +1845,16 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 if (currentItems.Count > 0)
                 {
-                    blocks.Add(CreateWriteBlock(group.Key.StationNumber, group.Key.IsBit, startAddress, endAddress, currentItems));
+                    blocks.Add(CreateWriteBlock(group.Key.StationNumber, group.Key.Target, startAddress, endAddress, currentItems));
                 }
             }
 
             return blocks;
         }
 
-        private ModbusWriteBlock CreateWriteBlock(byte stationNumber, bool isBit, ushort startAddress, int endAddress, List<ModbusWriteItem> items)
+        private ModbusWriteBlock CreateWriteBlock(byte stationNumber, ModbusWriteTarget target, ushort startAddress, int endAddress, List<ModbusWriteItem> items)
         {
-            if (isBit)
+            if (target == ModbusWriteTarget.Coil || target == ModbusWriteTarget.InputDiscrete)
             {
                 var bitCount = Math.Max(1, endAddress - startAddress);
                 var buffer = new byte[(bitCount + 7) / 8];
@@ -1818,7 +1872,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return new ModbusWriteBlock
                 {
                     StationNumber = stationNumber,
-                    IsBit = true,
+                    Target = target,
                     StartAddress = startAddress,
                     Length = bitCount,
                     Buffer = buffer
@@ -1837,7 +1891,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return new ModbusWriteBlock
             {
                 StationNumber = stationNumber,
-                IsBit = false,
+                Target = target,
                 StartAddress = startAddress,
                 Length = registerCount,
                 Buffer = registerBuffer
@@ -1855,9 +1909,20 @@ namespace Wombat.IndustrialCommunication.Modbus
             DataStore.WriteCoilsDirect(block.StartAddress, values);
         }
 
+        private void ApplyInputDiscreteBlock(ModbusWriteBlock block)
+        {
+            var values = new bool[block.Length];
+            for (var index = 0; index < block.Length; index++)
+            {
+                values[index] = (block.Buffer[index / 8] & (1 << (index % 8))) != 0;
+            }
+
+            DataStore.WriteInputDiscretesDirect(block.StartAddress, values);
+        }
+
         private static int GetEndAddress(ModbusWriteItem item)
         {
-            if (item.IsBit)
+            if (item.Target == ModbusWriteTarget.Coil || item.Target == ModbusWriteTarget.InputDiscrete)
             {
                 return item.AddressInfo.Address + 1;
             }
@@ -1871,20 +1936,54 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             public byte[] Buffer { get; set; } = Array.Empty<byte>();
 
-            public bool IsBit { get; set; }
+            public ModbusWriteTarget Target { get; set; }
         }
 
         private sealed class ModbusWriteBlock
         {
             public byte StationNumber { get; set; }
 
-            public bool IsBit { get; set; }
+            public ModbusWriteTarget Target { get; set; }
 
             public ushort StartAddress { get; set; }
 
             public int Length { get; set; }
 
             public byte[] Buffer { get; set; } = Array.Empty<byte>();
+        }
+
+        private static bool TryResolveWriteTarget(byte functionCode, out ModbusWriteTarget target)
+        {
+            switch (functionCode)
+            {
+                case 0x01:
+                case 0x05:
+                case 0x0F:
+                    target = ModbusWriteTarget.Coil;
+                    return true;
+                case 0x02:
+                    target = ModbusWriteTarget.InputDiscrete;
+                    return true;
+                case 0x03:
+                case 0x06:
+                case 0x10:
+                    target = ModbusWriteTarget.HoldingRegister;
+                    return true;
+                case 0x04:
+                    target = ModbusWriteTarget.InputRegister;
+                    return true;
+                default:
+                    target = default;
+                    return false;
+            }
+        }
+
+        private enum ModbusWriteTarget
+        {
+            Coil,
+            InputDiscrete,
+            HoldingRegister,
+            InputRegister
         }
         
         /// <summary>
