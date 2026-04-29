@@ -44,7 +44,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
                     return OperationResult.CreateSuccessResult();
                 }
 
-                BestEffortDisconnectOrShutdownCore();
+                if (State != ConnectionEntryLifecycleState.Uninitialized)
+                {
+                    BestEffortDisconnectOrShutdownCore();
+                }
                 State = ConnectionEntryLifecycleState.Connecting;
                 var result = await EnsureAvailableCoreAsync().ConfigureAwait(false);
                 State = result.IsSuccess ? ConnectionEntryLifecycleState.Ready : ConnectionEntryLifecycleState.Faulted;

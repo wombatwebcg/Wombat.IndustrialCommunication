@@ -492,7 +492,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<byte> ReadByte(string address)
         {
-            return CreateNotSupportedResult<byte>();
+            return ReadValue<byte>(address, DataTypeEnums.Byte);
         }
         
         /// <summary>
@@ -500,7 +500,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<byte[]> ReadByte(string address, int length)
         {
-            return CreateNotSupportedResult<byte[]>();
+            return ReadArrayValue<byte>(address, length, DataTypeEnums.Byte);
         }
         
         /// <summary>
@@ -508,7 +508,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<bool> ReadBoolean(string address)
         {
-            return CreateNotSupportedResult<bool>();
+            return ReadValue<bool>(address, DataTypeEnums.Bool);
         }
         
         /// <summary>
@@ -516,7 +516,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<bool[]> ReadBoolean(string address, int length)
         {
-            return CreateNotSupportedResult<bool[]>();
+            return ReadArrayValue<bool>(address, length, DataTypeEnums.Bool);
         }
         
         /// <summary>
@@ -524,7 +524,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<ushort> ReadUInt16(string address)
         {
-            return CreateNotSupportedResult<ushort>();
+            return ReadValue<ushort>(address, DataTypeEnums.UInt16);
         }
         
         /// <summary>
@@ -532,7 +532,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<ushort[]> ReadUInt16(string address, int length)
         {
-            return CreateNotSupportedResult<ushort[]>();
+            return ReadArrayValue<ushort>(address, length, DataTypeEnums.UInt16);
         }
         
         /// <summary>
@@ -540,7 +540,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<short> ReadInt16(string address)
         {
-            return CreateNotSupportedResult<short>();
+            return ReadValue<short>(address, DataTypeEnums.Int16);
         }
         
         /// <summary>
@@ -548,7 +548,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<short[]> ReadInt16(string address, int length)
         {
-            return CreateNotSupportedResult<short[]>();
+            return ReadArrayValue<short>(address, length, DataTypeEnums.Int16);
         }
         
         /// <summary>
@@ -556,7 +556,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<uint> ReadUInt32(string address)
         {
-            return CreateNotSupportedResult<uint>();
+            return ReadValue<uint>(address, DataTypeEnums.UInt32);
         }
         
         /// <summary>
@@ -564,7 +564,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<uint[]> ReadUInt32(string address, int length)
         {
-            return CreateNotSupportedResult<uint[]>();
+            return ReadArrayValue<uint>(address, length, DataTypeEnums.UInt32);
         }
         
         /// <summary>
@@ -572,7 +572,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<int> ReadInt32(string address)
         {
-            return CreateNotSupportedResult<int>();
+            return ReadValue<int>(address, DataTypeEnums.Int32);
         }
         
         /// <summary>
@@ -580,7 +580,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<int[]> ReadInt32(string address, int length)
         {
-            return CreateNotSupportedResult<int[]>();
+            return ReadArrayValue<int>(address, length, DataTypeEnums.Int32);
         }
         
         /// <summary>
@@ -588,7 +588,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<ulong> ReadUInt64(string address)
         {
-            return CreateNotSupportedResult<ulong>();
+            return ReadValue<ulong>(address, DataTypeEnums.UInt64);
         }
         
         /// <summary>
@@ -596,7 +596,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<ulong[]> ReadUInt64(string address, int length)
         {
-            return CreateNotSupportedResult<ulong[]>();
+            return ReadArrayValue<ulong>(address, length, DataTypeEnums.UInt64);
         }
         
         /// <summary>
@@ -604,7 +604,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<long> ReadInt64(string address)
         {
-            return CreateNotSupportedResult<long>();
+            return ReadValue<long>(address, DataTypeEnums.Int64);
         }
         
         /// <summary>
@@ -612,7 +612,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<long[]> ReadInt64(string address, int length)
         {
-            return CreateNotSupportedResult<long[]>();
+            return ReadArrayValue<long>(address, length, DataTypeEnums.Int64);
         }
         
         /// <summary>
@@ -620,7 +620,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<float> ReadFloat(string address)
         {
-            return CreateNotSupportedResult<float>();
+            return ReadValue<float>(address, DataTypeEnums.Float);
         }
         
         /// <summary>
@@ -628,7 +628,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<float[]> ReadFloat(string address, int length)
         {
-            return CreateNotSupportedResult<float[]>();
+            return ReadArrayValue<float>(address, length, DataTypeEnums.Float);
         }
         
         /// <summary>
@@ -636,7 +636,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<double> ReadDouble(string address)
         {
-            return CreateNotSupportedResult<double>();
+            return ReadValue<double>(address, DataTypeEnums.Double);
         }
         
         /// <summary>
@@ -644,7 +644,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<double[]> ReadDouble(string address, int length)
         {
-            return CreateNotSupportedResult<double[]>();
+            return ReadArrayValue<double>(address, length, DataTypeEnums.Double);
         }
         
         /// <summary>
@@ -652,7 +652,18 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult<string> ReadString(string address, int length)
         {
-            return CreateNotSupportedResult<string>();
+            if (length <= 0)
+            {
+                return OperationResult.CreateFailedResult<string>("读取长度必须大于0");
+            }
+
+            var readResult = ReadByte(address, length);
+            if (!readResult.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<string>(readResult.Message);
+            }
+
+            return OperationResult.CreateSuccessResult<string>(Encoding.ASCII.GetString(readResult.ResultValue));
         }
         
         /// <summary>
@@ -691,7 +702,33 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return Read(dataTypeEnum, address);
             }
 
-            return OperationResult.CreateFailedResult<object>("Modbus服务端暂不支持数组长度读取");
+            switch (dataTypeEnum)
+            {
+                case DataTypeEnums.Bool:
+                    return ToObjectResult(ReadBoolean(address, length));
+                case DataTypeEnums.Byte:
+                    return ToObjectResult(ReadByte(address, length));
+                case DataTypeEnums.UInt16:
+                    return ToObjectResult(ReadUInt16(address, length));
+                case DataTypeEnums.Int16:
+                    return ToObjectResult(ReadInt16(address, length));
+                case DataTypeEnums.UInt32:
+                    return ToObjectResult(ReadUInt32(address, length));
+                case DataTypeEnums.Int32:
+                    return ToObjectResult(ReadInt32(address, length));
+                case DataTypeEnums.UInt64:
+                    return ToObjectResult(ReadUInt64(address, length));
+                case DataTypeEnums.Int64:
+                    return ToObjectResult(ReadInt64(address, length));
+                case DataTypeEnums.Float:
+                    return ToObjectResult(ReadFloat(address, length));
+                case DataTypeEnums.Double:
+                    return ToObjectResult(ReadDouble(address, length));
+                case DataTypeEnums.String:
+                    return ToObjectResult(ReadString(address, length));
+                default:
+                    return OperationResult.CreateFailedResult<object>($"不支持的数据类型: {dataTypeEnum}");
+            }
         }
         
         /// <summary>
@@ -707,7 +744,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<byte>> ReadByteAsync(string address)
         {
-            return new ValueTask<OperationResult<byte>>(CreateNotSupportedResult<byte>());
+            return new ValueTask<OperationResult<byte>>(ReadByte(address));
         }
         
         /// <summary>
@@ -715,7 +752,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<byte[]>> ReadByteAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<byte[]>>(CreateNotSupportedResult<byte[]>());
+            return new ValueTask<OperationResult<byte[]>>(ReadByte(address, length));
         }
         
         /// <summary>
@@ -723,7 +760,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<bool>> ReadBooleanAsync(string address)
         {
-            return new ValueTask<OperationResult<bool>>(CreateNotSupportedResult<bool>());
+            return new ValueTask<OperationResult<bool>>(ReadBoolean(address));
         }
         
         /// <summary>
@@ -731,7 +768,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<bool[]>>(CreateNotSupportedResult<bool[]>());
+            return new ValueTask<OperationResult<bool[]>>(ReadBoolean(address, length));
         }
         
         /// <summary>
@@ -739,7 +776,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<ushort>> ReadUInt16Async(string address)
         {
-            return new ValueTask<OperationResult<ushort>>(CreateNotSupportedResult<ushort>());
+            return new ValueTask<OperationResult<ushort>>(ReadUInt16(address));
         }
         
         /// <summary>
@@ -747,7 +784,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length)
         {
-            return new ValueTask<OperationResult<ushort[]>>(CreateNotSupportedResult<ushort[]>());
+            return new ValueTask<OperationResult<ushort[]>>(ReadUInt16(address, length));
         }
         
         /// <summary>
@@ -755,7 +792,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<short>> ReadInt16Async(string address)
         {
-            return new ValueTask<OperationResult<short>>(CreateNotSupportedResult<short>());
+            return new ValueTask<OperationResult<short>>(ReadInt16(address));
         }
         
         /// <summary>
@@ -763,7 +800,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<short[]>> ReadInt16Async(string address, int length)
         {
-            return new ValueTask<OperationResult<short[]>>(CreateNotSupportedResult<short[]>());
+            return new ValueTask<OperationResult<short[]>>(ReadInt16(address, length));
         }
         
         /// <summary>
@@ -771,7 +808,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<uint>> ReadUInt32Async(string address)
         {
-            return new ValueTask<OperationResult<uint>>(CreateNotSupportedResult<uint>());
+            return new ValueTask<OperationResult<uint>>(ReadUInt32(address));
         }
         
         /// <summary>
@@ -779,7 +816,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<uint[]>> ReadUInt32Async(string address, int length)
         {
-            return new ValueTask<OperationResult<uint[]>>(CreateNotSupportedResult<uint[]>());
+            return new ValueTask<OperationResult<uint[]>>(ReadUInt32(address, length));
         }
         
         /// <summary>
@@ -787,7 +824,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<int>> ReadInt32Async(string address)
         {
-            return new ValueTask<OperationResult<int>>(CreateNotSupportedResult<int>());
+            return new ValueTask<OperationResult<int>>(ReadInt32(address));
         }
         
         /// <summary>
@@ -795,7 +832,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<int[]>> ReadInt32Async(string address, int length)
         {
-            return new ValueTask<OperationResult<int[]>>(CreateNotSupportedResult<int[]>());
+            return new ValueTask<OperationResult<int[]>>(ReadInt32(address, length));
         }
         
         /// <summary>
@@ -803,7 +840,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<ulong>> ReadUInt64Async(string address)
         {
-            return new ValueTask<OperationResult<ulong>>(CreateNotSupportedResult<ulong>());
+            return new ValueTask<OperationResult<ulong>>(ReadUInt64(address));
         }
         
         /// <summary>
@@ -811,7 +848,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<ulong[]>> ReadUInt64Async(string address, int length)
         {
-            return new ValueTask<OperationResult<ulong[]>>(CreateNotSupportedResult<ulong[]>());
+            return new ValueTask<OperationResult<ulong[]>>(ReadUInt64(address, length));
         }
         
         /// <summary>
@@ -819,7 +856,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<long>> ReadInt64Async(string address)
         {
-            return new ValueTask<OperationResult<long>>(CreateNotSupportedResult<long>());
+            return new ValueTask<OperationResult<long>>(ReadInt64(address));
         }
         
         /// <summary>
@@ -827,7 +864,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<long[]>> ReadInt64Async(string address, int length)
         {
-            return new ValueTask<OperationResult<long[]>>(CreateNotSupportedResult<long[]>());
+            return new ValueTask<OperationResult<long[]>>(ReadInt64(address, length));
         }
         
         /// <summary>
@@ -835,7 +872,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<float>> ReadFloatAsync(string address)
         {
-            return new ValueTask<OperationResult<float>>(CreateNotSupportedResult<float>());
+            return new ValueTask<OperationResult<float>>(ReadFloat(address));
         }
         
         /// <summary>
@@ -843,7 +880,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<float[]>> ReadFloatAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<float[]>>(CreateNotSupportedResult<float[]>());
+            return new ValueTask<OperationResult<float[]>>(ReadFloat(address, length));
         }
         
         /// <summary>
@@ -851,7 +888,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<double>> ReadDoubleAsync(string address)
         {
-            return new ValueTask<OperationResult<double>>(CreateNotSupportedResult<double>());
+            return new ValueTask<OperationResult<double>>(ReadDouble(address));
         }
         
         /// <summary>
@@ -859,7 +896,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<double[]>> ReadDoubleAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<double[]>>(CreateNotSupportedResult<double[]>());
+            return new ValueTask<OperationResult<double[]>>(ReadDouble(address, length));
         }
         
         /// <summary>
@@ -867,7 +904,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
         {
-            return new ValueTask<OperationResult<string>>(CreateNotSupportedResult<string>());
+            return new ValueTask<OperationResult<string>>(ReadString(address, length));
         }
         
         /// <summary>
@@ -936,7 +973,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, byte[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Byte);
         }
         
         /// <summary>
@@ -944,7 +981,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, bool value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Bool, address, value);
         }
         
         /// <summary>
@@ -952,7 +989,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, bool[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Bool);
         }
         
         /// <summary>
@@ -960,7 +997,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, byte value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Byte, address, value);
         }
         
         /// <summary>
@@ -968,7 +1005,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, ushort value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.UInt16, address, value);
         }
         
         /// <summary>
@@ -976,7 +1013,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, ushort[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt16);
         }
         
         /// <summary>
@@ -984,7 +1021,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, short value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Int16, address, value);
         }
         
         /// <summary>
@@ -992,7 +1029,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, short[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int16);
         }
         
         /// <summary>
@@ -1000,7 +1037,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, uint value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.UInt32, address, value);
         }
         
         /// <summary>
@@ -1008,7 +1045,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, uint[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt32);
         }
         
         /// <summary>
@@ -1016,7 +1053,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, int value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Int32, address, value);
         }
         
         /// <summary>
@@ -1024,7 +1061,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, int[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int32);
         }
         
         /// <summary>
@@ -1032,7 +1069,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, ulong value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.UInt64, address, value);
         }
         
         /// <summary>
@@ -1040,7 +1077,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, ulong[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.UInt64);
         }
         
         /// <summary>
@@ -1048,7 +1085,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, long value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Int64, address, value);
         }
         
         /// <summary>
@@ -1056,7 +1093,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, long[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Int64);
         }
         
         /// <summary>
@@ -1064,7 +1101,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, float value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Float, address, value);
         }
         
         /// <summary>
@@ -1072,7 +1109,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, float[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Float);
         }
         
         /// <summary>
@@ -1080,7 +1117,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, double value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.Double, address, value);
         }
         
         /// <summary>
@@ -1088,7 +1125,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, double[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, DataTypeEnums.Double);
         }
         
         /// <summary>
@@ -1096,7 +1133,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(string address, string value)
         {
-            return CreateNotSupportedResult();
+            return Write(DataTypeEnums.String, address, value ?? string.Empty);
         }
         
         /// <summary>
@@ -1148,7 +1185,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object[] value)
         {
-            return CreateNotSupportedResult();
+            return WriteArrayValue(address, value, dataTypeEnum);
         }
         
         /// <summary>
@@ -1164,7 +1201,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, byte[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1172,7 +1209,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, bool value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1180,7 +1217,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, bool[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1188,7 +1225,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, byte value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1196,7 +1233,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, ushort value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1204,7 +1241,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, ushort[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1212,7 +1249,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, short value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1220,7 +1257,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, short[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1228,7 +1265,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, uint value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1236,7 +1273,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, uint[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1244,7 +1281,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, int value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1252,7 +1289,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, int[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1260,7 +1297,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, ulong value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1268,7 +1305,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, ulong[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1276,7 +1313,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, long value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1284,7 +1321,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, long[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1292,7 +1329,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, float value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1300,7 +1337,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, float[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1308,7 +1345,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, double value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1316,7 +1353,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, double[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1324,7 +1361,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(string address, string value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(address, value));
         }
         
         /// <summary>
@@ -1340,7 +1377,209 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// </summary>
         public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value)
         {
-            return Task.FromResult(CreateNotSupportedResult());
+            return Task.FromResult(Write(dataTypeEnum, address, value));
+        }
+
+        private OperationResult<T> ReadValue<T>(string address, DataTypeEnums dataTypeEnum)
+        {
+            var result = Read(dataTypeEnum, address);
+            if (!result.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<T>(result.Message);
+            }
+
+            if (TryConvertTo(result.ResultValue, out T typedValue))
+            {
+                return OperationResult.CreateSuccessResult(typedValue);
+            }
+
+            return OperationResult.CreateFailedResult<T>($"读取结果类型转换失败: {typeof(T).Name}");
+        }
+
+        private OperationResult<T[]> ReadArrayValue<T>(string address, int length, DataTypeEnums dataTypeEnum)
+        {
+            if (length <= 0)
+            {
+                return OperationResult.CreateFailedResult<T[]>("读取长度必须大于0");
+            }
+
+            if (length == 1)
+            {
+                var single = ReadValue<T>(address, dataTypeEnum);
+                if (!single.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<T[]>(single.Message);
+                }
+
+                return OperationResult.CreateSuccessResult(new[] { single.ResultValue });
+            }
+
+            try
+            {
+                var addressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum);
+                if (addressInfo.FunctionCode == 0x01 || addressInfo.FunctionCode == 0x02)
+                {
+                    if (dataTypeEnum != DataTypeEnums.Bool)
+                    {
+                        return OperationResult.CreateFailedResult<T[]>("离散量地址仅支持布尔类型读取");
+                    }
+
+                    var bitBytes = BuildDiscreteBytes(addressInfo.Address, (ushort)length, addressInfo.FunctionCode == 0x02);
+                    if (!bitBytes.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<T[]>(bitBytes.Message);
+                    }
+
+                    var boolArray = new bool[length];
+                    for (var index = 0; index < length; index++)
+                    {
+                        boolArray[index] = (bitBytes.ResultValue[index / 8] & (1 << (index % 8))) != 0;
+                    }
+
+                    return TryConvertTo(boolArray, out T[] boolResult)
+                        ? OperationResult.CreateSuccessResult(boolResult)
+                        : OperationResult.CreateFailedResult<T[]>($"读取结果类型转换失败: {typeof(T).Name}[]");
+                }
+
+                if (addressInfo.FunctionCode != 0x03 && addressInfo.FunctionCode != 0x04)
+                {
+                    return OperationResult.CreateFailedResult<T[]>($"不支持的Modbus读取功能码: {addressInfo.FunctionCode}");
+                }
+
+                var elementByteLength = Math.Max(1, addressInfo.Length);
+                var totalByteLength = elementByteLength * length;
+                var blockResult = BuildRegisterBytes(addressInfo.Address, totalByteLength, addressInfo.FunctionCode == 0x03);
+                if (!blockResult.IsSuccess)
+                {
+                    return OperationResult.CreateFailedResult<T[]>(blockResult.Message);
+                }
+
+                var values = new T[length];
+                for (var index = 0; index < length; index++)
+                {
+                    var value = ModbusBatchHelper.ExtractValueFromModbusBytes(
+                        blockResult.ResultValue,
+                        index * elementByteLength,
+                        addressInfo,
+                        IsReverse,
+                        DataFormat);
+
+                    if (!TryConvertTo(value, out T typedValue))
+                    {
+                        return OperationResult.CreateFailedResult<T[]>($"第{index + 1}个元素类型转换失败");
+                    }
+
+                    values[index] = typedValue;
+                }
+
+                return OperationResult.CreateSuccessResult(values);
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult<T[]>(ex.Message);
+            }
+        }
+
+        private OperationResult WriteArrayValue<T>(string address, T[] value, DataTypeEnums dataTypeEnum)
+        {
+            if (value == null || value.Length == 0)
+            {
+                return OperationResult.CreateFailedResult("写入数据不能为空");
+            }
+
+            var objectValues = new object[value.Length];
+            for (var index = 0; index < value.Length; index++)
+            {
+                objectValues[index] = value[index];
+            }
+
+            return WriteArrayValue(address, objectValues, dataTypeEnum);
+        }
+
+        private OperationResult WriteArrayValue(string address, object[] value, DataTypeEnums dataTypeEnum)
+        {
+            if (value == null || value.Length == 0)
+            {
+                return OperationResult.CreateFailedResult("写入数据不能为空");
+            }
+
+            if (dataTypeEnum == DataTypeEnums.String)
+            {
+                return OperationResult.CreateFailedResult("Modbus服务端暂不支持字符串数组写入");
+            }
+
+            try
+            {
+                var baseAddressInfo = ModbusBatchHelper.ParseSingleModbusAddress(address, dataTypeEnum, true);
+                var step = GetWriteAddressStep(baseAddressInfo, dataTypeEnum);
+                var writeDict = new Dictionary<string, (DataTypeEnums, object)>();
+
+                for (var index = 0; index < value.Length; index++)
+                {
+                    var targetAddress = baseAddressInfo.Address + index * step;
+                    if (targetAddress > ushort.MaxValue)
+                    {
+                        return OperationResult.CreateFailedResult("写入地址超出范围");
+                    }
+
+                    var addressInfo = baseAddressInfo;
+                    addressInfo.Address = (ushort)targetAddress;
+                    var writeAddress = ModbusBatchHelper.ConstructModbusWriteAddress(addressInfo);
+                    writeDict[writeAddress] = (dataTypeEnum, value[index]);
+                }
+
+                return BatchWrite(writeDict);
+            }
+            catch (Exception ex)
+            {
+                return OperationResult.CreateFailedResult(ex.Message);
+            }
+        }
+
+        private static int GetWriteAddressStep(ModbusBatchHelper.ModbusAddressInfo addressInfo, DataTypeEnums dataTypeEnum)
+        {
+            if (dataTypeEnum == DataTypeEnums.Bool || addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F)
+            {
+                return 1;
+            }
+
+            return Math.Max(1, (addressInfo.Length + 1) / 2);
+        }
+
+        private static bool TryConvertTo<T>(object value, out T result)
+        {
+            if (value is T typed)
+            {
+                result = typed;
+                return true;
+            }
+
+            try
+            {
+                if (value == null)
+                {
+                    result = default;
+                    return false;
+                }
+
+                result = (T)Convert.ChangeType(value, typeof(T));
+                return true;
+            }
+            catch
+            {
+                result = default;
+                return false;
+            }
+        }
+
+        private static OperationResult<object> ToObjectResult<T>(OperationResult<T> source)
+        {
+            if (!source.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<object>(source.Message);
+            }
+
+            return OperationResult.CreateSuccessResult((object)source.ResultValue);
         }
 
         private OperationResult<byte[]> ReadRawBytes(ModbusBatchHelper.ModbusAddressInfo addressInfo)
