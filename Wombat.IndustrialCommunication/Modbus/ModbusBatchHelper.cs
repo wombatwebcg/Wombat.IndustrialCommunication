@@ -26,6 +26,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             public byte StationNumber { get; set; }
             public byte FunctionCode { get; set; }
             public ushort StartAddress { get; set; }
+            // 01/02 功能码: 位数量；03/04 功能码: 寄存器数量
             public ushort TotalLength { get; set; }
             public List<ModbusAddressInfo> Addresses { get; set; } = new List<ModbusAddressInfo>();
             public double EfficiencyRatio { get; set; }
@@ -289,14 +290,14 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (currentBlock.Addresses.Count == 0)
                 {
                     currentBlock.StartAddress = address.Address;
-                    currentBlock.TotalLength = (ushort)address.Length;
+                    currentBlock.TotalLength = GetAddressSpanUnits(address);
                     currentBlock.Addresses.Add(address);
                     continue;
                 }
                 
                 var newStartAddress = Math.Min(currentBlock.StartAddress, address.Address);
                 var currentEndAddress = currentBlock.StartAddress + currentBlock.TotalLength;
-                var addressEndAddress = address.Address + (ushort)address.Length;
+                var addressEndAddress = address.Address + GetAddressSpanUnits(address);
                 var newEndAddress = Math.Max(currentEndAddress, addressEndAddress);
                 var newTotalLength = (ushort)(newEndAddress - newStartAddress);
                 
@@ -323,7 +324,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 }
                 
                 // 如果是单个地址超限，也必须接受它，确保所有地址都能被处理
-                if (address.Length > maxBlockSize)
+                var addressSpanUnits = GetAddressSpanUnits(address);
+                if (addressSpanUnits > maxBlockSize)
                 {
                     // 如果当前块已有其他地址，先完成当前块
                     if (currentBlock.Addresses.Count > 0)
@@ -339,7 +341,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         StationNumber = address.StationNumber,
                         FunctionCode = address.FunctionCode,
                         StartAddress = address.Address,
-                        TotalLength = (ushort)address.Length,
+                        TotalLength = addressSpanUnits,
                         Addresses = new List<ModbusAddressInfo> { address }
                     };
                     
@@ -387,7 +389,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         StationNumber = address.StationNumber,
                         FunctionCode = address.FunctionCode,
                         StartAddress = address.Address,
-                        TotalLength = (ushort)address.Length,
+                        TotalLength = addressSpanUnits,
                         Addresses = new List<ModbusAddressInfo> { address }
                     };
                 }
@@ -460,7 +462,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 block.StartAddress = relatedAddr;
                             }
                             
-                            var endAddr = (ushort)(relatedAddr + 2); // 每个寄存器占2字节
+                            var endAddr = (ushort)(relatedAddr + 1); // relatedAddr 以寄存器地址为单位
                             var currentEnd = (ushort)(block.StartAddress + block.TotalLength);
                             if (endAddr > currentEnd)
                             {
@@ -509,7 +511,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             shouldMerge = true;
                         }
                         // 条件2：块之间间距很小（可能有跨块数据）
-                        else if (nextBlock.StartAddress - currentEnd <= 4)  // 允许最多4个字节的间隔，容纳double类型
+                        else if (nextBlock.StartAddress - currentEnd <= 2)  // 允许最多2个寄存器的间隔，容纳double类型
                         {
                             bool hasLargeDataType = false;
                             
@@ -590,8 +592,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         private static double CalculateModbusEfficiencyRatio(ModbusAddressBlock block)
         {
             if (block.TotalLength == 0) return 0;
-            var effectiveDataLength = block.Addresses.Sum(a => a.Length);
+            var effectiveDataLength = block.Addresses.Sum(a => GetAddressSpanUnits(a));
             return (double)effectiveDataLength / block.TotalLength;
+        }
+
+        private static ushort GetAddressSpanUnits(ModbusAddressInfo address)
+        {
+            if (address.FunctionCode == 0x01 || address.FunctionCode == 0x02)
+            {
+                // 线圈/离散输入按位读，长度单位为 bit
+                return 1;
+            }
+
+            // 寄存器类按寄存器读，1 寄存器 = 2 字节
+            return (ushort)Math.Max(1, (address.Length + 1) / 2);
         }
 
         public static Dictionary<string, object> ExtractDataFromModbusBlocks(Dictionary<string, byte[]> blockData, List<ModbusAddressBlock> blocks, List<ModbusAddressInfo> originalAddresses)

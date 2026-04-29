@@ -1726,9 +1726,9 @@ namespace Wombat.IndustrialCommunication.Modbus
                 case 0x02:
                     return BuildDiscreteBytes(block.StartAddress, block.TotalLength, true);
                 case 0x03:
-                    return BuildRegisterBytes(block.StartAddress, block.TotalLength, true);
+                    return BuildRegisterBytes(block.StartAddress, block.TotalLength * 2, true);
                 case 0x04:
-                    return BuildRegisterBytes(block.StartAddress, block.TotalLength, false);
+                    return BuildRegisterBytes(block.StartAddress, block.TotalLength * 2, false);
                 default:
                     return OperationResult.CreateFailedResult<byte[]>($"不支持的Modbus读取功能码: {block.FunctionCode}");
             }
