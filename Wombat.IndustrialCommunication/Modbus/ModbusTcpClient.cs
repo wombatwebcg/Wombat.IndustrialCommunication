@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -586,15 +586,38 @@ namespace Wombat.IndustrialCommunication.Modbus
             GC.SuppressFinalize(this);
         }
 
+        private static string BuildLogicalReadAddress(byte stationNumber, byte functionCode, ushort address)
+        {
+            switch (functionCode)
+            {
+                case 0x01:
+                    return $"{stationNumber};0{address + 1}";
+                case 0x02:
+                    return $"{stationNumber};1{address + 1}";
+                case 0x03:
+                    return $"{stationNumber};4{address + 1}";
+                case 0x04:
+                    return $"{stationNumber};3{address + 1}";
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(functionCode), functionCode, "不支持的读取功能码");
+            }
+        }
+
+        private Task<OperationResult> WriteByFunctionAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data)
+        {
+            string requestAddress = $"{stationNumber};{functionCode};{address}";
+            return HandleWriteAsync(
+                () => WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data),
+                requestAddress);
+        }
+
         #region IModbusClient 接口实现 - 同步方法
 
         public OperationResult<bool> ReadCoil(byte stationNumber, ushort address)
         {
             try
             {
-                string modbusAddress = $"{stationNumber};1;{address}";
-                var result = ReadBoolean(modbusAddress);
-                return result;
+                return ReadBoolean(BuildLogicalReadAddress(stationNumber, 0x01, address));
             }
             catch (Exception ex)
             {
@@ -606,9 +629,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};1;{startAddress}";
-                var result = ReadBoolean(modbusAddress, count);
-                return result;
+                return ReadBoolean(BuildLogicalReadAddress(stationNumber, 0x01, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -620,9 +641,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};2;{address}";
-                var result = ReadBoolean(modbusAddress);
-                return result;
+                return ReadBoolean(BuildLogicalReadAddress(stationNumber, 0x02, address));
             }
             catch (Exception ex)
             {
@@ -634,9 +653,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};2;{startAddress}";
-                var result = ReadBoolean(modbusAddress, count);
-                return result;
+                return ReadBoolean(BuildLogicalReadAddress(stationNumber, 0x02, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -648,9 +665,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};3;{address}";
-                var result = ReadUInt16(modbusAddress);
-                return result;
+                return ReadUInt16(BuildLogicalReadAddress(stationNumber, 0x03, address));
             }
             catch (Exception ex)
             {
@@ -662,9 +677,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};3;{startAddress}";
-                var result = ReadUInt16(modbusAddress, count);
-                return result;
+                return ReadUInt16(BuildLogicalReadAddress(stationNumber, 0x03, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -676,9 +689,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};4;{address}";
-                var result = ReadUInt16(modbusAddress);
-                return result;
+                return ReadUInt16(BuildLogicalReadAddress(stationNumber, 0x04, address));
             }
             catch (Exception ex)
             {
@@ -690,9 +701,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};4;{startAddress}";
-                var result = ReadUInt16(modbusAddress, count);
-                return result;
+                return ReadUInt16(BuildLogicalReadAddress(stationNumber, 0x04, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -704,9 +713,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};5;{address}";
-                var result = Write(modbusAddress, value);
-                return result;
+                return WriteByFunctionAsync(
+                    stationNumber,
+                    0x05,
+                    address,
+                    1,
+                    new byte[2] { (byte)(value ? 0xFF : 0x00), 0x00 }).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -718,9 +730,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};15;{startAddress}";
-                var result = Write(modbusAddress, values);
-                return result;
+                return WriteByFunctionAsync(
+                    stationNumber,
+                    0x0F,
+                    startAddress,
+                    (ushort)values.Length,
+                    values.ToBytes()).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -732,9 +747,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};6;{address}";
-                var result = Write(modbusAddress, value);
-                return result;
+                return WriteByFunctionAsync(
+                    stationNumber,
+                    0x06,
+                    address,
+                    1,
+                    value.ToByte(IsReverse)).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -746,9 +764,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};16;{startAddress}";
-                var result = Write(modbusAddress, values);
-                return result;
+                return WriteByFunctionAsync(
+                    stationNumber,
+                    0x10,
+                    startAddress,
+                    (ushort)values.Length,
+                    values.ToByte(IsReverse)).GetAwaiter().GetResult();
             }
             catch (Exception ex)
             {
@@ -764,9 +785,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};1;{address}";
-                var result = await ReadBooleanAsync(modbusAddress);
-                return result;
+                return await ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x01, address));
             }
             catch (Exception ex)
             {
@@ -778,9 +797,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};1;{startAddress}";
-                var result = await ReadBooleanAsync(modbusAddress, count);
-                return result;
+                return await ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x01, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -792,9 +809,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};2;{address}";
-                var result = await ReadBooleanAsync(modbusAddress);
-                return result;
+                return await ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x02, address));
             }
             catch (Exception ex)
             {
@@ -806,9 +821,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};2;{startAddress}";
-                var result = await ReadBooleanAsync(modbusAddress, count);
-                return result;
+                return await ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x02, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -820,9 +833,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};3;{address}";
-                var result = await ReadUInt16Async(modbusAddress);
-                return result;
+                return await ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x03, address));
             }
             catch (Exception ex)
             {
@@ -834,9 +845,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};3;{startAddress}";
-                var result = await ReadUInt16Async(modbusAddress, count);
-                return result;
+                return await ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x03, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -848,9 +857,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};4;{address}";
-                var result = await ReadUInt16Async(modbusAddress);
-                return result;
+                return await ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x04, address));
             }
             catch (Exception ex)
             {
@@ -862,9 +869,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};4;{startAddress}";
-                var result = await ReadUInt16Async(modbusAddress, count);
-                return result;
+                return await ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x04, startAddress), count);
             }
             catch (Exception ex)
             {
@@ -876,9 +881,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};5;{address}";
-                var result = await WriteAsync(modbusAddress, value);
-                return result;
+                return await WriteByFunctionAsync(
+                    stationNumber,
+                    0x05,
+                    address,
+                    1,
+                    new byte[2] { (byte)(value ? 0xFF : 0x00), 0x00 });
             }
             catch (Exception ex)
             {
@@ -890,9 +898,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};15;{startAddress}";
-                var result = await WriteAsync(modbusAddress, values);
-                return result;
+                return await WriteByFunctionAsync(
+                    stationNumber,
+                    0x0F,
+                    startAddress,
+                    (ushort)values.Length,
+                    values.ToBytes());
             }
             catch (Exception ex)
             {
@@ -904,9 +915,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};6;{address}";
-                var result = await WriteAsync(modbusAddress, value);
-                return result;
+                return await WriteByFunctionAsync(
+                    stationNumber,
+                    0x06,
+                    address,
+                    1,
+                    value.ToByte(IsReverse));
             }
             catch (Exception ex)
             {
@@ -918,9 +932,12 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             try
             {
-                string modbusAddress = $"{stationNumber};16;{startAddress}";
-                var result = await WriteAsync(modbusAddress, values);
-                return result;
+                return await WriteByFunctionAsync(
+                    stationNumber,
+                    0x10,
+                    startAddress,
+                    (ushort)values.Length,
+                    values.ToByte(IsReverse));
             }
             catch (Exception ex)
             {

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -40,6 +40,55 @@ namespace Wombat.IndustrialCommunication.Modbus
             public double EfficiencyRatio { get; set; }
         }
 
+        protected async ValueTask<OperationResult<byte[]>> ReadByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort length)
+        {
+            var request = new ModbusRTURequest(stationNumber, functionCode, address, length);
+            var response = await Transport.UnicastReadMessageAsync(request);
+            if (response.IsSuccess)
+            {
+                var dataPackage = response.ResultValue.ProtocolMessageFrame;
+                var modbusTcpResponse = new ModbusRTUResponse(dataPackage);
+                if (!CRC16Helper.ValidateCRC(dataPackage))
+                    throw new InvalidOperationException("CRC check failed");
+                if ((modbusTcpResponse.FunctionCode & 0x80) != 0)
+                {
+                    var result = new OperationResult<byte[]>();
+                    result.IsSuccess = false;
+                    result.ErrorCode = dataPackage[2];
+                    response.Requsts.ForEach((log) => { result.Requsts.Add(log); });
+                    response.Responses.ForEach((log) => { result.Responses.Add(log); });
+                    result.Message = $"ModbusRTU回复错误码:{result.ErrorCode}";
+                    return OperationResult.CreateFailedResult<byte[]>(result);
+                }
+
+                return new OperationResult<byte[]>(response, modbusTcpResponse.Data).Complete();
+            }
+
+            return OperationResult.CreateFailedResult<byte[]>(response);
+        }
+
+        protected async Task<OperationResult> WriteByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data)
+        {
+            var request = new ModbusRTURequest(stationNumber, functionCode, address, registerOrCoilCount, data);
+            var response = await Transport.UnicastWriteMessageAsync(request);
+            return _writeResponseHandle(response);
+        }
+
+        protected ushort CalculateWriteEntityCount(byte functionCode, byte[] data, bool isBit)
+        {
+            if (functionCode == 0x05 || functionCode == 0x06)
+            {
+                return 1;
+            }
+
+            if (isBit || functionCode == 0x0F)
+            {
+                return (ushort)data.Length;
+            }
+
+            return (ushort)(data.Length / 2);
+        }
+
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address,int length,DataTypeEnums dataType, bool isBit = false)
         {
             using (await _lock.LockAsync())
@@ -47,33 +96,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, dataType, false, out var modbusAddress))
                 {
-                    var request = new ModbusRTURequest(modbusAddress.StationNumber,modbusAddress.FunctionCode, modbusAddress.Address, (ushort)length);
-                    var response = await Transport.UnicastReadMessageAsync(request);
-                    if (response.IsSuccess)
-                    {
-                        var dataPackage = response.ResultValue.ProtocolMessageFrame;
-                        var modbusTcpResponse = new ModbusRTUResponse(dataPackage);
-                        if (!CRC16Helper.ValidateCRC(dataPackage))
-                            throw new InvalidOperationException("CRC check failed");
-                        // 处理异常响应（功能码最高位为1）
-                        if ((modbusTcpResponse.FunctionCode & 0x80) != 0)
-                        {
-                            result.IsSuccess = false;
-                            result.ErrorCode = dataPackage[2];
-                            response.Requsts.ForEach((log) => { result.Requsts.Add(log); });
-                            response.Responses.ForEach((log) => { result.Responses.Add(log); });
-                            result.Message = $"ModbusRTU回复错误码:{result.ErrorCode}";
-                            return OperationResult.CreateFailedResult<byte[]>(result);
-                        }
-
-                        return new OperationResult<byte[]>(response, modbusTcpResponse.Data).Complete();
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>(response);
-
-                    }
-
+                    return await ReadByModbusAddressAsync(
+                        modbusAddress.StationNumber,
+                        modbusAddress.FunctionCode,
+                        modbusAddress.Address,
+                        (ushort)length);
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
 
@@ -89,9 +116,13 @@ namespace Wombat.IndustrialCommunication.Modbus
                 // 根据isBit参数确定数据类型，默认为写操作
                 if (ModbusAddressParser.TryParseModbusAddress(address, dataType, true, out var modbusAddress))
                 {
-                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)(data.Length%256),data);
-                    var response = await Transport.UnicastWriteMessageAsync(request);
-                    return _writeResponseHandle(response);
+                    var registerOrCoilCount = CalculateWriteEntityCount(modbusAddress.FunctionCode, data, isBit);
+                    return await WriteByModbusAddressAsync(
+                        modbusAddress.StationNumber,
+                        modbusAddress.FunctionCode,
+                        modbusAddress.Address,
+                        registerOrCoilCount,
+                        data);
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -106,9 +137,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, DataTypeEnums.Bool, true, out var modbusAddress))
                 {
-                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, 1, BitConverter.GetBytes(value)) ;
-                    var response = await Transport.UnicastWriteMessageAsync(request);
-                    return _writeResponseHandle(response);
+                    return await WriteByModbusAddressAsync(
+                        modbusAddress.StationNumber,
+                        modbusAddress.FunctionCode,
+                        modbusAddress.Address,
+                        1,
+                        BitConverter.GetBytes(value));
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -123,9 +157,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (ModbusAddressParser.TryParseModbusAddress(address, DataTypeEnums.Bool, true, out var modbusAddress))
                 {
-                    var request = new ModbusRTURequest(modbusAddress.StationNumber, modbusAddress.FunctionCode, modbusAddress.Address, (ushort)value.Length, value.ToBytes());
-                    var response = await Transport.UnicastWriteMessageAsync(request);
-                    return _writeResponseHandle(response);
+                    return await WriteByModbusAddressAsync(
+                        modbusAddress.StationNumber,
+                        modbusAddress.FunctionCode,
+                        modbusAddress.Address,
+                        (ushort)value.Length,
+                        value.ToBytes());
 
                 }
                 return OperationResult.CreateFailedResult<byte[]>(result);
@@ -194,9 +231,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         try
                         {
-                            string blockAddress = $"{block.StationNumber};{block.FunctionCode};{block.StartAddress}";
                             string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
-                            var readResult = await ReadAsync(blockAddress, block.TotalLength,DataTypeEnums.Byte ,block.FunctionCode == 0x01 || block.FunctionCode == 0x02);
+                            var readResult = await ReadByModbusAddressAsync(
+                                block.StationNumber,
+                                block.FunctionCode,
+                                block.StartAddress,
+                                block.TotalLength);
                             if (readResult.IsSuccess)
                             {
                                 blockDataDict[blockKey] = readResult.ResultValue;
@@ -205,7 +245,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                             }
                             else
                             {
-                                errors.Add($"读取块 {blockAddress} 失败: {readResult.Message}");
+                                errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 失败: {readResult.Message}");
                             }
                         }
                         catch (Exception ex)
@@ -282,13 +322,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 writeErrors.Add($"地址 {addressInfo.OriginalAddress} 的值转换失败");
                                 continue;
                             }
-                            string writeAddress = ModbusBatchHelper.ConstructModbusWriteAddress(addressInfo);
-                            if (string.IsNullOrEmpty(writeAddress))
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
-                                continue;
-                            }
-                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F);
+                            var writeResult = await WriteByModbusAddressAsync(
+                                addressInfo.StationNumber,
+                                addressInfo.FunctionCode,
+                                addressInfo.Address,
+                                CalculateWriteEntityCount(addressInfo.FunctionCode, data, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F),
+                                data);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;

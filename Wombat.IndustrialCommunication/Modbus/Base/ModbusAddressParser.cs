@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Text;
@@ -63,16 +63,16 @@ namespace Wombat.IndustrialCommunication.Modbus
 
             // 检查是否以寄存器类型前缀开头
             char firstChar = addressStr[0];
-            if (firstChar != '1' && firstChar != '2' && firstChar != '3' && firstChar != '4')
+            if (firstChar != '0' && firstChar != '1' && firstChar != '3' && firstChar != '4')
                 return false;
 
             // 提取寄存器类型
             switch (firstChar)
             {
-                case '1':
+                case '0':
                     registerType = 0x01;  // 线圈
                     break;
-                case '2':
+                case '1':
                     registerType = 0x02;  // 离散输入
                     break;
                 case '3':
@@ -180,20 +180,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                     }
                     modbusHeader.FunctionCode = functionCode;
 
-                    // 尝试解析逻辑地址格式
-                    if (TryParseLogicalAddress(parts[2], out byte registerType, out ushort actualAddress))
+                    // 标准格式的第三段始终表示实际地址，不再按逻辑地址二次解释
+                    if (!ushort.TryParse(parts[2], out ushort address))
                     {
-                        modbusHeader.Address = actualAddress;
+                        return false;
                     }
-                    else
-                    {
-                        // 尝试解析普通数字地址
-                        if (!ushort.TryParse(parts[2], out ushort address))
-                        {
-                            return false;
-                        }
-                        modbusHeader.Address = address;
-                    }
+                    modbusHeader.Address = address;
                 }
                 else
                 {

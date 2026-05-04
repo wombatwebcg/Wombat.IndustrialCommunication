@@ -84,20 +84,20 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             await client.ConnectAsync();
             var batchWriteData = new Dictionary<string, (DataTypeEnums, object)>
             {
-                { $"{TEST_STATION};5;{TEST_COIL_ADDR}", (DataTypeEnums.Bool, true) },
-                { $"{TEST_STATION};6;{TEST_REG_ADDR}", (DataTypeEnums.UInt16, (ushort)1111) }
+                { $"{TEST_STATION};00001", (DataTypeEnums.Bool, true) },
+                { $"{TEST_STATION};40001", (DataTypeEnums.UInt16, (ushort)1111) }
             };
             var writeResult = await client.BatchWriteAsync(batchWriteData);
             Assert.True(writeResult.IsSuccess, $"批量写入失败: {writeResult.Message}");
             var batchReadData = new Dictionary<string, DataTypeEnums>
             {
-                { $"{TEST_STATION};1;{TEST_COIL_ADDR}", DataTypeEnums.Bool },
-                { $"{TEST_STATION};3;{TEST_REG_ADDR}", DataTypeEnums.UInt16 }
+                { $"{TEST_STATION};00001", DataTypeEnums.Bool },
+                { $"{TEST_STATION};40001", DataTypeEnums.UInt16 }
             };
             var readResult = await client.BatchReadAsync(batchReadData);
             Assert.True(readResult.IsSuccess, $"批量读取失败: {readResult.Message}");
-            Assert.True(readResult.ResultValue[$"{TEST_STATION};1;{TEST_COIL_ADDR}"].Item2 is bool b && b, "批量读Coil结果错误");
-            Assert.True(readResult.ResultValue[$"{TEST_STATION};3;{TEST_REG_ADDR}"].Item2 is ushort u && u == 1111, "批量读寄存器结果错误");
+            Assert.True(readResult.ResultValue[$"{TEST_STATION};00001"].Item2 is bool b && b, "批量读Coil结果错误");
+            Assert.True(readResult.ResultValue[$"{TEST_STATION};40001"].Item2 is ushort u && u == 1111, "批量读寄存器结果错误");
             await client.DisconnectAsync();
         }
     }

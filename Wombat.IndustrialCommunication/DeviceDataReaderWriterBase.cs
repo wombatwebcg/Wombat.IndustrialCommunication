@@ -1117,45 +1117,13 @@ namespace Wombat.IndustrialCommunication
         {
             try
             {
-                switch (dataTypeEnum)
+                var result = Read(dataTypeEnum, address, 1);
+                if (!result.IsSuccess)
                 {
-                    case DataTypeEnums.None:
-                        return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
-                    case DataTypeEnums.Bool:
-                        var boolResult = ReadBoolean(address);
-                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
-                    case DataTypeEnums.Byte:
-                        var byteResult = ReadByte(address);
-                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
-                    case DataTypeEnums.Int16:
-                        var int16Result = ReadInt16(address);
-                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
-                    case DataTypeEnums.UInt16:
-                        var uint16Result = ReadUInt16(address);
-                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
-                    case DataTypeEnums.Int32:
-                        var int32Result = ReadInt32(address);
-                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
-                    case DataTypeEnums.UInt32:
-                        var uint32Result = ReadUInt32(address);
-                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
-                    case DataTypeEnums.Int64:
-                        var int64Result = ReadInt64(address);
-                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
-                    case DataTypeEnums.UInt64:
-                        var uint64Result = ReadUInt64(address);
-                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
-                    case DataTypeEnums.Float:
-                        var floatResult = ReadFloat(address);
-                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
-                    case DataTypeEnums.Double:
-                        var doubleResult = ReadDouble(address);
-                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
-                    case DataTypeEnums.String:
-                        return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
-                    default:
-                        return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
+                    return result;
                 }
+
+                return new OperationResult<object>(result, ExtractFirstValue(result.ResultValue));
             }
             catch (Exception ex)
             {
@@ -1172,35 +1140,100 @@ namespace Wombat.IndustrialCommunication
                     case DataTypeEnums.None:
                         return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
                     case DataTypeEnums.Bool:
-                        var boolResult = ReadBoolean(address, length);
-                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
+                        {
+                            var readResult = Read(address, length, DataTypeEnums.Bool, true);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToBool(0, length, false));
+                        }
                     case DataTypeEnums.Byte:
-                        var byteResult = ReadByte(address, length);
-                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
+                        {
+                            var readResult = ReadByte(address, length);
+                            return new OperationResult<object>(readResult, readResult.IsSuccess ? (object)readResult.ResultValue : null);
+                        }
                     case DataTypeEnums.Int16:
-                        var int16Result = ReadInt16(address, length);
-                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
+                        {
+                            var readResult = Read(address, 2 * length, DataTypeEnums.Int16);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToInt16(0, length, IsReverse));
+                        }
                     case DataTypeEnums.UInt16:
-                        var uint16Result = ReadUInt16(address, length);
-                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
+                        {
+                            var readResult = Read(address, 2 * length, DataTypeEnums.UInt16);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToUInt16(0, length, IsReverse));
+                        }
                     case DataTypeEnums.Int32:
-                        var int32Result = ReadInt32(address, length);
-                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
+                        {
+                            var readResult = Read(address, 4 * length, DataTypeEnums.Int32);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToInt32(0, length, DataFormat));
+                        }
                     case DataTypeEnums.UInt32:
-                        var uint32Result = ReadUInt32(address, length);
-                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
+                        {
+                            var readResult = Read(address, 4 * length, DataTypeEnums.UInt32);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToUInt32(0, length, DataFormat));
+                        }
                     case DataTypeEnums.Int64:
-                        var int64Result = ReadInt64(address, length);
-                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
+                        {
+                            var readResult = Read(address, 8 * length, DataTypeEnums.Int64);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToInt64(0, length, DataFormat));
+                        }
                     case DataTypeEnums.UInt64:
-                        var uint64Result = ReadUInt64(address, length);
-                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
+                        {
+                            var readResult = Read(address, 8 * length, DataTypeEnums.UInt64);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToUInt64(0, length, DataFormat));
+                        }
                     case DataTypeEnums.Float:
-                        var floatResult = ReadFloat(address, length);
-                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
+                        {
+                            var readResult = Read(address, 4 * length, DataTypeEnums.Float);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToFloat(0, length, DataFormat));
+                        }
                     case DataTypeEnums.Double:
-                        var doubleResult = ReadDouble(address, length);
-                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
+                        {
+                            var readResult = Read(address, 8 * length, DataTypeEnums.Double);
+                            if (!readResult.IsSuccess)
+                            {
+                                return new OperationResult<object>(readResult);
+                            }
+
+                            return new OperationResult<object>(readResult, readResult.ResultValue.ToDouble(0, length, DataFormat));
+                        }
                     case DataTypeEnums.String:
                         return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
                     default:
@@ -1215,102 +1248,22 @@ namespace Wombat.IndustrialCommunication
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
         {
-            try
-            {
-                switch (dataTypeEnum)
-                {
-                    case DataTypeEnums.None:
-                        return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
-                    case DataTypeEnums.Bool:
-                        var boolResult = await ReadBooleanAsync(address);
-                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
-                    case DataTypeEnums.Byte:
-                        var byteResult = await ReadByteAsync(address);
-                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
-                    case DataTypeEnums.Int16:
-                        var int16Result = await ReadInt16Async(address);
-                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
-                    case DataTypeEnums.UInt16:
-                        var uint16Result = await ReadUInt16Async(address);
-                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
-                    case DataTypeEnums.Int32:
-                        var int32Result = await ReadInt32Async(address);
-                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
-                    case DataTypeEnums.UInt32:
-                        var uint32Result = await ReadUInt32Async(address);
-                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
-                    case DataTypeEnums.Int64:
-                        var int64Result = await ReadInt64Async(address);
-                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
-                    case DataTypeEnums.UInt64:
-                        var uint64Result = await ReadUInt64Async(address);
-                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
-                    case DataTypeEnums.Float:
-                        var floatResult = await ReadFloatAsync(address);
-                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
-                    case DataTypeEnums.Double:
-                        var doubleResult = await ReadDoubleAsync(address);
-                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
-                    case DataTypeEnums.String:
-                        return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
-                    default:
-                        return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
-                }
-            }
-            catch (Exception ex)
-            {
-                return new OperationResult<object> { IsSuccess = false, Message = $"类型转换错误: {ex.Message}" };
-            }
+            return await Task.FromResult(Read(dataTypeEnum, address));
         }
 
         public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
         {
-            try
+            return await Task.FromResult(Read(dataTypeEnum, address, length));
+        }
+
+        private static object ExtractFirstValue(object value)
+        {
+            if (value is Array array && array.Length > 0)
             {
-                switch (dataTypeEnum)
-                {
-                    case DataTypeEnums.None:
-                        return new OperationResult<object> { IsSuccess = false, Message = "数据类型为null" };
-                    case DataTypeEnums.Bool:
-                        var boolResult = await ReadBooleanAsync(address, length);
-                        return new OperationResult<object> { IsSuccess = boolResult.IsSuccess, ResultValue = boolResult.IsSuccess ? (object)boolResult.ResultValue : null, Message = boolResult.Message };
-                    case DataTypeEnums.Byte:
-                        var byteResult = await ReadByteAsync(address, length);
-                        return new OperationResult<object> { IsSuccess = byteResult.IsSuccess, ResultValue = byteResult.IsSuccess ? (object)byteResult.ResultValue : null, Message = byteResult.Message };
-                    case DataTypeEnums.Int16:
-                        var int16Result = await ReadInt16Async(address, length);
-                        return new OperationResult<object> { IsSuccess = int16Result.IsSuccess, ResultValue = int16Result.IsSuccess ? (object)int16Result.ResultValue : null, Message = int16Result.Message };
-                    case DataTypeEnums.UInt16:
-                        var uint16Result = await ReadUInt16Async(address, length);
-                        return new OperationResult<object> { IsSuccess = uint16Result.IsSuccess, ResultValue = uint16Result.IsSuccess ? (object)uint16Result.ResultValue : null, Message = uint16Result.Message };
-                    case DataTypeEnums.Int32:
-                        var int32Result = await ReadInt32Async(address, length);
-                        return new OperationResult<object> { IsSuccess = int32Result.IsSuccess, ResultValue = int32Result.IsSuccess ? (object)int32Result.ResultValue : null, Message = int32Result.Message };
-                    case DataTypeEnums.UInt32:
-                        var uint32Result = await ReadUInt32Async(address, length);
-                        return new OperationResult<object> { IsSuccess = uint32Result.IsSuccess, ResultValue = uint32Result.IsSuccess ? (object)uint32Result.ResultValue : null, Message = uint32Result.Message };
-                    case DataTypeEnums.Int64:
-                        var int64Result = await ReadInt64Async(address, length);
-                        return new OperationResult<object> { IsSuccess = int64Result.IsSuccess, ResultValue = int64Result.IsSuccess ? (object)int64Result.ResultValue : null, Message = int64Result.Message };
-                    case DataTypeEnums.UInt64:
-                        var uint64Result = await ReadUInt64Async(address, length);
-                        return new OperationResult<object> { IsSuccess = uint64Result.IsSuccess, ResultValue = uint64Result.IsSuccess ? (object)uint64Result.ResultValue : null, Message = uint64Result.Message };
-                    case DataTypeEnums.Float:
-                        var floatResult = await ReadFloatAsync(address, length);
-                        return new OperationResult<object> { IsSuccess = floatResult.IsSuccess, ResultValue = floatResult.IsSuccess ? (object)floatResult.ResultValue : null, Message = floatResult.Message };
-                    case DataTypeEnums.Double:
-                        var doubleResult = await ReadDoubleAsync(address, length);
-                        return new OperationResult<object> { IsSuccess = doubleResult.IsSuccess, ResultValue = doubleResult.IsSuccess ? (object)doubleResult.ResultValue : null, Message = doubleResult.Message };
-                    case DataTypeEnums.String:
-                        return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
-                    default:
-                        return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
-                }
+                return array.GetValue(0);
             }
-            catch (Exception ex)
-            {
-                return new OperationResult<object> { IsSuccess = false, Message = $"类型转换错误: {ex.Message}" };
-            }
+
+            return value;
         }
 
         public OperationResult Write(DataTypeEnums dataTypeEnum, string address, object value)
