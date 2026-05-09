@@ -2,11 +2,12 @@
 
   <PropertyGroup>
     <TargetFramework>netstandard2.0</TargetFramework>
-    <Version>2.1.36</Version>
+    <Version>2.1.37</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
     <Copyright>wombatwebcg</Copyright>
+	<Nullable>disable</Nullable>
     <Description>开源的工业通讯库:modbus协议,三菱Q3E二进制、FX编程口协议,西门子S7，汇川H3U
 </Description>
     <PackageProjectUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</PackageProjectUrl>

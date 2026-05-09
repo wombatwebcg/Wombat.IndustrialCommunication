@@ -90,6 +90,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         public byte Rack { get;set; }
 
+        /// <summary>
+        /// 批量读取地址块的最小效率比，小于等于0时使用helper默认值
+        /// </summary>
+        public double EfficiencyRatio { get; set; }
+
         public SiemensVersion SiemensVersion{ get; set; }
 
         public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
@@ -492,8 +497,9 @@ namespace Wombat.IndustrialCommunication.PLC
                         return result.Complete();
                     }
 
-                    // 优化地址块
-                    var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos);
+                    // 优先使用实例配置的效率比，未设置时回退到helper默认值
+                    var minEfficiencyRatio = EfficiencyRatio > 0 ? EfficiencyRatio : 0.8;
+                    var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos, minEfficiencyRatio);
                     if (optimizedBlocks.Count == 0)
                     {
                         result.IsSuccess = false;
@@ -505,84 +511,61 @@ namespace Wombat.IndustrialCommunication.PLC
                     // 执行批量读取
                     var blockDataDict = new Dictionary<string, byte[]>();
                     var errors = new List<string>();
+                    var warnings = new List<string>();
 
                     foreach (var block in optimizedBlocks)
                     {
                         try
                         {
-                            // 根据地址类型构造块地址和块键
-                            string blockAddress = "";
-                            string blockKey = "";
-                            
-                            if (block.Addresses.Count > 0)
-                            {
-                                var firstAddress = block.Addresses[0];
-                                var areaType = S7BatchHelper.GetS7AreaType(firstAddress.DataType);
-                                
-                                switch (areaType)
-                                {
-                                    case "DB":
-                                        blockAddress = $"DB{block.DbNumber}.DBB{block.StartByte}";
-                                        blockKey = $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
-                                        break;
-                                    case "I":
-                                        blockAddress = $"IB{block.StartByte}";
-                                        blockKey = $"I_{block.StartByte}_{block.TotalLength}";
-                                        break;
-                                    case "Q":
-                                        blockAddress = $"QB{block.StartByte}";
-                                        blockKey = $"Q_{block.StartByte}_{block.TotalLength}";
-                                        break;
-                                    case "M":
-                                        blockAddress = $"MB{block.StartByte}";
-                                        blockKey = $"M_{block.StartByte}_{block.TotalLength}";
-                                        break;
-                                    case "V":
-                                        blockAddress = $"VB{block.StartByte}";
-                                        blockKey = $"V_{block.StartByte}_{block.TotalLength}";
-                                        break;
-                                    default:
-                                        errors.Add($"不支持的地址区域类型: {areaType}");
-                                        continue;
-                                }
-                            }
-                            else
+                            if (block.Addresses.Count == 0)
                             {
                                 errors.Add("地址块中没有地址信息");
                                 continue;
                             }
-                            
-                            var readResult = await ReadAsync(blockAddress, block.TotalLength, DataTypeEnums.Byte,false);
+
+                            var readResult = await ReadBlockWithBoundaryFallbackAsync(block);
                             
                             if (readResult.IsSuccess)
                             {
-                                blockDataDict[blockKey] = readResult.ResultValue;
+                                blockDataDict[BuildBatchReadBlockKey(block)] = readResult.ResultValue;
                                 
                                 // 合并请求和响应记录
-                                result.Requsts.AddRange(readResult.Requsts);
-                                result.Responses.AddRange(readResult.Responses);
+                                if (readResult.Requsts != null && readResult.Requsts.Count > 0)
+                                {
+                                    result.Requsts.AddRange(readResult.Requsts);
+                                }
+                                if (readResult.Responses != null && readResult.Responses.Count > 0)
+                                {
+                                    result.Responses.AddRange(readResult.Responses);
+                                }
+                                if (!string.IsNullOrEmpty(readResult.Message))
+                                {
+                                    warnings.Add(readResult.Message);
+                                }
                             }
                             else
                             {
-                                var areaType = S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType);
-                                errors.Add($"读取块 {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} 失败: {readResult.Message}");
+                                errors.Add($"读取块 {DescribeBatchReadBlock(block)} 失败: {readResult.Message}");
                             }
                         }
                         catch (Exception ex)
                         {
-                            var areaType = block.Addresses.Count > 0 ? S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType) : "UNKNOWN";
-                            errors.Add($"读取块 {areaType}{(areaType == "DB" ? block.DbNumber.ToString() : "")}:{block.StartByte}-{block.StartByte + block.TotalLength - 1} 异常: {ex.Message}");
+                            errors.Add($"读取块 {DescribeBatchReadBlock(block)} 异常: {ex.Message}");
                         }
                     }
 
                     if (errors.Count > 0)
                     {
                         result.IsSuccess = blockDataDict.Count > 0; // 允许部分成功
-                        result.Message = string.Join("; ", errors);
+                        result.Message = string.Join("; ", errors.Concat(warnings));
                     }
                     else
                     {
                         result.IsSuccess = true;
+                        if (warnings.Count > 0)
+                        {
+                            result.Message = string.Join("; ", warnings);
+                        }
                     }
 
                     // 从块数据中提取各地址对应值
@@ -617,6 +600,199 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 return result.Complete();
             }
+        }
+
+        private async ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block)
+        {
+            var initialResult = await ReadBatchBlockAsync(block);
+            if (initialResult.IsSuccess || !ShouldShrinkBlockBoundary(block, initialResult))
+            {
+                return initialResult;
+            }
+
+            var originalLength = block.TotalLength;
+            var bestLength = 0;
+            OperationResult<byte[]> bestResult = null;
+            OperationResult<byte[]> lastFailure = initialResult;
+            var mergedRequests = new List<string>();
+            var mergedResponses = new List<string>();
+            MergeBatchReadLogs(initialResult, mergedRequests, mergedResponses);
+
+            int low = 1;
+            int high = originalLength - 1;
+            while (low <= high)
+            {
+                int mid = low + ((high - low) / 2);
+                var retryResult = await ReadBatchBlockAsync(block, mid);
+                MergeBatchReadLogs(retryResult, mergedRequests, mergedResponses);
+
+                if (retryResult.IsSuccess)
+                {
+                    bestLength = mid;
+                    bestResult = retryResult;
+                    low = mid + 1;
+                }
+                else
+                {
+                    lastFailure = retryResult;
+                    high = mid - 1;
+                }
+            }
+
+            if (bestResult != null)
+            {
+                var originalEndByte = block.StartByte + originalLength - 1;
+                var actualEndByte = block.StartByte + bestLength - 1;
+                block.TotalLength = bestLength;
+
+                var successResult = new OperationResult<byte[]>
+                {
+                    IsSuccess = true,
+                    ResultValue = bestResult.ResultValue,
+                    Message = $"读取块 {DescribeBatchReadBlock(block.DbNumber, block.StartByte, originalLength, block)} 超出实际边界，已回退到 {DescribeBatchReadBlock(block)}"
+                };
+                successResult.Requsts.AddRange(mergedRequests);
+                successResult.Responses.AddRange(mergedResponses);
+                return successResult.Complete();
+            }
+
+            var failedResult = new OperationResult<byte[]>
+            {
+                IsSuccess = false,
+                Message = lastFailure != null && !string.IsNullOrEmpty(lastFailure.Message)
+                    ? lastFailure.Message
+                    : $"读取块 {DescribeBatchReadBlock(block.DbNumber, block.StartByte, originalLength, block)} 失败，缩小边界后仍未成功"
+            };
+            failedResult.Requsts.AddRange(mergedRequests);
+            failedResult.Responses.AddRange(mergedResponses);
+            return failedResult;
+        }
+
+        private async ValueTask<OperationResult<byte[]>> ReadBatchBlockAsync(S7BatchHelper.S7AddressBlock block, int? overrideLength = null)
+        {
+            var readLength = overrideLength ?? block.TotalLength;
+            var blockAddress = BuildBatchReadBlockAddress(block);
+            if (string.IsNullOrEmpty(blockAddress))
+            {
+                return OperationResult.CreateFailedResult<byte[]>($"不支持的地址区域类型: {GetBatchReadAreaType(block)}");
+            }
+
+            return await ReadAsync(blockAddress, readLength, DataTypeEnums.Byte, false);
+        }
+
+        private static void MergeBatchReadLogs(OperationResult<byte[]> source, List<string> requests, List<string> responses)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            if (source.Requsts != null && source.Requsts.Count > 0)
+            {
+                requests.AddRange(source.Requsts);
+            }
+
+            if (source.Responses != null && source.Responses.Count > 0)
+            {
+                responses.AddRange(source.Responses);
+            }
+        }
+
+        private static bool ShouldShrinkBlockBoundary(S7BatchHelper.S7AddressBlock block, OperationResult<byte[]> readResult)
+        {
+            if (block == null || block.TotalLength <= 1 || block.Addresses.Count == 0 || readResult == null || readResult.IsSuccess)
+            {
+                return false;
+            }
+
+            var areaType = GetBatchReadAreaType(block);
+            if (areaType != "DB" && areaType != "V")
+            {
+                return false;
+            }
+
+            if (string.IsNullOrEmpty(readResult.Message))
+            {
+                return true;
+            }
+
+            return readResult.Message.Contains("地址是否存在")
+                || readResult.Message.Contains("长度不一致")
+                || readResult.Message.Contains("超出")
+                || readResult.Message.Contains("异常状态");
+        }
+
+        private static string BuildBatchReadBlockAddress(S7BatchHelper.S7AddressBlock block)
+        {
+            switch (GetBatchReadAreaType(block))
+            {
+                case "DB":
+                    return $"DB{block.DbNumber}.DBB{block.StartByte}";
+                case "I":
+                    return $"IB{block.StartByte}";
+                case "Q":
+                    return $"QB{block.StartByte}";
+                case "M":
+                    return $"MB{block.StartByte}";
+                case "V":
+                    return $"VB{block.StartByte}";
+                default:
+                    return null;
+            }
+        }
+
+        private static string BuildBatchReadBlockKey(S7BatchHelper.S7AddressBlock block)
+        {
+            switch (GetBatchReadAreaType(block))
+            {
+                case "DB":
+                    return $"DB{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
+                case "I":
+                    return $"I_{block.StartByte}_{block.TotalLength}";
+                case "Q":
+                    return $"Q_{block.StartByte}_{block.TotalLength}";
+                case "M":
+                    return $"M_{block.StartByte}_{block.TotalLength}";
+                case "V":
+                    return $"V_{block.StartByte}_{block.TotalLength}";
+                default:
+                    return $"{block.DbNumber}_{block.StartByte}_{block.TotalLength}";
+            }
+        }
+
+        private static string DescribeBatchReadBlock(S7BatchHelper.S7AddressBlock block)
+        {
+            return DescribeBatchReadBlock(block.DbNumber, block.StartByte, block.TotalLength, block);
+        }
+
+        private static string DescribeBatchReadBlock(int dbNumber, int startByte, int totalLength, S7BatchHelper.S7AddressBlock block)
+        {
+            var areaType = GetBatchReadAreaType(block);
+            var endByte = startByte + totalLength - 1;
+
+            switch (areaType)
+            {
+                case "DB":
+                    return $"DB{dbNumber}:{startByte}-{endByte}";
+                case "V":
+                    return $"V:{startByte}-{endByte}";
+                case "I":
+                case "Q":
+                case "M":
+                    return $"{areaType}:{startByte}-{endByte}";
+                default:
+                    return $"UNKNOWN:{startByte}-{endByte}";
+            }
+        }
+
+        private static string GetBatchReadAreaType(S7BatchHelper.S7AddressBlock block)
+        {
+            if (block == null || block.Addresses.Count == 0)
+            {
+                return "UNKNOWN";
+            }
+
+            return S7BatchHelper.GetS7AreaType(block.Addresses[0].DataType);
         }
 
         /// <summary>

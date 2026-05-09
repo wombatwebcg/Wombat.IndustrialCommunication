@@ -471,182 +471,158 @@ namespace Wombat.IndustrialCommunication.PLC
         public static List<S7AddressBlock> OptimizeS7AddressBlocks(List<S7AddressInfo> addressInfos, double minEfficiencyRatio = 0.8, int maxBlockSize = 180)
         {
             var optimizedBlocks = new List<S7AddressBlock>();
-            
-            // 按数据类型和DB号分组（DB地址按DB号分组，V区、Q区、I区分别分组）
-            var dbGroups = addressInfos.GroupBy(a => new { a.DbNumber, AreaType = GetS7AreaType(a.DataType) }).ToList();
-            
-            foreach (var dbGroup in dbGroups)
+
+            if (addressInfos == null || addressInfos.Count == 0)
             {
-                var areaType = dbGroup.Key.AreaType;
-                
-                // 特殊处理位地址
-                if (dbGroup.Any(a => IsBitType(a.DataType)))
-                {
-                    // 对于位地址，按字节边界进行优化
-                    var bitAddresses = dbGroup.Where(a => IsBitType(a.DataType)).ToList();
-                    var nonBitAddresses = dbGroup.Where(a => !IsBitType(a.DataType)).ToList();
-                    
-                    // 处理位地址
-                    if (bitAddresses.Count > 0)
-                    {
-                        var bitBlocks = OptimizeBitAddresses(bitAddresses, areaType, maxBlockSize);
-                        optimizedBlocks.AddRange(bitBlocks);
-                    }
-                    
-                    // 处理非位地址
-                    if (nonBitAddresses.Count > 0)
-                    {
-                        var nonBitBlocks = OptimizeNonBitAddresses(nonBitAddresses, minEfficiencyRatio, maxBlockSize);
-                        optimizedBlocks.AddRange(nonBitBlocks);
-                    }
-                }
-                else
-                {
-                    var sortedAddresses = dbGroup.OrderBy(a => a.BitOffset)
-                                                .ThenBy(a => a.StartByte)
-                                                .ToList();
-                    var blocks = OptimizeNonBitAddresses(sortedAddresses, minEfficiencyRatio, maxBlockSize);
-                    optimizedBlocks.AddRange(blocks);
-                }
+                return optimizedBlocks;
             }
-            
+
+            // 按区域类型和DB号分组，在同一字节空间内统一合并位地址和非位地址
+            var areaGroups = addressInfos
+                .GroupBy(a => new { a.DbNumber, AreaType = GetS7AreaType(a.DataType) })
+                .ToList();
+
+            foreach (var areaGroup in areaGroups)
+            {
+                var blocks = OptimizeAddressRangeGroup(areaGroup.ToList(), minEfficiencyRatio, maxBlockSize);
+                optimizedBlocks.AddRange(blocks);
+            }
+
             return optimizedBlocks;
         }
 
         /// <summary>
-        /// 优化位地址
+        /// 在同一区域/DB内按字节区间合并地址
         /// </summary>
-        private static List<S7AddressBlock> OptimizeBitAddresses(List<S7AddressInfo> bitAddresses, string areaType, int maxBlockSize)
+        private static List<S7AddressBlock> OptimizeAddressRangeGroup(List<S7AddressInfo> addresses, double minEfficiencyRatio, int maxBlockSize)
         {
             var optimizedBlocks = new List<S7AddressBlock>();
-            
-            // 先按BitOffset、StartByte、DbNumber排序
-            var sortedBitAddresses = bitAddresses.OrderBy(a => a.BitOffset)
-                                               .ThenBy(a => a.StartByte)
-                                               .ThenBy(a => a.DbNumber)
-                                               .ToList();
-            
-            // 按字节地址分组
-            var byteGroups = sortedBitAddresses.GroupBy(a => a.StartByte).ToList();
-            
-            foreach (var byteGroup in byteGroups)
-            {
-                var byteOffset = byteGroup.Key;
-                // 按BitOffset排序位地址
-                var addresses = byteGroup.OrderBy(a => a.BitOffset).ToList();
-                
-                // 每个字节作为一个块
-                var block = new S7AddressBlock
-                {
-                    DbNumber = addresses[0].DbNumber,
-                    StartByte = byteOffset,
-                    TotalLength = 1, // 读取一个字节
-                    Addresses = addresses,
-                    EfficiencyRatio = 1.0 // 位地址效率比总是1.0
-                };
-                
-                optimizedBlocks.Add(block);
-            }
-            
-            return optimizedBlocks;
-        }
 
-        /// <summary>
-        /// 优化非位地址
-        /// </summary>
-        private static List<S7AddressBlock> OptimizeNonBitAddresses(List<S7AddressInfo> addresses, double minEfficiencyRatio, int maxBlockSize)
-        {
-            var optimizedBlocks = new List<S7AddressBlock>();
-            
-            // 按BitOffset、StartByte和DbNumber排序（根据用户需求）
-            var sortedAddresses = addresses.OrderBy(a => a.DbNumber)
-                                          .ThenBy(a => a.StartByte)
-                                          .ToList();
-            
-            var currentBlock = new S7AddressBlock
+            if (addresses == null || addresses.Count == 0)
             {
-                DbNumber = addresses[0].DbNumber,
-                Addresses = new List<S7AddressInfo>()
-            };
-            
-            foreach (var address in sortedAddresses)
-            {
-                // 如果是第一个地址，直接加入当前块
-                if (currentBlock.Addresses.Count == 0)
-                {
-                    currentBlock.StartByte = address.StartByte;
-                    currentBlock.TotalLength = address.Length;
-                    currentBlock.Addresses.Add(address);
-                    continue;
-                }
-                
-                // 计算如果加入此地址后的新块参数
-                var newStartByte = Math.Min(currentBlock.StartByte, address.StartByte);
-                var currentEndByte = currentBlock.StartByte + currentBlock.TotalLength;
-                var addressEndByte = address.StartByte + address.Length;
-                var newEndByte = Math.Max(currentEndByte, addressEndByte);
-                var newTotalLength = newEndByte - newStartByte;
-                
-                // 检查块大小限制
-                if (newTotalLength > maxBlockSize)
-                {
-                    // 超过最大块大小，完成当前块并开始新块
-                    currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
-                    optimizedBlocks.Add(currentBlock);
-                    
-                    currentBlock = new S7AddressBlock
-                    {
-                        DbNumber = address.DbNumber,
-                        StartByte = address.StartByte,
-                        TotalLength = address.Length,
-                        Addresses = new List<S7AddressInfo> { address }
-                    };
-                    continue;
-                }
-                
-                // 计算加入后的效率比
-                var testBlock = new S7AddressBlock
-                {
-                    DbNumber = address.DbNumber,
-                    StartByte = newStartByte,
-                    TotalLength = newTotalLength,
-                    Addresses = new List<S7AddressInfo>(currentBlock.Addresses) { address }
-                };
-                
-                var newEfficiencyRatio = CalculateEfficiencyRatio(testBlock);
-                
-                // 检查效率比是否满足要求
-                if (newEfficiencyRatio >= minEfficiencyRatio)
-                {
-                    // 效率比满足要求，合并地址
-                    currentBlock.StartByte = newStartByte;
-                    currentBlock.TotalLength = newTotalLength;
-                    currentBlock.Addresses.Add(address);
-                }
-                else
-                {
-                    // 效率比不满足要求，完成当前块并开始新块
-                    currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
-                    optimizedBlocks.Add(currentBlock);
-                    
-                    currentBlock = new S7AddressBlock
-                    {
-                        DbNumber = address.DbNumber,
-                        StartByte = address.StartByte,
-                        TotalLength = address.Length,
-                        Addresses = new List<S7AddressInfo> { address }
-                    };
-                }
+                return optimizedBlocks;
             }
-            
-            // 处理最后一个块
-            if (currentBlock.Addresses.Count > 0)
+
+            // 同起始字节优先合并跨度更大的地址，确保重叠地址落入同一块
+            var sortedAddresses = addresses
+                .OrderBy(a => a.StartByte)
+                .ThenByDescending(a => a.Length)
+                .ThenBy(a => a.BitOffset)
+                .ToList();
+
+            var currentBlock = CreateBlock(sortedAddresses[0]);
+            for (int i = 1; i < sortedAddresses.Count; i++)
             {
-                currentBlock.EfficiencyRatio = CalculateEfficiencyRatio(currentBlock);
+                var address = sortedAddresses[i];
+                if (CanMergeIntoBlock(currentBlock, address, minEfficiencyRatio, maxBlockSize))
+                {
+                    MergeAddressIntoBlock(currentBlock, address);
+                    continue;
+                }
+
+                FinalizeBlock(currentBlock);
                 optimizedBlocks.Add(currentBlock);
+                currentBlock = CreateBlock(address);
             }
-            
+
+            FinalizeBlock(currentBlock);
+            optimizedBlocks.Add(currentBlock);
+
             return optimizedBlocks;
+        }
+
+        private static S7AddressBlock CreateBlock(S7AddressInfo address)
+        {
+            return new S7AddressBlock
+            {
+                DbNumber = address.DbNumber,
+                StartByte = address.StartByte,
+                TotalLength = address.Length,
+                Addresses = new List<S7AddressInfo> { address }
+            };
+        }
+
+        private static bool CanMergeIntoBlock(S7AddressBlock block, S7AddressInfo address, double minEfficiencyRatio, int maxBlockSize)
+        {
+            var newStartByte = Math.Min(block.StartByte, address.StartByte);
+            var newEndByte = Math.Max(GetBlockEndByte(block), GetAddressEndByte(address));
+            var newTotalLength = newEndByte - newStartByte;
+
+            if (newTotalLength > maxBlockSize)
+            {
+                return false;
+            }
+
+            // 地址与当前块重叠或相邻时始终合并，优先减少往返次数
+            if (address.StartByte <= GetBlockEndByte(block))
+            {
+                return true;
+            }
+
+            var gapLength = address.StartByte - GetBlockEndByte(block);
+            if (gapLength <= GetGapTolerance(minEfficiencyRatio, maxBlockSize))
+            {
+                return true;
+            }
+
+            var testBlock = new S7AddressBlock
+            {
+                DbNumber = block.DbNumber,
+                StartByte = newStartByte,
+                TotalLength = newTotalLength,
+                Addresses = new List<S7AddressInfo>(block.Addresses)
+            };
+            testBlock.Addresses.Add(address);
+
+            // 效率比不再作为硬性切块条件，仅用于兼容保守场景的辅助判断
+            var efficiencyRatio = CalculateEfficiencyRatio(testBlock);
+            return efficiencyRatio >= NormalizeEfficiencyRatio(minEfficiencyRatio);
+        }
+
+        private static void MergeAddressIntoBlock(S7AddressBlock block, S7AddressInfo address)
+        {
+            var newStartByte = Math.Min(block.StartByte, address.StartByte);
+            var newEndByte = Math.Max(GetBlockEndByte(block), GetAddressEndByte(address));
+
+            block.StartByte = newStartByte;
+            block.TotalLength = newEndByte - newStartByte;
+            block.Addresses.Add(address);
+        }
+
+        private static void FinalizeBlock(S7AddressBlock block)
+        {
+            block.Addresses = block.Addresses
+                .OrderBy(a => a.StartByte)
+                .ThenByDescending(a => a.Length)
+                .ThenBy(a => a.BitOffset)
+                .ToList();
+            block.EfficiencyRatio = CalculateEfficiencyRatio(block);
+        }
+
+        private static int GetBlockEndByte(S7AddressBlock block)
+        {
+            return block.StartByte + block.TotalLength;
+        }
+
+        private static int GetAddressEndByte(S7AddressInfo address)
+        {
+            return address.StartByte + address.Length;
+        }
+
+        private static int GetGapTolerance(double minEfficiencyRatio, int maxBlockSize)
+        {
+            var normalizedRatio = NormalizeEfficiencyRatio(minEfficiencyRatio);
+            return Math.Max(1, (int)Math.Round(maxBlockSize * (1 - normalizedRatio)));
+        }
+
+        private static double NormalizeEfficiencyRatio(double minEfficiencyRatio)
+        {
+            if (minEfficiencyRatio <= 0)
+            {
+                return 0;
+            }
+
+            return Math.Min(1, minEfficiencyRatio);
         }
 
         /// <summary>
@@ -657,8 +633,19 @@ namespace Wombat.IndustrialCommunication.PLC
         private static double CalculateEfficiencyRatio(S7AddressBlock block)
         {
             if (block.TotalLength == 0) return 0;
-            
-            var effectiveDataLength = block.Addresses.Sum(a => a.Length);
+
+            var coveredBytes = new bool[block.TotalLength];
+            foreach (var address in block.Addresses)
+            {
+                var startOffset = Math.Max(0, address.StartByte - block.StartByte);
+                var endOffset = Math.Min(block.TotalLength, startOffset + address.Length);
+                for (int i = startOffset; i < endOffset; i++)
+                {
+                    coveredBytes[i] = true;
+                }
+            }
+
+            var effectiveDataLength = coveredBytes.Count(covered => covered);
             return (double)effectiveDataLength / block.TotalLength;
         }
 

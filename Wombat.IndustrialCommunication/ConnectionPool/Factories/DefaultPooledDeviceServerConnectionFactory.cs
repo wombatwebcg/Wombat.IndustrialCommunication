@@ -98,7 +98,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
             var port = GetInt(parameters, "port", 502);
             var server = new ModbusTcpServer(ip, port);
-            ApplyCommonServerOptions(parameters, server);
+            ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new ModbusTcpServerPooledConnection(descriptor.Identity, server));
         }
@@ -118,7 +118,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var parity = GetEnum(parameters, "parity", Parity.None);
             var handshake = GetEnum(parameters, "handshake", Handshake.None);
             var server = new ModbusRtuServer(portName, baudRate, dataBits, stopBits, parity, handshake);
-            ApplyCommonServerOptions(parameters, server);
+            ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new ModbusRtuServerPooledConnection(descriptor.Identity, server));
         }
@@ -134,12 +134,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
             var port = GetInt(parameters, "port", 102);
             var server = new S7TcpServer(ip, port);
-            ApplyCommonServerOptions(parameters, server);
+            ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new S7TcpServerPooledConnection(descriptor.Identity, server));
         }
 
-        private static void ApplyCommonServerOptions(IDictionary<string, object> parameters, IDeviceServer server)
+        private static void ApplyCommonServerOptions(IDictionary<string, object> parameters, IDeviceServer server, string snapshotName)
         {
             if (server == null || parameters == null)
             {
@@ -149,19 +149,28 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             if (server is ModbusTcpServer modbusTcpServer)
             {
                 ApplyTcpLikeServerOptions(parameters, modbusTcpServer);
-                return;
             }
-
-            if (server is S7TcpServer s7Server)
+            else if (server is S7TcpServer s7Server)
             {
                 ApplyTcpLikeServerOptions(parameters, s7Server);
-                return;
             }
-
-            if (server is ModbusRtuServer modbusRtuServer)
+            else if (server is ModbusRtuServer modbusRtuServer)
             {
                 ApplyRtuServerOptions(parameters, modbusRtuServer);
             }
+
+            ApplySnapshotOptions(parameters, server, snapshotName);
+        }
+
+        private static void ApplySnapshotOptions(IDictionary<string, object> parameters, IDeviceServer server, string snapshotName)
+        {
+            if (server == null || parameters == null || !parameters.ContainsKey("enableSnapshotPersistence"))
+            {
+                return;
+            }
+
+            server.ConfigureSnapshotPersistence(snapshotName);
+            server.EnableSnapshotPersistence = GetBool(parameters, "enableSnapshotPersistence", server.EnableSnapshotPersistence);
         }
 
         private static void ApplyTcpLikeServerOptions(IDictionary<string, object> parameters, ModbusTcpServer server)
@@ -249,6 +258,23 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
             int parsed;
             if (int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
+            {
+                return parsed;
+            }
+
+            return defaultValue;
+        }
+
+        private static bool GetBool(IDictionary<string, object> parameters, string key, bool defaultValue)
+        {
+            object value;
+            if (!parameters.TryGetValue(key, out value) || value == null)
+            {
+                return defaultValue;
+            }
+
+            bool parsed;
+            if (bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out parsed))
             {
                 return parsed;
             }
