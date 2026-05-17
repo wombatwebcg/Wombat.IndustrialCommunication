@@ -376,7 +376,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         public OperationResult<IDictionary<ConnectionIdentity, ConnectionEntryState>> GetStates()
         {
             ThrowIfDisposed();
-            IDictionary<ConnectionIdentity, ConnectionEntryState> snapshot = _entries.ToDictionary(t => t.Key, t => t.Value.CreateSnapshot().State);
+            IDictionary<ConnectionIdentity, ConnectionEntryState> snapshot = _entries.ToDictionary(t => t.Key, t => t.Value.GetCachedSnapshot().State);
             return OperationResult.CreateSuccessResult(snapshot);
         }
 
@@ -394,20 +394,20 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult<ConnectionEntrySnapshot>("连接条目不存在");
             }
 
-            return OperationResult.CreateSuccessResult(entry.CreateSnapshot());
+            return OperationResult.CreateSuccessResult(entry.GetCachedSnapshot());
         }
 
         public OperationResult<IList<ConnectionEntrySnapshot>> GetEntrySnapshots()
         {
             ThrowIfDisposed();
-            IList<ConnectionEntrySnapshot> snapshots = _entries.Values.Select(t => t.CreateSnapshot()).ToList();
+            IList<ConnectionEntrySnapshot> snapshots = _entries.Values.Select(t => t.GetCachedSnapshot()).ToList();
             return OperationResult.CreateSuccessResult(snapshots);
         }
 
         public OperationResult<ConnectionPoolSnapshot> GetPoolSnapshot()
         {
             ThrowIfDisposed();
-            var entries = _entries.Values.Select(t => t.CreateSnapshot()).ToList();
+            var entries = _entries.Values.Select(t => t.GetCachedSnapshot()).ToList();
             var snapshot = ConnectionPoolSnapshotBuilder.Build(entries);
             return OperationResult.CreateSuccessResult(snapshot);
         }

@@ -28,6 +28,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         private DateTime? _lastMaintenanceTimeUtc;
         private ConnectionPoolMaintenanceMode _lastMaintenanceMode;
         private ConnectionEntryLifecycleState _lifecycleState;
+        private ConnectionEntrySnapshot _latestSnapshot;
+        private int _stateVersion;
 
         public PooledResourceEntry(ResourceDescriptor descriptor, IPooledResourceConnection<TResource> connection, IConnectionPoolEventPublisher eventPublisher)
         {
@@ -38,6 +40,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             _lifecycleState = ConnectionEntryLifecycleState.Uninitialized;
             _lastFailureReason = string.Empty;
             _lastMaintenanceMode = ConnectionPoolMaintenanceMode.Unknown;
+            _latestSnapshot = CreateSnapshotCore(LastActiveTimeUtc);
+            _stateVersion = 0;
         }
 
         public ResourceDescriptor Descriptor { get; private set; }
@@ -211,6 +215,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 _isRemoving = true;
                 _lastMaintenanceTimeUtc = DateTime.UtcNow;
                 _lastMaintenanceMode = mode;
+                IncrementStateVersionCore();
+                RefreshSnapshotCore(_lastMaintenanceTimeUtc.Value);
                 return OperationResult.CreateSuccessResult();
             }
         }
@@ -224,6 +230,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     _isRemoving = false;
                     _lastMaintenanceTimeUtc = DateTime.UtcNow;
                     _lastMaintenanceMode = mode;
+                    IncrementStateVersionCore();
+                    RefreshSnapshotCore(_lastMaintenanceTimeUtc.Value);
                 }
             }
         }
@@ -241,6 +249,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     mode,
                     null,
                     notifications);
+                RefreshSnapshotCore(DateTime.UtcNow);
             }
 
             PublishNotifications(notifications);
@@ -274,15 +283,51 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public async Task<OperationResult<T>> ExecuteAsync<T>(Func<TResource, Task<OperationResult<T>>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
+            if (action == null)
+            {
+                return OperationResult.CreateFailedResult<T>("执行委托不能为空");
+            }
+
             var notifications = new List<Action>();
             OperationResult<T> result;
+            var startVersion = 0;
+            var blocked = false;
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
-                QueuePoolEvent(ConnectionPoolEventType.ExecuteStarting, State, _lifecycleState, "开始执行连接操作", mode, null, notifications);
-                result = await Connection.ExecuteAsync(action).ConfigureAwait(false);
-                LastActiveTimeUtc = DateTime.UtcNow;
+                if (_isRemoving || IsTerminalLifecycleState())
+                {
+                    result = OperationResult.CreateFailedResult<T>("连接条目不可用");
+                    RefreshSnapshotCore(DateTime.UtcNow);
+                    blocked = true;
+                }
+                else
+                {
+                    startVersion = _stateVersion;
+                    QueuePoolEvent(ConnectionPoolEventType.ExecuteStarting, State, _lifecycleState, "开始执行连接操作", mode, null, notifications);
+                    LastActiveTimeUtc = DateTime.UtcNow;
+                    RefreshSnapshotCore(LastActiveTimeUtc);
+                    result = null;
+                }
+            }
 
-                if (result.IsSuccess)
+            if (blocked)
+            {
+                PublishNotifications(notifications);
+                return result;
+            }
+
+            result = await Connection.ExecuteAsync(action).ConfigureAwait(false);
+
+            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            {
+                var utcNow = DateTime.UtcNow;
+                LastActiveTimeUtc = utcNow;
+
+                if (_isRemoving || IsTerminalLifecycleState() || _stateVersion != startVersion)
+                {
+                    RefreshSnapshotCore(utcNow);
+                }
+                else if (result != null && result.IsSuccess)
                 {
                     _failureCount = 0;
                     _consecutiveHealthCheckFailures = 0;
@@ -291,9 +336,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 else
                 {
                     _failureCount++;
-                    _lastFailureReason = string.IsNullOrWhiteSpace(result.Message) ? "连接执行失败" : result.Message;
-                    _lastFailureTimeUtc = DateTime.UtcNow;
-                    TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ExecuteFailed, _lastFailureReason, mode, result.Exception, true, notifications);
+                    _lastFailureReason = result == null || string.IsNullOrWhiteSpace(result.Message) ? "连接执行失败" : result.Message;
+                    _lastFailureTimeUtc = utcNow;
+                    TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ExecuteFailed, _lastFailureReason, mode, result == null ? null : result.Exception, true, notifications);
                 }
             }
 
@@ -303,31 +348,23 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public async Task<OperationResult> ExecuteAsync(Func<TResource, Task<OperationResult>> action, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
-            var notifications = new List<Action>();
-            OperationResult result;
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            var wrapped = await ExecuteAsync<object>(async resource =>
             {
-                QueuePoolEvent(ConnectionPoolEventType.ExecuteStarting, State, _lifecycleState, "开始执行连接操作", mode, null, notifications);
-                result = await Connection.ExecuteAsync(action).ConfigureAwait(false);
-                LastActiveTimeUtc = DateTime.UtcNow;
-
+                var result = await action(resource).ConfigureAwait(false);
                 if (result.IsSuccess)
                 {
-                    _failureCount = 0;
-                    _consecutiveHealthCheckFailures = 0;
-                    TransitionState(GetOperationalState(), ConnectionPoolEventType.ConnectSucceeded, "连接执行成功", mode, null, false, notifications);
+                    return OperationResult.CreateSuccessResult<object>(null);
                 }
-                else
-                {
-                    _failureCount++;
-                    _lastFailureReason = string.IsNullOrWhiteSpace(result.Message) ? "连接执行失败" : result.Message;
-                    _lastFailureTimeUtc = DateTime.UtcNow;
-                    TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ExecuteFailed, _lastFailureReason, mode, result.Exception, true, notifications);
-                }
+
+                return OperationResult.CreateFailedResult<object>(result);
+            }, mode).ConfigureAwait(false);
+
+            if (wrapped.IsSuccess)
+            {
+                return new OperationResult().SetInfo(wrapped).Complete();
             }
 
-            PublishNotifications(notifications);
-            return result;
+            return OperationResult.CreateFailedResult(wrapped);
         }
 
         public bool CanCleanup(TimeSpan idleTimeout)
@@ -411,6 +448,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     _isUnderMaintenance = false;
                     _lastMaintenanceTimeUtc = DateTime.UtcNow;
                     _lastMaintenanceMode = mode;
+                    RefreshSnapshotCore(_lastMaintenanceTimeUtc.Value);
                 }
             }
 
@@ -446,24 +484,19 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         {
             using (_entryLock.Lock())
             {
-                return new ConnectionEntrySnapshot
-                {
-                    Identity = Identity,
-                    State = State,
-                    LifecycleState = _lifecycleState,
-                    ActiveLeaseCount = _leases.Count,
-                    FailureCount = _failureCount,
-                    HasExpiredLease = _leases.Values.Any(l => l.IsExpired(DateTime.UtcNow)),
-                    IsUnderMaintenance = _isUnderMaintenance,
-                    LastActiveTimeUtc = LastActiveTimeUtc,
-                    LastConnectedTimeUtc = _lastConnectedTimeUtc,
-                    LastFailureTimeUtc = _lastFailureTimeUtc,
-                    LastRecoveredTimeUtc = _lastRecoveredTimeUtc,
-                    LastMaintenanceTimeUtc = _lastMaintenanceTimeUtc,
-                    LastFailureReason = _lastFailureReason,
-                    LastMaintenanceMode = _lastMaintenanceMode
-                };
+                return CreateSnapshotCore(DateTime.UtcNow);
             }
+        }
+
+        public ConnectionEntrySnapshot GetCachedSnapshot()
+        {
+            var snapshot = _latestSnapshot;
+            if (snapshot == null)
+            {
+                return CreateSnapshot();
+            }
+
+            return CloneSnapshot(snapshot);
         }
 
         public async Task<OperationResult> DisposeAsync(ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.Dispose)
@@ -654,12 +687,14 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var currentState = MapPublicState(newState);
             LastActiveTimeUtc = DateTime.UtcNow;
             _lastMaintenanceMode = mode;
+            IncrementStateVersionCore();
 
             if (failure && !string.IsNullOrWhiteSpace(message))
             {
                 _lastFailureReason = message;
             }
 
+            RefreshSnapshotCore(LastActiveTimeUtc);
             QueuePoolEvent(eventType, currentState, newState, message, mode, exception, notifications);
             if (previousLifecycleState != newState || previousState != currentState)
             {
@@ -744,6 +779,65 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 notifications[i]();
             }
+        }
+
+        private void IncrementStateVersionCore()
+        {
+            _stateVersion++;
+        }
+
+        private void RefreshSnapshotCore(DateTime capturedAtUtc)
+        {
+            _latestSnapshot = CreateSnapshotCore(capturedAtUtc);
+        }
+
+        private ConnectionEntrySnapshot CreateSnapshotCore(DateTime capturedAtUtc)
+        {
+            return new ConnectionEntrySnapshot
+            {
+                Identity = Identity,
+                State = State,
+                LifecycleState = _lifecycleState,
+                ActiveLeaseCount = _leases.Count,
+                FailureCount = _failureCount,
+                HasExpiredLease = _leases.Values.Any(l => l.IsExpired(capturedAtUtc)),
+                IsUnderMaintenance = _isUnderMaintenance,
+                LastActiveTimeUtc = LastActiveTimeUtc,
+                CapturedAtUtc = capturedAtUtc,
+                LastConnectedTimeUtc = _lastConnectedTimeUtc,
+                LastFailureTimeUtc = _lastFailureTimeUtc,
+                LastRecoveredTimeUtc = _lastRecoveredTimeUtc,
+                LastMaintenanceTimeUtc = _lastMaintenanceTimeUtc,
+                LastFailureReason = _lastFailureReason,
+                LastMaintenanceMode = _lastMaintenanceMode
+            };
+        }
+
+        private static ConnectionEntrySnapshot CloneSnapshot(ConnectionEntrySnapshot snapshot)
+        {
+            if (snapshot == null)
+            {
+                return new ConnectionEntrySnapshot();
+            }
+
+            return new ConnectionEntrySnapshot
+            {
+                Identity = snapshot.Identity,
+                State = snapshot.State,
+                LifecycleState = snapshot.LifecycleState,
+                ActiveLeaseCount = snapshot.ActiveLeaseCount,
+                FailureCount = snapshot.FailureCount,
+                HasExpiredLease = snapshot.HasExpiredLease,
+                IsUnderMaintenance = snapshot.IsUnderMaintenance,
+                LastActiveTimeUtc = snapshot.LastActiveTimeUtc,
+                CapturedAtUtc = snapshot.CapturedAtUtc,
+                LastConnectedTimeUtc = snapshot.LastConnectedTimeUtc,
+                LastFailureTimeUtc = snapshot.LastFailureTimeUtc,
+                LastRecoveredTimeUtc = snapshot.LastRecoveredTimeUtc,
+                LastMaintenanceTimeUtc = snapshot.LastMaintenanceTimeUtc,
+                LastFailureReason = snapshot.LastFailureReason,
+                LastMaintenanceMode = snapshot.LastMaintenanceMode
+            };
         }
 
         private bool CanRecoverNow(ConnectionPoolOptions options, DateTime utcNow)

@@ -23,6 +23,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public DateTime LastActiveTimeUtc { get; set; }
 
+        public DateTime CapturedAtUtc { get; set; }
+
         public DateTime? LastConnectedTimeUtc { get; set; }
 
         public DateTime? LastFailureTimeUtc { get; set; }
@@ -41,6 +43,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
             LastFailureReason = string.Empty;
             LastMaintenanceMode = ConnectionPoolMaintenanceMode.Unknown;
             LifecycleState = ConnectionEntryLifecycleState.Uninitialized;
+            CapturedAtUtc = DateTime.UtcNow;
         }
     }
 }
