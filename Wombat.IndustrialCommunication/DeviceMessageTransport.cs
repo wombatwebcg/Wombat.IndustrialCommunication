@@ -94,7 +94,6 @@ namespace Wombat.IndustrialCommunication
                                 byte[] buffer = new byte[length];
                                 DebugLog("[DeviceMessageTransport调试] 创建缓冲区，大小: {Length} 字节", length);
                                 
-                                cts.Token.Register(() => _streamResource.StreamClose());
                                 DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Receive");
                                 
                                 var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
@@ -178,7 +177,6 @@ namespace Wombat.IndustrialCommunication
                             DebugLog("[DeviceMessageTransport调试] 设置发送超时: {SendTimeout}ms", _streamResource.SendTimeout);
                             
                             var ss = _streamResource.SendTimeout;
-                            cts.Token.Register(() => _streamResource.StreamClose());
                             DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Send");
                             
                             var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);

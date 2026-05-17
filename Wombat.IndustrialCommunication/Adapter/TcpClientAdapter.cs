@@ -23,6 +23,7 @@ namespace Wombat.IndustrialCommunication
         private const int DEFAULT_TIMEOUT_MS = 2000;
         private const int MIN_PORT = 1;
         private const int MAX_PORT = 65535;
+        private const int RECEIVE_POLL_INTERVAL_MS = 20;
         private ILogger _logger;
 
         public TcpClientAdapter(string ip, int port)
@@ -180,42 +181,51 @@ namespace Wombat.IndustrialCommunication
                 DebugLog("[TcpClientAdapter调试] 获取网络流成功，流状态: CanRead={CanRead}, CanWrite={CanWrite}", stream.CanRead, stream.CanWrite);
                 DebugLog("[TcpClientAdapter调试] 流超时设置: ReadTimeout={ReadTimeout}ms, WriteTimeout={WriteTimeout}ms", stream.ReadTimeout, stream.WriteTimeout);
                 
-                // 创建一个组合的取消令牌，包含外部取消令牌和超时
-                using (var timeoutCts = new CancellationTokenSource(_receiveTimeout))
-                using (var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeoutCts.Token))
+                var deadlineUtc = DateTime.UtcNow.Add(_receiveTimeout);
+                DebugLog("[TcpClientAdapter调试] 开始等待响应数据，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+
+                int totalRead = 0;
+                while (totalRead < size)
                 {
-                    DebugLog("[TcpClientAdapter调试] 开始调用 stream.ReadAsync，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+                    cancellationToken.ThrowIfCancellationRequested();
 
-                    int totalRead = 0;
-                    while (totalRead < size)
+                    if (!stream.DataAvailable)
                     {
-                        int currentRead = await stream.ReadAsync(buffer, offset + totalRead, size - totalRead, combinedCts.Token);
-                        DebugLog("[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {CurrentRead}", currentRead);
-
-                        if (currentRead == 0)
+                        var remaining = deadlineUtc - DateTime.UtcNow;
+                        if (remaining <= TimeSpan.Zero)
                         {
-                            DebugLog("[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
-                            return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
+                            DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+                            return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
                         }
 
-                        totalRead += currentRead;
+                        var delay = remaining.TotalMilliseconds > RECEIVE_POLL_INTERVAL_MS
+                            ? TimeSpan.FromMilliseconds(RECEIVE_POLL_INTERVAL_MS)
+                            : remaining;
+                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
+                        continue;
                     }
 
-                    DebugLog("[TcpClientAdapter调试] 读取完成，总字节数: {TotalRead}", totalRead);
-                    DebugLog("[TcpClientAdapter调试] 读取的数据: {Data}", string.Join(" ", buffer.Take(totalRead).Select(b => b.ToString("X2"))));
+                    int currentRead = await stream.ReadAsync(buffer, offset + totalRead, size - totalRead, cancellationToken).ConfigureAwait(false);
+                    DebugLog("[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {CurrentRead}", currentRead);
 
-                    return new OperationResult<int> { IsSuccess = true, ResultValue = totalRead };
+                    if (currentRead == 0)
+                    {
+                        DebugLog("[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
+                        return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
+                    }
+
+                    totalRead += currentRead;
                 }
+
+                DebugLog("[TcpClientAdapter调试] 读取完成，总字节数: {TotalRead}", totalRead);
+                DebugLog("[TcpClientAdapter调试] 读取的数据: {Data}", string.Join(" ", buffer.Take(totalRead).Select(b => b.ToString("X2"))));
+
+                return new OperationResult<int> { IsSuccess = true, ResultValue = totalRead };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作被外部取消");
                 return new OperationResult<int> { IsSuccess = false, Message = "Receive operation was cancelled" };
-            }
-            catch (OperationCanceledException)
-            {
-                DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
-                return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
             }
             catch (Exception ex)
             {
