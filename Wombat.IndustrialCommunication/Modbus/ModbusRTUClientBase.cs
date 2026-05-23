@@ -20,6 +20,11 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public override string Version => nameof(ModbusRtuClientBase);
 
+        /// <summary>
+        /// 批量读取时，不同站号之间的等待间隔。
+        /// </summary>
+        public TimeSpan BatchReadStationInterval { get; set; } = TimeSpan.Zero;
+
         // 批量读写相关结构体
         protected struct ModbusAddressInfo
         {
@@ -193,6 +198,19 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         }
 
+        protected async Task DelayBeforeNextStationBatchReadAsync(byte? previousStationNumber, byte currentStationNumber)
+        {
+            if (BatchReadStationInterval <= TimeSpan.Zero || !previousStationNumber.HasValue)
+            {
+                return;
+            }
+
+            if (previousStationNumber.Value != currentStationNumber)
+            {
+                await Task.Delay(BatchReadStationInterval).ConfigureAwait(false);
+            }
+        }
+
         // 批量读写核心方法
         public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
         {
@@ -225,12 +243,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                         result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
+                    var orderedBlocks = optimizedBlocks
+                        .OrderBy(t => t.StationNumber)
+                        .ThenBy(t => t.FunctionCode)
+                        .ThenBy(t => t.StartAddress)
+                        .ToList();
                     var blockDataDict = new Dictionary<string, byte[]>();
                     var errors = new List<string>();
-                    foreach (var block in optimizedBlocks)
+                    byte? previousStationNumber = null;
+                    foreach (var block in orderedBlocks)
                     {
                         try
                         {
+                            await DelayBeforeNextStationBatchReadAsync(previousStationNumber, block.StationNumber).ConfigureAwait(false);
                             string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
                             var readResult = await ReadByModbusAddressAsync(
                                 block.StationNumber,
@@ -247,10 +272,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                             {
                                 errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 失败: {readResult.Message}");
                             }
+                            previousStationNumber = block.StationNumber;
                         }
                         catch (Exception ex)
                         {
                             errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 异常: {ex.Message}");
+                            previousStationNumber = block.StationNumber;
                         }
                     }
                     if (errors.Count > 0)
@@ -262,7 +289,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = true;
                     }
-                    var extractedData = ModbusBatchHelper.ExtractDataFromModbusBlocks(blockDataDict, optimizedBlocks, addressInfos);
+                    var extractedData = ModbusBatchHelper.ExtractDataFromModbusBlocks(blockDataDict, orderedBlocks, addressInfos);
                     var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                     {

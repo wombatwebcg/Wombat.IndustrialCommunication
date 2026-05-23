@@ -1,4 +1,4 @@
-﻿﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -963,12 +963,19 @@ namespace Wombat.IndustrialCommunication.Modbus
                         return result.Complete();
                     }
                     // 执行批量读取
+                    var orderedBlocks = optimizedBlocks
+                        .OrderBy(t => t.StationNumber)
+                        .ThenBy(t => t.FunctionCode)
+                        .ThenBy(t => t.StartAddress)
+                        .ToList();
                     var blockDataDict = new Dictionary<string, byte[]>();
                     var errors = new List<string>();
-                    foreach (var block in optimizedBlocks)
+                    byte? previousStationNumber = null;
+                    foreach (var block in orderedBlocks)
                     {
                         try
                         {
+                            await DelayBeforeNextStationBatchReadAsync(previousStationNumber, block.StationNumber).ConfigureAwait(false);
                             string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
                             var readResult = await ReadByModbusAddressAsync(
                                 block.StationNumber,
@@ -985,10 +992,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                             {
                                 errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 失败: {readResult.Message}");
                             }
+                            previousStationNumber = block.StationNumber;
                         }
                         catch (Exception ex)
                         {
                             errors.Add($"读取块 {block.StationNumber};{block.FunctionCode};{block.StartAddress} 异常: {ex.Message}");
+                            previousStationNumber = block.StationNumber;
                         }
                     }
                     if (errors.Count > 0)
@@ -1000,7 +1009,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     {
                         result.IsSuccess = true;
                     }
-                    var extractedData = ModbusBatchHelper.ExtractDataFromModbusBlocks(blockDataDict, optimizedBlocks, addressInfos);
+                    var extractedData = ModbusBatchHelper.ExtractDataFromModbusBlocks(blockDataDict, orderedBlocks, addressInfos);
                     var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                     {
