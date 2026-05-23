@@ -80,6 +80,14 @@
 - Client 工厂：仅接受 `ResourceRole = Unknown/Client`，支持 `ModbusTcp/ModbusRtu/SiemensS7/Fins`。
 - Server 工厂：仅接受 `ResourceRole = Unknown/Server`，支持 `ModbusTcp/ModbusRtu/SiemensS7`（对应 `ModbusTcpServer/ModbusRtuServer/S7TcpServer`）。
 
+### 常用 `Parameters` 参数
+- `ip` / `port`：TCP 类客户端或服务端地址参数。
+- `portName` / `baudRate` / `dataBits` / `stopBits` / `parity` / `handshake`：Modbus RTU 串口参数。
+- `connectTimeoutMilliseconds` / `receiveTimeoutMilliseconds` / `sendTimeoutMilliseconds`：连接、收发超时时间，单位毫秒。
+- `retries`：客户端通信重试次数。
+- `probeAddress` / `probeDataType` / `probeLength`：客户端探活读取配置。
+- `batchReadStationIntervalMilliseconds`：仅对 `ModbusTcp` / `ModbusRtu` 客户端生效。用于控制一次 `BatchReadAsync` 中，不同站号之间的读取间隔，单位毫秒。例如设置为 `100` 后，批量读取从站号 `1` 切换到站号 `2` 时，会先等待 `100ms` 再发送下一条指令。
+
 ## 快速开始
 ### 客户端池示例
 ```csharp
@@ -101,6 +109,10 @@ var descriptor = new ResourceDescriptor
 
 descriptor.Parameters["ip"] = "192.168.1.10";
 descriptor.Parameters["port"] = 502;
+descriptor.Parameters["connectTimeoutMilliseconds"] = 3000;
+descriptor.Parameters["receiveTimeoutMilliseconds"] = 3000;
+descriptor.Parameters["sendTimeoutMilliseconds"] = 3000;
+descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
 
 var register = clientPool.Register(descriptor);
 if (register.IsSuccess)
@@ -110,6 +122,41 @@ if (register.IsSuccess)
         async c => c.ReadUInt16Async("1;3;0"));
 }
 ```
+
+### Modbus 批量读取跨站延迟示例
+当一次批量读取包含多个站号，并且希望每个站号之间留出固定间隔时，可以这样配置：
+
+```csharp
+var descriptor = new ResourceDescriptor
+{
+    Identity = new ConnectionIdentity
+    {
+        DeviceId = "modbus-multi-station",
+        ProtocolType = "ModbusTcp",
+        Endpoint = "192.168.1.10:502"
+    },
+    ResourceRole = ResourceRole.Client,
+    DeviceConnectionType = DeviceConnectionType.ModbusTcp
+};
+
+descriptor.Parameters["ip"] = "192.168.1.10";
+descriptor.Parameters["port"] = 502;
+descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
+
+await clientPool.ExecuteAsync(
+    descriptor.Identity,
+    async client => await client.BatchReadAsync(new Dictionary<string, DataTypeEnums>
+    {
+        ["1;40001"] = DataTypeEnums.UInt16,
+        ["2;40001"] = DataTypeEnums.UInt16,
+        ["3;40001"] = DataTypeEnums.UInt16
+    }));
+```
+
+上面的配置表示：
+- 同一站号内的地址仍会按现有优化逻辑尽量合并读取。
+- 当批量读取从一个站号切换到下一个站号时，会等待 `100ms`。
+- 若未配置该参数或配置为 `0`，则保持原有行为，不额外等待。
 
 ### 服务端池示例
 ```csharp

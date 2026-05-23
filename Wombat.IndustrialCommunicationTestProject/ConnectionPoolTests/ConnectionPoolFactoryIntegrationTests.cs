@@ -1,6 +1,8 @@
+using System;
 using Wombat.IndustrialCommunication.ConnectionPool.Factories;
 using Wombat.IndustrialCommunication.ConnectionPool.Models;
 using Wombat.IndustrialCommunication.ConnectionPool.Wrappers;
+using Wombat.IndustrialCommunication.Modbus;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
@@ -19,12 +21,15 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             };
             descriptor.Parameters["ip"] = "127.0.0.1";
             descriptor.Parameters["port"] = 502;
+            descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
 
             var result = factory.Create(descriptor);
 
             Assert.True(result.IsSuccess);
             Assert.IsType<ModbusTcpPooledConnection>(result.ResultValue);
             Assert.True(result.ResultValue.Resource.IsLongConnection);
+            var client = Assert.IsType<ModbusTcpClient>(result.ResultValue.Resource);
+            Assert.Equal(TimeSpan.FromMilliseconds(100), client.BatchReadStationInterval);
         }
 
         [Fact]
@@ -60,6 +65,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 DeviceConnectionType = DeviceConnectionType.ModbusRtu
             };
             rtu.Parameters["portName"] = "COM1";
+            rtu.Parameters["batchReadStationIntervalMilliseconds"] = 120;
 
             var fins = new ResourceDescriptor
             {
@@ -76,6 +82,8 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(finsResult.IsSuccess);
             Assert.IsType<ModbusRtuPooledConnection>(rtuResult.ResultValue);
             Assert.IsType<FinsPooledConnection>(finsResult.ResultValue);
+            var rtuClient = Assert.IsType<ModbusRtuClient>(rtuResult.ResultValue.Resource);
+            Assert.Equal(TimeSpan.FromMilliseconds(120), rtuClient.BatchReadStationInterval);
         }
 
         [Fact]
@@ -129,5 +137,3 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
     }
 }
-
-

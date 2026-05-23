@@ -60,6 +60,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 descriptor.Parameters["connectTimeoutMilliseconds"] = 3000;
                 descriptor.Parameters["receiveTimeoutMilliseconds"] = 3000;
                 descriptor.Parameters["sendTimeoutMilliseconds"] = 3000;
+                descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
 
                 var registerResult = pool.Register(descriptor);
                 Assert.True(registerResult.IsSuccess, $"注册 ModbusTcp 连接失败: {registerResult.Message}");

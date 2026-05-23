@@ -102,6 +102,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var port = GetInt(parameters, "port", 502);
             var client = new ModbusTcpClient(ip, port);
             ApplyCommonOptions(parameters, client);
+            ApplyModbusBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusTcpPooledConnection(
                 descriptor.Identity,
                 client,
@@ -126,6 +127,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var handshake = GetEnum(parameters, "handshake", Handshake.None);
             var client = new ModbusRtuClient(portName, baudRate, dataBits, stopBits, parity, handshake);
             ApplyCommonOptions(parameters, client);
+            ApplyModbusBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusRtuPooledConnection(
                 descriptor.Identity,
                 client,
@@ -204,6 +206,34 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             if (parameters.ContainsKey("retries"))
             {
                 client.Retries = GetInt(parameters, "retries", client.Retries);
+            }
+        }
+
+        private static void ApplyModbusBatchReadOptions(IDictionary<string, object> parameters, ModbusTcpClient client)
+        {
+            if (client == null || parameters == null)
+            {
+                return;
+            }
+
+            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            {
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
+                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
+            }
+        }
+
+        private static void ApplyModbusBatchReadOptions(IDictionary<string, object> parameters, ModbusRtuClient client)
+        {
+            if (client == null || parameters == null)
+            {
+                return;
+            }
+
+            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            {
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
+                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
             }
         }
 
