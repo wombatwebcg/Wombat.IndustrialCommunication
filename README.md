@@ -82,6 +82,52 @@ git clone https://github.com/wombatwebcg/Wombat.IndustrialCommunication.git
 
 ## 使用示例
 
+### ConnectionPool 连接池示例
+
+当通过 `ConnectionPool` 管理 Modbus 客户端，并且一次 `BatchReadAsync` 会跨多个站号读取时，可以通过 `batchReadStationIntervalMilliseconds` 控制站号切换间隔：
+
+```csharp
+using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.ConnectionPool.Core;
+using Wombat.IndustrialCommunication.ConnectionPool.Factories;
+using Wombat.IndustrialCommunication.ConnectionPool.Models;
+
+var options = new ConnectionPoolOptions();
+var pool = new DeviceClientPool(options, new DefaultPooledDeviceClientConnectionFactory());
+
+var descriptor = new ResourceDescriptor
+{
+    Identity = new ConnectionIdentity
+    {
+        DeviceId = "modbus-tcp-1",
+        ProtocolType = "ModbusTcp",
+        Endpoint = "192.168.0.100:502"
+    },
+    DeviceConnectionType = DeviceConnectionType.ModbusTcp
+};
+
+descriptor.Parameters["ip"] = "192.168.0.100";
+descriptor.Parameters["port"] = 502;
+descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
+
+pool.Register(descriptor);
+
+var result = await pool.ExecuteAsync(
+    descriptor.Identity,
+    async client => await client.BatchReadAsync(new Dictionary<string, DataTypeEnums>
+    {
+        ["1;40001"] = DataTypeEnums.UInt16,
+        ["2;40001"] = DataTypeEnums.UInt16,
+        ["3;40001"] = DataTypeEnums.UInt16
+    }));
+```
+
+说明：
+- 同一站号内仍会按原有规则尽量合并读取。
+- 只有切换到下一个站号时，才会等待 `100ms`。
+- 不配置或配置为 `0` 时，保持原有行为。
+- 更完整的连接池说明可参考 `Wombat.IndustrialCommunication/ConnectionPool.README.md`。
+
 ### Modbus TCP客户端示例
 
 #### 使用原始地址字符串方式

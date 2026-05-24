@@ -24,7 +24,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 批量读取时，不同站号之间的等待间隔。
         /// </summary>
-        public TimeSpan BatchReadStationInterval { get; set; } = TimeSpan.FromMilliseconds(200);
+        public TimeSpan BatchReadStationInterval { get; set; } = TimeSpan.FromMilliseconds(1000);
 
         // 批量读写相关结构体
         protected struct ModbusAddressInfo
