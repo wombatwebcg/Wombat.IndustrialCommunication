@@ -11,6 +11,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunicat
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunication.Extensions.Bluetooth", "Wombat.IndustrialCommunication.Extensions.Bluetooth\Wombat.IndustrialCommunication.Extensions.Bluetooth.csproj", "{51710406-AED6-4CD6-A1C4-D8F282166A59}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunication.ClientTest", "Wombat.IndustrialCommunication.ClientTest\Wombat.IndustrialCommunication.ClientTest.csproj", "{5F1B9B9C-DB33-44EC-88E0-C714C0136FBE}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -33,6 +35,10 @@ Global
 		{51710406-AED6-4CD6-A1C4-D8F282166A59}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{51710406-AED6-4CD6-A1C4-D8F282166A59}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{51710406-AED6-4CD6-A1C4-D8F282166A59}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5F1B9B9C-DB33-44EC-88E0-C714C0136FBE}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5F1B9B9C-DB33-44EC-88E0-C714C0136FBE}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5F1B9B9C-DB33-44EC-88E0-C714C0136FBE}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5F1B9B9C-DB33-44EC-88E0-C714C0136FBE}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

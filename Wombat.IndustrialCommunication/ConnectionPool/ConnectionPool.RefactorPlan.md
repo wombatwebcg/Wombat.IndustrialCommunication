@@ -103,6 +103,8 @@
 1. `DeviceClientPool` 基于 `ResourcePool<IDeviceClient>`。
 2. 保留批量点位读写与现有执行策略。
 3. 工厂 `DefaultPooledDeviceClientConnectionFactory` 负责创建 Modbus/S7/Fins 客户端包装。
+4. 客户端工厂负责透传协议特定运行参数，避免池化层屏蔽底层客户端能力。
+5. `batchReadStationIntervalMilliseconds` 作为统一参数名，当前用于配置 `ModbusTcp`、`ModbusRtu` 与 `Siemens S7` 的批量读取块间隔。
 
 ### 5.2 服务端池
 
@@ -120,6 +122,7 @@
 1. 增加 `ResourceRole = Client | Server`
 2. 保留协议、端点、参数字段
 3. 工厂与池注册流程基于 `ResourceRole + DeviceConnectionType` 双维路由
+4. 参数字段继续允许协议专属扩展键，统一键名优先复用跨协议语义，例如 `batchReadStationIntervalMilliseconds`
 
 目标：
 

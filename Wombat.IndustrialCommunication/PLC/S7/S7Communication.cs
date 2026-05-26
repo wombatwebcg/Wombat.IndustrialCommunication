@@ -95,6 +95,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         public double EfficiencyRatio { get; set; }
 
+        /// <summary>
+        /// 批量读取时，不同地址块之间的等待间隔。默认0表示不等待。
+        /// </summary>
+        public TimeSpan BatchReadStationInterval { get; set; } = TimeSpan.Zero;
+
         public SiemensVersion SiemensVersion{ get; set; }
 
         public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
@@ -512,11 +517,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var blockDataDict = new Dictionary<string, byte[]>();
                     var errors = new List<string>();
                     var warnings = new List<string>();
+                    var hasPreviousBlock = false;
 
                     foreach (var block in optimizedBlocks)
                     {
                         try
                         {
+                            await DelayBeforeNextBatchReadAsync(hasPreviousBlock).ConfigureAwait(false);
+
                             if (block.Addresses.Count == 0)
                             {
                                 errors.Add("地址块中没有地址信息");
@@ -547,10 +555,13 @@ namespace Wombat.IndustrialCommunication.PLC
                             {
                                 errors.Add($"读取块 {DescribeBatchReadBlock(block)} 失败: {readResult.Message}");
                             }
+
+                            hasPreviousBlock = true;
                         }
                         catch (Exception ex)
                         {
                             errors.Add($"读取块 {DescribeBatchReadBlock(block)} 异常: {ex.Message}");
+                            hasPreviousBlock = true;
                         }
                     }
 
@@ -600,6 +611,16 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 return result.Complete();
             }
+        }
+
+        private async Task DelayBeforeNextBatchReadAsync(bool hasPreviousBlock)
+        {
+            if (!hasPreviousBlock || BatchReadStationInterval <= TimeSpan.Zero)
+            {
+                return;
+            }
+
+            await Task.Delay(BatchReadStationInterval).ConfigureAwait(false);
         }
 
         private async ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block)

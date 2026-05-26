@@ -151,6 +151,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
             var rack = (byte)GetInt(parameters, "rack", 0);
             var client = new SiemensClient(ip, port, version, slot, rack);
             ApplyCommonOptions(parameters, client);
+            ApplySiemensBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new SiemensPooledConnection(
                 descriptor.Identity,
                 client,
@@ -224,6 +225,20 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
         }
 
         private static void ApplyModbusBatchReadOptions(IDictionary<string, object> parameters, ModbusRtuClient client)
+        {
+            if (client == null || parameters == null)
+            {
+                return;
+            }
+
+            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            {
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
+                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
+            }
+        }
+
+        private static void ApplySiemensBatchReadOptions(IDictionary<string, object> parameters, SiemensClient client)
         {
             if (client == null || parameters == null)
             {
