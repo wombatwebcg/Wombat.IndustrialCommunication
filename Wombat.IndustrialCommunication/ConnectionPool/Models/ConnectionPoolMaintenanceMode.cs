@@ -10,6 +10,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         Background = 2,
         Cleanup = 3,
         ForceReconnect = 4,
-        Dispose = 5
+        Dispose = 5,
+        ForceClose = 6
     }
 }

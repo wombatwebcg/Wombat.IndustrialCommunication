@@ -19,6 +19,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
 
         OperationResult Invalidate(ConnectionIdentity identity, string reason);
 
+        Task<OperationResult> ForceCloseAsync(ConnectionIdentity identity, string reason, CancellationToken cancellationToken = default(CancellationToken));
+
         OperationResult Unregister(ConnectionIdentity identity, string reason);
 
         OperationResult ForceReconnect(ConnectionIdentity identity, string reason);

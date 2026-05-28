@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO.Ports;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.ConnectionPool.Interfaces;
@@ -68,36 +66,43 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
         private static DeviceConnectionType ResolveConnectionType(ResourceDescriptor descriptor)
         {
-            if (descriptor.DeviceConnectionType != DeviceConnectionType.Unknown)
-            {
-                return descriptor.DeviceConnectionType;
-            }
-
-            if (string.IsNullOrWhiteSpace(descriptor.ConnectionType))
-            {
-                return DeviceConnectionType.Unknown;
-            }
-
-            DeviceConnectionType parsed;
-            if (Enum.TryParse(descriptor.ConnectionType, true, out parsed))
-            {
-                return parsed;
-            }
-
-            return DeviceConnectionType.Unknown;
+            return descriptor == null ? DeviceConnectionType.Unknown : descriptor.DeviceConnectionType;
         }
 
         private static OperationResult<IPooledResourceConnection<IDeviceServer>> CreateModbusTcpServer(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var ip = GetRequiredString(parameters, "ip");
-            if (string.IsNullOrWhiteSpace(ip))
+            ModbusTcpServerConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceServer>> failure;
+            if (!TryGetConnectionParameters(descriptor, "ModbusTcpServer", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("ModbusTcpServer 参数缺少 ip");
+                return failure;
             }
 
-            var port = GetInt(parameters, "port", 502);
-            var server = new ModbusTcpServer(ip, port);
+            if (string.IsNullOrWhiteSpace(parameters.Ip))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("ModbusTcpServer 参数缺少 Ip");
+            }
+
+            var validation = ValidateCommonServerParameters(parameters, "ModbusTcpServer");
+            if (!validation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validation);
+            }
+
+            int port;
+            string validationMessage;
+            if (!TryResolvePort(parameters.Port, 502, "ModbusTcpServer.Port", out port, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            int maxConnections;
+            if (!TryResolveOptionalPositiveInt(parameters.MaxConnections, "ModbusTcpServer.MaxConnections", out maxConnections, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            var server = new ModbusTcpServer(parameters.Ip, port);
             ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new ModbusTcpServerPooledConnection(descriptor.Identity, server));
@@ -105,19 +110,44 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
         private static OperationResult<IPooledResourceConnection<IDeviceServer>> CreateModbusRtuServer(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var portName = GetRequiredString(parameters, "portName");
-            if (string.IsNullOrWhiteSpace(portName))
+            ModbusRtuServerConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceServer>> failure;
+            if (!TryGetConnectionParameters(descriptor, "ModbusRtuServer", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("ModbusRtuServer 参数缺少 portName");
+                return failure;
             }
 
-            var baudRate = GetInt(parameters, "baudRate", 9600);
-            var dataBits = GetInt(parameters, "dataBits", 8);
-            var stopBits = GetEnum(parameters, "stopBits", StopBits.One);
-            var parity = GetEnum(parameters, "parity", Parity.None);
-            var handshake = GetEnum(parameters, "handshake", Handshake.None);
-            var server = new ModbusRtuServer(portName, baudRate, dataBits, stopBits, parity, handshake);
+            if (string.IsNullOrWhiteSpace(parameters.PortName))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("ModbusRtuServer 参数缺少 PortName");
+            }
+
+            var validation = ValidateCommonServerParameters(parameters, "ModbusRtuServer");
+            if (!validation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validation);
+            }
+
+            string validationMessage;
+            int baudRate;
+            if (!TryResolvePositiveInt(parameters.BaudRate, 9600, "ModbusRtuServer.BaudRate", out baudRate, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            int dataBits;
+            if (!TryResolvePositiveInt(parameters.DataBits, 8, "ModbusRtuServer.DataBits", out dataBits, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            var server = new ModbusRtuServer(
+                parameters.PortName,
+                baudRate,
+                dataBits,
+                parameters.StopBits ?? StopBits.One,
+                parameters.Parity ?? Parity.None,
+                parameters.Handshake ?? Handshake.None);
             ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new ModbusRtuServerPooledConnection(descriptor.Identity, server));
@@ -125,179 +155,242 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
         private static OperationResult<IPooledResourceConnection<IDeviceServer>> CreateS7TcpServer(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var ip = GetRequiredString(parameters, "ip");
-            if (string.IsNullOrWhiteSpace(ip))
+            SiemensS7ServerConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceServer>> failure;
+            if (!TryGetConnectionParameters(descriptor, "S7TcpServer", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("S7TcpServer 参数缺少 ip");
+                return failure;
             }
 
-            var port = GetInt(parameters, "port", 102);
-            var server = new S7TcpServer(ip, port);
+            if (string.IsNullOrWhiteSpace(parameters.Ip))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>("S7TcpServer 参数缺少 Ip");
+            }
+
+            var validation = ValidateCommonServerParameters(parameters, "S7TcpServer");
+            if (!validation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validation);
+            }
+
+            int port;
+            string validationMessage;
+            if (!TryResolvePort(parameters.Port, 102, "S7TcpServer.Port", out port, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            int maxConnections;
+            if (!TryResolveOptionalPositiveInt(parameters.MaxConnections, "S7TcpServer.MaxConnections", out maxConnections, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(validationMessage);
+            }
+
+            var server = new S7TcpServer(parameters.Ip, port);
             ApplyCommonServerOptions(parameters, server, descriptor.Identity.DeviceId);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceServer>>(
                 new S7TcpServerPooledConnection(descriptor.Identity, server));
         }
 
-        private static void ApplyCommonServerOptions(IDictionary<string, object> parameters, IDeviceServer server, string snapshotName)
+        private static void ApplyCommonServerOptions(ServerConnectionParametersBase parameters, IDeviceServer server, string snapshotName)
         {
             if (server == null || parameters == null)
             {
                 return;
             }
 
-            if (server is ModbusTcpServer modbusTcpServer)
+            if (server is ModbusTcpServer modbusTcpServer && parameters is TcpServerConnectionParametersBase tcpParameters)
             {
-                ApplyTcpLikeServerOptions(parameters, modbusTcpServer);
+                ApplyTcpLikeServerOptions(tcpParameters, modbusTcpServer);
             }
-            else if (server is S7TcpServer s7Server)
+            else if (server is S7TcpServer s7Server && parameters is TcpServerConnectionParametersBase s7Parameters)
             {
-                ApplyTcpLikeServerOptions(parameters, s7Server);
+                ApplyTcpLikeServerOptions(s7Parameters, s7Server);
             }
-            else if (server is ModbusRtuServer modbusRtuServer)
+            else if (server is ModbusRtuServer modbusRtuServer && parameters is ModbusRtuServerConnectionParameters rtuParameters)
             {
-                ApplyRtuServerOptions(parameters, modbusRtuServer);
+                ApplyRtuServerOptions(rtuParameters, modbusRtuServer);
             }
 
             ApplySnapshotOptions(parameters, server, snapshotName);
         }
 
-        private static void ApplySnapshotOptions(IDictionary<string, object> parameters, IDeviceServer server, string snapshotName)
+        private static void ApplySnapshotOptions(ServerConnectionParametersBase parameters, IDeviceServer server, string snapshotName)
         {
-            if (server == null || parameters == null || !parameters.ContainsKey("enableSnapshotPersistence"))
+            if (server == null || parameters == null || !parameters.EnableSnapshotPersistence.HasValue)
             {
                 return;
             }
 
             server.ConfigureSnapshotPersistence(snapshotName);
-            server.EnableSnapshotPersistence = GetBool(parameters, "enableSnapshotPersistence", server.EnableSnapshotPersistence);
+            server.EnableSnapshotPersistence = parameters.EnableSnapshotPersistence.Value;
         }
 
-        private static void ApplyTcpLikeServerOptions(IDictionary<string, object> parameters, ModbusTcpServer server)
+        private static void ApplyTcpLikeServerOptions(TcpServerConnectionParametersBase parameters, ModbusTcpServer server)
         {
-            if (parameters.ContainsKey("connectTimeoutMilliseconds"))
+            if (parameters.ConnectTimeoutMilliseconds.HasValue)
             {
-                server.ConnectTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "connectTimeoutMilliseconds", (int)server.ConnectTimeout.TotalMilliseconds));
+                server.ConnectTimeout = TimeSpan.FromMilliseconds(parameters.ConnectTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("receiveTimeoutMilliseconds"))
+            if (parameters.ReceiveTimeoutMilliseconds.HasValue)
             {
-                server.ReceiveTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "receiveTimeoutMilliseconds", (int)server.ReceiveTimeout.TotalMilliseconds));
+                server.ReceiveTimeout = TimeSpan.FromMilliseconds(parameters.ReceiveTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("sendTimeoutMilliseconds"))
+            if (parameters.SendTimeoutMilliseconds.HasValue)
             {
-                server.SendTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "sendTimeoutMilliseconds", (int)server.SendTimeout.TotalMilliseconds));
+                server.SendTimeout = TimeSpan.FromMilliseconds(parameters.SendTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("maxConnections"))
+            if (parameters.MaxConnections.HasValue)
             {
-                server.MaxConnections = GetInt(parameters, "maxConnections", server.MaxConnections);
-            }
-        }
-
-        private static void ApplyTcpLikeServerOptions(IDictionary<string, object> parameters, S7TcpServer server)
-        {
-            if (parameters.ContainsKey("connectTimeoutMilliseconds"))
-            {
-                server.ConnectTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "connectTimeoutMilliseconds", (int)server.ConnectTimeout.TotalMilliseconds));
-            }
-
-            if (parameters.ContainsKey("receiveTimeoutMilliseconds"))
-            {
-                server.ReceiveTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "receiveTimeoutMilliseconds", (int)server.ReceiveTimeout.TotalMilliseconds));
-            }
-
-            if (parameters.ContainsKey("sendTimeoutMilliseconds"))
-            {
-                server.SendTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "sendTimeoutMilliseconds", (int)server.SendTimeout.TotalMilliseconds));
-            }
-
-            if (parameters.ContainsKey("maxConnections"))
-            {
-                server.MaxConnections = GetInt(parameters, "maxConnections", server.MaxConnections);
+                server.MaxConnections = parameters.MaxConnections.Value;
             }
         }
 
-        private static void ApplyRtuServerOptions(IDictionary<string, object> parameters, ModbusRtuServer server)
+        private static void ApplyTcpLikeServerOptions(TcpServerConnectionParametersBase parameters, S7TcpServer server)
         {
-            if (parameters.ContainsKey("connectTimeoutMilliseconds"))
+            if (parameters.ConnectTimeoutMilliseconds.HasValue)
             {
-                server.ConnectTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "connectTimeoutMilliseconds", (int)server.ConnectTimeout.TotalMilliseconds));
+                server.ConnectTimeout = TimeSpan.FromMilliseconds(parameters.ConnectTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("receiveTimeoutMilliseconds"))
+            if (parameters.ReceiveTimeoutMilliseconds.HasValue)
             {
-                server.ReceiveTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "receiveTimeoutMilliseconds", (int)server.ReceiveTimeout.TotalMilliseconds));
+                server.ReceiveTimeout = TimeSpan.FromMilliseconds(parameters.ReceiveTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("sendTimeoutMilliseconds"))
+            if (parameters.SendTimeoutMilliseconds.HasValue)
             {
-                server.SendTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "sendTimeoutMilliseconds", (int)server.SendTimeout.TotalMilliseconds));
+                server.SendTimeout = TimeSpan.FromMilliseconds(parameters.SendTimeoutMilliseconds.Value);
+            }
+
+            if (parameters.MaxConnections.HasValue)
+            {
+                server.MaxConnections = parameters.MaxConnections.Value;
             }
         }
 
-        private static string GetRequiredString(IDictionary<string, object> parameters, string key)
+        private static void ApplyRtuServerOptions(ModbusRtuServerConnectionParameters parameters, ModbusRtuServer server)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
+            if (parameters.ConnectTimeoutMilliseconds.HasValue)
             {
-                return null;
+                server.ConnectTimeout = TimeSpan.FromMilliseconds(parameters.ConnectTimeoutMilliseconds.Value);
             }
 
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
+            if (parameters.ReceiveTimeoutMilliseconds.HasValue)
+            {
+                server.ReceiveTimeout = TimeSpan.FromMilliseconds(parameters.ReceiveTimeoutMilliseconds.Value);
+            }
+
+            if (parameters.SendTimeoutMilliseconds.HasValue)
+            {
+                server.SendTimeout = TimeSpan.FromMilliseconds(parameters.SendTimeoutMilliseconds.Value);
+            }
         }
 
-        private static int GetInt(IDictionary<string, object> parameters, string key, int defaultValue)
+        private static OperationResult ValidateCommonServerParameters(ServerConnectionParametersBase parameters, string connectionName)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
+            string validationMessage;
+            if (!TryResolveNonNegativeMilliseconds(parameters.ConnectTimeoutMilliseconds, connectionName + ".ConnectTimeoutMilliseconds", out validationMessage)
+                || !TryResolveNonNegativeMilliseconds(parameters.ReceiveTimeoutMilliseconds, connectionName + ".ReceiveTimeoutMilliseconds", out validationMessage)
+                || !TryResolveNonNegativeMilliseconds(parameters.SendTimeoutMilliseconds, connectionName + ".SendTimeoutMilliseconds", out validationMessage))
             {
-                return defaultValue;
+                return OperationResult.CreateFailedResult(validationMessage);
             }
 
-            int parsed;
-            if (int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
-            {
-                return parsed;
-            }
-
-            return defaultValue;
+            return OperationResult.CreateSuccessResult();
         }
 
-        private static bool GetBool(IDictionary<string, object> parameters, string key, bool defaultValue)
+        private static bool TryResolvePort(int? value, int defaultValue, string name, out int resolved, out string validationMessage)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            bool parsed;
-            if (bool.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), out parsed))
-            {
-                return parsed;
-            }
-
-            return defaultValue;
+            return TryResolveIntInRange(value, defaultValue, 1, 65535, name, out resolved, out validationMessage);
         }
 
-        private static TEnum GetEnum<TEnum>(IDictionary<string, object> parameters, string key, TEnum defaultValue) where TEnum : struct
+        private static bool TryResolvePositiveInt(int? value, int defaultValue, string name, out int resolved, out string validationMessage)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
+            return TryResolveIntInRange(value, defaultValue, 1, int.MaxValue, name, out resolved, out validationMessage);
+        }
+
+        private static bool TryResolveOptionalPositiveInt(int? value, string name, out int resolved, out string validationMessage)
+        {
+            resolved = 0;
+            validationMessage = null;
+            if (!value.HasValue)
             {
-                return defaultValue;
+                return true;
             }
 
-            var raw = Convert.ToString(value, CultureInfo.InvariantCulture);
-            TEnum parsed;
-            if (Enum.TryParse(raw, true, out parsed))
+            if (value.Value <= 0)
             {
-                return parsed;
+                validationMessage = name + " 必须大于 0";
+                return false;
             }
 
-            return defaultValue;
+            resolved = value.Value;
+            return true;
+        }
+
+        private static bool TryResolveIntInRange(int? value, int defaultValue, int minValue, int maxValue, string name, out int resolved, out string validationMessage)
+        {
+            resolved = defaultValue;
+            validationMessage = null;
+            if (!value.HasValue)
+            {
+                return true;
+            }
+
+            if (value.Value < minValue || value.Value > maxValue)
+            {
+                validationMessage = name + " 必须在 " + minValue + " 到 " + maxValue + " 之间";
+                return false;
+            }
+
+            resolved = value.Value;
+            return true;
+        }
+
+        private static bool TryResolveNonNegativeMilliseconds(int? value, string name, out string validationMessage)
+        {
+            validationMessage = null;
+            if (!value.HasValue)
+            {
+                return true;
+            }
+
+            if (value.Value < 0)
+            {
+                validationMessage = name + " 不能小于 0";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool TryGetConnectionParameters<TParameters>(
+            ResourceDescriptor descriptor,
+            string connectionName,
+            out TParameters parameters,
+            out OperationResult<IPooledResourceConnection<IDeviceServer>> failure)
+            where TParameters : class, IConnectionPoolParameters
+        {
+            parameters = descriptor.ConnectionParameters as TParameters;
+            if (parameters != null)
+            {
+                failure = null;
+                return true;
+            }
+
+            if (descriptor.ConnectionParameters == null)
+            {
+                failure = OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(connectionName + " 缺少 ConnectionParameters");
+                return false;
+            }
+
+            failure = OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceServer>>(
+                connectionName + " 参数类型不正确，应为 " + typeof(TParameters).Name);
+            return false;
         }
     }
 }

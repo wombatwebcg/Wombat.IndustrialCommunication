@@ -22,6 +22,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
         Disposed = 14,
         BackgroundMaintenanceCompleted = 15,
         ForceReconnectRequested = 16,
-        Unregistered = 17
+        Unregistered = 17,
+        ForceCloseRequested = 18,
+        ForceCloseCancelling = 19,
+        ForceClosed = 20
     }
 }

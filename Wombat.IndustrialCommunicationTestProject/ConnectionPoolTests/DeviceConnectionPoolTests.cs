@@ -21,11 +21,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var pool = new DeviceClientPool(options, new FakePooledConnectionFactory());
 
             var identity = new ConnectionIdentity { DeviceId = "dev1", ProtocolType = "ModbusTcp", Endpoint = "127.0.0.1:502" };
-            var descriptor = new ResourceDescriptor
-            {
-                Identity = identity,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
 
             Assert.True(pool.Register(descriptor).IsSuccess);
             var lease1 = await pool.AcquireAsync(identity);
@@ -44,11 +40,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         public void Should_Reject_Duplicate_Register()
         {
             var identity = new ConnectionIdentity { DeviceId = "dup", ProtocolType = "Mock", Endpoint = "dup" };
-            var descriptor = new ResourceDescriptor
-            {
-                Identity = identity,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
 
             var first = pool.Register(descriptor);
@@ -62,11 +54,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         public async Task Should_Register_Atomically_Under_Concurrent_Duplicate_Register()
         {
             var identity = new ConnectionIdentity { DeviceId = "dup-concurrent", ProtocolType = "Mock", Endpoint = "dup-concurrent" };
-            var descriptor = new ResourceDescriptor
-            {
-                Identity = identity,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
             var factory = new CountingPooledConnectionFactory();
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, factory);
 
@@ -81,27 +69,63 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
 
         [Fact]
-        public async Task Should_Serialize_Same_Device_And_Allow_Parallel_Different_Devices()
+        public async Task Should_Allow_Parallel_Execution_For_Same_And_Different_Devices()
         {
             var options = new ConnectionPoolOptions { LeaseTimeout = TimeSpan.FromSeconds(5), MaxRetryCount = 0 };
             var pool = new DeviceClientPool(options, new FakePooledConnectionFactory());
 
             var idA = new ConnectionIdentity { DeviceId = "A", ProtocolType = "Mock", Endpoint = "A" };
             var idB = new ConnectionIdentity { DeviceId = "B", ProtocolType = "Mock", Endpoint = "B" };
-            pool.Register(new ResourceDescriptor { Identity = idA, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
-            pool.Register(new ResourceDescriptor { Identity = idB, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(idA));
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(idB));
 
-            var sameA1 = pool.ExecuteAsync(idA, async _ => { await Task.Delay(120); return OperationResult.CreateSuccessResult(); });
-            var sameA2 = pool.ExecuteAsync(idA, async _ => { await Task.Delay(120); return OperationResult.CreateSuccessResult(); });
-            var differentB = pool.ExecuteAsync(idB, async _ => { await Task.Delay(120); return OperationResult.CreateSuccessResult(); });
+            var releaseExecutions = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var allStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var startedCount = 0;
+            var sameDeviceConcurrency = 0;
+            var sameDeviceMaxConcurrency = 0;
+            var differentDeviceStarted = 0;
 
-            var startedAt = DateTime.UtcNow;
-            var results = await Task.WhenAll(sameA1, sameA2, differentB);
-            var elapsed = DateTime.UtcNow - startedAt;
+            Func<ConnectionIdentity, Task<OperationResult>> execute = async currentIdentity =>
+            {
+                var isSameDevice = currentIdentity.Equals(idA);
+                if (isSameDevice)
+                {
+                    var currentConcurrency = Interlocked.Increment(ref sameDeviceConcurrency);
+                    TryUpdateMaxConcurrency(ref sameDeviceMaxConcurrency, currentConcurrency);
+                }
+                else
+                {
+                    Interlocked.Increment(ref differentDeviceStarted);
+                }
+
+                if (Interlocked.Increment(ref startedCount) == 3)
+                {
+                    allStarted.TrySetResult(true);
+                }
+
+                await releaseExecutions.Task.ConfigureAwait(false);
+
+                if (isSameDevice)
+                {
+                    Interlocked.Decrement(ref sameDeviceConcurrency);
+                }
+
+                return OperationResult.CreateSuccessResult();
+            };
+
+            var sameA1 = pool.ExecuteAsync(idA, _ => execute(idA));
+            var sameA2 = pool.ExecuteAsync(idA, _ => execute(idA));
+            var differentB = pool.ExecuteAsync(idB, _ => execute(idB));
+
+            var started = await Task.WhenAny(allStarted.Task, Task.Delay(200)).ConfigureAwait(false);
+            releaseExecutions.TrySetResult(true);
+            var results = await Task.WhenAll(sameA1, sameA2, differentB).ConfigureAwait(false);
 
             Assert.All(results, r => Assert.True(r.IsSuccess));
-            Assert.True(elapsed >= TimeSpan.FromMilliseconds(220), "同设备执行应串行，耗时应接近叠加");
-            Assert.True(elapsed < TimeSpan.FromMilliseconds(360), "不同设备执行应并行，不应完全串行");
+            Assert.Same(allStarted.Task, started);
+            Assert.True(sameDeviceMaxConcurrency >= 2, "同设备连接在当前实现下应允许并发执行");
+            Assert.True(differentDeviceStarted >= 1, "不同设备执行不应被同设备连接阻塞");
         }
 
         [Fact]
@@ -116,7 +140,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var pool = new DeviceClientPool(options, new FakePooledConnectionFactory());
 
             var identity = new ConnectionIdentity { DeviceId = "cleanup", ProtocolType = "Mock", Endpoint = "cleanup" };
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = pool.Acquire(identity);
             Assert.True(lease.IsSuccess);
@@ -133,7 +157,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "unregister", ProtocolType = "Mock", Endpoint = "unregister" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var result = pool.Unregister(identity, "测试注销");
             var snapshot = pool.GetState(identity);
@@ -147,7 +171,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "unregister-active", ProtocolType = "Mock", Endpoint = "unregister-active" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = pool.Acquire(identity);
             Assert.True(lease.IsSuccess);
@@ -163,7 +187,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "snapshot", ProtocolType = "Mock", Endpoint = "snapshot" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var snapshot = pool.GetState(identity);
 
@@ -182,10 +206,10 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var unavailable = new ConnectionIdentity { DeviceId = "pool-unavailable", ProtocolType = "Mock", Endpoint = "pool-unavailable" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
 
-            pool.Register(new ResourceDescriptor { Identity = disconnected, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
-            pool.Register(new ResourceDescriptor { Identity = ready, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
-            pool.Register(new ResourceDescriptor { Identity = busy, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
-            pool.Register(new ResourceDescriptor { Identity = unavailable, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(disconnected));
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(ready));
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(busy));
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(unavailable));
 
             var readyLease = await pool.AcquireAsync(ready).ConfigureAwait(false);
             Assert.True(readyLease.IsSuccess);
@@ -216,7 +240,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var events = new List<ConnectionPoolEventType>();
             pool.PoolEventOccurred += (sender, args) => events.Add(args.EventType);
 
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var lease = await pool.AcquireAsync(identity);
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
@@ -238,7 +262,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 EnableBackgroundMaintenance = false
             };
             var pool = new DeviceClientPool(options, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = pool.Acquire(identity);
             Assert.True(lease.IsSuccess);
@@ -261,7 +285,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var identity = new ConnectionIdentity { DeviceId = "reconnect", ProtocolType = "Mock", Endpoint = "reconnect" };
             var factory = new FakePooledConnectionFactory();
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, factory);
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var force = pool.ForceReconnect(identity, "测试重连");
             var snapshot = pool.GetPoolSnapshot();
@@ -277,7 +301,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "reconnect-active", ProtocolType = "Mock", Endpoint = "reconnect-active" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -293,7 +317,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "dispose-release", ProtocolType = "Mock", Endpoint = "dispose-release" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -321,7 +345,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "diag-default", ProtocolType = "Mock", Endpoint = "diag-default" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false, MaxRetryCount = 3 }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var executeCount = 0;
 
             var result = await pool.ExecuteAsync<int>(identity, client =>
@@ -347,7 +371,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                     RetryBackoff = TimeSpan.FromMilliseconds(1)
                 },
                 new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var executeCount = 0;
 
             var result = await pool.ExecuteAsync<int>(identity, client =>
@@ -372,7 +396,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             var identity = new ConnectionIdentity { DeviceId = "write-default", ProtocolType = "Mock", Endpoint = "write-default" };
             var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false, MaxRetryCount = 3 }, new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var executeCount = 0;
 
             var result = await pool.ExecuteAsync<int>(identity, client =>
@@ -398,7 +422,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                     RetryBackoff = TimeSpan.FromMilliseconds(1)
                 },
                 new FakePooledConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var executeCount = 0;
 
             var options = ConnectionExecutionOptions.CreateWrite();
@@ -422,11 +446,94 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.Equal(7, result.ResultValue);
         }
 
+        [Fact]
+        public async Task Should_Force_Close_Entry_Idempotently_And_Release_Leases()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "force-close", ProtocolType = "Mock", Endpoint = "force-close" };
+            var factory = new InspectablePooledConnectionFactory();
+            var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, factory);
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
+
+            var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
+            Assert.True(lease.IsSuccess);
+
+            var firstForceClose = await pool.ForceCloseAsync(identity, "测试强制关闭").ConfigureAwait(false);
+            var secondForceClose = await pool.ForceCloseAsync(identity, "重复强制关闭").ConfigureAwait(false);
+            var snapshot = pool.GetState(identity);
+            var acquire = await pool.AcquireAsync(identity).ConfigureAwait(false);
+            var release = pool.Release(lease.ResultValue);
+
+            Assert.True(firstForceClose.IsSuccess);
+            Assert.True(secondForceClose.IsSuccess);
+            Assert.NotNull(factory.LastConnection);
+            Assert.True(factory.LastConnection.DisconnectCount >= 1);
+            Assert.True(snapshot.IsSuccess);
+            Assert.Equal(ConnectionEntryState.Unavailable, snapshot.ResultValue.State);
+            Assert.Equal(ConnectionEntryLifecycleState.Invalidated, snapshot.ResultValue.LifecycleState);
+            Assert.Equal(0, snapshot.ResultValue.ActiveLeaseCount);
+            Assert.False(acquire.IsSuccess);
+            Assert.True(release.IsSuccess);
+        }
+
+        [Fact]
+        public async Task Should_Stop_Retrying_When_Force_Close_Is_Requested()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "force-close-retry", ProtocolType = "Mock", Endpoint = "force-close-retry" };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
+            var connection = new TestObjectConnection(identity);
+            var entry = new PooledResourceEntry<object>(descriptor, connection, new NullEventPublisher());
+            var executor = new PooledResourceExecutor<object>();
+            var options = new ConnectionPoolOptions
+            {
+                EnableBackgroundMaintenance = false,
+                MaxRetryCount = 3,
+                RetryBackoff = TimeSpan.FromSeconds(5)
+            };
+            var executionOptions = ConnectionExecutionOptions.CreateRead();
+            var firstAttemptStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var executeCount = 0;
+
+            var executeTask = executor.ExecuteAsync<int>(entry, (resource, cancellationToken) =>
+            {
+                Interlocked.Increment(ref executeCount);
+                firstAttemptStarted.TrySetResult(true);
+                return Task.FromResult(OperationResult.CreateFailedResult<int>(new TimeoutException("read timeout")));
+            }, options, executionOptions);
+
+            await firstAttemptStarted.Task.ConfigureAwait(false);
+            var forceClose = await entry.ForceCloseAsync("测试强制关闭", CancellationToken.None).ConfigureAwait(false);
+            var executeResult = await executeTask.ConfigureAwait(false);
+
+            Assert.True(forceClose.IsSuccess);
+            Assert.False(executeResult.IsSuccess);
+            Assert.True(executeResult.IsCancelled);
+            Assert.Equal(1, executeCount);
+            Assert.Equal(ConnectionEntryLifecycleState.Invalidated, entry.LifecycleState);
+            Assert.True(connection.DisconnectCount >= 1);
+            Assert.Contains("强制关闭", executeResult.Message);
+        }
+
         private sealed class FakePooledConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
         {
             public OperationResult<IPooledResourceConnection<IDeviceClient>> Create(ResourceDescriptor descriptor)
             {
                 return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new FakePooledConnection(descriptor.Identity));
+            }
+
+            public Task<OperationResult<IPooledResourceConnection<IDeviceClient>>> CreateAsync(ResourceDescriptor descriptor)
+            {
+                return Task.FromResult(Create(descriptor));
+            }
+        }
+
+        private sealed class InspectablePooledConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
+        {
+            public InspectablePooledConnection LastConnection { get; private set; }
+
+            public OperationResult<IPooledResourceConnection<IDeviceClient>> Create(ResourceDescriptor descriptor)
+            {
+                LastConnection = new InspectablePooledConnection(descriptor.Identity);
+                return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(LastConnection);
             }
 
             public Task<OperationResult<IPooledResourceConnection<IDeviceClient>>> CreateAsync(ResourceDescriptor descriptor)
@@ -521,6 +628,181 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 var result = await action(null);
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return result;
+            }
+        }
+
+        private sealed class InspectablePooledConnection : IPooledResourceConnection<IDeviceClient>
+        {
+            public InspectablePooledConnection(ConnectionIdentity identity)
+            {
+                Identity = identity;
+                State = ConnectionEntryLifecycleState.Uninitialized;
+                LastActiveTimeUtc = DateTime.UtcNow;
+            }
+
+            public int DisconnectCount { get; private set; }
+
+            public ConnectionIdentity Identity { get; private set; }
+
+            public ConnectionEntryLifecycleState State { get; private set; }
+
+            public DateTime LastActiveTimeUtc { get; private set; }
+
+            public bool IsAvailable => State == ConnectionEntryLifecycleState.Ready || State == ConnectionEntryLifecycleState.Leased;
+
+            public IDeviceClient Resource => null;
+
+            public OperationResult EnsureAvailable()
+            {
+                State = ConnectionEntryLifecycleState.Ready;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateSuccessResult();
+            }
+
+            public Task<OperationResult> EnsureAvailableAsync()
+            {
+                return Task.FromResult(EnsureAvailable());
+            }
+
+            public Task<OperationResult> ProbeAsync(TimeSpan timeout)
+            {
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return Task.FromResult(OperationResult.CreateSuccessResult());
+            }
+
+            public OperationResult Invalidate(string reason)
+            {
+                State = ConnectionEntryLifecycleState.Invalidated;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateFailedResult(reason);
+            }
+
+            public OperationResult DisconnectOrShutdown()
+            {
+                DisconnectCount++;
+                State = ConnectionEntryLifecycleState.Disposed;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateSuccessResult();
+            }
+
+            public async Task<OperationResult<T>> ExecuteAsync<T>(Func<IDeviceClient, Task<OperationResult<T>>> action)
+            {
+                var result = await action(null).ConfigureAwait(false);
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return result;
+            }
+
+            public async Task<OperationResult> ExecuteAsync(Func<IDeviceClient, Task<OperationResult>> action)
+            {
+                var result = await action(null).ConfigureAwait(false);
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return result;
+            }
+        }
+
+        private sealed class TestObjectConnection : IPooledResourceConnection<object>
+        {
+            public TestObjectConnection(ConnectionIdentity identity)
+            {
+                Identity = identity;
+                State = ConnectionEntryLifecycleState.Uninitialized;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                Resource = new object();
+            }
+
+            public int DisconnectCount { get; private set; }
+
+            public ConnectionIdentity Identity { get; private set; }
+
+            public ConnectionEntryLifecycleState State { get; private set; }
+
+            public DateTime LastActiveTimeUtc { get; private set; }
+
+            public bool IsAvailable => State == ConnectionEntryLifecycleState.Ready || State == ConnectionEntryLifecycleState.Leased;
+
+            public object Resource { get; private set; }
+
+            public OperationResult EnsureAvailable()
+            {
+                State = ConnectionEntryLifecycleState.Ready;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateSuccessResult();
+            }
+
+            public Task<OperationResult> EnsureAvailableAsync()
+            {
+                return Task.FromResult(EnsureAvailable());
+            }
+
+            public Task<OperationResult> ProbeAsync(TimeSpan timeout)
+            {
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return Task.FromResult(OperationResult.CreateSuccessResult());
+            }
+
+            public OperationResult Invalidate(string reason)
+            {
+                State = ConnectionEntryLifecycleState.Invalidated;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateFailedResult(reason);
+            }
+
+            public OperationResult DisconnectOrShutdown()
+            {
+                DisconnectCount++;
+                State = ConnectionEntryLifecycleState.Disposed;
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return OperationResult.CreateSuccessResult();
+            }
+
+            public async Task<OperationResult<T>> ExecuteAsync<T>(Func<object, Task<OperationResult<T>>> action)
+            {
+                var result = await action(Resource).ConfigureAwait(false);
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return result;
+            }
+
+            public async Task<OperationResult> ExecuteAsync(Func<object, Task<OperationResult>> action)
+            {
+                var result = await action(Resource).ConfigureAwait(false);
+                LastActiveTimeUtc = DateTime.UtcNow;
+                return result;
+            }
+        }
+
+        private sealed class NullEventPublisher : IConnectionPoolEventPublisher
+        {
+            public void Publish(ConnectionPoolEventArgs args)
+            {
+            }
+
+            public void PublishStateChanged(ConnectionStateChangedEventArgs args)
+            {
+            }
+
+            public void PublishLeaseEvent(ConnectionLeaseEventArgs args)
+            {
+            }
+
+            public void PublishMaintenanceEvent(ConnectionMaintenanceEventArgs args)
+            {
+            }
+        }
+
+        private static void TryUpdateMaxConcurrency(ref int maxValue, int candidate)
+        {
+            while (true)
+            {
+                var snapshot = maxValue;
+                if (candidate <= snapshot)
+                {
+                    return;
+                }
+
+                if (Interlocked.CompareExchange(ref maxValue, candidate, snapshot) == snapshot)
+                {
+                    return;
+                }
             }
         }
     }

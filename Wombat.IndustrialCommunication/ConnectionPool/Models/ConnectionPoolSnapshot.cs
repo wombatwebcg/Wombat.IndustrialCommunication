@@ -18,6 +18,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public int UnavailableEntries { get; set; }
 
+        public int ForceClosingEntries { get; set; }
+
         public int TotalActiveLeases { get; set; }
 
         public DateTime CapturedAtUtc { get; set; }

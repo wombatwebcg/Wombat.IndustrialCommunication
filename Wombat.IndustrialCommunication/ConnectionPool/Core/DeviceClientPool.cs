@@ -31,8 +31,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult<IList<DevicePointReadResult>>(normalized);
             }
 
-            return await ExecuteAsync<IList<DevicePointReadResult>>(identity, client =>
-                PointListOperationHelper.ReadPointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
+            return await ExecuteWithExecutionTokenAsync<IList<DevicePointReadResult>>(identity, (client, executionToken) =>
+                PointListOperationHelper.ReadPointsAsync(client, normalized.ResultValue, executionToken), executionOptions, cancellationToken).ConfigureAwait(false);
         }
 
         public async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(ConnectionIdentity identity, IEnumerable<DevicePointWriteRequest> points, CancellationToken cancellationToken = default(CancellationToken))
@@ -50,8 +50,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult<IList<DevicePointWriteResult>>(normalized);
             }
 
-            return await ExecuteAsync<IList<DevicePointWriteResult>>(identity, client =>
-                PointListOperationHelper.WritePointsAsync(client, normalized.ResultValue), executionOptions, cancellationToken).ConfigureAwait(false);
+            return await ExecuteWithExecutionTokenAsync<IList<DevicePointWriteResult>>(identity, (client, executionToken) =>
+                PointListOperationHelper.WritePointsAsync(client, normalized.ResultValue, executionToken), executionOptions, cancellationToken).ConfigureAwait(false);
         }
     }
 }

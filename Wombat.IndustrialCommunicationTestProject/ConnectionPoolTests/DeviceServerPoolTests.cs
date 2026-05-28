@@ -25,12 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 RetryBackoff = TimeSpan.FromMilliseconds(1)
             }, factory);
 
-            var registerResult = pool.Register(new ResourceDescriptor
-            {
-                Identity = identity,
-                ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            });
+            var registerResult = pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpServerDescriptor(identity));
             Assert.True(registerResult.IsSuccess);
 
             var startResult = await pool.StartAsync(identity).ConfigureAwait(false);
@@ -55,12 +50,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 RetryBackoff = TimeSpan.FromMilliseconds(1)
             }, factory);
 
-            var registerResult = pool.Register(new ResourceDescriptor
-            {
-                Identity = identity,
-                ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            });
+            var registerResult = pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpServerDescriptor(identity));
             Assert.True(registerResult.IsSuccess);
 
             var startResult = await pool.StartAsync(identity).ConfigureAwait(false);
@@ -80,12 +70,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 EnableBackgroundMaintenance = false
             }, factory);
 
-            var registerResult = pool.Register(new ResourceDescriptor
-            {
-                Identity = identity,
-                ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
-            });
+            var registerResult = pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpServerDescriptor(identity));
             Assert.True(registerResult.IsSuccess);
             Assert.True((await pool.StartAsync(identity).ConfigureAwait(false)).IsSuccess);
 

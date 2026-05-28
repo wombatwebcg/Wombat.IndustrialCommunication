@@ -21,6 +21,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 BusyEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Busy),
                 DisconnectedEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Disconnected),
                 UnavailableEntries = safeEntries.Count(t => t.State == ConnectionEntryState.Unavailable),
+                ForceClosingEntries = safeEntries.Count(t => t.LifecycleState == ConnectionEntryLifecycleState.ForceClosing),
                 TotalActiveLeases = safeEntries.Sum(t => t.ActiveLeaseCount),
                 Entries = safeEntries
             };

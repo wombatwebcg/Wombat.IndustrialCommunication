@@ -37,7 +37,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 }
             };
 
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             await pool.AcquireAsync(identity);
             for (var i = 0; i < 20 && !maintenanceRaised; i++)
             {
@@ -60,7 +60,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             };
 
             var pool = new DeviceClientPool(options, new MaintenanceConnectionFactory());
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             await Task.Delay(80).ConfigureAwait(false);
             var unregister = pool.Unregister(identity, "后台维护下注销");
@@ -86,7 +86,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 IdleTimeout = TimeSpan.FromSeconds(5)
             };
             var pool = new DeviceClientPool(options, factory);
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -118,7 +118,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 MaxConsecutiveHealthCheckFailures = 10
             };
             var pool = new DeviceClientPool(options, factory);
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
@@ -164,7 +164,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             for (var i = 0; i < identities.Length; i++)
             {
-                pool.Register(new ResourceDescriptor { Identity = identities[i], DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+                pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identities[i]));
                 var lease = await pool.AcquireAsync(identities[i]).ConfigureAwait(false);
                 Assert.True(lease.IsSuccess);
                 Assert.True(pool.Release(lease.ResultValue).IsSuccess);
@@ -194,7 +194,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 MaxConsecutiveHealthCheckFailures = 1
             };
             var pool = new DeviceClientPool(options, factory);
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
 
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);

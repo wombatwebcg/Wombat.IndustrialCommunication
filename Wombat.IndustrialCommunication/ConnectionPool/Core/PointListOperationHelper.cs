@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Globalization;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.ConnectionPool.Models;
@@ -10,6 +11,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 {
     internal static class PointListOperationHelper
     {
+        private const string ForceClosedExecutionMessage = "连接已被强制关闭，读取已终止";
+        private const string OperationCancelledMessage = "操作已取消";
+
         public static OperationResult<IList<DevicePointReadRequest>> NormalizeReadRequests(IEnumerable<DevicePointReadRequest> points)
         {
             if (points == null)
@@ -87,7 +91,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return OperationResult.CreateSuccessResult<IList<DevicePointWriteRequest>>(normalized);
         }
 
-        public static async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(IDeviceClient client, IList<DevicePointReadRequest> points)
+        public static async Task<OperationResult<IList<DevicePointReadResult>>> ReadPointsAsync(IDeviceClient client, IList<DevicePointReadRequest> points, CancellationToken cancellationToken)
         {
             if (client == null)
             {
@@ -106,6 +110,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return aggregate.Complete();
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CreateCancelledReadResult(results, true);
+            }
+
             var batchReadRequest = BuildBatchReadRequest(points);
             var batchReadResult = default(OperationResult<Dictionary<string, (DataTypeEnums, object)>>);
             var useBatchReadResult = false;
@@ -113,6 +122,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 batchReadResult = await client.BatchReadAsync(batchReadRequest).ConfigureAwait(false);
                 MergeOperationTrace(aggregate, batchReadResult);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return CreateCancelledReadResult(results, true).SetInfo(aggregate);
+                }
+
                 if (batchReadResult.IsSuccess)
                 {
                     useBatchReadResult = true;
@@ -125,6 +139,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             foreach (var point in points)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return CreateCancelledReadResult(results, true).SetInfo(aggregate);
+                }
+
                 OperationResult<object> pointResult;
                 if (useBatchReadResult && batchReadRequest.ContainsKey(point.Address))
                 {
@@ -145,13 +164,18 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CreateCancelledReadResult(results, true).SetInfo(aggregate);
+            }
+
             aggregate.ResultValue = results;
             aggregate.IsSuccess = failedMessages.Count == 0;
             aggregate.Message = failedMessages.Count == 0 ? StringResources.Language.SuccessText : string.Join("; ", failedMessages.ToArray());
             return aggregate.Complete();
         }
 
-        public static async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(IDeviceClient client, IList<DevicePointWriteRequest> points)
+        public static async Task<OperationResult<IList<DevicePointWriteResult>>> WritePointsAsync(IDeviceClient client, IList<DevicePointWriteRequest> points, CancellationToken cancellationToken)
         {
             if (client == null)
             {
@@ -170,12 +194,22 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return aggregate.Complete();
             }
 
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CreateCancelledWriteResult(results, true);
+            }
+
             var batchWriteRequest = BuildBatchWriteRequest(points);
             var batchWriteSucceededAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (batchWriteRequest.Count > 1)
             {
                 var batchWriteResult = await client.BatchWriteAsync(batchWriteRequest).ConfigureAwait(false);
                 MergeOperationTrace(aggregate, batchWriteResult);
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return CreateCancelledWriteResult(results, false).SetInfo(aggregate);
+                }
+
                 if (batchWriteResult.IsSuccess)
                 {
                     foreach (var address in batchWriteRequest.Keys)
@@ -191,6 +225,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             foreach (var point in points)
             {
+                if (cancellationToken.IsCancellationRequested)
+                {
+                    return CreateCancelledWriteResult(results, false).SetInfo(aggregate);
+                }
+
                 OperationResult pointResult;
                 if (batchWriteSucceededAddresses.Contains(point.Address))
                 {
@@ -209,6 +248,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 {
                     failedMessages.Add(string.Format("{0}: {1}", point.Name, pointResult.Message));
                 }
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                return CreateCancelledWriteResult(results, false).SetInfo(aggregate);
             }
 
             aggregate.ResultValue = results;
@@ -452,6 +496,22 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 target.OperationInfo.Add(info);
             }
+        }
+
+        private static OperationResult<IList<DevicePointReadResult>> CreateCancelledReadResult(IList<DevicePointReadResult> partialResults, bool forceClosed)
+        {
+            var cancelled = OperationResult.CreateFailedResult<IList<DevicePointReadResult>>(forceClosed ? ForceClosedExecutionMessage : OperationCancelledMessage);
+            cancelled.IsCancelled = true;
+            cancelled.ResultValue = partialResults ?? new List<DevicePointReadResult>();
+            return cancelled.Complete();
+        }
+
+        private static OperationResult<IList<DevicePointWriteResult>> CreateCancelledWriteResult(IList<DevicePointWriteResult> partialResults, bool forceClosed)
+        {
+            var cancelled = OperationResult.CreateFailedResult<IList<DevicePointWriteResult>>(forceClosed ? ForceClosedExecutionMessage : OperationCancelledMessage);
+            cancelled.IsCancelled = true;
+            cancelled.ResultValue = partialResults ?? new List<DevicePointWriteResult>();
+            return cancelled.Complete();
         }
 
         private static string ResolvePointName(string name, string address)

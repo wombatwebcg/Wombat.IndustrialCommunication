@@ -1,6 +1,3 @@
-using System;
-using System.Collections.Generic;
-
 namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 {
     /// <summary>
@@ -16,7 +13,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public DeviceConnectionType DeviceConnectionType { get; set; }
 
-        public IDictionary<string, object> Parameters { get; set; }
+        public IConnectionPoolParameters ConnectionParameters { get; set; }
 
         public ResourceDescriptor()
         {
@@ -24,7 +21,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
             ResourceRole = ResourceRole.Unknown;
             ConnectionType = string.Empty;
             DeviceConnectionType = DeviceConnectionType.Unknown;
-            Parameters = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase);
         }
     }
 }

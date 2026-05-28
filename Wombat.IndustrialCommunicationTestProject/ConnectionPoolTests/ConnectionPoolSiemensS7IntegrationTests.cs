@@ -131,21 +131,23 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
         private static ResourceDescriptor CreateDescriptor()
         {
-            var descriptor = new ResourceDescriptor
+            return new ResourceDescriptor
             {
                 Identity = CreateIdentity(),
-                DeviceConnectionType = DeviceConnectionType.SiemensS7
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.SiemensS7,
+                ConnectionParameters = new SiemensS7ClientConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 1202,
+                    SiemensVersion = SiemensVersion.S7_1200,
+                    Slot = 0,
+                    Rack = 0,
+                    ConnectTimeoutMilliseconds = 2000,
+                    ReceiveTimeoutMilliseconds = 2000,
+                    SendTimeoutMilliseconds = 2000
+                }
             };
-
-            descriptor.Parameters["ip"] = "127.0.0.1";
-            descriptor.Parameters["port"] = 1202;
-            descriptor.Parameters["siemensVersion"] = SiemensVersion.S7_1200;
-            descriptor.Parameters["slot"] = 0;
-            descriptor.Parameters["rack"] = 0;
-            descriptor.Parameters["connectTimeoutMilliseconds"] = 2000;
-            descriptor.Parameters["receiveTimeoutMilliseconds"] = 2000;
-            descriptor.Parameters["sendTimeoutMilliseconds"] = 2000;
-            return descriptor;
         }
 
         private static ConnectionIdentity CreateIdentity()

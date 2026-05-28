@@ -53,14 +53,17 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 var descriptor = new ResourceDescriptor
                 {
                     Identity = identity,
-                    DeviceConnectionType = DeviceConnectionType.ModbusTcp
+                    DeviceConnectionType = DeviceConnectionType.ModbusTcp,
+                    ConnectionParameters = new ModbusTcpClientConnectionParameters
+                    {
+                        Ip = TestIp,
+                        Port = TestPort,
+                        ConnectTimeoutMilliseconds = 3000,
+                        ReceiveTimeoutMilliseconds = 3000,
+                        SendTimeoutMilliseconds = 3000,
+                        BatchReadStationIntervalMilliseconds = 100
+                    }
                 };
-                descriptor.Parameters["ip"] = TestIp;
-                descriptor.Parameters["port"] = TestPort;
-                descriptor.Parameters["connectTimeoutMilliseconds"] = 3000;
-                descriptor.Parameters["receiveTimeoutMilliseconds"] = 3000;
-                descriptor.Parameters["sendTimeoutMilliseconds"] = 3000;
-                descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
 
                 var registerResult = pool.Register(descriptor);
                 Assert.True(registerResult.IsSuccess, $"注册 ModbusTcp 连接失败: {registerResult.Message}");

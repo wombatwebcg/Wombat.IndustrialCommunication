@@ -1,6 +1,4 @@
 using System;
-using System.Collections.Generic;
-using System.Globalization;
 using System.IO.Ports;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
@@ -71,236 +69,359 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Factories
 
         private static DeviceConnectionType ResolveConnectionType(ResourceDescriptor descriptor)
         {
-            if (descriptor.DeviceConnectionType != DeviceConnectionType.Unknown)
-            {
-                return descriptor.DeviceConnectionType;
-            }
-
-            if (string.IsNullOrWhiteSpace(descriptor.ConnectionType))
-            {
-                return DeviceConnectionType.Unknown;
-            }
-
-            DeviceConnectionType parsed;
-            if (Enum.TryParse(descriptor.ConnectionType, true, out parsed))
-            {
-                return parsed;
-            }
-
-            return DeviceConnectionType.Unknown;
+            return descriptor == null ? DeviceConnectionType.Unknown : descriptor.DeviceConnectionType;
         }
 
         private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateModbusTcp(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var ip = GetRequiredString(parameters, "ip");
-            if (string.IsNullOrWhiteSpace(ip))
+            ModbusTcpClientConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceClient>> failure;
+            if (!TryGetConnectionParameters(descriptor, "ModbusTcp", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusTcp 参数缺少 ip");
+                return failure;
             }
 
-            var port = GetInt(parameters, "port", 502);
-            var client = new ModbusTcpClient(ip, port);
+            if (string.IsNullOrWhiteSpace(parameters.Ip))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusTcp 参数缺少 Ip");
+            }
+
+            var commonValidation = ValidateCommonClientParameters(parameters, "ModbusTcp");
+            if (!commonValidation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(commonValidation);
+            }
+
+            int port;
+            string validationMessage;
+            if (!TryResolvePort(parameters.Port, 502, "ModbusTcp.Port", out port, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            if (!TryResolveNonNegativeMilliseconds(parameters.BatchReadStationIntervalMilliseconds, "ModbusTcp.BatchReadStationIntervalMilliseconds", out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            var client = new ModbusTcpClient(parameters.Ip, port);
             ApplyCommonOptions(parameters, client);
             ApplyModbusBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusTcpPooledConnection(
                 descriptor.Identity,
                 client,
-                GetOptionalString(parameters, "probeAddress"),
-                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
-                GetInt(parameters, "probeLength", 1)));
+                parameters.ProbeAddress,
+                parameters.ProbeDataType ?? DataTypeEnums.UInt16,
+                parameters.ProbeLength ?? 1));
         }
 
         private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateModbusRtu(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var portName = GetRequiredString(parameters, "portName");
-            if (string.IsNullOrWhiteSpace(portName))
+            ModbusRtuClientConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceClient>> failure;
+            if (!TryGetConnectionParameters(descriptor, "ModbusRtu", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusRtu 参数缺少 portName");
+                return failure;
             }
 
-            var baudRate = GetInt(parameters, "baudRate", 9600);
-            var dataBits = GetInt(parameters, "dataBits", 8);
-            var stopBits = GetEnum(parameters, "stopBits", StopBits.One);
-            var parity = GetEnum(parameters, "parity", Parity.None);
-            var handshake = GetEnum(parameters, "handshake", Handshake.None);
-            var client = new ModbusRtuClient(portName, baudRate, dataBits, stopBits, parity, handshake);
+            if (string.IsNullOrWhiteSpace(parameters.PortName))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("ModbusRtu 参数缺少 PortName");
+            }
+
+            var commonValidation = ValidateCommonClientParameters(parameters, "ModbusRtu");
+            if (!commonValidation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(commonValidation);
+            }
+
+            string validationMessage;
+            int baudRate;
+            if (!TryResolvePositiveInt(parameters.BaudRate, 9600, "ModbusRtu.BaudRate", out baudRate, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            int dataBits;
+            if (!TryResolvePositiveInt(parameters.DataBits, 8, "ModbusRtu.DataBits", out dataBits, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            if (!TryResolveNonNegativeMilliseconds(parameters.BatchReadStationIntervalMilliseconds, "ModbusRtu.BatchReadStationIntervalMilliseconds", out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            var client = new ModbusRtuClient(
+                parameters.PortName,
+                baudRate,
+                dataBits,
+                parameters.StopBits ?? StopBits.One,
+                parameters.Parity ?? Parity.None,
+                parameters.Handshake ?? Handshake.None);
             ApplyCommonOptions(parameters, client);
             ApplyModbusBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new ModbusRtuPooledConnection(
                 descriptor.Identity,
                 client,
-                GetOptionalString(parameters, "probeAddress"),
-                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
-                GetInt(parameters, "probeLength", 1)));
+                parameters.ProbeAddress,
+                parameters.ProbeDataType ?? DataTypeEnums.UInt16,
+                parameters.ProbeLength ?? 1));
         }
 
         private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateSiemens(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var ip = GetRequiredString(parameters, "ip");
-            if (string.IsNullOrWhiteSpace(ip))
+            SiemensS7ClientConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceClient>> failure;
+            if (!TryGetConnectionParameters(descriptor, "SiemensS7", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("Siemens 参数缺少 ip");
+                return failure;
             }
 
-            var port = GetInt(parameters, "port", 102);
-            var version = GetEnum(parameters, "siemensVersion", SiemensVersion.S7_1200);
-            var slot = (byte)GetInt(parameters, "slot", 0);
-            var rack = (byte)GetInt(parameters, "rack", 0);
-            var client = new SiemensClient(ip, port, version, slot, rack);
+            if (string.IsNullOrWhiteSpace(parameters.Ip))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("SiemensS7 参数缺少 Ip");
+            }
+
+            var commonValidation = ValidateCommonClientParameters(parameters, "SiemensS7");
+            if (!commonValidation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(commonValidation);
+            }
+
+            int port;
+            string validationMessage;
+            if (!TryResolvePort(parameters.Port, 102, "SiemensS7.Port", out port, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            if (!TryResolveNonNegativeMilliseconds(parameters.BatchReadStationIntervalMilliseconds, "SiemensS7.BatchReadStationIntervalMilliseconds", out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            var client = new SiemensClient(
+                parameters.Ip,
+                port,
+                parameters.SiemensVersion ?? SiemensVersion.S7_1200,
+                parameters.Slot ?? 0,
+                parameters.Rack ?? 0);
             ApplyCommonOptions(parameters, client);
             ApplySiemensBatchReadOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new SiemensPooledConnection(
                 descriptor.Identity,
                 client,
-                GetOptionalString(parameters, "probeAddress"),
-                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
-                GetInt(parameters, "probeLength", 1)));
+                parameters.ProbeAddress,
+                parameters.ProbeDataType ?? DataTypeEnums.UInt16,
+                parameters.ProbeLength ?? 1));
         }
 
         private static OperationResult<IPooledResourceConnection<IDeviceClient>> CreateFins(ResourceDescriptor descriptor)
         {
-            var parameters = descriptor.Parameters ?? new Dictionary<string, object>();
-            var ip = GetRequiredString(parameters, "ip");
-            if (string.IsNullOrWhiteSpace(ip))
+            FinsClientConnectionParameters parameters;
+            OperationResult<IPooledResourceConnection<IDeviceClient>> failure;
+            if (!TryGetConnectionParameters(descriptor, "Fins", out parameters, out failure))
             {
-                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("Fins 参数缺少 ip");
+                return failure;
             }
 
-            var port = GetInt(parameters, "port", 9600);
-            var timeoutMilliseconds = GetInt(parameters, "timeoutMilliseconds", 0);
-            TimeSpan? timeout = timeoutMilliseconds > 0 ? TimeSpan.FromMilliseconds(timeoutMilliseconds) : (TimeSpan?)null;
-            var client = new FinsClient(ip, port, timeout);
+            if (string.IsNullOrWhiteSpace(parameters.Ip))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>("Fins 参数缺少 Ip");
+            }
+
+            var commonValidation = ValidateCommonClientParameters(parameters, "Fins");
+            if (!commonValidation.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(commonValidation);
+            }
+
+            int port;
+            string validationMessage;
+            if (!TryResolvePort(parameters.Port, 9600, "Fins.Port", out port, out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            if (!TryResolveNonNegativeMilliseconds(parameters.TimeoutMilliseconds, "Fins.TimeoutMilliseconds", out validationMessage))
+            {
+                return OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(validationMessage);
+            }
+
+            TimeSpan? timeout = parameters.TimeoutMilliseconds.HasValue && parameters.TimeoutMilliseconds.Value > 0
+                ? TimeSpan.FromMilliseconds(parameters.TimeoutMilliseconds.Value)
+                : (TimeSpan?)null;
+            var client = new FinsClient(parameters.Ip, port, timeout);
             ApplyCommonOptions(parameters, client);
             return OperationResult.CreateSuccessResult<IPooledResourceConnection<IDeviceClient>>(new FinsPooledConnection(
                 descriptor.Identity,
                 client,
-                GetOptionalString(parameters, "probeAddress"),
-                GetEnum(parameters, "probeDataType", DataTypeEnums.UInt16),
-                GetInt(parameters, "probeLength", 1)));
+                parameters.ProbeAddress,
+                parameters.ProbeDataType ?? DataTypeEnums.UInt16,
+                parameters.ProbeLength ?? 1));
         }
 
-        private static void ApplyCommonOptions(IDictionary<string, object> parameters, IClientConfiguration client)
+        private static void ApplyCommonOptions(ClientConnectionParametersBase parameters, IClientConfiguration client)
         {
             if (client == null || parameters == null)
             {
                 return;
             }
 
-            if (parameters.ContainsKey("connectTimeoutMilliseconds"))
+            if (parameters.ConnectTimeoutMilliseconds.HasValue)
             {
-                client.ConnectTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "connectTimeoutMilliseconds", (int)client.ConnectTimeout.TotalMilliseconds));
+                client.ConnectTimeout = TimeSpan.FromMilliseconds(parameters.ConnectTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("receiveTimeoutMilliseconds"))
+            if (parameters.ReceiveTimeoutMilliseconds.HasValue)
             {
-                client.ReceiveTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "receiveTimeoutMilliseconds", (int)client.ReceiveTimeout.TotalMilliseconds));
+                client.ReceiveTimeout = TimeSpan.FromMilliseconds(parameters.ReceiveTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("sendTimeoutMilliseconds"))
+            if (parameters.SendTimeoutMilliseconds.HasValue)
             {
-                client.SendTimeout = TimeSpan.FromMilliseconds(GetInt(parameters, "sendTimeoutMilliseconds", (int)client.SendTimeout.TotalMilliseconds));
+                client.SendTimeout = TimeSpan.FromMilliseconds(parameters.SendTimeoutMilliseconds.Value);
             }
 
-            if (parameters.ContainsKey("retries"))
+            if (parameters.Retries.HasValue)
             {
-                client.Retries = GetInt(parameters, "retries", client.Retries);
+                client.Retries = parameters.Retries.Value;
             }
         }
 
-        private static void ApplyModbusBatchReadOptions(IDictionary<string, object> parameters, ModbusTcpClient client)
+        private static void ApplyModbusBatchReadOptions(ModbusTcpClientConnectionParameters parameters, ModbusTcpClient client)
         {
             if (client == null || parameters == null)
             {
                 return;
             }
 
-            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            if (parameters.BatchReadStationIntervalMilliseconds.HasValue)
             {
-                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
-                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(parameters.BatchReadStationIntervalMilliseconds.Value);
             }
         }
 
-        private static void ApplyModbusBatchReadOptions(IDictionary<string, object> parameters, ModbusRtuClient client)
+        private static void ApplyModbusBatchReadOptions(ModbusRtuClientConnectionParameters parameters, ModbusRtuClient client)
         {
             if (client == null || parameters == null)
             {
                 return;
             }
 
-            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            if (parameters.BatchReadStationIntervalMilliseconds.HasValue)
             {
-                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
-                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(parameters.BatchReadStationIntervalMilliseconds.Value);
             }
         }
 
-        private static void ApplySiemensBatchReadOptions(IDictionary<string, object> parameters, SiemensClient client)
+        private static void ApplySiemensBatchReadOptions(SiemensS7ClientConnectionParameters parameters, SiemensClient client)
         {
             if (client == null || parameters == null)
             {
                 return;
             }
 
-            if (parameters.ContainsKey("batchReadStationIntervalMilliseconds"))
+            if (parameters.BatchReadStationIntervalMilliseconds.HasValue)
             {
-                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(
-                    GetInt(parameters, "batchReadStationIntervalMilliseconds", (int)client.BatchReadStationInterval.TotalMilliseconds));
+                client.BatchReadStationInterval = TimeSpan.FromMilliseconds(parameters.BatchReadStationIntervalMilliseconds.Value);
             }
         }
 
-        private static string GetRequiredString(IDictionary<string, object> parameters, string key)
+        private static OperationResult ValidateCommonClientParameters(ClientConnectionParametersBase parameters, string connectionName)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
+            string validationMessage;
+            if (!TryResolveNonNegativeMilliseconds(parameters.ConnectTimeoutMilliseconds, connectionName + ".ConnectTimeoutMilliseconds", out validationMessage)
+                || !TryResolveNonNegativeMilliseconds(parameters.ReceiveTimeoutMilliseconds, connectionName + ".ReceiveTimeoutMilliseconds", out validationMessage)
+                || !TryResolveNonNegativeMilliseconds(parameters.SendTimeoutMilliseconds, connectionName + ".SendTimeoutMilliseconds", out validationMessage))
             {
-                return null;
+                return OperationResult.CreateFailedResult(validationMessage);
             }
 
-            return Convert.ToString(value, CultureInfo.InvariantCulture);
+            if (parameters.Retries.HasValue && parameters.Retries.Value < 0)
+            {
+                return OperationResult.CreateFailedResult(connectionName + ".Retries 不能小于 0");
+            }
+
+            if (parameters.ProbeLength.HasValue && parameters.ProbeLength.Value <= 0)
+            {
+                return OperationResult.CreateFailedResult(connectionName + ".ProbeLength 必须大于 0");
+            }
+
+            return OperationResult.CreateSuccessResult();
         }
 
-        private static string GetOptionalString(IDictionary<string, object> parameters, string key)
+        private static bool TryResolvePort(int? value, int defaultValue, string name, out int resolved, out string validationMessage)
         {
-            return GetRequiredString(parameters, key);
+            return TryResolveIntInRange(value, defaultValue, 1, 65535, name, out resolved, out validationMessage);
         }
 
-        private static int GetInt(IDictionary<string, object> parameters, string key, int defaultValue)
+        private static bool TryResolvePositiveInt(int? value, int defaultValue, string name, out int resolved, out string validationMessage)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
-            {
-                return defaultValue;
-            }
-
-            int parsed;
-            if (int.TryParse(Convert.ToString(value, CultureInfo.InvariantCulture), NumberStyles.Integer, CultureInfo.InvariantCulture, out parsed))
-            {
-                return parsed;
-            }
-
-            return defaultValue;
+            return TryResolveIntInRange(value, defaultValue, 1, int.MaxValue, name, out resolved, out validationMessage);
         }
 
-        private static TEnum GetEnum<TEnum>(IDictionary<string, object> parameters, string key, TEnum defaultValue) where TEnum : struct
+        private static bool TryResolveIntInRange(int? value, int defaultValue, int minValue, int maxValue, string name, out int resolved, out string validationMessage)
         {
-            object value;
-            if (!parameters.TryGetValue(key, out value) || value == null)
+            resolved = defaultValue;
+            validationMessage = null;
+            if (!value.HasValue)
             {
-                return defaultValue;
+                return true;
             }
 
-            var raw = Convert.ToString(value, CultureInfo.InvariantCulture);
-            TEnum parsed;
-            if (Enum.TryParse(raw, true, out parsed))
+            if (value.Value < minValue || value.Value > maxValue)
             {
-                return parsed;
+                validationMessage = name + " 必须在 " + minValue + " 到 " + maxValue + " 之间";
+                return false;
             }
 
-            return defaultValue;
+            resolved = value.Value;
+            return true;
+        }
+
+        private static bool TryResolveNonNegativeMilliseconds(int? value, string name, out string validationMessage)
+        {
+            validationMessage = null;
+            if (!value.HasValue)
+            {
+                return true;
+            }
+
+            if (value.Value < 0)
+            {
+                validationMessage = name + " 不能小于 0";
+                return false;
+            }
+
+            return true;
+        }
+
+        private static bool TryGetConnectionParameters<TParameters>(
+            ResourceDescriptor descriptor,
+            string connectionName,
+            out TParameters parameters,
+            out OperationResult<IPooledResourceConnection<IDeviceClient>> failure)
+            where TParameters : class, IConnectionPoolParameters
+        {
+            parameters = descriptor.ConnectionParameters as TParameters;
+            if (parameters != null)
+            {
+                failure = null;
+                return true;
+            }
+
+            if (descriptor.ConnectionParameters == null)
+            {
+                failure = OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(connectionName + " 缺少 ConnectionParameters");
+                return false;
+            }
+
+            failure = OperationResult.CreateFailedResult<IPooledResourceConnection<IDeviceClient>>(
+                connectionName + " 参数类型不正确，应为 " + typeof(TParameters).Name);
+            return false;
         }
     }
 }

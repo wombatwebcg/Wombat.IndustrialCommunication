@@ -17,11 +17,15 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var descriptor = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity { DeviceId = "modbus", ProtocolType = "ModbusTcp", Endpoint = "127.0.0.1:502" },
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.ModbusTcp,
+                ConnectionParameters = new ModbusTcpClientConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 502,
+                    BatchReadStationIntervalMilliseconds = 100
+                }
             };
-            descriptor.Parameters["ip"] = "127.0.0.1";
-            descriptor.Parameters["port"] = 502;
-            descriptor.Parameters["batchReadStationIntervalMilliseconds"] = 100;
 
             var result = factory.Create(descriptor);
 
@@ -39,13 +43,17 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var descriptor = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity { DeviceId = "s7", ProtocolType = "SiemensS7", Endpoint = "127.0.0.1:102" },
-                DeviceConnectionType = DeviceConnectionType.SiemensS7
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.SiemensS7,
+                ConnectionParameters = new SiemensS7ClientConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 102,
+                    SiemensVersion = SiemensVersion.S7_1200,
+                    Slot = 0,
+                    Rack = 0
+                }
             };
-            descriptor.Parameters["ip"] = "127.0.0.1";
-            descriptor.Parameters["port"] = 102;
-            descriptor.Parameters["siemensVersion"] = SiemensVersion.S7_1200;
-            descriptor.Parameters["slot"] = 0;
-            descriptor.Parameters["rack"] = 0;
 
             var result = factory.Create(descriptor);
 
@@ -62,18 +70,26 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var rtu = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity { DeviceId = "rtu", ProtocolType = "ModbusRtu", Endpoint = "COM1" },
-                DeviceConnectionType = DeviceConnectionType.ModbusRtu
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.ModbusRtu,
+                ConnectionParameters = new ModbusRtuClientConnectionParameters
+                {
+                    PortName = "COM1",
+                    BatchReadStationIntervalMilliseconds = 120
+                }
             };
-            rtu.Parameters["portName"] = "COM1";
-            rtu.Parameters["batchReadStationIntervalMilliseconds"] = 120;
 
             var fins = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity { DeviceId = "fins", ProtocolType = "Fins", Endpoint = "127.0.0.1:9600" },
-                DeviceConnectionType = DeviceConnectionType.Fins
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.Fins,
+                ConnectionParameters = new FinsClientConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 9600
+                }
             };
-            fins.Parameters["ip"] = "127.0.0.1";
-            fins.Parameters["port"] = 9600;
 
             var rtuResult = factory.Create(rtu);
             var finsResult = factory.Create(fins);
@@ -94,10 +110,13 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             {
                 Identity = new ConnectionIdentity { DeviceId = "modbus-srv", ProtocolType = "ModbusTcp", Endpoint = "127.0.0.1:1502" },
                 ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
+                DeviceConnectionType = DeviceConnectionType.ModbusTcp,
+                ConnectionParameters = new ModbusTcpServerConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 1502
+                }
             };
-            descriptor.Parameters["ip"] = "127.0.0.1";
-            descriptor.Parameters["port"] = 1502;
 
             var result = factory.Create(descriptor);
 
@@ -114,18 +133,24 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             {
                 Identity = new ConnectionIdentity { DeviceId = "rtu-srv", ProtocolType = "ModbusRtu", Endpoint = "COM2" },
                 ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.ModbusRtu
+                DeviceConnectionType = DeviceConnectionType.ModbusRtu,
+                ConnectionParameters = new ModbusRtuServerConnectionParameters
+                {
+                    PortName = "COM2"
+                }
             };
-            rtu.Parameters["portName"] = "COM2";
 
             var s7 = new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity { DeviceId = "s7-srv", ProtocolType = "SiemensS7", Endpoint = "127.0.0.1:1102" },
                 ResourceRole = ResourceRole.Server,
-                DeviceConnectionType = DeviceConnectionType.SiemensS7
+                DeviceConnectionType = DeviceConnectionType.SiemensS7,
+                ConnectionParameters = new SiemensS7ServerConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = 1102
+                }
             };
-            s7.Parameters["ip"] = "127.0.0.1";
-            s7.Parameters["port"] = 1102;
 
             var rtuResult = factory.Create(rtu);
             var s7Result = factory.Create(s7);

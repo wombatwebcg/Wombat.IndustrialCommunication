@@ -23,7 +23,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             pool.ConnectionStateChanged += (sender, args) => states.Add(args.CurrentState);
             pool.LeaseChanged += (sender, args) => leases.Add(args.EventType);
 
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var lease = await pool.AcquireAsync(identity);
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
@@ -57,7 +57,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 }
             };
 
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
 
             Assert.True(lease.IsSuccess);
@@ -73,7 +73,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var handlerStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var handlerRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
 
-            pool.Register(new ResourceDescriptor { Identity = identity, DeviceConnectionType = DeviceConnectionType.ModbusTcp });
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
             Assert.True(lease.IsSuccess);
 

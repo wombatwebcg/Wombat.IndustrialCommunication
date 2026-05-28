@@ -1,7 +1,6 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
@@ -178,13 +177,13 @@ namespace Wombat.IndustrialCommunication.ServerTest
                 ResourceRole = ResourceRole.Server,
                 ConnectionType = DeviceConnectionType.ModbusTcp.ToString(),
                 DeviceConnectionType = DeviceConnectionType.ModbusTcp,
-                Parameters = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                ConnectionParameters = new ModbusTcpServerConnectionParameters
                 {
-                    ["ip"] = ModbusIp,
-                    ["port"] = ModbusPort,
-                    ["maxConnections"] = 10,
-                    ["receiveTimeoutMilliseconds"] = 5000,
-                    ["sendTimeoutMilliseconds"] = 5000
+                    Ip = ModbusIp,
+                    Port = ModbusPort,
+                    MaxConnections = 10,
+                    ReceiveTimeoutMilliseconds = 5000,
+                    SendTimeoutMilliseconds = 5000
                 }
             };
         }
@@ -197,13 +196,13 @@ namespace Wombat.IndustrialCommunication.ServerTest
                 ResourceRole = ResourceRole.Server,
                 ConnectionType = DeviceConnectionType.SiemensS7.ToString(),
                 DeviceConnectionType = DeviceConnectionType.SiemensS7,
-                Parameters = new Dictionary<string, object>(StringComparer.OrdinalIgnoreCase)
+                ConnectionParameters = new SiemensS7ServerConnectionParameters
                 {
-                    ["ip"] = S7Ip,
-                    ["port"] = S7Port,
-                    ["maxConnections"] = 10,
-                    ["receiveTimeoutMilliseconds"] = 5000,
-                    ["sendTimeoutMilliseconds"] = 5000
+                    Ip = S7Ip,
+                    Port = S7Port,
+                    MaxConnections = 10,
+                    ReceiveTimeoutMilliseconds = 5000,
+                    SendTimeoutMilliseconds = 5000
                 }
             };
         }

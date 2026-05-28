@@ -230,6 +230,33 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return entry.InvalidateAsync(reason, ConnectionPoolMaintenanceMode.UserCall).GetAwaiter().GetResult();
         }
 
+        public async Task<OperationResult> ForceCloseAsync(ConnectionIdentity identity, string reason, CancellationToken cancellationToken = default(CancellationToken))
+        {
+            if (identity == null)
+            {
+                return OperationResult.CreateFailedResult("连接标识不能为空");
+            }
+
+            if (cancellationToken.IsCancellationRequested)
+            {
+                var cancelled = OperationResult.CreateFailedResult("操作已取消");
+                cancelled.IsCancelled = true;
+                return cancelled.Complete();
+            }
+
+            PooledResourceEntry<TResource> entry;
+            using (_poolLock.Lock())
+            {
+                ThrowIfDisposed();
+                if (!_entries.TryGetValue(identity, out entry))
+                {
+                    return OperationResult.CreateFailedResult("连接条目不存在");
+                }
+            }
+
+            return await entry.ForceCloseAsync(reason, cancellationToken).ConfigureAwait(false);
+        }
+
         public OperationResult Unregister(ConnectionIdentity identity, string reason)
         {
             if (identity == null)
@@ -286,9 +313,19 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public async Task<OperationResult<T>> ExecuteAsync<T>(ConnectionIdentity identity, Func<TResource, Task<OperationResult<T>>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
         {
+            return await ExecuteWithExecutionTokenAsync(identity, (resource, executionToken) => action(resource), executionOptions, cancellationToken).ConfigureAwait(false);
+        }
+
+        protected async Task<OperationResult<T>> ExecuteWithExecutionTokenAsync<T>(ConnectionIdentity identity, Func<TResource, CancellationToken, Task<OperationResult<T>>> action, ConnectionExecutionOptions executionOptions, CancellationToken cancellationToken = default(CancellationToken))
+        {
             if (identity == null)
             {
                 return OperationResult.CreateFailedResult<T>("连接标识不能为空");
+            }
+
+            if (action == null)
+            {
+                return OperationResult.CreateFailedResult<T>("执行委托不能为空");
             }
 
             PooledResourceEntry<TResource> entry;
@@ -309,7 +346,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             try
             {
-                return await _executor.ExecuteAsync(entry, action, Options, executionOptions).ConfigureAwait(false);
+                return await _executor.ExecuteAsync(entry, action, Options, executionOptions, cancellationToken).ConfigureAwait(false);
             }
             finally
             {
@@ -330,7 +367,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateFailedResult("执行委托不能为空");
             }
 
-            var wrapped = await ExecuteAsync<object>(identity, async resource =>
+            var wrapped = await ExecuteWithExecutionTokenAsync<object>(identity, async (resource, executionToken) =>
             {
                 var result = await action(resource).ConfigureAwait(false);
                 if (result.IsSuccess)

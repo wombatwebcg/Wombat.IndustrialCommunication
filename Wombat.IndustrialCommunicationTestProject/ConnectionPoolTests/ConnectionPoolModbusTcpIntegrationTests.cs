@@ -189,7 +189,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
         private static ResourceDescriptor CreateDescriptor(int port)
         {
-            var descriptor = new ResourceDescriptor
+            return new ResourceDescriptor
             {
                 Identity = new ConnectionIdentity
                 {
@@ -197,15 +197,17 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                     ProtocolType = "ModbusTcp",
                     Endpoint = "127.0.0.1:" + port
                 },
-                DeviceConnectionType = DeviceConnectionType.ModbusTcp
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.ModbusTcp,
+                ConnectionParameters = new ModbusTcpClientConnectionParameters
+                {
+                    Ip = "127.0.0.1",
+                    Port = port,
+                    ConnectTimeoutMilliseconds = 2000,
+                    ReceiveTimeoutMilliseconds = 2000,
+                    SendTimeoutMilliseconds = 2000
+                }
             };
-
-            descriptor.Parameters["ip"] = "127.0.0.1";
-            descriptor.Parameters["port"] = port;
-            descriptor.Parameters["connectTimeoutMilliseconds"] = 2000;
-            descriptor.Parameters["receiveTimeoutMilliseconds"] = 2000;
-            descriptor.Parameters["sendTimeoutMilliseconds"] = 2000;
-            return descriptor;
         }
 
         private static async Task AssertRoundTripAsync(DeviceClientPool pool, int port, DataTypeEnums dataType, string address, object expectedValue)
