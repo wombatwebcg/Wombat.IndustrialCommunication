@@ -8,11 +8,12 @@ namespace Wombat.IndustrialCommunication.PLC
 {
     public class S7WriteRequest : IDeviceReadWriteMessage
     {
-        public S7WriteRequest(string address, int offest, byte[] writeData, bool isBit)
+        public S7WriteRequest(string address, int offest, byte[] writeData, bool isBit, ushort pduReference = 1)
         {
             RegisterAddress = address;
+            PduReference = pduReference;
             var siemensWriteAddress = S7CommonMethods.ConvertWriteArg(address, offest, writeData, isBit);
-            ProtocolMessageFrame = GetWriteCommand(siemensWriteAddress);
+            ProtocolMessageFrame = GetWriteCommand(siemensWriteAddress, pduReference);
 
         }
 
@@ -23,6 +24,8 @@ namespace Wombat.IndustrialCommunication.PLC
         public string RegisterAddress { get; set; }
 
         public int RegisterCount { get; set; }
+
+        public ushort PduReference { get; }
 
         public int ProtocolResponseLength { get; set; } = SiemensConstant.InitHeadLength;
 
@@ -38,9 +41,9 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="write"></param>
         /// <returns></returns>
-        protected byte[] GetWriteCommand(SiemensWriteAddress write)
+        protected byte[] GetWriteCommand(SiemensWriteAddress write, ushort pduReference)
         {
-            return GetWriteCommand(new SiemensWriteAddress[] { write });
+            return GetWriteCommand(new SiemensWriteAddress[] { write }, pduReference);
         }
 
         /// <summary>
@@ -48,7 +51,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="writes"></param>
         /// <returns></returns>
-        protected byte[] GetWriteCommand(SiemensWriteAddress[] writes)
+        protected byte[] GetWriteCommand(SiemensWriteAddress[] writes, ushort pduReference)
         {
             //（如果不是最后一个 WriteData.Length == 1 ，则需要填充一个空数据）
             var writeDataLength = writes.Sum(t => t.WriteData.Length == 1 ? 2 : t.WriteData.Length);
@@ -68,8 +71,8 @@ namespace Wombat.IndustrialCommunication.PLC
             command[8] = 0x01;//1  客户端发送命令 3 服务器回复命令 Job
             command[9] = 0x00;
             command[10] = 0x00;//[9][10] redundancy identification (冗余的识别)
-            command[11] = 0x00;
-            command[12] = 0x01;//[11]-[12]protocol data unit reference
+            command[11] = (byte)(pduReference >> 8);
+            command[12] = (byte)(pduReference & 0xFF);//[11]-[12]protocol data unit reference
             command[13] = (byte)((12 * writes.Length + 2) / 256);
             command[14] = (byte)((12 * writes.Length + 2) % 256);//Parameter length
             command[15] = (byte)((writeDataLength + 4 * writes.Length) / 256);

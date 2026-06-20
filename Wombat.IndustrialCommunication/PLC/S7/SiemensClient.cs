@@ -29,6 +29,9 @@ namespace Wombat.IndustrialCommunication.PLC
         
         // 短连接模式下的最大重连次数
         public int ShortConnectionReconnectAttempts { get; set; } = 1;
+
+        // 检测到脏响应后，丢弃当前连接并重试的次数
+        public int DirtyResponseRetryAttempts { get; set; } = 1;
         
         // 上次重连尝试时间
         private DateTime _lastReconnectAttempt = DateTime.MinValue;
@@ -326,6 +329,60 @@ namespace Wombat.IndustrialCommunication.PLC
             return await ConnectAsync();
         }
 
+        private async Task<OperationResult> ResetDirtyConnectionAsync(string reason)
+        {
+            try
+            {
+                Logger?.LogWarning("检测到S7协议同步异常，准备重置连接，原因：{Reason}", reason);
+                _tcpClientAdapter?.StreamClose();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "关闭S7连接以丢弃脏响应时发生异常，原因：{Reason}", reason);
+            }
+
+            if (!EnableAutoReconnect)
+            {
+                return OperationResult.CreateFailedResult("检测到S7协议同步异常，但未启用自动重连");
+            }
+
+            _lastReconnectAttempt = DateTime.MinValue;
+            return await ConnectAsync().ConfigureAwait(false);
+        }
+
+        private async Task HandleProtocolSynchronizationFailureAsync(string operation, string address, string reason)
+        {
+            Logger?.LogWarning(
+                "S7{Operation}检测到协议同步异常，地址：{Address}，原因：{Reason}，准备废弃当前连接",
+                operation,
+                address,
+                reason);
+
+            if (IsLongConnection)
+            {
+                var reconnectResult = await ResetDirtyConnectionAsync(reason).ConfigureAwait(false);
+                if (!reconnectResult.IsSuccess)
+                {
+                    Logger?.LogWarning(
+                        "S7{Operation}协议同步异常后重置连接失败，地址：{Address}，错误：{Error}",
+                        operation,
+                        address,
+                        reconnectResult.Message);
+                }
+
+                return;
+            }
+
+            try
+            {
+                _tcpClientAdapter?.StreamClose();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogWarning(ex, "S7{Operation}协议同步异常后关闭短连接失败，地址：{Address}", operation, address);
+            }
+        }
+
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
@@ -349,15 +406,16 @@ namespace Wombat.IndustrialCommunication.PLC
                 
                 try
                 {
-                    // 执行读取操作
                     var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
-                    
-                    // 记录成功的读取操作
                     if (result.IsSuccess)
                     {
                         Logger?.LogDebug("成功读取S7数据，地址：{Address}", address);
                     }
-                    
+                    else if (S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        await HandleProtocolSynchronizationFailureAsync("读取", address, result.Message).ConfigureAwait(false);
+                    }
+
                     return result;
                 }
                 catch (Exception ex)
@@ -388,15 +446,16 @@ namespace Wombat.IndustrialCommunication.PLC
                     
                     connected = true;
                     
-                    // 执行读取操作
                     var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
-                    
-                    // 记录成功的读取操作
                     if (result.IsSuccess)
                     {
                         Logger?.LogDebug("短连接模式成功读取S7数据，地址：{Address}", address);
                     }
-                    
+                    else if (S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        await HandleProtocolSynchronizationFailureAsync("读取", address, result.Message).ConfigureAwait(false);
+                    }
+
                     return result;
                 }
                 catch (Exception ex)
@@ -454,6 +513,10 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         Logger?.LogDebug("成功写入S7数据，地址：{Address}", address);
                     }
+                    else if (S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        await HandleProtocolSynchronizationFailureAsync("写入", address, result.Message).ConfigureAwait(false);
+                    }
                     
                     return result;
                 }
@@ -493,6 +556,10 @@ namespace Wombat.IndustrialCommunication.PLC
                     {
                         Logger?.LogDebug("短连接模式成功写入S7数据，地址：{Address}", address);
                     }
+                    else if (S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        await HandleProtocolSynchronizationFailureAsync("写入", address, result.Message).ConfigureAwait(false);
+                    }
                     
                     return result;
                 }
@@ -518,6 +585,101 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                 }
             }
+        }
+
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        {
+            if (IsLongConnection)
+            {
+                if (!Connected)
+                {
+                    if (EnableAutoReconnect)
+                    {
+                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
+                        if (!reconnectResult.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("S7客户端自动重连失败，无法批量读取数据");
+                        }
+                    }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
+                    }
+                }
+
+                var attempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
+                OperationResult<Dictionary<string, (DataTypeEnums, object)>> lastResult = null;
+
+                for (int attempt = 1; attempt <= attempts; attempt++)
+                {
+                    var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    if (result.IsSuccess)
+                    {
+                        return result;
+                    }
+
+                    lastResult = result;
+                    if (attempt >= attempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        return result;
+                    }
+
+                    var reconnectResult = await ResetDirtyConnectionAsync(result.Message).ConfigureAwait(false);
+                    if (!reconnectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"检测到S7协议同步异常且重连失败：{reconnectResult.Message}");
+                    }
+
+                    Logger?.LogWarning("批量读取检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                }
+
+                return lastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("批量读取失败");
+            }
+
+            var shortAttempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
+            OperationResult<Dictionary<string, (DataTypeEnums, object)>> shortLastResult = null;
+
+            for (int attempt = 1; attempt <= shortAttempts; attempt++)
+            {
+                try
+                {
+                    await DisconnectAsync().ConfigureAwait(false);
+
+                    var connectResult = await ConnectAsync().ConfigureAwait(false);
+                    if (!connectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接模式连接失败：{connectResult.Message}");
+                    }
+
+                    var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    shortLastResult = result;
+
+                    if (result.IsSuccess || attempt >= shortAttempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        return result;
+                    }
+
+                    Logger?.LogWarning("短连接模式批量读取检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "短连接模式批量读取S7数据时发生异常");
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接批量读取失败：{ex.Message}");
+                }
+                finally
+                {
+                    try
+                    {
+                        await DisconnectAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.LogWarning(ex, "短连接模式批量读取后断开连接时发生异常");
+                    }
+                }
+            }
+
+            return shortLastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("短连接批量读取失败");
         }
         
         /// <summary>

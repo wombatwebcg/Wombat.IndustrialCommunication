@@ -128,10 +128,78 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             Assert.True(Assert.IsType<bool>(readFromVResult.ResultValue["V22.1"].Item2));
         }
 
-        private static S7TcpServer CreateServer()
+        [Fact]
+        public void BatchRead_ShouldNotCrossFillSeparatedVAreaBlocks()
+        {
+            using var server = CreateServer(4096);
+
+            var writeResult = server.BatchWrite(new Dictionary<string, (DataTypeEnums, object)>
+            {
+                ["V2000.0"] = (DataTypeEnums.Bool, true),
+                ["V2000.1"] = (DataTypeEnums.Bool, false),
+                ["V2000.2"] = (DataTypeEnums.Bool, true),
+                ["V2000.3"] = (DataTypeEnums.Bool, false),
+                ["V2000.4"] = (DataTypeEnums.Bool, true),
+                ["V2000.5"] = (DataTypeEnums.Bool, false),
+                ["V2000.6"] = (DataTypeEnums.Bool, true),
+                ["V2000.7"] = (DataTypeEnums.Bool, false),
+                ["V2100.0"] = (DataTypeEnums.Bool, false),
+                ["V2100.1"] = (DataTypeEnums.Bool, true),
+                ["V2100.2"] = (DataTypeEnums.Bool, false),
+                ["V2100.3"] = (DataTypeEnums.Bool, true),
+                ["V2100.4"] = (DataTypeEnums.Bool, false),
+                ["V2100.5"] = (DataTypeEnums.Bool, true),
+                ["V2100.6"] = (DataTypeEnums.Bool, false),
+                ["V2100.7"] = (DataTypeEnums.Bool, true)
+            });
+
+            Assert.True(writeResult.IsSuccess, writeResult.Message);
+
+            var readResult = server.BatchRead(new Dictionary<string, DataTypeEnums>
+            {
+                ["V2000.0"] = DataTypeEnums.Bool,
+                ["V2000.1"] = DataTypeEnums.Bool,
+                ["V2000.2"] = DataTypeEnums.Bool,
+                ["V2000.3"] = DataTypeEnums.Bool,
+                ["V2000.4"] = DataTypeEnums.Bool,
+                ["V2000.5"] = DataTypeEnums.Bool,
+                ["V2000.6"] = DataTypeEnums.Bool,
+                ["V2000.7"] = DataTypeEnums.Bool,
+                ["V2100.0"] = DataTypeEnums.Bool,
+                ["V2100.1"] = DataTypeEnums.Bool,
+                ["V2100.2"] = DataTypeEnums.Bool,
+                ["V2100.3"] = DataTypeEnums.Bool,
+                ["V2100.4"] = DataTypeEnums.Bool,
+                ["V2100.5"] = DataTypeEnums.Bool,
+                ["V2100.6"] = DataTypeEnums.Bool,
+                ["V2100.7"] = DataTypeEnums.Bool
+            });
+
+            Assert.True(readResult.IsSuccess, readResult.Message);
+
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2000.0"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2000.1"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2000.2"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2000.3"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2000.4"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2000.5"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2000.6"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2000.7"].Item2));
+
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2100.0"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2100.1"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2100.2"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2100.3"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2100.4"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2100.5"].Item2));
+            Assert.False(Assert.IsType<bool>(readResult.ResultValue["V2100.6"].Item2));
+            Assert.True(Assert.IsType<bool>(readResult.ResultValue["V2100.7"].Item2));
+        }
+
+        private static S7TcpServer CreateServer(int db1Length = 256)
         {
             var server = new S7TcpServer();
-            var createDataBlockResult = server.CreateDataBlock(1, 256);
+            var createDataBlockResult = server.CreateDataBlock(1, db1Length);
             Assert.True(createDataBlockResult.IsSuccess, createDataBlockResult.Message);
             return server;
         }

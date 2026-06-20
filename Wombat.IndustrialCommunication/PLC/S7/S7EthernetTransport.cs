@@ -15,6 +15,8 @@ namespace Wombat.IndustrialCommunication
     /// </summary>
     public class S7EthernetTransport : DeviceMessageTransport
     {
+        public bool StrictPduReferenceValidation { get; set; } = true;
+
         /// <summary>
         /// 初始化S7EthernetTransport类的新实例。
         /// </summary>
@@ -53,28 +55,25 @@ namespace Wombat.IndustrialCommunication
 
                 if (!commandRequest.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
 
-                // 接收并处理头部数据包
-                var headerResponse = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                if (!headerResponse.IsSuccess)
+                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result).ConfigureAwait(false);
+                if (!receiveResult.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
                 }
-                result.Responses.Add(string.Join(" ", headerResponse.ResultValue.Select(t => t.ToString("X2"))));
 
-                // 接收并处理数据包
-                var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
-                var dataResponse = await ReceiveResponseAsync(0, dataLength);
-                if (!dataResponse.IsSuccess)
+                var fullResponse = receiveResult.ResultValue;
+                var pduValidation = ValidateResponsePduReference(fullResponse, s7ReadRequest.PduReference);
+                if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    result.Message = pduValidation.Message;
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
-                result.Responses.Add(string.Join(" ", dataResponse.ResultValue.Select(t => t.ToString("X2"))));
 
                 // 创建并配置响应
-                result.ResultValue = new S7ReadResponse(dataResponse.ResultValue)
+                result.ResultValue = new S7ReadResponse(fullResponse)
                 {
                     RegisterAddress = request.RegisterAddress,
                     RegisterCount = request.RegisterCount
@@ -117,27 +116,25 @@ namespace Wombat.IndustrialCommunication
 
                 if (!commandRequest.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
 
-                // 接收并处理头部数据包
-                var headerResponse = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
-                if (!headerResponse.IsSuccess)
+                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result).ConfigureAwait(false);
+                if (!receiveResult.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
                 }
 
-                // 接收并处理数据包
-                var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
-                var dataResponse = await ReceiveResponseAsync(0, dataLength);
-                if (!dataResponse.IsSuccess)
+                var fullResponse = receiveResult.ResultValue;
+                var pduValidation = ValidateResponsePduReference(fullResponse, s7WriteRequest.PduReference);
+                if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                    result.Message = pduValidation.Message;
+                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
-                result.Responses.Add(string.Join(" ", dataResponse.ResultValue.Select(t => t.ToString("X2"))));
 
                 // 创建并配置响应
-                result.ResultValue = new S7WriteResponse(dataResponse.ResultValue)
+                result.ResultValue = new S7WriteResponse(fullResponse)
                 {
                     RegisterAddress = request.RegisterAddress,
                     RegisterCount = request.RegisterCount
@@ -149,8 +146,56 @@ namespace Wombat.IndustrialCommunication
             {
                 result.IsSuccess = false;
                 result.Message = $"写入操作过程中发生错误: {ex.Message}";
-                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
             }
+        }
+
+        private async Task<OperationResult<byte[]>> ReceiveFullResponseAsync(int headerLength, OperationResult result)
+        {
+            var headerResponse = await ReceiveResponseAsync(0, headerLength).ConfigureAwait(false);
+            if (!headerResponse.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<byte[]>(headerResponse);
+            }
+
+            result.Responses.Add(string.Join(" ", headerResponse.ResultValue.Select(t => t.ToString("X2"))));
+
+            var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
+            var dataResponse = await ReceiveResponseAsync(0, dataLength).ConfigureAwait(false);
+            if (!dataResponse.IsSuccess)
+            {
+                return OperationResult.CreateFailedResult<byte[]>(dataResponse);
+            }
+
+            result.Responses.Add(string.Join(" ", dataResponse.ResultValue.Select(t => t.ToString("X2"))));
+
+            var fullResponse = new byte[headerResponse.ResultValue.Length + dataResponse.ResultValue.Length];
+            Buffer.BlockCopy(headerResponse.ResultValue, 0, fullResponse, 0, headerResponse.ResultValue.Length);
+            Buffer.BlockCopy(dataResponse.ResultValue, 0, fullResponse, headerResponse.ResultValue.Length, dataResponse.ResultValue.Length);
+            return OperationResult.CreateSuccessResult(fullResponse);
+        }
+
+        private static OperationResult ValidateResponsePduReference(byte[] response, ushort requestPduReference)
+        {
+            if (response == null || response.Length < 5)
+            {
+                return OperationResult.CreateFailedResult("响应长度不足");
+            }
+
+            var cotpTotalLength = 1 + response[4];
+            var s7Offset = 4 + cotpTotalLength;
+            if (s7Offset + 12 > response.Length)
+            {
+                return OperationResult.CreateFailedResult("S7响应头长度不足");
+            }
+
+            var responsePduReference = (ushort)((response[s7Offset + 4] << 8) | response[s7Offset + 5]);
+            if (responsePduReference != requestPduReference)
+            {
+                return OperationResult.CreateFailedResult($"S7响应PDU Reference不匹配，请求:{requestPduReference} 响应:{responsePduReference}");
+            }
+
+            return OperationResult.CreateSuccessResult();
         }
     }
 }

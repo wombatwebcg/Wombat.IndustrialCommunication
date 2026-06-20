@@ -7,14 +7,15 @@ namespace Wombat.IndustrialCommunication.PLC
 {
     public class S7ReadRequest :  IDeviceReadWriteMessage
     {
-        public S7ReadRequest(string address,int offest, int length, bool isBit)
+        public S7ReadRequest(string address,int offest, int length, bool isBit, ushort pduReference = 1)
         {
             RegisterAddress = address;
             RegisterCount = length;
+            PduReference = pduReference;
             var siemensAddress = ConvertSiemensAddress(address, offest);
             siemensAddress.IsBit = isBit;
             siemensAddress.ReadWriteLength = length;
-            ProtocolMessageFrame = GetReadCommand(siemensAddress);
+            ProtocolMessageFrame = GetReadCommand(siemensAddress, pduReference);
 
         }
 
@@ -26,6 +27,8 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public int RegisterCount { get; set; }
 
+        public ushort PduReference { get; }
+
         public int ProtocolResponseLength { get; set; } = SiemensConstant.InitHeadLength;
 
 
@@ -34,7 +37,7 @@ namespace Wombat.IndustrialCommunication.PLC
             throw new NotImplementedException();
         }
 
-        protected byte[] GetReadCommand(SiemensAddress[] datas)
+        protected byte[] GetReadCommand(SiemensAddress[] datas, ushort pduReference)
         {
             //byte type, int beginAddress, ushort dbAddress, ushort length, bool isBit
             byte[] command = new byte[19 + datas.Length * 12];
@@ -49,8 +52,8 @@ namespace Wombat.IndustrialCommunication.PLC
             command[8] = 0x01;//1  客户端发送命令 3 服务器回复命令
             command[9] = 0x00;
             command[10] = 0x00;//[4]-[10]固定6个字节
-            command[11] = 0x00;
-            command[12] = 0x01;//[11][12]两个字节，标识序列号，回复报文相同位置和这个完全一样；范围是0~65535
+            command[11] = (byte)(pduReference >> 8);
+            command[12] = (byte)(pduReference & 0xFF);//[11][12]两个字节，标识序列号，回复报文相同位置和这个完全一样；范围是0~65535
             command[13] = (byte)((command.Length - 17) / 256);
             command[14] = (byte)((command.Length - 17) % 256); //parameter length（减17是因为从[17]到最后属于parameter）
             command[15] = 0x00;
@@ -86,9 +89,9 @@ namespace Wombat.IndustrialCommunication.PLC
             return command;
         }
 
-        protected byte[] GetReadCommand(SiemensAddress data)
+        protected byte[] GetReadCommand(SiemensAddress data, ushort pduReference)
         {
-            return GetReadCommand(new SiemensAddress[] { data });
+            return GetReadCommand(new SiemensAddress[] { data }, pduReference);
         }
 
 

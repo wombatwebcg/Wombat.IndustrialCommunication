@@ -71,6 +71,7 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         internal AsyncLock _lock = new AsyncLock();
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+        private ushort _pduReference;
 
         public S7Communication(S7EthernetTransport s7EthernetTransport) :base(s7EthernetTransport)
         {
@@ -101,6 +102,53 @@ namespace Wombat.IndustrialCommunication.PLC
         public TimeSpan BatchReadStationInterval { get; set; } = TimeSpan.Zero;
 
         public SiemensVersion SiemensVersion{ get; set; }
+
+        public bool StrictPduReferenceValidation
+        {
+            get => Transport is S7EthernetTransport s7Transport
+                ? s7Transport.StrictPduReferenceValidation
+                : true;
+            set
+            {
+                if (Transport is S7EthernetTransport s7Transport)
+                {
+                    s7Transport.StrictPduReferenceValidation = value;
+                }
+            }
+        }
+
+        protected ushort GetNextPduReference()
+        {
+            _pduReference++;
+            if (_pduReference == 0)
+            {
+                _pduReference = 1;
+            }
+
+            return _pduReference;
+        }
+
+        internal static bool IsProtocolSynchronizationFailure(OperationResult result)
+        {
+            return result != null
+                && !result.IsSuccess
+                && IsProtocolSynchronizationFailureMessage(result.Message);
+        }
+
+        internal static bool IsProtocolSynchronizationFailureMessage(string message)
+        {
+            if (string.IsNullOrEmpty(message))
+            {
+                return false;
+            }
+
+            return message.Contains("读取预期长度与返回数据长度不一致")
+                || message.Contains("响应长度不足")
+                || message.Contains("S7响应头长度不足")
+                || message.Contains("响应参数或数据长度无效")
+                || message.Contains("响应功能码异常")
+                || message.Contains("S7响应PDU Reference不匹配");
+        }
 
         public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
         {
@@ -377,7 +425,7 @@ namespace Wombat.IndustrialCommunication.PLC
             async ValueTask<OperationResult<byte[]>> internalReadAsync(S7EthernetTransport transport, string internalAddress, int internalOffest, int internalLength, bool internalIsBit = false)
             {
                 var tempResult = new OperationResult<byte>();
-                var readRequest = new S7ReadRequest(internalAddress, internalOffest, internalLength, isBit);
+                var readRequest = new S7ReadRequest(internalAddress, internalOffest, internalLength, internalIsBit, GetNextPduReference());
                 var response = await transport.UnicastReadMessageAsync(readRequest);
                 if (response.IsSuccess)
                 {
@@ -386,30 +434,78 @@ namespace Wombat.IndustrialCommunication.PLC
                     byte[] responseData = new byte[realLength];
                     try
                     {
-                        // 0x04 0x01 表示读取响应；21 位非 0xFF 时表示异常
-                        if (dataPackage[19] == 0x04 && dataPackage[20] == 0x01)
+                        if (dataPackage == null || dataPackage.Length < 25)
                         {
-                            if (dataPackage[21] == 0x0A && dataPackage[22] == 0x00)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取 {internalAddress} 失败，请确认地址是否存在";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
-                            else if (dataPackage[21] == 0x05 && dataPackage[22] == 0x00)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取 {internalAddress} 失败，请确认地址是否存在";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
-                            else if (dataPackage[21] != 0xFF)
-                            {
-                                tempResult.IsSuccess = false;
-                                tempResult.Message = $"读取 {internalAddress} 失败，异常状态[{21}]:{dataPackage[21]}";
-                                return OperationResult.CreateFailedResult<byte[]>(tempResult);
-                            }
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"{internalAddress} 响应长度不足";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
                         }
-                        if (internalIsBit) { realLength = (int)(Math.Ceiling(realLength / 8.0)); }
-                        Array.Copy(dataPackage, dataPackage.Length - realLength, responseData, 0, realLength);
+
+                        var cotpTotalLength = 1 + dataPackage[4];
+                        var s7Offset = 4 + cotpTotalLength;
+                        if (s7Offset + 12 > dataPackage.Length)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"{internalAddress} S7响应头长度不足";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        var parameterLength = (dataPackage[s7Offset + 6] << 8) | dataPackage[s7Offset + 7];
+                        var dataLength = (dataPackage[s7Offset + 8] << 8) | dataPackage[s7Offset + 9];
+                        var parameterOffset = s7Offset + 12;
+                        var dataOffset = parameterOffset + parameterLength;
+
+                        if (parameterOffset + parameterLength > dataPackage.Length || dataOffset + dataLength > dataPackage.Length)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"{internalAddress} 响应参数或数据长度无效";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        // 读取响应参数区: 0x04 + itemCount；单项读取的数据区从 dataOffset 开始
+                        if (parameterLength < 2 || dataPackage[parameterOffset] != 0x04)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"读取 {internalAddress} 失败，响应功能码异常";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        byte returnCode = dataPackage[dataOffset];
+                        byte transportSize = dataPackage[dataOffset + 1];
+                        int payloadBitLength = (dataPackage[dataOffset + 2] << 8) | dataPackage[dataOffset + 3];
+                        int payloadOffset = dataOffset + 4;
+
+                        if (returnCode == 0x0A || returnCode == 0x05)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"读取 {internalAddress} 失败，请确认地址是否存在";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        if (returnCode != 0xFF)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"读取 {internalAddress} 失败，异常状态[{dataOffset}]:{returnCode}";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        if (internalIsBit)
+                        {
+                            realLength = (int)Math.Ceiling(realLength / 8.0);
+                        }
+
+                        int payloadByteLength = transportSize == 0x03
+                            ? (int)Math.Ceiling(payloadBitLength / 8.0)
+                            : (int)Math.Ceiling(payloadBitLength / 8.0);
+
+                        if (payloadOffset + payloadByteLength > dataPackage.Length || payloadByteLength < realLength)
+                        {
+                            tempResult.IsSuccess = false;
+                            tempResult.Message = $"{internalAddress} {internalOffest} {internalLength} 读取预期长度与返回数据长度不一致";
+                            return OperationResult.CreateFailedResult<byte[]>(tempResult);
+                        }
+
+                        Array.Copy(dataPackage, payloadOffset, responseData, 0, realLength);
                     }
                     catch (Exception ex)
                     {
@@ -433,7 +529,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 OperationResult<byte> result = new OperationResult<byte>();
                 if (Transport is S7EthernetTransport s7Transport)
                 {
-                    var writeRequest = new S7WriteRequest(address, 0, data, isBit);
+                    var writeRequest = new S7WriteRequest(address, 0, data, isBit, GetNextPduReference());
                     var response = await s7Transport.UnicastWriteMessageAsync(writeRequest);
                     if (response.IsSuccess)
                     {
@@ -454,6 +550,11 @@ namespace Wombat.IndustrialCommunication.PLC
                             result.IsSuccess = false;
                             result.Message = $"写入 {address} 失败，异常状态[{offset}]:{dataPackage[offset]}";
                         }
+                        if (!result.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult(response);
+                        }
+
                         return OperationResult.CreateSuccessResult(response);
                     }
                     else
@@ -518,6 +619,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var errors = new List<string>();
                     var warnings = new List<string>();
                     var hasPreviousBlock = false;
+                    var protocolSynchronizationFailure = false;
 
                     foreach (var block in optimizedBlocks)
                     {
@@ -554,6 +656,11 @@ namespace Wombat.IndustrialCommunication.PLC
                             else
                             {
                                 errors.Add($"读取块 {DescribeBatchReadBlock(block)} 失败: {readResult.Message}");
+                                if (IsProtocolSynchronizationFailure(readResult))
+                                {
+                                    protocolSynchronizationFailure = true;
+                                    break;
+                                }
                             }
 
                             hasPreviousBlock = true;
@@ -561,8 +668,24 @@ namespace Wombat.IndustrialCommunication.PLC
                         catch (Exception ex)
                         {
                             errors.Add($"读取块 {DescribeBatchReadBlock(block)} 异常: {ex.Message}");
+                            if (IsProtocolSynchronizationFailureMessage(ex.Message))
+                            {
+                                protocolSynchronizationFailure = true;
+                                break;
+                            }
+
                             hasPreviousBlock = true;
                         }
+                    }
+
+                    if (protocolSynchronizationFailure)
+                    {
+                        result.IsSuccess = false;
+                        result.Message = string.Join("; ", errors.Concat(warnings));
+                        result.ResultValue = addresses.ToDictionary(
+                            kvp => kvp.Key,
+                            kvp => (kvp.Value, (object)null));
+                        return result.Complete();
                     }
 
                     if (errors.Count > 0)
@@ -626,7 +749,9 @@ namespace Wombat.IndustrialCommunication.PLC
         private async ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block)
         {
             var initialResult = await ReadBatchBlockAsync(block);
-            if (initialResult.IsSuccess || !ShouldShrinkBlockBoundary(block, initialResult))
+            if (initialResult.IsSuccess
+                || IsProtocolSynchronizationFailure(initialResult)
+                || !ShouldShrinkBlockBoundary(block, initialResult))
             {
                 return initialResult;
             }
@@ -735,6 +860,11 @@ namespace Wombat.IndustrialCommunication.PLC
             if (string.IsNullOrEmpty(readResult.Message))
             {
                 return true;
+            }
+
+            if (IsProtocolSynchronizationFailure(readResult))
+            {
+                return false;
             }
 
             return readResult.Message.Contains("地址是否存在")
