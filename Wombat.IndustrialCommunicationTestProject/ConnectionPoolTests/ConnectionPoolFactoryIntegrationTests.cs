@@ -60,6 +60,8 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(result.IsSuccess);
             Assert.IsType<SiemensPooledConnection>(result.ResultValue);
             Assert.True(result.ResultValue.Resource.IsLongConnection);
+            var client = Assert.IsType<SiemensClient>(result.ResultValue.Resource);
+            Assert.Equal(SiemensVersion.S7_1200, client.SiemensVersion);
         }
 
         [Fact]

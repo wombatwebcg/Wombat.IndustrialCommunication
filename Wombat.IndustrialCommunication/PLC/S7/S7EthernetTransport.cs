@@ -40,7 +40,16 @@ namespace Wombat.IndustrialCommunication
 
             var result = new OperationResult<S7ReadResponse>();
             
-            if (!(request is S7ReadRequest s7ReadRequest))
+            ushort pduReference;
+            if (request is S7ReadRequest s7ReadRequest)
+            {
+                pduReference = s7ReadRequest.PduReference;
+            }
+            else if (request is S7NativeReadRequest nativeReadRequest)
+            {
+                pduReference = nativeReadRequest.PduReference;
+            }
+            else
             {
                 result.IsSuccess = false;
                 result.Message = "无效的请求类型。期望S7ReadRequest类型。";
@@ -50,8 +59,8 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 // 发送初始请求
-                var commandRequest = await SendRequestAsync(s7ReadRequest.ProtocolMessageFrame);
-                result.Requsts.Add(string.Join(" ", s7ReadRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
 
                 if (!commandRequest.IsSuccess)
                 {
@@ -65,9 +74,10 @@ namespace Wombat.IndustrialCommunication
                 }
 
                 var fullResponse = receiveResult.ResultValue;
-                var pduValidation = ValidateResponsePduReference(fullResponse, s7ReadRequest.PduReference);
+                var pduValidation = ValidateResponsePduReference(fullResponse, pduReference);
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
+                    result.IsSuccess = false;
                     result.Message = pduValidation.Message;
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
@@ -101,7 +111,16 @@ namespace Wombat.IndustrialCommunication
 
             var result = new OperationResult<S7WriteResponse>();
             
-            if (!(request is S7WriteRequest s7WriteRequest))
+            ushort pduReference;
+            if (request is S7WriteRequest s7WriteRequest)
+            {
+                pduReference = s7WriteRequest.PduReference;
+            }
+            else if (request is S7NativeWriteRequest nativeWriteRequest)
+            {
+                pduReference = nativeWriteRequest.PduReference;
+            }
+            else
             {
                 result.IsSuccess = false;
                 result.Message = "无效的请求类型。期望S7WriteRequest类型。";
@@ -111,8 +130,8 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 // 发送初始请求
-                var commandRequest = await SendRequestAsync(s7WriteRequest.ProtocolMessageFrame);
-                result.Requsts.Add(string.Join(" ", s7WriteRequest.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
 
                 if (!commandRequest.IsSuccess)
                 {
@@ -126,9 +145,10 @@ namespace Wombat.IndustrialCommunication
                 }
 
                 var fullResponse = receiveResult.ResultValue;
-                var pduValidation = ValidateResponsePduReference(fullResponse, s7WriteRequest.PduReference);
+                var pduValidation = ValidateResponsePduReference(fullResponse, pduReference);
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
+                    result.IsSuccess = false;
                     result.Message = pduValidation.Message;
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }

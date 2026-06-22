@@ -613,6 +613,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 for (int attempt = 1; attempt <= attempts; attempt++)
                 {
                     var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    LogBatchReadDispatch(result);
                     if (result.IsSuccess)
                     {
                         return result;
@@ -652,6 +653,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    LogBatchReadDispatch(result);
                     shortLastResult = result;
 
                     if (result.IsSuccess || attempt >= shortAttempts || !S7Communication.IsProtocolSynchronizationFailure(result))
@@ -680,6 +682,137 @@ namespace Wombat.IndustrialCommunication.PLC
             }
 
             return shortLastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("短连接批量读取失败");
+        }
+
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        {
+            if (IsLongConnection)
+            {
+                if (!Connected)
+                {
+                    if (EnableAutoReconnect)
+                    {
+                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
+                        if (!reconnectResult.IsSuccess)
+                        {
+                            return OperationResult.CreateFailedResult("S7客户端自动重连失败，无法批量写入数据");
+                        }
+                    }
+                    else
+                    {
+                        return OperationResult.CreateFailedResult($"S7客户端没有连接 ip:{IPEndPoint.Address}");
+                    }
+                }
+
+                var attempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
+                OperationResult lastResult = null;
+
+                for (int attempt = 1; attempt <= attempts; attempt++)
+                {
+                    var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                    LogBatchWriteDispatch(result);
+                    if (result.IsSuccess)
+                    {
+                        return result;
+                    }
+
+                    lastResult = result;
+                    if (attempt >= attempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        return result;
+                    }
+
+                    var reconnectResult = await ResetDirtyConnectionAsync(result.Message).ConfigureAwait(false);
+                    if (!reconnectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult($"检测到S7协议同步异常且重连失败：{reconnectResult.Message}");
+                    }
+
+                    Logger?.LogWarning("批量写入检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                }
+
+                return lastResult ?? OperationResult.CreateFailedResult("批量写入失败");
+            }
+
+            var shortAttempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
+            OperationResult shortLastResult = null;
+
+            for (int attempt = 1; attempt <= shortAttempts; attempt++)
+            {
+                try
+                {
+                    await DisconnectAsync().ConfigureAwait(false);
+
+                    var connectResult = await ConnectAsync().ConfigureAwait(false);
+                    if (!connectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                    }
+
+                    var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                    LogBatchWriteDispatch(result);
+                    shortLastResult = result;
+
+                    if (result.IsSuccess || attempt >= shortAttempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    {
+                        return result;
+                    }
+
+                    Logger?.LogWarning("短连接模式批量写入检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                }
+                catch (Exception ex)
+                {
+                    Logger?.LogError(ex, "短连接模式批量写入S7数据时发生异常");
+                    return OperationResult.CreateFailedResult($"短连接批量写入失败：{ex.Message}");
+                }
+                finally
+                {
+                    try
+                    {
+                        await DisconnectAsync().ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger?.LogWarning(ex, "短连接模式批量写入后断开连接时发生异常");
+                    }
+                }
+            }
+
+            return shortLastResult ?? OperationResult.CreateFailedResult("短连接批量写入失败");
+        }
+
+        private void LogBatchReadDispatch(OperationResult<Dictionary<string, (DataTypeEnums, object)>> result)
+        {
+            if (result == null || string.IsNullOrEmpty(result.Message))
+            {
+                return;
+            }
+
+            const string pathPrefix = "BatchReadPath=";
+            int pathIndex = result.Message.IndexOf(pathPrefix, StringComparison.Ordinal);
+            if (pathIndex < 0)
+            {
+                return;
+            }
+
+            Logger?.LogInformation("S7批量读取完成，调度信息：{DispatchMessage}", result.Message);
+        }
+
+        private void LogBatchWriteDispatch(OperationResult result)
+        {
+            if (result == null || string.IsNullOrEmpty(result.Message))
+            {
+                return;
+            }
+
+            const string pathPrefix = "BatchWritePath=";
+            int pathIndex = result.Message.IndexOf(pathPrefix, StringComparison.Ordinal);
+            if (pathIndex < 0)
+            {
+                return;
+            }
+
+            Logger?.LogInformation("S7批量写入完成，调度信息：{DispatchMessage}", result.Message);
         }
         
         /// <summary>

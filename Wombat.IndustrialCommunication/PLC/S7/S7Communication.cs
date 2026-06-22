@@ -71,6 +71,13 @@ namespace Wombat.IndustrialCommunication.PLC
     {
         internal AsyncLock _lock = new AsyncLock();
         private static ArrayPool<byte> _byteArrayPool = ArrayPool<byte>.Shared;
+        private const int DefaultNativeRandomReadMaxItems = 19;
+        private const int DefaultNativeRandomWriteMaxItems = 10;
+        private const int DefaultNativeRandomReadMaxPayloadBytes = 180;
+        private const int DefaultNativeRandomWriteMaxPayloadBytes = 180;
+        private const double DefaultBlockReadMinEfficiency = 0.8d;
+        private const int DefaultRandomReadPreferSingleLengthThreshold = 4;
+        private const double DefaultBatchReadDispatchRequestWeight = 1.0d;
         private ushort _pduReference;
 
         public S7Communication(S7EthernetTransport s7EthernetTransport) :base(s7EthernetTransport)
@@ -95,6 +102,8 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 批量读取地址块的最小效率比，小于等于0时使用helper默认值
         /// </summary>
         public double EfficiencyRatio { get; set; }
+
+        public int NegotiatedPduLimit { get; set; } = 480;
 
         /// <summary>
         /// 批量读取时，不同地址块之间的等待间隔。默认0表示不等待。
@@ -149,6 +158,20 @@ namespace Wombat.IndustrialCommunication.PLC
                 || message.Contains("响应功能码异常")
                 || message.Contains("S7响应PDU Reference不匹配");
         }
+
+        internal virtual int GetNativeRandomReadMaxItems() => DefaultNativeRandomReadMaxItems;
+
+        internal virtual int GetNativeRandomWriteMaxItems() => DefaultNativeRandomWriteMaxItems;
+
+        internal virtual int GetNativeRandomReadMaxPayloadBytes() => DefaultNativeRandomReadMaxPayloadBytes;
+
+        internal virtual int GetNativeRandomWriteMaxPayloadBytes() => DefaultNativeRandomWriteMaxPayloadBytes;
+
+        internal virtual double GetBlockReadMinEfficiency() => DefaultBlockReadMinEfficiency;
+
+        internal virtual int GetRandomReadPreferSingleLengthThreshold() => DefaultRandomReadPreferSingleLengthThreshold;
+
+        internal virtual double GetBatchReadDispatchRequestWeight() => DefaultBatchReadDispatchRequestWeight;
 
         public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
         {
@@ -226,6 +249,8 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     return OperationResult.CreateFailedResult(result, handshake2Validation.Message);
                 }
+
+                NegotiatedPduLimit = ExtractNegotiatedPduLength(handshake2Result.ResultValue);
             }
             catch (Exception ex)
             {
@@ -378,6 +403,17 @@ namespace Wombat.IndustrialCommunication.PLC
             }
 
             return OperationResult.CreateSuccessResult();
+        }
+
+        private static int ExtractNegotiatedPduLength(byte[] response)
+        {
+            if (response == null || response.Length < 27)
+            {
+                return 480;
+            }
+
+            int negotiated = (response[25] << 8) | response[26];
+            return negotiated > 0 ? negotiated : 480;
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
@@ -576,24 +612,21 @@ namespace Wombat.IndustrialCommunication.PLC
             using (await _lock.LockAsync())
             {
                 var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
-                
+
                 try
                 {
-                    // 参数校验
                     if (addresses == null || addresses.Count == 0)
                     {
                         result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
                         return result.Complete();
                     }
 
-                    // 地址字典转换为内部格式
                     var internalAddresses = new Dictionary<string, (DataTypeEnums, object)>();
                     foreach (var kvp in addresses)
                     {
-                        internalAddresses[kvp.Key] = (kvp.Value, null); // 读取时值为 null
+                        internalAddresses[kvp.Key] = (kvp.Value, null);
                     }
 
-                    // 解析地址信息
                     var addressInfos = S7BatchHelper.ParseS7Addresses(internalAddresses);
                     if (addressInfos.Count == 0)
                     {
@@ -603,126 +636,20 @@ namespace Wombat.IndustrialCommunication.PLC
                         return result.Complete();
                     }
 
-                    // 优先使用实例配置的效率比，未设置时回退到helper默认值
-                    var minEfficiencyRatio = EfficiencyRatio > 0 ? EfficiencyRatio : 0.8;
-                    var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos, minEfficiencyRatio);
-                    if (optimizedBlocks.Count == 0)
+                    var dispatchDecision = AnalyzeBatchReadDispatch(addressInfos);
+                    OperationResult<Dictionary<string, (DataTypeEnums, object)>> pathResult;
+
+                    if (dispatchDecision.Mode == S7BatchReadPathKind.NativeRandomRead)
                     {
-                        result.IsSuccess = false;
-                        result.Message = "地址优化失败";
-                        result.ResultValue = new Dictionary<string, (DataTypeEnums, object)>();
-                        return result.Complete();
-                    }
-
-                    // 执行批量读取
-                    var blockDataDict = new Dictionary<string, byte[]>();
-                    var errors = new List<string>();
-                    var warnings = new List<string>();
-                    var hasPreviousBlock = false;
-                    var protocolSynchronizationFailure = false;
-
-                    foreach (var block in optimizedBlocks)
-                    {
-                        try
-                        {
-                            await DelayBeforeNextBatchReadAsync(hasPreviousBlock).ConfigureAwait(false);
-
-                            if (block.Addresses.Count == 0)
-                            {
-                                errors.Add("地址块中没有地址信息");
-                                continue;
-                            }
-
-                            var readResult = await ReadBlockWithBoundaryFallbackAsync(block);
-                            
-                            if (readResult.IsSuccess)
-                            {
-                                blockDataDict[BuildBatchReadBlockKey(block)] = readResult.ResultValue;
-                                
-                                // 合并请求和响应记录
-                                if (readResult.Requsts != null && readResult.Requsts.Count > 0)
-                                {
-                                    result.Requsts.AddRange(readResult.Requsts);
-                                }
-                                if (readResult.Responses != null && readResult.Responses.Count > 0)
-                                {
-                                    result.Responses.AddRange(readResult.Responses);
-                                }
-                                if (!string.IsNullOrEmpty(readResult.Message))
-                                {
-                                    warnings.Add(readResult.Message);
-                                }
-                            }
-                            else
-                            {
-                                errors.Add($"读取块 {DescribeBatchReadBlock(block)} 失败: {readResult.Message}");
-                                if (IsProtocolSynchronizationFailure(readResult))
-                                {
-                                    protocolSynchronizationFailure = true;
-                                    break;
-                                }
-                            }
-
-                            hasPreviousBlock = true;
-                        }
-                        catch (Exception ex)
-                        {
-                            errors.Add($"读取块 {DescribeBatchReadBlock(block)} 异常: {ex.Message}");
-                            if (IsProtocolSynchronizationFailureMessage(ex.Message))
-                            {
-                                protocolSynchronizationFailure = true;
-                                break;
-                            }
-
-                            hasPreviousBlock = true;
-                        }
-                    }
-
-                    if (protocolSynchronizationFailure)
-                    {
-                        result.IsSuccess = false;
-                        result.Message = string.Join("; ", errors.Concat(warnings));
-                        result.ResultValue = addresses.ToDictionary(
-                            kvp => kvp.Key,
-                            kvp => (kvp.Value, (object)null));
-                        return result.Complete();
-                    }
-
-                    if (errors.Count > 0)
-                    {
-                        result.IsSuccess = blockDataDict.Count > 0; // 允许部分成功
-                        result.Message = string.Join("; ", errors.Concat(warnings));
+                        pathResult = await BatchReadByNativeRandomAsync(addresses, addressInfos, dispatchDecision).ConfigureAwait(false);
                     }
                     else
                     {
-                        result.IsSuccess = true;
-                        if (warnings.Count > 0)
-                        {
-                            result.Message = string.Join("; ", warnings);
-                        }
+                        pathResult = await BatchReadByBlockAsync(addresses, addressInfos, dispatchDecision).ConfigureAwait(false);
                     }
 
-                    // 从块数据中提取各地址对应值
-                    var extractedData = S7BatchHelper.ExtractDataFromS7Blocks(blockDataDict, optimizedBlocks, addressInfos);
-
-                    // 转换为返回格式
-                    var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
-                    foreach (var kvp in addresses)
-                    {
-                        var address = kvp.Key;
-                        var dataType = kvp.Value;
-                        
-                        if (extractedData.TryGetValue(address, out var value))
-                        {
-                            finalResult[address] = (dataType, value);
-                        }
-                        else
-                        {
-                            finalResult[address] = (dataType, null);
-                        }
-                    }
-
-                    result.ResultValue = finalResult;
+                    result.SetInfo(pathResult);
+                    result.ResultValue = pathResult.ResultValue;
                 }
                 catch (Exception ex)
                 {
@@ -734,6 +661,641 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 return result.Complete();
             }
+        }
+
+        internal virtual S7BatchReadDispatchAnalysis AnalyzeBatchReadDispatch(IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos)
+        {
+            var decision = new S7BatchReadDispatchAnalysis
+            {
+                Mode = S7BatchReadPathKind.BlockRead,
+                DecisionReason = "默认块读",
+                AddressCount = addressInfos?.Count ?? 0
+            };
+
+            if (addressInfos == null || addressInfos.Count == 0)
+            {
+                decision.DecisionReason = "没有可用地址";
+                return decision;
+            }
+
+            decision.RequestedBytes = addressInfos.Sum(t => t.Length);
+            decision.MaxAddressLength = addressInfos.Max(t => t.Length);
+            EstimateBlockReadCost(addressInfos, decision);
+            EstimateNativeRandomReadCost(addressInfos, decision);
+
+            if (addressInfos.Count > 1 && !IsContinuousAddressBatch(addressInfos))
+            {
+                decision.Mode = S7BatchReadPathKind.NativeRandomRead;
+                decision.DecisionReason = $"检测到不连续地址，按固定{GetNativeRandomReadMaxItems()}项/包执行原生随机批量读";
+                return decision;
+            }
+
+            if (decision.NativeBatchCount <= 0 || decision.NativeTotalBytes <= 0)
+            {
+                decision.DecisionReason = "随机批量读地址映射失败，回退块读";
+                return decision;
+            }
+
+            ShouldUseNativeRandomRead(decision);
+            return decision;
+        }
+
+        internal virtual bool IsContinuousAddressBatch(IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos)
+        {
+            if (addressInfos == null || addressInfos.Count <= 1)
+            {
+                return true;
+            }
+
+            var ordered = addressInfos
+                .OrderBy(t => S7BatchHelper.GetS7AreaType(t.DataType))
+                .ThenBy(t => t.DbNumber)
+                .ThenBy(t => t.StartByte)
+                .ThenBy(t => t.BitOffset)
+                .ToList();
+
+            var first = ordered[0];
+            string areaType = S7BatchHelper.GetS7AreaType(first.DataType);
+            int dbNumber = first.DbNumber;
+            int expectedNextByte = first.StartByte + Math.Max(first.Length, 1);
+
+            for (int i = 1; i < ordered.Count; i++)
+            {
+                var current = ordered[i];
+                if (!string.Equals(S7BatchHelper.GetS7AreaType(current.DataType), areaType, StringComparison.Ordinal)
+                    || current.DbNumber != dbNumber
+                    || current.StartByte != expectedNextByte)
+                {
+                    return false;
+                }
+
+                expectedNextByte = current.StartByte + Math.Max(current.Length, 1);
+            }
+
+            return true;
+        }
+
+        internal virtual void EstimateBlockReadCost(
+            IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos,
+            S7BatchReadDispatchAnalysis decision)
+        {
+            if (decision == null)
+            {
+                throw new ArgumentNullException(nameof(decision));
+            }
+
+            if (addressInfos == null || addressInfos.Count == 0)
+            {
+                decision.BlockCount = 0;
+                decision.BlockReadBytes = 0;
+                decision.BlockByteEfficiency = 0;
+                return;
+            }
+
+            double minEfficiencyRatio = EfficiencyRatio > 0 ? EfficiencyRatio : GetBlockReadMinEfficiency();
+            var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos.ToList(), minEfficiencyRatio);
+            decision.BlockCount = optimizedBlocks.Count;
+            decision.BlockReadBytes = optimizedBlocks.Sum(t => t.TotalLength);
+            decision.BlockByteEfficiency = decision.BlockReadBytes <= 0
+                ? 0
+                : (double)decision.RequestedBytes / decision.BlockReadBytes;
+        }
+
+        internal virtual void EstimateNativeRandomReadCost(
+            IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos,
+            S7BatchReadDispatchAnalysis decision)
+        {
+            if (decision == null)
+            {
+                throw new ArgumentNullException(nameof(decision));
+            }
+
+            if (addressInfos == null || addressInfos.Count == 0)
+            {
+                decision.NativeBatchCount = 0;
+                decision.NativeTotalBytes = 0;
+                return;
+            }
+
+            var nativeItems = BuildNativeReadItems(addressInfos);
+            if (nativeItems.Count == 0)
+            {
+                decision.NativeBatchCount = 0;
+                decision.NativeTotalBytes = 0;
+                return;
+            }
+
+            var nativeBatches = SplitNativeRandomReadBatches(nativeItems);
+            decision.NativeBatchCount = nativeBatches.Count;
+            decision.NativeTotalBytes = nativeBatches.Sum(t => t.ResponseFrameLength);
+        }
+
+        internal virtual bool ShouldUseNativeRandomRead(S7BatchReadDispatchAnalysis decision)
+        {
+            if (decision == null)
+            {
+                throw new ArgumentNullException(nameof(decision));
+            }
+
+            if (decision.AddressCount == 1)
+            {
+                decision.Mode = S7BatchReadPathKind.BlockRead;
+                decision.DecisionReason = "单地址读取，保留块读";
+                return false;
+            }
+
+            if (decision.BlockCount >= decision.AddressCount
+                && decision.AddressCount > 1
+                && decision.MaxAddressLength <= GetRandomReadPreferSingleLengthThreshold())
+            {
+                decision.Mode = S7BatchReadPathKind.NativeRandomRead;
+                decision.DecisionReason = "多离散短地址，优先原生随机批量读";
+                return true;
+            }
+
+            if (decision.BlockByteEfficiency >= GetBlockReadMinEfficiency() && decision.BlockCount <= decision.NativeBatchCount)
+            {
+                decision.Mode = S7BatchReadPathKind.BlockRead;
+                decision.DecisionReason = $"块读效率高({decision.BlockByteEfficiency:P2})，优先块读";
+                return false;
+            }
+
+            if (decision.MaxAddressLength <= GetRandomReadPreferSingleLengthThreshold() && decision.BlockByteEfficiency < GetBlockReadMinEfficiency())
+            {
+                decision.Mode = S7BatchReadPathKind.NativeRandomRead;
+                decision.DecisionReason = $"地址离散且单项长度较小，块读效率{decision.BlockByteEfficiency:P2}低于阈值{GetBlockReadMinEfficiency():P2}";
+                return true;
+            }
+
+            double blockScore = decision.BlockReadBytes * Math.Max(GetBatchReadDispatchRequestWeight(), 0.1d);
+            double nativeScore = decision.NativeTotalBytes;
+            if (nativeScore < blockScore)
+            {
+                decision.Mode = S7BatchReadPathKind.NativeRandomRead;
+                decision.DecisionReason = $"成本比较选择随机读，请求成本{nativeScore} < 块读成本{blockScore:F0}";
+                return true;
+            }
+
+            decision.Mode = S7BatchReadPathKind.BlockRead;
+            decision.DecisionReason = $"成本比较选择块读，请求成本{nativeScore} >= 块读成本{blockScore:F0}";
+            return false;
+        }
+
+        private async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadByBlockAsync(
+            Dictionary<string, DataTypeEnums> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos,
+            S7BatchReadDispatchAnalysis dispatchDecision)
+        {
+            var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
+            double minEfficiencyRatio = EfficiencyRatio > 0 ? EfficiencyRatio : GetBlockReadMinEfficiency();
+            var optimizedBlocks = S7BatchHelper.OptimizeS7AddressBlocks(addressInfos, minEfficiencyRatio);
+            if (optimizedBlocks.Count == 0)
+            {
+                return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("地址优化失败");
+            }
+
+            var blockDataDict = new Dictionary<string, byte[]>();
+            var errors = new List<string>();
+            var warnings = new List<string>();
+            bool hasPreviousBlock = false;
+            bool protocolSynchronizationFailure = false;
+
+            foreach (var block in optimizedBlocks)
+            {
+                try
+                {
+                    await DelayBeforeNextBatchReadAsync(hasPreviousBlock).ConfigureAwait(false);
+                    if (block.Addresses.Count == 0)
+                    {
+                        errors.Add("地址块中没有地址信息");
+                        continue;
+                    }
+
+                    var readResult = await ReadBlockWithBoundaryFallbackAsync(block).ConfigureAwait(false);
+                    MergeBatchReadLogs(readResult, result.Requsts, result.Responses);
+
+                    if (readResult.IsSuccess)
+                    {
+                        blockDataDict[BuildBatchReadBlockKey(block)] = readResult.ResultValue;
+                        if (!string.IsNullOrEmpty(readResult.Message))
+                        {
+                            warnings.Add(readResult.Message);
+                        }
+                    }
+                    else
+                    {
+                        errors.Add($"读取块 {DescribeBatchReadBlock(block)} 失败: {readResult.Message}");
+                        if (IsProtocolSynchronizationFailure(readResult))
+                        {
+                            protocolSynchronizationFailure = true;
+                            break;
+                        }
+                    }
+
+                    hasPreviousBlock = true;
+                }
+                catch (Exception ex)
+                {
+                    errors.Add($"读取块 {DescribeBatchReadBlock(block)} 异常: {ex.Message}");
+                    if (IsProtocolSynchronizationFailureMessage(ex.Message))
+                    {
+                        protocolSynchronizationFailure = true;
+                        break;
+                    }
+
+                    hasPreviousBlock = true;
+                }
+            }
+
+            if (protocolSynchronizationFailure)
+            {
+                result.IsSuccess = false;
+                    result.Message = BuildDispatchMessage(dispatchDecision, string.Join("; ", errors.Concat(warnings)));
+                result.ResultValue = BuildFailedBatchReadResult(addresses);
+                return result.Complete();
+            }
+
+            var extractedData = S7BatchHelper.ExtractDataFromS7Blocks(blockDataDict, optimizedBlocks, addressInfos);
+            result.ResultValue = BuildBatchReadResult(addresses, extractedData);
+            result.IsSuccess = errors.Count == 0 || blockDataDict.Count > 0;
+            result.Message = BuildDispatchMessage(dispatchDecision, string.Join("; ", errors.Concat(warnings)).Trim().Trim(';'));
+            return result.Complete();
+        }
+
+        private async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadByNativeRandomAsync(
+            Dictionary<string, DataTypeEnums> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos,
+            S7BatchReadDispatchAnalysis dispatchDecision)
+        {
+            var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
+            var items = BuildNativeReadItems(addressInfos);
+            var batches = SplitNativeRandomReadBatches(items);
+            var values = new Dictionary<string, object>();
+            var errors = new List<string>();
+
+            foreach (var batch in batches)
+            {
+                var batchResult = await ExecuteNativeRandomReadBatchAsync(batch).ConfigureAwait(false);
+                MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
+
+                if (!batchResult.IsSuccess)
+                {
+                    result.IsSuccess = false;
+                    result.Message = BuildDispatchMessage(dispatchDecision, batchResult.Message);
+                    result.ResultValue = BuildFailedBatchReadResult(addresses);
+                    return result.Complete();
+                }
+
+                foreach (var itemResult in batchResult.ResultValue.Items)
+                {
+                    if (itemResult.IsSuccess)
+                    {
+                        values[itemResult.Item.OriginalAddress] = ConvertNativeReadBytesToValue(itemResult.Item, itemResult.Data);
+                    }
+                    else
+                    {
+                        errors.Add(itemResult.Message ?? $"读取 {itemResult.Item.OriginalAddress} 失败");
+                    }
+                }
+            }
+
+            result.IsSuccess = errors.Count == 0 || values.Count > 0;
+            result.Message = BuildDispatchMessage(dispatchDecision, string.Join("; ", errors));
+            result.ResultValue = BuildBatchReadResult(addresses, values);
+            return result.Complete();
+        }
+
+        protected internal virtual List<S7NativeReadItem> BuildNativeReadItems(IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos)
+        {
+            var result = new List<S7NativeReadItem>();
+            if (addressInfos == null)
+            {
+                return result;
+            }
+
+            for (int i = 0; i < addressInfos.Count; i++)
+            {
+                var addressInfo = addressInfos[i];
+                var siemensAddress = S7CommonMethods.ConvertArg(addressInfo.OriginalAddress);
+                result.Add(new S7NativeReadItem
+                {
+                    OriginalAddress = addressInfo.OriginalAddress,
+                    DataType = addressInfo.TargetDataType,
+                    AreaTypeCode = siemensAddress.TypeCode,
+                    DbNumber = siemensAddress.DbBlock,
+                    BeginAddress = siemensAddress.BeginAddress,
+                    ByteOffset = addressInfo.StartByte,
+                    Length = addressInfo.Length,
+                    RequestedLength = siemensAddress.ReadWriteLength > 0 ? siemensAddress.ReadWriteLength : addressInfo.Length,
+                    BitOffset = addressInfo.BitOffset,
+                    IsBit = siemensAddress.IsBit,
+                    OriginalIndex = i
+                });
+            }
+
+            return result;
+        }
+
+        protected internal virtual List<S7NativeReadBatch> SplitNativeRandomReadBatches(IReadOnlyList<S7NativeReadItem> items)
+        {
+            var batches = new List<S7NativeReadBatch>();
+            if (items == null || items.Count == 0)
+            {
+                return batches;
+            }
+
+            var limits = S7NativeBatchLimits.CreateReadLimits(NegotiatedPduLimit, GetNativeRandomReadMaxItems(), GetNativeRandomReadMaxPayloadBytes());
+            var orderedItems = items.OrderBy(t => t.OriginalIndex).ToList();
+            foreach (var item in orderedItems)
+            {
+                ValidateNativeRandomReadItem(item, limits);
+            }
+
+            for (int i = 0; i < orderedItems.Count; i += limits.MaxItems)
+            {
+                var batch = new S7NativeReadBatch();
+                foreach (var item in orderedItems.Skip(i).Take(limits.MaxItems))
+                {
+                    batch.Items.Add(item);
+                }
+
+                if (batch.Items.Count > 0)
+                {
+                    batches.Add(batch);
+                }
+            }
+
+            return batches;
+        }
+
+        protected internal virtual List<S7NativeWriteItem> BuildNativeWriteItems(
+            IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos,
+            Dictionary<string, (DataTypeEnums, object)> addresses)
+        {
+            var result = new List<S7NativeWriteItem>();
+            if (addressInfos == null)
+            {
+                return result;
+            }
+
+            for (int i = 0; i < addressInfos.Count; i++)
+            {
+                var addressInfo = addressInfos[i];
+                if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
+                {
+                    throw new InvalidOperationException($"地址 {addressInfo.OriginalAddress} 没有对应的值");
+                }
+
+                byte[] writeData = S7BatchHelper.ConvertValueToS7Bytes(valueTuple.Item2, addressInfo, IsReverse, DataFormat);
+                if (writeData == null || writeData.Length == 0)
+                {
+                    throw new InvalidOperationException($"地址 {addressInfo.OriginalAddress} 数值转换失败");
+                }
+
+                var siemensAddress = S7CommonMethods.ConvertWriteArg(addressInfo.OriginalAddress, 0, writeData, S7BatchHelper.IsBitType(addressInfo.DataType));
+                var beginAddress = siemensAddress.BeginAddress;
+                if (S7BatchHelper.IsBitType(addressInfo.DataType))
+                {
+                    beginAddress = addressInfo.StartByte * 8;
+                }
+
+                result.Add(new S7NativeWriteItem
+                {
+                    OriginalAddress = addressInfo.OriginalAddress,
+                    DataType = addressInfo.TargetDataType,
+                    AreaTypeCode = siemensAddress.TypeCode,
+                    DbNumber = siemensAddress.DbBlock,
+                    BeginAddress = beginAddress,
+                    ByteOffset = addressInfo.StartByte,
+                    BitOffset = addressInfo.BitOffset,
+                    IsBit = siemensAddress.IsBit,
+                    OriginalIndex = i,
+                    WriteData = siemensAddress.WriteData
+                });
+            }
+
+            return result;
+        }
+
+        protected internal virtual List<S7NativeWriteBatch> SplitNativeRandomWriteBatches(IReadOnlyList<S7NativeWriteItem> items)
+        {
+            var batches = new List<S7NativeWriteBatch>();
+            if (items == null || items.Count == 0)
+            {
+                return batches;
+            }
+
+            var limits = S7NativeBatchLimits.CreateWriteLimits(NegotiatedPduLimit, GetNativeRandomWriteMaxItems(), GetNativeRandomWriteMaxPayloadBytes());
+            var orderedItems = items.OrderBy(t => t.OriginalIndex).ToList();
+            foreach (var item in orderedItems)
+            {
+                ValidateNativeRandomWriteItem(item, limits);
+            }
+
+            for (int i = 0; i < orderedItems.Count; i += limits.MaxItems)
+            {
+                var batch = new S7NativeWriteBatch();
+                foreach (var item in orderedItems.Skip(i).Take(limits.MaxItems))
+                {
+                    batch.Items.Add(item);
+                }
+
+                if (batch.Items.Count > 0)
+                {
+                    batches.Add(batch);
+                }
+            }
+
+            return batches;
+        }
+
+        private static void ValidateNativeRandomWriteItem(S7NativeWriteItem item, S7NativeBatchLimits limits)
+        {
+            var singleBatch = new S7NativeWriteBatch();
+            singleBatch.Items.Add(item);
+
+            if (1 > limits.MaxItems
+                || singleBatch.RequestLength > limits.RequestLimit
+                || singleBatch.DataLength > limits.PayloadLimit
+                || singleBatch.ResponseFrameLength > limits.ResponseLimit)
+            {
+                throw new InvalidOperationException(
+                    $"地址 {item.OriginalAddress} 超出随机批量写单项上限: RequestLength={singleBatch.RequestLength}, DataLength={singleBatch.DataLength}, ResponseLength={singleBatch.ResponseFrameLength}");
+            }
+        }
+
+        private async ValueTask<OperationResult<S7NativeWriteResponse>> ExecuteNativeRandomWriteBatchAsync(S7NativeWriteBatch batch)
+        {
+            if (!(Transport is S7EthernetTransport s7Transport))
+            {
+                return OperationResult.CreateFailedResult<S7NativeWriteResponse>("S7传输层不可用");
+            }
+
+            var request = new S7NativeWriteRequest(batch.Items, GetNextPduReference());
+            var response = await s7Transport.UnicastWriteMessageAsync(request).ConfigureAwait(false);
+            if (!response.IsSuccess)
+            {
+                var failureMessage = !string.IsNullOrEmpty(response.Message)
+                    ? response.Message
+                    : string.Join("; ", response.OperationInfo ?? new List<string>());
+                if (string.IsNullOrEmpty(failureMessage))
+                {
+                    failureMessage = "批量随机写请求失败";
+                }
+
+                var failed = OperationResult.CreateFailedResult<S7NativeWriteResponse>(failureMessage);
+                failed.Requsts.AddRange(response.Requsts);
+                failed.Responses.AddRange(response.Responses);
+                return failed;
+            }
+
+            var parsed = S7NativeWriteResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            parsed.Requsts.AddRange(response.Requsts);
+            parsed.Responses.AddRange(response.Responses);
+            return parsed;
+        }
+
+        private static void ValidateNativeRandomReadItem(S7NativeReadItem item, S7NativeBatchLimits limits)
+        {
+            var singleBatch = new S7NativeReadBatch();
+            singleBatch.Items.Add(item);
+
+            if (1 > limits.MaxItems
+                || singleBatch.RequestLength > limits.RequestLimit
+                || S7NativeReadRequest.EstimateResponsePayloadLength(singleBatch.Items) > limits.PayloadLimit
+                || singleBatch.ResponseFrameLength > limits.ResponseLimit)
+            {
+                throw new InvalidOperationException(
+                    $"地址 {item.OriginalAddress} 超出随机批量读单项上限: RequestLength={singleBatch.RequestLength}, ResponseLength={singleBatch.ResponseFrameLength}, Payload={S7NativeReadRequest.EstimateResponsePayloadLength(singleBatch.Items)}");
+            }
+        }
+
+        private async ValueTask<OperationResult<S7NativeReadResponse>> ExecuteNativeRandomReadBatchAsync(S7NativeReadBatch batch)
+        {
+            if (!(Transport is S7EthernetTransport s7Transport))
+            {
+                return OperationResult.CreateFailedResult<S7NativeReadResponse>("S7传输层不可用");
+            }
+
+            var request = new S7NativeReadRequest(batch.Items, GetNextPduReference());
+            var response = await s7Transport.UnicastReadMessageAsync(request).ConfigureAwait(false);
+            if (!response.IsSuccess)
+            {
+                var failureMessage = !string.IsNullOrEmpty(response.Message)
+                    ? response.Message
+                    : string.Join("; ", response.OperationInfo ?? new List<string>());
+                if (string.IsNullOrEmpty(failureMessage))
+                {
+                    failureMessage = "批量随机读请求失败";
+                }
+
+                var failed = OperationResult.CreateFailedResult<S7NativeReadResponse>(failureMessage);
+                failed.Requsts.AddRange(response.Requsts);
+                failed.Responses.AddRange(response.Responses);
+                return failed;
+            }
+
+            var parsed = S7NativeReadResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            parsed.Requsts.AddRange(response.Requsts);
+            parsed.Responses.AddRange(response.Responses);
+            return parsed;
+        }
+
+        private static object ConvertNativeReadBytesToValue(S7NativeReadItem item, byte[] data)
+        {
+            if (data == null)
+            {
+                return null;
+            }
+
+            var normalized = NormalizeS7BytesForRead(data, item.DataType);
+            switch (item.DataType)
+            {
+                case DataTypeEnums.Bool:
+                    return normalized[0] != 0;
+                case DataTypeEnums.Byte:
+                    return normalized[0];
+                case DataTypeEnums.Int16:
+                    return BitConverter.ToInt16(normalized, 0);
+                case DataTypeEnums.UInt16:
+                    return BitConverter.ToUInt16(normalized, 0);
+                case DataTypeEnums.Int32:
+                    return BitConverter.ToInt32(normalized, 0);
+                case DataTypeEnums.UInt32:
+                    return BitConverter.ToUInt32(normalized, 0);
+                case DataTypeEnums.Int64:
+                    return BitConverter.ToInt64(normalized, 0);
+                case DataTypeEnums.UInt64:
+                    return BitConverter.ToUInt64(normalized, 0);
+                case DataTypeEnums.Float:
+                    return BitConverter.ToSingle(normalized, 0);
+                case DataTypeEnums.Double:
+                    return BitConverter.ToDouble(normalized, 0);
+                case DataTypeEnums.String:
+                    return Encoding.ASCII.GetString(normalized);
+                default:
+                    return normalized;
+            }
+        }
+
+        private static byte[] NormalizeS7BytesForRead(byte[] data, DataTypeEnums dataType)
+        {
+            if (data == null)
+            {
+                return null;
+            }
+
+            var result = (byte[])data.Clone();
+            if (!BitConverter.IsLittleEndian)
+            {
+                return result;
+            }
+
+            switch (dataType)
+            {
+                case DataTypeEnums.Int16:
+                case DataTypeEnums.UInt16:
+                case DataTypeEnums.Int32:
+                case DataTypeEnums.UInt32:
+                case DataTypeEnums.Int64:
+                case DataTypeEnums.UInt64:
+                case DataTypeEnums.Float:
+                case DataTypeEnums.Double:
+                    Array.Reverse(result);
+                    break;
+            }
+
+            return result;
+        }
+
+        private static Dictionary<string, (DataTypeEnums, object)> BuildBatchReadResult(
+            Dictionary<string, DataTypeEnums> addresses,
+            Dictionary<string, object> values)
+        {
+            var finalResult = new Dictionary<string, (DataTypeEnums, object)>();
+            foreach (var kvp in addresses)
+            {
+                object value;
+                values.TryGetValue(kvp.Key, out value);
+                finalResult[kvp.Key] = (kvp.Value, value);
+            }
+
+            return finalResult;
+        }
+
+        private static Dictionary<string, (DataTypeEnums, object)> BuildFailedBatchReadResult(Dictionary<string, DataTypeEnums> addresses)
+        {
+            return addresses.ToDictionary(kvp => kvp.Key, kvp => (kvp.Value, (object)null));
+        }
+
+        private static string BuildDispatchMessage(S7BatchReadDispatchAnalysis decision, string detail)
+        {
+            return S7BatchMessageFormatter.BuildReadDispatchMessage(decision, detail);
+        }
+
+        protected internal virtual string BuildBatchWriteMessage(string detail)
+        {
+            return S7BatchMessageFormatter.BuildWriteDispatchMessage("NativeRandomWrite", detail);
         }
 
         private async Task DelayBeforeNextBatchReadAsync(bool hasPreviousBlock)
@@ -827,6 +1389,24 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         private static void MergeBatchReadLogs(OperationResult<byte[]> source, List<string> requests, List<string> responses)
+        {
+            if (source == null)
+            {
+                return;
+            }
+
+            if (source.Requsts != null && source.Requsts.Count > 0)
+            {
+                requests.AddRange(source.Requsts);
+            }
+
+            if (source.Responses != null && source.Responses.Count > 0)
+            {
+                responses.AddRange(source.Responses);
+            }
+        }
+
+        private static void MergeBatchReadLogs(OperationResult source, List<string> requests, List<string> responses)
         {
             if (source == null)
             {
@@ -955,104 +1535,127 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             using (await _lock.LockAsync())
             {
-                var result = new OperationResult();
-                
                 try
                 {
-                    // 参数校验
                     if (addresses == null || addresses.Count == 0)
                     {
-                        return result.Complete();
+                        return new OperationResult().Complete();
                     }
 
-                    // 解析地址信息
                     var addressInfos = S7BatchHelper.ParseS7Addresses(addresses);
                     if (addressInfos.Count == 0)
                     {
-                        result.IsSuccess = false;
-                        result.Message = "没有有效地址可写入";
-                        return result.Complete();
+                        return OperationResult.CreateFailedResult("没有有效地址可写入");
                     }
 
-                    // 执行批量写入
-                    var writeErrors = new List<string>();
-                    var successCount = 0;
+                    return await BatchWriteByNativeRandomAsync(addresses, addressInfos).ConfigureAwait(false);
+                }
+                catch (Exception ex)
+                {
+                    return OperationResult.CreateFailedResult($"批量写入异常: {ex.Message}");
+                }
+            }
+        }
 
-                    foreach (var addressInfo in addressInfos)
+        protected internal virtual async ValueTask<OperationResult> BatchWriteByNativeRandomAsync(
+            Dictionary<string, (DataTypeEnums, object)> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos)
+        {
+            var result = new OperationResult();
+            var items = BuildNativeWriteItems(addressInfos, addresses);
+            var batches = SplitNativeRandomWriteBatches(items);
+            var errors = new List<string>();
+            int successCount = 0;
+
+            foreach (var batch in batches)
+            {
+                var batchResult = await ExecuteNativeRandomWriteBatchAsync(batch).ConfigureAwait(false);
+                MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
+                if (!batchResult.IsSuccess)
+                {
+                    result.IsSuccess = false;
+                    result.Message = BuildBatchWriteMessage(batchResult.Message);
+                    return result.Complete();
+                }
+
+                foreach (var itemResult in batchResult.ResultValue.Items)
+                {
+                    if (itemResult.IsSuccess)
                     {
-                        try
-                        {
-                            // 获取对应值
-                            if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
-                                continue;
-                            }
-
-                            var value = valueTuple.Item2;
-
-                            // 值转换为字节数组
-                            byte[] data = S7BatchHelper.ConvertValueToS7Bytes(value, addressInfo, IsReverse, DataFormat);
-                            if (data == null)
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 数值转换失败");
-                                continue;
-                            }
-
-                            // 构造写入地址
-                            string writeAddress = S7BatchHelper.ConstructS7WriteAddress(addressInfo);
-                            if (string.IsNullOrEmpty(writeAddress))
-                            {
-                                writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
-                                continue;
-                            }
-
-                            // 执行单点写入
-                            var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, S7BatchHelper.IsBitType(addressInfo.DataType));
-                            if (writeResult.IsSuccess)
-                            {
-                                successCount++;
-                                // 合并请求和响应记录
-                                result.Requsts.AddRange(writeResult.Requsts);
-                                result.Responses.AddRange(writeResult.Responses);
-                            }
-                            else
-                            {
-                                writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
-                            }
-                        }
-                        catch (Exception ex)
-                        {
-                            writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
-                        }
-                    }
-
-                    // 设置结果
-                    if (successCount == addressInfos.Count)
-                    {
-                        result.IsSuccess = true;
-                        result.Message = $"成功写入 {successCount} 个地址";
-                    }
-                    else if (successCount > 0)
-                    {
-                        result.IsSuccess = false;
-                        result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
+                        successCount++;
                     }
                     else
                     {
-                        result.IsSuccess = false;
-                        result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
+                        errors.Add(itemResult.Message ?? $"写入 {itemResult.Item.OriginalAddress} 失败");
+                    }
+                }
+            }
+
+            result.IsSuccess = errors.Count == 0;
+            result.Message = BuildBatchWriteMessage(
+                errors.Count == 0
+                    ? $"成功写入 {successCount} 个地址; Batches={batches.Count}"
+                    : $"部分写入成功 ({successCount}/{items.Count}); Batches={batches.Count}; {string.Join("; ", errors)}");
+            return result.Complete();
+        }
+
+        protected internal virtual async ValueTask<OperationResult> BatchWriteBySingleAsync(
+            Dictionary<string, (DataTypeEnums, object)> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos)
+        {
+            var result = new OperationResult();
+            var writeErrors = new List<string>();
+            var successCount = 0;
+
+            foreach (var addressInfo in addressInfos)
+            {
+                try
+                {
+                    if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
+                    {
+                        writeErrors.Add($"地址 {addressInfo.OriginalAddress} 没有对应的值");
+                        continue;
+                    }
+
+                    byte[] data = S7BatchHelper.ConvertValueToS7Bytes(valueTuple.Item2, addressInfo, IsReverse, DataFormat);
+                    if (data == null)
+                    {
+                        writeErrors.Add($"地址 {addressInfo.OriginalAddress} 数值转换失败");
+                        continue;
+                    }
+
+                    string writeAddress = S7BatchHelper.ConstructS7WriteAddress(addressInfo);
+                    if (string.IsNullOrEmpty(writeAddress))
+                    {
+                        writeErrors.Add($"地址 {addressInfo.OriginalAddress} 构造写入地址失败");
+                        continue;
+                    }
+
+                    var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, S7BatchHelper.IsBitType(addressInfo.DataType)).ConfigureAwait(false);
+                    if (writeResult.IsSuccess)
+                    {
+                        successCount++;
+                        result.Requsts.AddRange(writeResult.Requsts);
+                        result.Responses.AddRange(writeResult.Responses);
+                    }
+                    else
+                    {
+                        writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 失败: {writeResult.Message}");
                     }
                 }
                 catch (Exception ex)
                 {
-                    result.IsSuccess = false;
-                    result.Message = $"批量写入异常: {ex.Message}";
-                    result.Exception = ex;
+                    writeErrors.Add($"写入地址 {addressInfo.OriginalAddress} 异常: {ex.Message}");
                 }
-
-                return result.Complete();
             }
+
+            result.IsSuccess = successCount == addressInfos.Count;
+            result.Message = successCount == addressInfos.Count
+                ? $"成功写入 {successCount} 个地址"
+                : successCount > 0
+                    ? $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}"
+                    : $"批量写入失败: {string.Join("; ", writeErrors)}";
+            return result.Complete();
         }
     }
 }

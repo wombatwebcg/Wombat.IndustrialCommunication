@@ -12,8 +12,22 @@ using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
-    public class S7ProtocolSynchronizationTests
-    {
+public class S7ProtocolSynchronizationTests
+{
+        private sealed class ForceBlockReadCommunication : S7Communication
+        {
+            public ForceBlockReadCommunication(S7EthernetTransport transport) : base(transport)
+            {
+            }
+
+            internal override bool ShouldUseNativeRandomRead(S7BatchReadDispatchAnalysis decision)
+            {
+                decision.Mode = S7BatchReadPathKind.BlockRead;
+                decision.DecisionReason = "测试强制走块读";
+                return false;
+            }
+        }
+
         [Fact]
         public void S7ReadRequest_ShouldWriteSpecifiedPduReference()
         {
@@ -114,7 +128,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 var response = S7ResponseBuilder.CreateReadResponse(requestBytes, new List<byte[]> { new byte[] { 0x11 } });
                 return CorruptPduReference(response);
             });
-            var communication = new S7Communication(new S7EthernetTransport(stream));
+            var communication = new ForceBlockReadCommunication(new S7EthernetTransport(stream));
 
             var result = await communication.BatchReadAsync(new Dictionary<string, DataTypeEnums>
             {
