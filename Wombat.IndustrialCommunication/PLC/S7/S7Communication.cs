@@ -1053,19 +1053,13 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 var siemensAddress = S7CommonMethods.ConvertWriteArg(addressInfo.OriginalAddress, 0, writeData, S7BatchHelper.IsBitType(addressInfo.DataType));
-                var beginAddress = siemensAddress.BeginAddress;
-                if (S7BatchHelper.IsBitType(addressInfo.DataType))
-                {
-                    beginAddress = addressInfo.StartByte * 8;
-                }
-
                 result.Add(new S7NativeWriteItem
                 {
                     OriginalAddress = addressInfo.OriginalAddress,
                     DataType = addressInfo.TargetDataType,
                     AreaTypeCode = siemensAddress.TypeCode,
                     DbNumber = siemensAddress.DbBlock,
-                    BeginAddress = beginAddress,
+                    BeginAddress = siemensAddress.BeginAddress,
                     ByteOffset = addressInfo.StartByte,
                     BitOffset = addressInfo.BitOffset,
                     IsBit = siemensAddress.IsBit,

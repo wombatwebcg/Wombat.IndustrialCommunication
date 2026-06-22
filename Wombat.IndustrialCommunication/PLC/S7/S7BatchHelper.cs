@@ -871,12 +871,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         // 位数据
                         if (value is bool boolValue)
                         {
-                            var byteArray = new byte[1];
-                            if (boolValue)
-                            {
-                                byteArray[0] = (byte)(1 << addressInfo.BitOffset);
-                            }
-                            return byteArray;
+                            return new byte[] { boolValue ? (byte)0x01 : (byte)0x00 };
                         }
                         return null;
 
