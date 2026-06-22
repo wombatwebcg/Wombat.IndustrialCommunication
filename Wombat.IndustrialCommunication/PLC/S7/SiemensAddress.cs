@@ -1,49 +1,76 @@
-﻿
-
 using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
     /// <summary>
-    /// 西门子解析后的地址信息
+    /// 西门子解析后的统一地址信息
     /// </summary>
     public class SiemensAddress
     {
-        /// <summary>
-        /// 原地址
-        /// </summary>
         public string Address { get; set; }
-        /// <summary>
-        /// 数据类型
-        /// </summary>
+
+        public string OriginalAddress { get; set; }
+
         public DataTypeEnums DataType { get; set; }
 
-        /// <summary>
-        /// 区域类型
-        /// </summary>
         public byte TypeCode { get; set; }
-        /// <summary>
-        /// DB块编号
-        /// </summary>
+
         public ushort DbBlock { get; set; }
-        /// <summary>
-        /// 开始地址(西门子plc地址为8个位的长度，这里展开实际的开始地址。)
-        /// </summary>
+
         public int BeginAddress { get; set; }
 
-        /// <summary>
-        /// 开始地址偏移(西门子plc地址为8个位的长度，这里展开实际的开始地址。)
-        /// </summary>
         public int BeginAddressOffest { get; set; }
 
-        /// <summary>
-        /// 读取或写入长度
-        /// </summary>
         public int ReadWriteLength { get; set; }
 
-        /// <summary>
-        /// 是否读取或写入bit类型
-        /// </summary>
-        public bool IsBit { get; set; } = false;       
+        public bool IsBit { get; set; }
+
+        public int ByteOffset { get; set; }
+
+        public int BitOffset { get; set; }
+
+        public int Length { get; set; }
+
+        public int RequestedLength { get; set; }
+
+        public int OriginalIndex { get; set; }
+
+        public byte[] WriteData { get; set; }
+
+        public int RequestLength
+        {
+            get
+            {
+                if (WriteData != null)
+                {
+                    return WriteData.Length;
+                }
+
+                if (IsBit && RequestedLength > 1)
+                {
+                    return (RequestedLength + 7) / 8;
+                }
+
+                if (Length > 0)
+                {
+                    return Length;
+                }
+
+                return ReadWriteLength;
+            }
+        }
+
+        public bool EffectiveIsBit
+        {
+            get
+            {
+                if (!IsBit || WriteData == null || WriteData.Length != 1)
+                {
+                    return false;
+                }
+
+                return WriteData[0] < 2;
+            }
+        }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,45 +11,28 @@ namespace Wombat.IndustrialCommunication
 {
     /// <summary>
     /// S7以太网通信协议的传输层实现。
-    /// 处理客户端与S7 PLC设备之间的通信。
     /// </summary>
     public class S7EthernetTransport : DeviceMessageTransport
     {
         public bool StrictPduReferenceValidation { get; set; } = true;
 
-        /// <summary>
-        /// 初始化S7EthernetTransport类的新实例。
-        /// </summary>
-        /// <param name="streamResource">用于通信的流资源。</param>
-        /// <exception cref="ArgumentNullException">当streamResource为null时抛出。</exception>
         public S7EthernetTransport(IStreamResource streamResource) : base(streamResource)
         {
             if (streamResource == null)
+            {
                 throw new ArgumentNullException(nameof(streamResource));
+            }
         }
 
-        /// <summary>
-        /// 向S7 PLC设备发送读取请求并处理响应。
-        /// </summary>
-        /// <param name="request">读取请求消息。</param>
-        /// <returns>包含读取响应消息的操作结果。</returns>
         public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
         {
             if (request == null)
+            {
                 throw new ArgumentNullException(nameof(request));
+            }
 
             var result = new OperationResult<S7ReadResponse>();
-            
-            ushort pduReference;
-            if (request is S7ReadRequest s7ReadRequest)
-            {
-                pduReference = s7ReadRequest.PduReference;
-            }
-            else if (request is S7NativeReadRequest nativeReadRequest)
-            {
-                pduReference = nativeReadRequest.PduReference;
-            }
-            else
+            if (!(request is S7ReadRequest s7ReadRequest))
             {
                 result.IsSuccess = false;
                 result.Message = "无效的请求类型。期望S7ReadRequest类型。";
@@ -58,10 +41,8 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                // 发送初始请求
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
-
                 if (!commandRequest.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
@@ -74,7 +55,7 @@ namespace Wombat.IndustrialCommunication
                 }
 
                 var fullResponse = receiveResult.ResultValue;
-                var pduValidation = ValidateResponsePduReference(fullResponse, pduReference);
+                var pduValidation = ValidateResponsePduReference(fullResponse, s7ReadRequest.PduReference);
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
                     result.IsSuccess = false;
@@ -82,7 +63,6 @@ namespace Wombat.IndustrialCommunication
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
 
-                // 创建并配置响应
                 result.ResultValue = new S7ReadResponse(fullResponse)
                 {
                     RegisterAddress = request.RegisterAddress,
@@ -99,28 +79,15 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        /// <summary>
-        /// 向S7 PLC设备发送写入请求并处理响应。
-        /// </summary>
-        /// <param name="request">写入请求消息。</param>
-        /// <returns>包含写入响应消息的操作结果。</returns>
         public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
         {
             if (request == null)
+            {
                 throw new ArgumentNullException(nameof(request));
+            }
 
             var result = new OperationResult<S7WriteResponse>();
-            
-            ushort pduReference;
-            if (request is S7WriteRequest s7WriteRequest)
-            {
-                pduReference = s7WriteRequest.PduReference;
-            }
-            else if (request is S7NativeWriteRequest nativeWriteRequest)
-            {
-                pduReference = nativeWriteRequest.PduReference;
-            }
-            else
+            if (!(request is S7WriteRequest s7WriteRequest))
             {
                 result.IsSuccess = false;
                 result.Message = "无效的请求类型。期望S7WriteRequest类型。";
@@ -129,10 +96,8 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                // 发送初始请求
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
-
                 if (!commandRequest.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
@@ -145,7 +110,7 @@ namespace Wombat.IndustrialCommunication
                 }
 
                 var fullResponse = receiveResult.ResultValue;
-                var pduValidation = ValidateResponsePduReference(fullResponse, pduReference);
+                var pduValidation = ValidateResponsePduReference(fullResponse, s7WriteRequest.PduReference);
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
                     result.IsSuccess = false;
@@ -153,7 +118,6 @@ namespace Wombat.IndustrialCommunication
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
 
-                // 创建并配置响应
                 result.ResultValue = new S7WriteResponse(fullResponse)
                 {
                     RegisterAddress = request.RegisterAddress,

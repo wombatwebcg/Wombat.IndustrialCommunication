@@ -2,9 +2,9 @@ using System;
 
 namespace Wombat.IndustrialCommunication.PLC
 {
-    internal readonly struct S7NativeBatchLimits
+    internal readonly struct S7BatchLimits
     {
-        public S7NativeBatchLimits(int maxItems, int requestLimit, int payloadLimit, int responseLimit)
+        public S7BatchLimits(int maxItems, int requestLimit, int payloadLimit, int responseLimit)
         {
             MaxItems = maxItems;
             RequestLimit = requestLimit;
@@ -20,30 +20,30 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public int ResponseLimit { get; }
 
-        public static S7NativeBatchLimits CreateReadLimits(int negotiatedPduLimit, int maxItems, int payloadLimit)
+        public static S7BatchLimits CreateReadLimits(int negotiatedPduLimit, int maxItems, int payloadLimit)
         {
-            return new S7NativeBatchLimits(
+            return new S7BatchLimits(
                 Math.Max(1, maxItems),
-                Math.Max(S7NativeReadRequest.EstimateRequestLength(1), negotiatedPduLimit),
+                Math.Max(S7ReadRequest.EstimateRequestLength(1), negotiatedPduLimit),
                 Math.Max(4, payloadLimit),
                 Math.Max(SiemensConstant.InitHeadLength + 17 + 6, negotiatedPduLimit));
         }
 
-        public static S7NativeBatchLimits CreateWriteLimits(int negotiatedPduLimit, int maxItems, int payloadLimit)
+        public static S7BatchLimits CreateWriteLimits(int negotiatedPduLimit, int maxItems, int payloadLimit)
         {
             var singleItemBaseline = new[]
             {
-                new S7NativeWriteItem
+                new SiemensAddress
                 {
                     WriteData = new byte[] { 0x00 }
                 }
             };
 
-            return new S7NativeBatchLimits(
+            return new S7BatchLimits(
                 Math.Max(1, maxItems),
-                Math.Max(S7NativeWriteRequest.EstimateRequestLength(singleItemBaseline), negotiatedPduLimit),
+                Math.Max(S7WriteRequest.EstimateRequestLength(singleItemBaseline), negotiatedPduLimit),
                 Math.Max(5, payloadLimit),
-                Math.Max(S7NativeWriteRequest.EstimateResponseFrameLength(1), negotiatedPduLimit));
+                Math.Max(S7WriteRequest.EstimateResponseFrameLength(1), negotiatedPduLimit));
         }
     }
 }

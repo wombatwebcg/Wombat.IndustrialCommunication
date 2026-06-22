@@ -1,7 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Wombat.IndustrialCommunication.Enums;
 
 namespace Wombat.IndustrialCommunication.PLC
@@ -11,10 +10,25 @@ namespace Wombat.IndustrialCommunication.PLC
         public S7WriteRequest(string address, int offest, byte[] writeData, bool isBit, ushort pduReference = 1)
         {
             RegisterAddress = address;
+            RegisterCount = writeData?.Length ?? 0;
             PduReference = pduReference;
             var siemensWriteAddress = S7CommonMethods.ConvertWriteArg(address, offest, writeData, isBit);
+            Items = new[] { (SiemensAddress)siemensWriteAddress };
             ProtocolMessageFrame = GetWriteCommand(siemensWriteAddress, pduReference);
+        }
 
+        public S7WriteRequest(IReadOnlyList<SiemensAddress> items, ushort pduReference)
+        {
+            if (items == null || items.Count == 0)
+            {
+                throw new ArgumentException("items 不能为空", nameof(items));
+            }
+
+            Items = items.ToList().AsReadOnly();
+            PduReference = pduReference;
+            RegisterAddress = string.Join(",", Items.Select(t => t.OriginalAddress ?? t.Address));
+            RegisterCount = Items.Count;
+            ProtocolMessageFrame = GetWriteCommand(Items, pduReference);
         }
 
         public byte[] ProtocolMessageFrame { get; set; }
@@ -27,125 +41,136 @@ namespace Wombat.IndustrialCommunication.PLC
 
         public ushort PduReference { get; }
 
-        public int ProtocolResponseLength { get; set; } = SiemensConstant.InitHeadLength;
+        public IReadOnlyList<SiemensAddress> Items { get; }
 
+        public int ProtocolResponseLength { get; set; } = SiemensConstant.InitHeadLength;
 
         public void Initialize(byte[] frame)
         {
             throw new NotImplementedException();
         }
 
-
-        /// <summary>
-        /// 获取写指令
-        /// </summary>
-        /// <param name="write"></param>
-        /// <returns></returns>
-        protected byte[] GetWriteCommand(SiemensWriteAddress write, ushort pduReference)
+        public static int EstimateParameterLength(int itemCount)
         {
-            return GetWriteCommand(new SiemensWriteAddress[] { write }, pduReference);
+            return 2 + itemCount * 12;
         }
 
-        /// <summary>
-        /// 获取写指令
-        /// </summary>
-        /// <param name="writes"></param>
-        /// <returns></returns>
+        public static int EstimateDataLength(IReadOnlyList<SiemensAddress> items)
+        {
+            if (items == null || items.Count == 0)
+            {
+                return 0;
+            }
+
+            int total = 0;
+            for (int i = 0; i < items.Count; i++)
+            {
+                int payloadLength = items[i].RequestLength;
+                total += 4 + payloadLength;
+                if (payloadLength == 1 && i < items.Count - 1)
+                {
+                    total += 1;
+                }
+            }
+
+            return total;
+        }
+
+        public static int EstimateRequestLength(IReadOnlyList<SiemensAddress> items)
+        {
+            return 17 + EstimateParameterLength(items?.Count ?? 0) + EstimateDataLength(items);
+        }
+
+        public static int EstimateResponseFrameLength(int itemCount)
+        {
+            return SiemensConstant.InitHeadLength + 13 + itemCount;
+        }
+
+        protected byte[] GetWriteCommand(SiemensWriteAddress write, ushort pduReference)
+        {
+            return GetWriteCommand(new[] { (SiemensAddress)write }, pduReference);
+        }
+
         protected byte[] GetWriteCommand(SiemensWriteAddress[] writes, ushort pduReference)
         {
-            //（如果不是最后一个 WriteData.Length == 1 ，则需要填充一个空数据）
-            var writeDataLength = writes.Sum(t => t.WriteData.Length == 1 ? 2 : t.WriteData.Length);
-            if (writes[writes.Length - 1].WriteData.Length == 1) writeDataLength--;
+            return GetWriteCommand((IReadOnlyList<SiemensAddress>)writes, pduReference);
+        }
 
-            //前19个固定的、16为Item长度、writes.Length为Imte的个数
-            byte[] command = new byte[19 + writes.Length * 16 + writeDataLength];
+        protected byte[] GetWriteCommand(IReadOnlyList<SiemensAddress> writes, ushort pduReference)
+        {
+            int parameterLength = EstimateParameterLength(writes.Count);
+            int writeDataLength = EstimateDataLength(writes);
+            byte[] command = new byte[17 + parameterLength + writeDataLength];
 
             command[0] = 0x03;
-            command[1] = 0x00;//[0][1]固定报文头
-            command[2] = (byte)((command.Length) / 256);
-            command[3] = (byte)((command.Length) % 256);//[2][3]整个读取请求长度
-            command[4] = 0x02; // 固定 -> Fixed
-            command[5] = 0xF0; // 固定 -> Fixed
-            command[6] = 0x80; // 固定 -> Fixed
-            command[7] = 0x32;//protocol Id
-            command[8] = 0x01;//1  客户端发送命令 3 服务器回复命令 Job
+            command[1] = 0x00;
+            command[2] = (byte)(command.Length / 256);
+            command[3] = (byte)(command.Length % 256);
+            command[4] = 0x02;
+            command[5] = 0xF0;
+            command[6] = 0x80;
+            command[7] = 0x32;
+            command[8] = 0x01;
             command[9] = 0x00;
-            command[10] = 0x00;//[9][10] redundancy identification (冗余的识别)
+            command[10] = 0x00;
             command[11] = (byte)(pduReference >> 8);
-            command[12] = (byte)(pduReference & 0xFF);//[11]-[12]protocol data unit reference
-            command[13] = (byte)((12 * writes.Length + 2) / 256);
-            command[14] = (byte)((12 * writes.Length + 2) % 256);//Parameter length
-            command[15] = (byte)((writeDataLength + 4 * writes.Length) / 256);
-            command[16] = (byte)((writeDataLength + 4 * writes.Length) % 256);//[15][16] Data length
+            command[12] = (byte)(pduReference & 0xFF);
+            command[13] = (byte)(parameterLength >> 8);
+            command[14] = (byte)(parameterLength & 0xFF);
+            command[15] = (byte)(writeDataLength >> 8);
+            command[16] = (byte)(writeDataLength & 0xFF);
+            command[17] = 0x05;
+            command[18] = (byte)writes.Count;
 
-            //Parameter
-            command[17] = 0x05;//04读 05写 Function Write
-            command[18] = (byte)writes.Length;//写入数据块个数 Item count
-            //Item[]
-            for (int i = 0; i < writes.Length; i++)
+            for (int i = 0; i < writes.Count; i++)
             {
                 var write = writes[i];
-                if (write.IsBit & (write.WriteData.Length > 1 | write.WriteData[0] >= 2))
-                {
-                    write.IsBit = false;
-                }
-
-
                 var typeCode = write.TypeCode;
                 var beginAddress = write.BeginAddress;
                 var dbBlock = write.DbBlock;
-                var writeData = write.WriteData;
 
                 command[19 + i * 12] = 0x12;
                 command[20 + i * 12] = 0x0A;
-                command[21 + i * 12] = 0x10;//[19]-[21]固定
-                command[22 + i * 12] = write.IsBit ? (byte)0x01 : (byte)0x02;//写入方式，1是按位，2是按字
-                command[23 + i * 12] = (byte)(writeData.Length / 256);
-                command[24 + i * 12] = (byte)(writeData.Length % 256);//写入数据个数
+                command[21 + i * 12] = 0x10;
+                command[22 + i * 12] = write.EffectiveIsBit ? (byte)0x01 : (byte)0x02;
+                command[23 + i * 12] = (byte)(write.RequestLength / 256);
+                command[24 + i * 12] = (byte)(write.RequestLength % 256);
                 command[25 + i * 12] = (byte)(dbBlock / 256);
-                command[26 + i * 12] = (byte)(dbBlock % 256);//DB块的编号
+                command[26 + i * 12] = (byte)(dbBlock % 256);
                 command[27 + i * 12] = typeCode;
-                command[28 + i * 12] = (byte)(beginAddress / 256 / 256 % 256); ;
+                command[28 + i * 12] = (byte)(beginAddress / 256 / 256 % 256);
                 command[29 + i * 12] = (byte)(beginAddress / 256 % 256);
-                command[30 + i * 12] = (byte)(beginAddress % 256);//[28][29][30]访问DB块的偏移量      
-
+                command[30 + i * 12] = (byte)(beginAddress % 256);
             }
-            var index = 18 + writes.Length * 12;
-            //Data
-            for (int i = 0; i < writes.Length; i++)
+
+            int index = 19 + writes.Count * 12;
+            for (int i = 0; i < writes.Count; i++)
             {
                 var write = writes[i];
-                bool isBit = write.IsBit;
-                if (write.WriteData.Length > 1 || write.WriteData[0] >= 2)
-                {
-                    isBit = false;
-                }
+                bool isBit = write.EffectiveIsBit;
                 var writeData = write.WriteData;
                 var coefficient = isBit ? 1 : 8;
 
-                command[1 + index] = 0x00;
-                command[2 + index] = isBit ? (byte)0x03 : (byte)0x04;// 03bit（位）04 byte(字节)
-                command[3 + index] = (byte)(writeData.Length * coefficient / 256);
-                command[4 + index] = (byte)(writeData.Length * coefficient % 256);//按位计算出的长度
+                command[index] = 0x00;
+                command[index + 1] = isBit ? (byte)0x03 : (byte)0x04;
+                command[index + 2] = (byte)(write.RequestLength * coefficient / 256);
+                command[index + 3] = (byte)(write.RequestLength * coefficient % 256);
 
-                if (write.WriteData.Length == 1)
+                if (write.RequestLength == 1)
                 {
-                    if (isBit)
-                        command[5 + index] = writeData[0] == 0x01 ? (byte)0x01 : (byte)0x00; //True or False 
-                    else command[5 + index] = writeData[0];
-
-                    if (i >= writes.Length - 1)
-                        index += (4 + 1);
-                    else index += (4 + 2); // fill byte  （如果不是最后一个bit，则需要填充一个空数据）
+                    command[index + 4] = isBit
+                        ? (writeData[0] == 0x01 ? (byte)0x01 : (byte)0x00)
+                        : writeData[0];
+                    index += i >= writes.Count - 1 ? 5 : 6;
                 }
                 else
                 {
-                    writeData.CopyTo(command, 5 + index);
-                    index += (4 + writeData.Length);
+                    writeData.CopyTo(command, index + 4);
+                    index += 4 + writeData.Length;
                 }
             }
+
             return command;
         }
-
     }
 }

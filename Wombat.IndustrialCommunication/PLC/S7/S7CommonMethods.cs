@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using Wombat.Extensions.DataTypeExtensions;
 
 namespace Wombat.IndustrialCommunication.PLC
@@ -33,54 +32,48 @@ namespace Wombat.IndustrialCommunication.PLC
             [DataTypeEnums.Double] = (8, false)
         };
 
-        /// <summary>
-        /// 获取需要读取的长度
-        /// </summary>
-        /// <param name="head"></param>
-        /// <returns></returns>
         public static int GetContentLength(byte[] head)
         {
             if (head?.Length < 4)
+            {
                 throw new ArgumentException("请传入正确的参数");
-            
+            }
+
             return head[2] * 256 + head[3] - 4;
         }
 
-        /// <summary>
-        /// 获取读取PLC地址的开始位置
-        /// </summary>
-        /// <param name="address"></param>
-        /// <returns></returns>
         public static int GetBeingAddress(string address, int offest)
         {
             int dotIndex = address.IndexOf('.');
             if (dotIndex < 0)
+            {
                 return (int.Parse(address) + offest) * 8;
+            }
 
-            return (Convert.ToInt32(address.Substring(0, dotIndex)) + offest) * 8 + 
+            return (Convert.ToInt32(address.Substring(0, dotIndex)) + offest) * 8 +
                    Convert.ToInt32(address.Substring(dotIndex + 1));
         }
 
-        /// <summary>
-        /// 获取区域类型代码
-        /// </summary>
-        /// <param name="address"></param>
-        /// <returns></returns>
         public static SiemensAddress ConvertArg(string address, int offest = 0)
         {
             if (string.IsNullOrEmpty(address))
+            {
                 throw new ArgumentException("地址不能为空");
+            }
 
             address = address.ToUpperInvariant();
             var addressInfo = new SiemensAddress
             {
                 Address = address,
+                OriginalAddress = address,
                 DbBlock = 0
             };
 
             char firstChar = address[0];
             if (!TypeCodeMap.TryGetValue(firstChar, out byte typeCode))
+            {
                 throw new ArgumentException($"不支持的地址类型: {firstChar}");
+            }
 
             addressInfo.TypeCode = typeCode;
 
@@ -91,21 +84,22 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     addressInfo.DbBlock = Convert.ToUInt16(address.Substring(2, dotIndex - 2));
                     int nextDotIndex = address.IndexOf('.', dotIndex + 1);
-                    
+
                     if (nextDotIndex > 0 && address[dotIndex + 1] >= '0' && address[dotIndex + 1] <= '9')
+                    {
                         addressInfo.BeginAddress = GetBeingAddress(address.Substring(dotIndex + 1), offest);
+                    }
                     else
+                    {
                         addressInfo.BeginAddress = GetBeingAddress(address.Substring(dotIndex + 4), offest);
+                    }
                 }
             }
             else if (firstChar == 'V')
             {
                 addressInfo.DbBlock = 1;
-                
-                // V地址格式解析：V1.0（位）、V1（字节）、VB1/VM1（字节）、VW1（字）、VD1（双字）
                 if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'M'))
                 {
-                    // VB/VM格式：字节地址
                     addressInfo.DataType = DataTypeEnums.Byte;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = false;
@@ -113,7 +107,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else if (address.Length >= 3 && address[1] == 'W')
                 {
-                    // VW格式：字地址
                     addressInfo.DataType = DataTypeEnums.Int16;
                     addressInfo.ReadWriteLength = 2;
                     addressInfo.IsBit = false;
@@ -121,7 +114,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else if (address.Length >= 3 && address[1] == 'D')
                 {
-                    // VD格式：双字地址
                     addressInfo.DataType = DataTypeEnums.Int32;
                     addressInfo.ReadWriteLength = 4;
                     addressInfo.IsBit = false;
@@ -129,7 +121,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else if (address.Contains('.'))
                 {
-                    // V1.0格式：位地址
                     addressInfo.DataType = DataTypeEnums.Bool;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = true;
@@ -137,7 +128,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else
                 {
-                    // V1格式：字节地址
                     addressInfo.DataType = DataTypeEnums.Byte;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = false;
@@ -146,10 +136,8 @@ namespace Wombat.IndustrialCommunication.PLC
             }
             else if (firstChar == 'Q' || firstChar == 'I' || firstChar == 'M')
             {
-                // Q区、I区、M区地址格式解析
                 if (address.Contains('.') && address.Length > 1 && address[1] >= '0' && address[1] <= '9')
                 {
-                    // Q2.0、I1.3、M5.7格式：位地址
                     addressInfo.DataType = DataTypeEnums.Bool;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = true;
@@ -157,7 +145,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
                 {
-                    // QB/IB/MB、QW/IW/MW、QD/ID/MD格式
                     if (address[1] == 'B')
                     {
                         addressInfo.DataType = DataTypeEnums.Byte;
@@ -179,7 +166,6 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else
                 {
-                    // Q2、I1、M5格式：字节地址
                     addressInfo.DataType = DataTypeEnums.Byte;
                     addressInfo.ReadWriteLength = 1;
                     addressInfo.IsBit = false;
@@ -189,9 +175,13 @@ namespace Wombat.IndustrialCommunication.PLC
             else
             {
                 if (address.Length > 1 && address[1] >= '0' && address[1] <= '9')
+                {
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(1), offest);
+                }
                 else
+                {
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
+                }
             }
 
             return addressInfo;
@@ -200,23 +190,24 @@ namespace Wombat.IndustrialCommunication.PLC
         public static SiemensAddress[] ConvertArg(Dictionary<string, DataTypeEnums> addresses, int offest = 0)
         {
             if (addresses == null || addresses.Count == 0)
+            {
                 return Array.Empty<SiemensAddress>();
+            }
 
             return addresses.Select(t =>
             {
                 var item = ConvertArg(t.Key, offest);
                 item.DataType = t.Value;
 
-                if (DataTypeInfo.TryGetValue(t.Value, out var info))
-                {
-                    item.ReadWriteLength = info.Length;
-                    item.IsBit = info.IsBit;
-                }
-                else
+                if (!DataTypeInfo.TryGetValue(t.Value, out var info))
                 {
                     throw new ArgumentException($"未定义数据类型：{t.Value}");
                 }
 
+                item.ReadWriteLength = info.Length;
+                item.IsBit = info.IsBit;
+                item.RequestedLength = info.Length;
+                item.Length = info.Length;
                 return item;
             }).ToArray();
         }
@@ -226,8 +217,52 @@ namespace Wombat.IndustrialCommunication.PLC
             return new SiemensWriteAddress(ConvertArg(address, offest))
             {
                 WriteData = writeData,
-                IsBit = bit
+                IsBit = bit,
+                Length = writeData?.Length ?? 0,
+                RequestedLength = writeData?.Length ?? 0
             };
+        }
+
+        public static SiemensAddress BuildReadAddress(
+            string originalAddress,
+            DataTypeEnums dataType,
+            int byteOffset,
+            int bitOffset,
+            int length,
+            int originalIndex,
+            int offest = 0)
+        {
+            var item = ConvertArg(originalAddress, offest);
+            item.OriginalAddress = originalAddress;
+            item.DataType = dataType;
+            item.ByteOffset = byteOffset;
+            item.BitOffset = bitOffset;
+            item.Length = length;
+            item.RequestedLength = item.ReadWriteLength > 0 ? item.ReadWriteLength : length;
+            item.OriginalIndex = originalIndex;
+            return item;
+        }
+
+        public static SiemensAddress BuildWriteAddress(
+            string originalAddress,
+            DataTypeEnums dataType,
+            int byteOffset,
+            int bitOffset,
+            byte[] writeData,
+            int originalIndex,
+            int offest = 0)
+        {
+            var item = ConvertArg(originalAddress, offest);
+            item.OriginalAddress = originalAddress;
+            item.DataType = dataType;
+            item.ByteOffset = byteOffset;
+            item.BitOffset = bitOffset;
+            item.WriteData = writeData;
+            item.Length = writeData?.Length ?? 0;
+            item.RequestedLength = item.Length;
+            item.OriginalIndex = originalIndex;
+            item.IsBit = item.IsBit && writeData != null && writeData.Length == 1 && writeData[0] < 2;
+            return item;
         }
     }
 }

@@ -1,14 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Reflection;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
-    public class S7NativeRandomBatchReadTests
+    public class S7RandomBatchReadTests
     {
         private sealed class TestableS7Communication : S7Communication
         {
@@ -41,49 +40,27 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 _batchReadDispatchRequestWeight = batchReadDispatchRequestWeight;
             }
 
-            public S7BatchReadDispatchAnalysis Analyze(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos)
-            {
-                return AnalyzeBatchReadDispatch(infos);
-            }
+            public S7BatchReadDispatchAnalysis Analyze(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos) => AnalyzeBatchReadDispatch(infos);
 
-            public List<S7NativeReadBatch> Split(IReadOnlyList<S7NativeReadItem> items)
-            {
-                return SplitNativeRandomReadBatches(items);
-            }
+            public List<S7ReadBatch> Split(IReadOnlyList<SiemensAddress> items) => SplitReadBatches(items);
 
-            public void EstimateBlock(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos, S7BatchReadDispatchAnalysis decision)
-            {
-                EstimateBlockReadCost(infos, decision);
-            }
+            public void EstimateBlock(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos, S7BatchReadDispatchAnalysis decision) => EstimateBlockReadCost(infos, decision);
 
-            public void EstimateNative(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos, S7BatchReadDispatchAnalysis decision)
-            {
-                EstimateNativeRandomReadCost(infos, decision);
-            }
+            public void EstimateNative(IReadOnlyList<S7BatchHelper.S7AddressInfo> infos, S7BatchReadDispatchAnalysis decision) => EstimateNativeRandomReadCost(infos, decision);
 
-            public bool ShouldUseNative(S7BatchReadDispatchAnalysis decision)
-            {
-                return ShouldUseNativeRandomRead(decision);
-            }
+            public bool ShouldUseNative(S7BatchReadDispatchAnalysis decision) => ShouldUseNativeRandomRead(decision);
 
             internal override int GetNativeRandomReadMaxItems() => _nativeRandomReadMaxItems;
-
             internal override int GetNativeRandomReadMaxPayloadBytes() => _nativeRandomReadMaxPayloadBytes;
-
             internal override double GetBlockReadMinEfficiency() => _blockReadMinEfficiency;
-
             internal override int GetRandomReadPreferSingleLengthThreshold() => _randomReadPreferSingleLengthThreshold;
-
             internal override double GetBatchReadDispatchRequestWeight() => _batchReadDispatchRequestWeight;
         }
 
         [Fact]
         public void AnalyzeBatchReadDispatch_ShouldChooseNativeRandom_ForDiscreteShortAddresses()
         {
-            var communication = new TestableS7Communication(
-                blockReadMinEfficiency: 0.8,
-                randomReadPreferSingleLengthThreshold: 2);
-
+            var communication = new TestableS7Communication(blockReadMinEfficiency: 0.8, randomReadPreferSingleLengthThreshold: 2);
             var infos = new List<S7BatchHelper.S7AddressInfo>
             {
                 S7BatchHelper.ParseSingleS7Address("DB1.DBB0", DataTypeEnums.Byte),
@@ -99,25 +76,25 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeReadRequest_ShouldBuildMultiItemReadVarFrame()
+        public void ReadRequest_ShouldBuildMultiItemReadVarFrame()
         {
-            var items = new List<S7NativeReadItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeReadItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBB0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 0,
                     Length = 1,
                     RequestedLength = 1,
                     DataType = DataTypeEnums.Byte
                 },
-                new S7NativeReadItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBW2",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 16,
                     Length = 2,
                     RequestedLength = 2,
@@ -125,7 +102,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 }
             };
 
-            var request = new S7NativeReadRequest(items, 0x1234);
+            var request = new S7ReadRequest(items, 0x1234);
 
             Assert.Equal(43, request.ProtocolMessageFrame.Length);
             Assert.Equal(0x32, request.ProtocolMessageFrame[7]);
@@ -138,24 +115,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeReadResponse_ShouldParsePartialSuccess()
+        public void ReadResponse_ShouldParsePartialSuccess()
         {
-            var items = new List<S7NativeReadItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeReadItem
-                {
-                    OriginalAddress = "DB1.DBB0",
-                    RequestedLength = 1,
-                    Length = 1,
-                    DataType = DataTypeEnums.Byte
-                },
-                new S7NativeReadItem
-                {
-                    OriginalAddress = "DB1.DBW2",
-                    RequestedLength = 2,
-                    Length = 2,
-                    DataType = DataTypeEnums.UInt16
-                }
+                new SiemensAddress { OriginalAddress = "DB1.DBB0", RequestedLength = 1, Length = 1, DataType = DataTypeEnums.Byte },
+                new SiemensAddress { OriginalAddress = "DB1.DBW2", RequestedLength = 2, Length = 2, DataType = DataTypeEnums.UInt16 }
             };
 
             var response = new byte[]
@@ -168,7 +133,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 0x05,0x00,0x00,0x00
             };
 
-            var parsed = S7NativeReadResponse.Parse(response, items);
+            var parsed = S7ReadResponse.Parse(response, items);
 
             Assert.True(parsed.IsSuccess);
             Assert.Equal(2, parsed.ResultValue.Items.Count);
@@ -178,14 +143,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitNativeRandomReadBatches_ShouldSplit_WhenItemCountExceedsLimit()
+        public void SplitReadBatches_ShouldSplit_WhenItemCountExceedsLimit()
         {
-            var communication = new TestableS7Communication(
-                nativeRandomReadMaxItems: 2,
-                nativeRandomReadMaxPayloadBytes: 32,
-                randomReadPreferSingleLengthThreshold: 4);
-
-            var items = new List<S7NativeReadItem>
+            var communication = new TestableS7Communication(nativeRandomReadMaxItems: 2, nativeRandomReadMaxPayloadBytes: 32, randomReadPreferSingleLengthThreshold: 4);
+            var items = new List<SiemensAddress>
             {
                 CreateReadItem("DB1.DBB0", 0, 1, DataTypeEnums.Byte),
                 CreateReadItem("DB1.DBB1", 8, 1, DataTypeEnums.Byte),
@@ -201,23 +162,22 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeReadRequest_EstimateResponsePayloadLength_ShouldIncludeHeadersAndPaddingRules()
+        public void ReadRequest_EstimateResponsePayloadLength_ShouldIncludeHeadersAndPaddingRules()
         {
-            var items = new List<S7NativeReadItem>
+            var items = new List<SiemensAddress>
             {
                 CreateReadItem("DB1.DBX0.0", 0, 1, DataTypeEnums.Bool, true),
                 CreateReadItem("DB1.DBW2", 16, 2, DataTypeEnums.UInt16)
             };
 
-            var payloadLength = S7NativeReadRequest.EstimateResponsePayloadLength(items);
-
+            var payloadLength = S7ReadRequest.EstimateResponsePayloadLength(items);
             Assert.Equal(12, payloadLength);
         }
 
         [Fact]
-        public void NativeReadResponse_ShouldFail_WhenResponseItemCountMismatches()
+        public void ReadResponse_ShouldFail_WhenResponseItemCountMismatches()
         {
-            var items = new List<S7NativeReadItem>
+            var items = new List<SiemensAddress>
             {
                 CreateReadItem("DB1.DBB0", 0, 1, DataTypeEnums.Byte),
                 CreateReadItem("DB1.DBB1", 8, 1, DataTypeEnums.Byte)
@@ -232,27 +192,22 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 0xFF,0x04,0x00,0x08,0x11
             };
 
-            var parsed = S7NativeReadResponse.Parse(response, items);
-
+            var parsed = S7ReadResponse.Parse(response, items);
             Assert.False(parsed.IsSuccess);
             Assert.Contains("项数与请求不一致", parsed.Message);
         }
 
         [Fact]
-        public void SplitNativeRandomReadBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
+        public void SplitReadBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
         {
-            var communication = new TestableS7Communication(
-                nativeRandomReadMaxItems: 19,
-                nativeRandomReadMaxPayloadBytes: 4,
-                randomReadPreferSingleLengthThreshold: 4);
-
-            var items = new List<S7NativeReadItem>
+            var communication = new TestableS7Communication(nativeRandomReadMaxItems: 19, nativeRandomReadMaxPayloadBytes: 4, randomReadPreferSingleLengthThreshold: 4);
+            var items = new List<SiemensAddress>
             {
-                new S7NativeReadItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBD0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 0,
                     Length = 4,
                     RequestedLength = 4,
@@ -267,10 +222,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         [Fact]
         public void EstimateReadCosts_ShouldPopulateDecisionMetrics()
         {
-            var communication = new TestableS7Communication(
-                nativeRandomReadMaxItems: 19,
-                nativeRandomReadMaxPayloadBytes: 180);
-
+            var communication = new TestableS7Communication(nativeRandomReadMaxItems: 19, nativeRandomReadMaxPayloadBytes: 180);
             var infos = new List<S7BatchHelper.S7AddressInfo>
             {
                 S7BatchHelper.ParseSingleS7Address("DB1.DBB0", DataTypeEnums.Byte),
@@ -297,11 +249,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         public void ShouldUseNativeRandomRead_ShouldChooseBlock_ForSingleAddress()
         {
             var communication = new TestableS7Communication();
-            var decision = new S7BatchReadDispatchAnalysis
-            {
-                AddressCount = 1,
-                MaxAddressLength = 1
-            };
+            var decision = new S7BatchReadDispatchAnalysis { AddressCount = 1, MaxAddressLength = 1 };
 
             var useNative = communication.ShouldUseNative(decision);
 
@@ -310,13 +258,13 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             Assert.Contains("单地址", decision.DecisionReason);
         }
 
-        private static S7NativeReadItem CreateReadItem(string address, int beginAddress, int length, DataTypeEnums dataType, bool isBit = false)
+        private static SiemensAddress CreateReadItem(string address, int beginAddress, int length, DataTypeEnums dataType, bool isBit = false)
         {
-            return new S7NativeReadItem
+            return new SiemensAddress
             {
                 OriginalAddress = address,
-                AreaTypeCode = 0x84,
-                DbNumber = 1,
+                TypeCode = 0x84,
+                DbBlock = 1,
                 BeginAddress = beginAddress,
                 Length = length,
                 RequestedLength = length,

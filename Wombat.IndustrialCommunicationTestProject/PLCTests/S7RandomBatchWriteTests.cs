@@ -12,7 +12,7 @@ using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.PLCTests
 {
-    public class S7NativeRandomBatchWriteTests
+    public class S7RandomBatchWriteTests
     {
         private sealed class TestableS7Communication : S7Communication
         {
@@ -31,42 +31,38 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 _nativeRandomWriteMaxPayloadBytes = nativeRandomWriteMaxPayloadBytes;
             }
 
-            public List<S7NativeWriteBatch> Split(IReadOnlyList<S7NativeWriteItem> items)
-            {
-                return SplitNativeRandomWriteBatches(items);
-            }
+            public List<S7WriteBatch> Split(IReadOnlyList<SiemensAddress> items) => SplitWriteBatches(items);
 
             internal override int GetNativeRandomWriteMaxItems() => _nativeRandomWriteMaxItems;
-
             internal override int GetNativeRandomWriteMaxPayloadBytes() => _nativeRandomWriteMaxPayloadBytes;
         }
 
         [Fact]
-        public void NativeWriteRequest_ShouldBuildMultiItemWriteVarFrame()
+        public void WriteRequest_ShouldBuildMultiItemWriteVarFrame()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBX0.0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 0,
                     IsBit = true,
                     WriteData = new byte[] { 0x01 }
                 },
-                new S7NativeWriteItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBB2",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 16,
                     IsBit = false,
                     WriteData = new byte[] { 0x5A }
                 }
             };
 
-            var request = new S7NativeWriteRequest(items, 0x3456);
+            var request = new S7WriteRequest(items, 0x3456);
 
             Assert.Equal(54, request.ProtocolMessageFrame.Length);
             Assert.Equal(0x34, request.ProtocolMessageFrame[11]);
@@ -82,12 +78,12 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeWriteResponse_ShouldParsePartialSuccess()
+        public void WriteResponse_ShouldParsePartialSuccess()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem { OriginalAddress = "DB1.DBX0.0", WriteData = new byte[] { 0x01 } },
-                new S7NativeWriteItem { OriginalAddress = "DB1.DBB2", WriteData = new byte[] { 0x11 } }
+                new SiemensAddress { OriginalAddress = "DB1.DBX0.0", WriteData = new byte[] { 0x01 } },
+                new SiemensAddress { OriginalAddress = "DB1.DBB2", WriteData = new byte[] { 0x11 } }
             };
 
             var response = new byte[]
@@ -99,7 +95,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 0xFF,0x0A
             };
 
-            var parsed = S7NativeWriteResponse.Parse(response, items);
+            var parsed = S7WriteResponse.Parse(response, items);
 
             Assert.True(parsed.IsSuccess);
             Assert.Equal(2, parsed.ResultValue.Items.Count);
@@ -109,40 +105,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeWriteRequest_ShouldPadSingleByteNonLastItem_AndKeepLastItemUnpadded()
+        public void WriteRequest_ShouldPadSingleByteNonLastItem_AndKeepLastItemUnpadded()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem
-                {
-                    OriginalAddress = "DB1.DBB0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
-                    BeginAddress = 0,
-                    IsBit = false,
-                    WriteData = new byte[] { 0x11 }
-                },
-                new S7NativeWriteItem
-                {
-                    OriginalAddress = "DB1.DBW2",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
-                    BeginAddress = 16,
-                    IsBit = false,
-                    WriteData = new byte[] { 0x22, 0x33 }
-                },
-                new S7NativeWriteItem
-                {
-                    OriginalAddress = "DB1.DBB4",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
-                    BeginAddress = 32,
-                    IsBit = false,
-                    WriteData = new byte[] { 0x44 }
-                }
+                CreateWriteItem("DB1.DBB0", 0, new byte[] { 0x11 }),
+                CreateWriteItem("DB1.DBW2", 16, new byte[] { 0x22, 0x33 }),
+                CreateWriteItem("DB1.DBB4", 32, new byte[] { 0x44 })
             };
 
-            var request = new S7NativeWriteRequest(items, 0x1111);
+            var request = new S7WriteRequest(items, 0x1111);
 
             Assert.Equal(17, request.ProtocolMessageFrame[16]);
             Assert.Equal(0x11, request.ProtocolMessageFrame[59]);
@@ -154,22 +126,22 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeWriteRequest_ShouldDowngradeInvalidBitPayload_ToByteTransport()
+        public void WriteRequest_ShouldDowngradeInvalidBitPayload_ToByteTransport()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBX0.0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 0,
                     IsBit = true,
                     WriteData = new byte[] { 0x02 }
                 }
             };
 
-            var request = new S7NativeWriteRequest(items, 0x2222);
+            var request = new S7WriteRequest(items, 0x2222);
 
             Assert.Equal(0x02, request.ProtocolMessageFrame[22]);
             Assert.Equal(0x04, request.ProtocolMessageFrame[32]);
@@ -178,11 +150,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitNativeRandomWriteBatches_ShouldSplit_WhenItemCountExceedsLimit()
+        public void SplitWriteBatches_ShouldSplit_WhenItemCountExceedsLimit()
         {
             var communication = new TestableS7Communication(nativeRandomWriteMaxItems: 2, nativeRandomWriteMaxPayloadBytes: 32);
-
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
                 CreateWriteItem("DB1.DBB0", 0, new byte[] { 0x01 }),
                 CreateWriteItem("DB1.DBB1", 8, new byte[] { 0x02 }),
@@ -198,26 +169,25 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void NativeWriteRequest_EstimateDataLength_ShouldMatchMixedPayloads()
+        public void WriteRequest_EstimateDataLength_ShouldMatchMixedPayloads()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
                 CreateWriteItem("DB1.DBB0", 0, new byte[] { 0x01 }),
                 CreateWriteItem("DB1.DBW2", 16, new byte[] { 0x02, 0x03 }),
                 CreateWriteItem("DB1.DBB4", 32, new byte[] { 0x04 })
             };
 
-            var dataLength = S7NativeWriteRequest.EstimateDataLength(items);
-
+            var dataLength = S7WriteRequest.EstimateDataLength(items);
             Assert.Equal(17, dataLength);
         }
 
         [Fact]
-        public void NativeWriteResponse_ShouldSurfaceCustomFailureCode()
+        public void WriteResponse_ShouldSurfaceCustomFailureCode()
         {
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem { OriginalAddress = "DB1.DBB0", WriteData = new byte[] { 0x11 } }
+                new SiemensAddress { OriginalAddress = "DB1.DBB0", WriteData = new byte[] { 0x11 } }
             };
 
             var response = new byte[]
@@ -229,7 +199,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 0x0C,0x00
             };
 
-            var parsed = S7NativeWriteResponse.Parse(response, items);
+            var parsed = S7WriteResponse.Parse(response, items);
 
             Assert.True(parsed.IsSuccess);
             Assert.False(parsed.ResultValue.Items[0].IsSuccess);
@@ -237,17 +207,16 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitNativeRandomWriteBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
+        public void SplitWriteBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
         {
             var communication = new TestableS7Communication(nativeRandomWriteMaxItems: 10, nativeRandomWriteMaxPayloadBytes: 4);
-
-            var items = new List<S7NativeWriteItem>
+            var items = new List<SiemensAddress>
             {
-                new S7NativeWriteItem
+                new SiemensAddress
                 {
                     OriginalAddress = "DB1.DBD0",
-                    AreaTypeCode = 0x84,
-                    DbNumber = 1,
+                    TypeCode = 0x84,
+                    DbBlock = 1,
                     BeginAddress = 0,
                     IsBit = false,
                     WriteData = new byte[] { 0x01, 0x02, 0x03, 0x04 }
@@ -303,16 +272,18 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             return corrupted;
         }
 
-        private static S7NativeWriteItem CreateWriteItem(string address, int beginAddress, byte[] payload)
+        private static SiemensAddress CreateWriteItem(string address, int beginAddress, byte[] payload)
         {
-            return new S7NativeWriteItem
+            return new SiemensAddress
             {
                 OriginalAddress = address,
-                AreaTypeCode = 0x84,
-                DbNumber = 1,
+                TypeCode = 0x84,
+                DbBlock = 1,
                 BeginAddress = beginAddress,
                 IsBit = false,
-                WriteData = payload
+                WriteData = payload,
+                Length = payload?.Length ?? 0,
+                RequestedLength = payload?.Length ?? 0
             };
         }
 
@@ -330,9 +301,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             }
 
             public int Port => ((IPEndPoint)_listener.LocalEndpoint).Port;
-
             public int WriteRequestCount => Volatile.Read(ref _writeRequestCount);
-
             public int ConnectionCount => Volatile.Read(ref _connectionCount);
 
             public Task StartAsync()
@@ -345,23 +314,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             public async Task StopAsync()
             {
                 _cts.Cancel();
-                try
-                {
-                    _listener.Stop();
-                }
-                catch
-                {
-                }
+                try { _listener.Stop(); } catch { }
 
                 if (_acceptLoopTask != null)
                 {
-                    try
-                    {
-                        await _acceptLoopTask.ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
+                    try { await _acceptLoopTask.ConfigureAwait(false); } catch { }
                 }
             }
 
@@ -370,7 +327,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     TcpClient client = null;
-
                     try
                     {
                         client = await _listener.AcceptTcpClientAsync().ConfigureAwait(false);

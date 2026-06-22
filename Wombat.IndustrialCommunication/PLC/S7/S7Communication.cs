@@ -777,7 +777,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 return;
             }
 
-            var nativeItems = BuildNativeReadItems(addressInfos);
+            var nativeItems = BuildReadItems(addressInfos);
             if (nativeItems.Count == 0)
             {
                 decision.NativeBatchCount = 0;
@@ -785,7 +785,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 return;
             }
 
-            var nativeBatches = SplitNativeRandomReadBatches(nativeItems);
+            var nativeBatches = SplitReadBatches(nativeItems);
             decision.NativeBatchCount = nativeBatches.Count;
             decision.NativeTotalBytes = nativeBatches.Sum(t => t.ResponseFrameLength);
         }
@@ -928,14 +928,14 @@ namespace Wombat.IndustrialCommunication.PLC
             S7BatchReadDispatchAnalysis dispatchDecision)
         {
             var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
-            var items = BuildNativeReadItems(addressInfos);
-            var batches = SplitNativeRandomReadBatches(items);
+            var items = BuildReadItems(addressInfos);
+            var batches = SplitReadBatches(items);
             var values = new Dictionary<string, object>();
             var errors = new List<string>();
 
             foreach (var batch in batches)
             {
-                var batchResult = await ExecuteNativeRandomReadBatchAsync(batch).ConfigureAwait(false);
+                var batchResult = await ExecuteReadBatchAsync(batch).ConfigureAwait(false);
                 MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
 
                 if (!batchResult.IsSuccess)
@@ -950,7 +950,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     if (itemResult.IsSuccess)
                     {
-                        values[itemResult.Item.OriginalAddress] = ConvertNativeReadBytesToValue(itemResult.Item, itemResult.Data);
+                        values[itemResult.Item.OriginalAddress] = ConvertReadBytesToValue(itemResult.Item, itemResult.Data);
                     }
                     else
                     {
@@ -965,9 +965,9 @@ namespace Wombat.IndustrialCommunication.PLC
             return result.Complete();
         }
 
-        protected internal virtual List<S7NativeReadItem> BuildNativeReadItems(IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos)
+        protected internal virtual List<SiemensAddress> BuildReadItems(IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos)
         {
-            var result = new List<S7NativeReadItem>();
+            var result = new List<SiemensAddress>();
             if (addressInfos == null)
             {
                 return result;
@@ -976,44 +976,36 @@ namespace Wombat.IndustrialCommunication.PLC
             for (int i = 0; i < addressInfos.Count; i++)
             {
                 var addressInfo = addressInfos[i];
-                var siemensAddress = S7CommonMethods.ConvertArg(addressInfo.OriginalAddress);
-                result.Add(new S7NativeReadItem
-                {
-                    OriginalAddress = addressInfo.OriginalAddress,
-                    DataType = addressInfo.TargetDataType,
-                    AreaTypeCode = siemensAddress.TypeCode,
-                    DbNumber = siemensAddress.DbBlock,
-                    BeginAddress = siemensAddress.BeginAddress,
-                    ByteOffset = addressInfo.StartByte,
-                    Length = addressInfo.Length,
-                    RequestedLength = siemensAddress.ReadWriteLength > 0 ? siemensAddress.ReadWriteLength : addressInfo.Length,
-                    BitOffset = addressInfo.BitOffset,
-                    IsBit = siemensAddress.IsBit,
-                    OriginalIndex = i
-                });
+                result.Add(S7CommonMethods.BuildReadAddress(
+                    addressInfo.OriginalAddress,
+                    addressInfo.TargetDataType,
+                    addressInfo.StartByte,
+                    addressInfo.BitOffset,
+                    addressInfo.Length,
+                    i));
             }
 
             return result;
         }
 
-        protected internal virtual List<S7NativeReadBatch> SplitNativeRandomReadBatches(IReadOnlyList<S7NativeReadItem> items)
+        protected internal virtual List<S7ReadBatch> SplitReadBatches(IReadOnlyList<SiemensAddress> items)
         {
-            var batches = new List<S7NativeReadBatch>();
+            var batches = new List<S7ReadBatch>();
             if (items == null || items.Count == 0)
             {
                 return batches;
             }
 
-            var limits = S7NativeBatchLimits.CreateReadLimits(NegotiatedPduLimit, GetNativeRandomReadMaxItems(), GetNativeRandomReadMaxPayloadBytes());
+            var limits = S7BatchLimits.CreateReadLimits(NegotiatedPduLimit, GetNativeRandomReadMaxItems(), GetNativeRandomReadMaxPayloadBytes());
             var orderedItems = items.OrderBy(t => t.OriginalIndex).ToList();
             foreach (var item in orderedItems)
             {
-                ValidateNativeRandomReadItem(item, limits);
+                ValidateReadItem(item, limits);
             }
 
             for (int i = 0; i < orderedItems.Count; i += limits.MaxItems)
             {
-                var batch = new S7NativeReadBatch();
+                var batch = new S7ReadBatch();
                 foreach (var item in orderedItems.Skip(i).Take(limits.MaxItems))
                 {
                     batch.Items.Add(item);
@@ -1028,11 +1020,11 @@ namespace Wombat.IndustrialCommunication.PLC
             return batches;
         }
 
-        protected internal virtual List<S7NativeWriteItem> BuildNativeWriteItems(
+        protected internal virtual List<SiemensAddress> BuildWriteItems(
             IReadOnlyList<S7BatchHelper.S7AddressInfo> addressInfos,
             Dictionary<string, (DataTypeEnums, object)> addresses)
         {
-            var result = new List<S7NativeWriteItem>();
+            var result = new List<SiemensAddress>();
             if (addressInfos == null)
             {
                 return result;
@@ -1052,43 +1044,36 @@ namespace Wombat.IndustrialCommunication.PLC
                     throw new InvalidOperationException($"地址 {addressInfo.OriginalAddress} 数值转换失败");
                 }
 
-                var siemensAddress = S7CommonMethods.ConvertWriteArg(addressInfo.OriginalAddress, 0, writeData, S7BatchHelper.IsBitType(addressInfo.DataType));
-                result.Add(new S7NativeWriteItem
-                {
-                    OriginalAddress = addressInfo.OriginalAddress,
-                    DataType = addressInfo.TargetDataType,
-                    AreaTypeCode = siemensAddress.TypeCode,
-                    DbNumber = siemensAddress.DbBlock,
-                    BeginAddress = siemensAddress.BeginAddress,
-                    ByteOffset = addressInfo.StartByte,
-                    BitOffset = addressInfo.BitOffset,
-                    IsBit = siemensAddress.IsBit,
-                    OriginalIndex = i,
-                    WriteData = siemensAddress.WriteData
-                });
+                result.Add(S7CommonMethods.BuildWriteAddress(
+                    addressInfo.OriginalAddress,
+                    addressInfo.TargetDataType,
+                    addressInfo.StartByte,
+                    addressInfo.BitOffset,
+                    writeData,
+                    i));
             }
 
             return result;
         }
 
-        protected internal virtual List<S7NativeWriteBatch> SplitNativeRandomWriteBatches(IReadOnlyList<S7NativeWriteItem> items)
+        protected internal virtual List<S7WriteBatch> SplitWriteBatches(IReadOnlyList<SiemensAddress> items)
         {
-            var batches = new List<S7NativeWriteBatch>();
+            var batches = new List<S7WriteBatch>();
             if (items == null || items.Count == 0)
             {
                 return batches;
             }
 
-            var limits = S7NativeBatchLimits.CreateWriteLimits(NegotiatedPduLimit, GetNativeRandomWriteMaxItems(), GetNativeRandomWriteMaxPayloadBytes());
+            var limits = S7BatchLimits.CreateWriteLimits(NegotiatedPduLimit, GetNativeRandomWriteMaxItems(), GetNativeRandomWriteMaxPayloadBytes());
             var orderedItems = items.OrderBy(t => t.OriginalIndex).ToList();
             foreach (var item in orderedItems)
             {
-                ValidateNativeRandomWriteItem(item, limits);
+                ValidateWriteItem(item, limits);
             }
 
             for (int i = 0; i < orderedItems.Count; i += limits.MaxItems)
             {
-                var batch = new S7NativeWriteBatch();
+                var batch = new S7WriteBatch();
                 foreach (var item in orderedItems.Skip(i).Take(limits.MaxItems))
                 {
                     batch.Items.Add(item);
@@ -1103,9 +1088,9 @@ namespace Wombat.IndustrialCommunication.PLC
             return batches;
         }
 
-        private static void ValidateNativeRandomWriteItem(S7NativeWriteItem item, S7NativeBatchLimits limits)
+        private static void ValidateWriteItem(SiemensAddress item, S7BatchLimits limits)
         {
-            var singleBatch = new S7NativeWriteBatch();
+            var singleBatch = new S7WriteBatch();
             singleBatch.Items.Add(item);
 
             if (1 > limits.MaxItems
@@ -1118,14 +1103,14 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private async ValueTask<OperationResult<S7NativeWriteResponse>> ExecuteNativeRandomWriteBatchAsync(S7NativeWriteBatch batch)
+        private async ValueTask<OperationResult<S7WriteResponse>> ExecuteWriteBatchAsync(S7WriteBatch batch)
         {
             if (!(Transport is S7EthernetTransport s7Transport))
             {
-                return OperationResult.CreateFailedResult<S7NativeWriteResponse>("S7传输层不可用");
+                return OperationResult.CreateFailedResult<S7WriteResponse>("S7传输层不可用");
             }
 
-            var request = new S7NativeWriteRequest(batch.Items, GetNextPduReference());
+            var request = new S7WriteRequest(batch.Items, GetNextPduReference());
             var response = await s7Transport.UnicastWriteMessageAsync(request).ConfigureAwait(false);
             if (!response.IsSuccess)
             {
@@ -1137,41 +1122,41 @@ namespace Wombat.IndustrialCommunication.PLC
                     failureMessage = "批量随机写请求失败";
                 }
 
-                var failed = OperationResult.CreateFailedResult<S7NativeWriteResponse>(failureMessage);
+                var failed = OperationResult.CreateFailedResult<S7WriteResponse>(failureMessage);
                 failed.Requsts.AddRange(response.Requsts);
                 failed.Responses.AddRange(response.Responses);
                 return failed;
             }
 
-            var parsed = S7NativeWriteResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            var parsed = S7WriteResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
             parsed.Requsts.AddRange(response.Requsts);
             parsed.Responses.AddRange(response.Responses);
             return parsed;
         }
 
-        private static void ValidateNativeRandomReadItem(S7NativeReadItem item, S7NativeBatchLimits limits)
+        private static void ValidateReadItem(SiemensAddress item, S7BatchLimits limits)
         {
-            var singleBatch = new S7NativeReadBatch();
+            var singleBatch = new S7ReadBatch();
             singleBatch.Items.Add(item);
 
             if (1 > limits.MaxItems
                 || singleBatch.RequestLength > limits.RequestLimit
-                || S7NativeReadRequest.EstimateResponsePayloadLength(singleBatch.Items) > limits.PayloadLimit
+                || S7ReadRequest.EstimateResponsePayloadLength(singleBatch.Items) > limits.PayloadLimit
                 || singleBatch.ResponseFrameLength > limits.ResponseLimit)
             {
                 throw new InvalidOperationException(
-                    $"地址 {item.OriginalAddress} 超出随机批量读单项上限: RequestLength={singleBatch.RequestLength}, ResponseLength={singleBatch.ResponseFrameLength}, Payload={S7NativeReadRequest.EstimateResponsePayloadLength(singleBatch.Items)}");
+                    $"地址 {item.OriginalAddress} 超出随机批量读单项上限: RequestLength={singleBatch.RequestLength}, ResponseLength={singleBatch.ResponseFrameLength}, Payload={S7ReadRequest.EstimateResponsePayloadLength(singleBatch.Items)}");
             }
         }
 
-        private async ValueTask<OperationResult<S7NativeReadResponse>> ExecuteNativeRandomReadBatchAsync(S7NativeReadBatch batch)
+        private async ValueTask<OperationResult<S7ReadResponse>> ExecuteReadBatchAsync(S7ReadBatch batch)
         {
             if (!(Transport is S7EthernetTransport s7Transport))
             {
-                return OperationResult.CreateFailedResult<S7NativeReadResponse>("S7传输层不可用");
+                return OperationResult.CreateFailedResult<S7ReadResponse>("S7传输层不可用");
             }
 
-            var request = new S7NativeReadRequest(batch.Items, GetNextPduReference());
+            var request = new S7ReadRequest(batch.Items, GetNextPduReference());
             var response = await s7Transport.UnicastReadMessageAsync(request).ConfigureAwait(false);
             if (!response.IsSuccess)
             {
@@ -1183,19 +1168,19 @@ namespace Wombat.IndustrialCommunication.PLC
                     failureMessage = "批量随机读请求失败";
                 }
 
-                var failed = OperationResult.CreateFailedResult<S7NativeReadResponse>(failureMessage);
+                var failed = OperationResult.CreateFailedResult<S7ReadResponse>(failureMessage);
                 failed.Requsts.AddRange(response.Requsts);
                 failed.Responses.AddRange(response.Responses);
                 return failed;
             }
 
-            var parsed = S7NativeReadResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            var parsed = S7ReadResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
             parsed.Requsts.AddRange(response.Requsts);
             parsed.Responses.AddRange(response.Responses);
             return parsed;
         }
 
-        private static object ConvertNativeReadBytesToValue(S7NativeReadItem item, byte[] data)
+        private static object ConvertReadBytesToValue(SiemensAddress item, byte[] data)
         {
             if (data == null)
             {
@@ -1556,14 +1541,14 @@ namespace Wombat.IndustrialCommunication.PLC
             List<S7BatchHelper.S7AddressInfo> addressInfos)
         {
             var result = new OperationResult();
-            var items = BuildNativeWriteItems(addressInfos, addresses);
-            var batches = SplitNativeRandomWriteBatches(items);
+            var items = BuildWriteItems(addressInfos, addresses);
+            var batches = SplitWriteBatches(items);
             var errors = new List<string>();
             int successCount = 0;
 
             foreach (var batch in batches)
             {
-                var batchResult = await ExecuteNativeRandomWriteBatchAsync(batch).ConfigureAwait(false);
+                var batchResult = await ExecuteWriteBatchAsync(batch).ConfigureAwait(false);
                 MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
                 if (!batchResult.IsSuccess)
                 {
