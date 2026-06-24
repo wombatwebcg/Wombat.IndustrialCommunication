@@ -50,47 +50,6 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
             listener.Stop();
         }
 
-        [Fact]
-        public async Task RemoteClose_ShouldMarkConnectionAsDisconnected()
-        {
-            var listener = new TcpListener(IPAddress.Loopback, 0);
-            listener.Start();
-
-            var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-            var serverTask = Task.Run(async () =>
-            {
-                using (var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false))
-                using (var stream = client.GetStream())
-                {
-                    var request = new byte[12];
-                    await ReadExactAsync(stream, request, CancellationToken.None).ConfigureAwait(false);
-                }
-            });
-
-            using (var adapter = new TcpClientAdapter("127.0.0.1", port))
-            {
-                adapter.ConnectTimeout = TimeSpan.FromSeconds(2);
-                adapter.SendTimeout = TimeSpan.FromSeconds(2);
-                adapter.ReceiveTimeout = TimeSpan.FromMilliseconds(300);
-
-                var connectResult = await adapter.ConnectAsync().ConfigureAwait(false);
-                Assert.True(connectResult.IsSuccess, connectResult.Message);
-                Assert.True(adapter.Connected);
-
-                var sendResult = await adapter.Send(CreateReadRequest(1, 0x15), 0, 12, CancellationToken.None).ConfigureAwait(false);
-                Assert.True(sendResult.IsSuccess, sendResult.Message);
-
-                var buffer = new byte[11];
-                var receiveResult = await adapter.Receive(buffer, 0, buffer.Length, CancellationToken.None).ConfigureAwait(false);
-                Assert.False(receiveResult.IsSuccess);
-                Assert.Contains("Connection closed by remote host", receiveResult.Message);
-                Assert.False(adapter.Connected);
-            }
-
-            await serverTask.ConfigureAwait(false);
-            listener.Stop();
-        }
-
         private static async Task RunServerAsync(TcpListener listener)
         {
             using (var client = await listener.AcceptTcpClientAsync().ConfigureAwait(false))

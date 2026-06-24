@@ -24,8 +24,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private const int ConnectTimeoutSeconds = 5;
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
-        private const int ReconnectPollIntervalSeconds = 2;
-        private const int StableReconnectDelaySeconds = 1;
 
         private readonly ITestOutputHelper _output;
 
@@ -71,29 +69,15 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 SendTimeout = TimeSpan.FromSeconds(OperationTimeoutSeconds),
                 IsLongConnection = true,
                 EnableAutoReconnect = true,
-                ReconnectDelay = TimeSpan.FromSeconds(StableReconnectDelaySeconds),
                 DirtyResponseRetryAttempts = 1
             };
         }
 
-        private async Task WaitUntilConnectedAsync(SiemensClient client, string reason)
+        private async Task ConnectAsync(SiemensClient client)
         {
-            int attempt = 0;
-            while (true)
-            {
-                attempt++;
-                Log($"等待 PLC 上线，第 {attempt} 次连接尝试: {PlcIp}:{PlcPort}, 机型={PlcVersion}, 原因={reason}");
-                var connectResult = await client.ConnectAsync().ConfigureAwait(false);
-                DumpOperationResult($"Connect Attempt {attempt}", connectResult);
-                if (connectResult.IsSuccess && client.Connected)
-                {
-                    Log($"PLC 已连接，连接尝试次数: {attempt}");
-                    return;
-                }
-
-                Log($"PLC 尚未连接，{ReconnectPollIntervalSeconds} 秒后继续等待。错误: {connectResult.Message}");
-                await Task.Delay(TimeSpan.FromSeconds(ReconnectPollIntervalSeconds)).ConfigureAwait(false);
-            }
+            Log($"连接真实 PLC: {PlcIp}:{PlcPort}, 机型={PlcVersion}");
+            var connectResult = await client.ConnectAsync().ConfigureAwait(false);
+            Assert.True(connectResult.IsSuccess, $"连接真实 PLC 失败: {connectResult.Message}");
         }
 
         private async Task ExecuteReadWriteRoundTripWithDedicatedClientAsync(
@@ -101,42 +85,9 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             Dictionary<string, (DataTypeEnums, object)> expectedValues)
         {
             using var client = CreateClient();
-            await WaitUntilConnectedAsync(client, $"开始场景 {scenarioName}").ConfigureAwait(false);
-            await ExecuteRoundTripScenarioWithReconnectAsync(client, scenarioName, expectedValues).ConfigureAwait(false);
+            await ConnectAsync(client).ConfigureAwait(false);
+            await ExecuteRoundTripScenarioAsync(client, scenarioName, expectedValues).ConfigureAwait(false);
             await client.DisconnectAsync().ConfigureAwait(false);
-        }
-
-        private async Task ExecuteRoundTripScenarioWithReconnectAsync(
-            SiemensClient client,
-            string scenarioName,
-            Dictionary<string, (DataTypeEnums, object)> expectedValues)
-        {
-            while (true)
-            {
-                try
-                {
-                    if (!client.Connected)
-                    {
-                        await WaitUntilConnectedAsync(client, $"场景 {scenarioName} 执行前连接不可用").ConfigureAwait(false);
-                    }
-
-                    await ExecuteRoundTripScenarioAsync(client, scenarioName, expectedValues).ConfigureAwait(false);
-                    return;
-                }
-                catch (Exception ex)
-                {
-                    Log($"场景执行中断，准备等待重连后重试: {scenarioName}, 错误={ex.Message}");
-                    try
-                    {
-                        await client.DisconnectAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
-
-                    await WaitUntilConnectedAsync(client, $"场景 {scenarioName} 执行失败后重连").ConfigureAwait(false);
-                }
-            }
         }
 
         private async Task ExecuteRoundTripScenarioAsync(
@@ -150,10 +101,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
             var batchWriteResult = await client.BatchWriteAsync(expectedValues).ConfigureAwait(false);
             DumpOperationResult($"{scenarioName} - BatchWrite", batchWriteResult);
-            if (!batchWriteResult.IsSuccess)
-            {
-                throw new InvalidOperationException($"场景[{scenarioName}]批量写入失败: {batchWriteResult.Message}");
-            }
+            Assert.True(batchWriteResult.IsSuccess, $"场景[{scenarioName}]批量写入失败: {batchWriteResult.Message}");
             Log($"批量写入完成: {batchWriteResult.Message}");
 
             await Task.Delay(WriteReadbackDelayMilliseconds).ConfigureAwait(false);
@@ -161,10 +109,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             var readRequest = expectedValues.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Item1);
             var batchReadResult = await client.BatchReadAsync(readRequest).ConfigureAwait(false);
             DumpOperationResult($"{scenarioName} - BatchRead", batchReadResult);
-            if (!batchReadResult.IsSuccess)
-            {
-                throw new InvalidOperationException($"场景[{scenarioName}]批量读取失败: {batchReadResult.Message}");
-            }
+            Assert.True(batchReadResult.IsSuccess, $"场景[{scenarioName}]批量读取失败: {batchReadResult.Message}");
             Log($"批量读取完成: {batchReadResult.Message}");
 
             Assert.Equal(expectedValues.Count, batchReadResult.ResultValue.Count);

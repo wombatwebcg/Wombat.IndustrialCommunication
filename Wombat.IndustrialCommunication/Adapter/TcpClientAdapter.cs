@@ -153,7 +153,6 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                MarkConnectionFaulted();
                 return OperationResult.CreateFailedResult($"Send failed: {ex.Message}");
             }
             finally
@@ -200,7 +199,6 @@ namespace Wombat.IndustrialCommunication
                     if (currentRead == 0)
                     {
                         DebugLog("[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
-                        MarkConnectionFaulted();
                         return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
                     }
 
@@ -227,7 +225,6 @@ namespace Wombat.IndustrialCommunication
                 DebugLog("[TcpClientAdapter调试] 接收数据时发生异常: {Message}", ex.Message);
                 DebugLog("[TcpClientAdapter调试] 异常类型: {ExceptionType}", ex.GetType().Name);
                 DebugLog("[TcpClientAdapter调试] 异常堆栈: {StackTrace}", ex.StackTrace);
-                MarkConnectionFaulted();
                 return new OperationResult<int> { IsSuccess = false, Message = $"Receive failed: {ex.Message}" };
             }
             finally
@@ -342,22 +339,6 @@ namespace Wombat.IndustrialCommunication
                 CloseConnection();
             }
             catch { }
-        }
-
-        private void MarkConnectionFaulted()
-        {
-            if (!Connected && _stream == null && _connection == null)
-            {
-                return;
-            }
-
-            try
-            {
-                CloseConnection();
-            }
-            catch
-            {
-            }
         }
 
         private void CloseConnection()
