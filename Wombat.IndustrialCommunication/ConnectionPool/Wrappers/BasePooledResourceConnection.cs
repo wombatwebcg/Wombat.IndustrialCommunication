@@ -60,7 +60,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
             }
         }
 
-        public async Task<OperationResult> ProbeAsync(TimeSpan timeout)
+        public virtual async Task<OperationResult> ProbeAsync(TimeSpan timeout)
         {
             using (await _sync.LockAsync().ConfigureAwait(false))
             {
