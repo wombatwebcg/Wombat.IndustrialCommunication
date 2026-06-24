@@ -75,10 +75,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
                     return OperationResult.CreateFailedResult("底层资源不可用");
                 }
 
-                var result = await ExecuteProbeWithTimeoutAsync(timeout).ConfigureAwait(false);
                 LastActiveTimeUtc = DateTime.UtcNow;
-                State = result.IsSuccess ? ConnectionEntryLifecycleState.Ready : ConnectionEntryLifecycleState.Faulted;
-                return result;
+                State = ConnectionEntryLifecycleState.Ready;
+                return OperationResult.CreateSuccessResult("资源探活成功");
             }
         }
 
@@ -163,29 +162,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
         protected abstract bool IsAvailableCore();
         protected abstract Task<OperationResult> EnsureAvailableCoreAsync();
         protected abstract OperationResult DisconnectOrShutdownCore();
-
-        protected virtual Task<OperationResult> ProbeCoreAsync()
-        {
-            return Task.FromResult(IsAvailableCore() ? OperationResult.CreateSuccessResult("资源探活成功") : OperationResult.CreateFailedResult("底层资源不可用"));
-        }
-
-        private async Task<OperationResult> ExecuteProbeWithTimeoutAsync(TimeSpan timeout)
-        {
-            if (timeout <= TimeSpan.Zero)
-            {
-                return await ProbeCoreAsync().ConfigureAwait(false);
-            }
-
-            var probeTask = ProbeCoreAsync();
-            var timeoutTask = Task.Delay(timeout);
-            var completedTask = await Task.WhenAny(probeTask, timeoutTask).ConfigureAwait(false);
-            if (!ReferenceEquals(completedTask, probeTask))
-            {
-                return OperationResult.CreateFailedResult(string.Format("资源探活超时，超时时间 {0} ms", timeout.TotalMilliseconds));
-            }
-
-            return await probeTask.ConfigureAwait(false);
-        }
 
         private void BestEffortDisconnectOrShutdownCore()
         {

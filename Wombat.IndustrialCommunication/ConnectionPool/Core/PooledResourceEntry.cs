@@ -760,11 +760,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 _lastFailureTimeUtc = utcNow;
                 TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ConnectFailed, _lastFailureReason, mode, probeResult.Exception, true, notifications);
 
-                if (_consecutiveHealthCheckFailures >= GetMaxConsecutiveHealthCheckFailures(options))
-                {
-                    return InvalidateCore("健康检查连续失败，连接已失效", mode, notifications);
-                }
-
                 if (CanRecoverNow(options, utcNow))
                 {
                     return await TryRecoverCoreAsync("探活失败，尝试恢复连接", mode, notifications).ConfigureAwait(false);
@@ -1211,16 +1206,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             return options.ProbeTimeout;
-        }
-
-        private static int GetMaxConsecutiveHealthCheckFailures(ConnectionPoolOptions options)
-        {
-            if (options == null || options.MaxConsecutiveHealthCheckFailures <= 0)
-            {
-                return 3;
-            }
-
-            return options.MaxConsecutiveHealthCheckFailures;
         }
 
         private bool IsTerminalLifecycleState()

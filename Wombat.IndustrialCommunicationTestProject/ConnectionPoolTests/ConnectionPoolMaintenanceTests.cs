@@ -177,9 +177,9 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
 
         [Fact]
-        public async Task Should_Disconnect_When_Invalidated_By_Health_Check_Failures()
+        public async Task Should_Keep_Retrying_Instead_Of_Invalidating_When_Health_Check_Fails()
         {
-            var identity = new ConnectionIdentity { DeviceId = "invalidate-disconnect", ProtocolType = "Mock", Endpoint = "invalidate-disconnect" };
+            var identity = new ConnectionIdentity { DeviceId = "retry-after-health-failure", ProtocolType = "Mock", Endpoint = "retry-after-health-failure" };
             var factory = new MaintenanceConnectionFactory(descriptor => new MaintenanceConnection(descriptor.Identity)
             {
                 ProbeShouldFail = true,
@@ -191,6 +191,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 HealthCheckInterval = TimeSpan.FromMilliseconds(20),
                 LeaseExpirationSweepInterval = TimeSpan.FromMilliseconds(20),
                 IdleTimeout = TimeSpan.FromSeconds(5),
+                FaultedReconnectCooldown = TimeSpan.Zero,
                 MaxConsecutiveHealthCheckFailures = 1
             };
             var pool = new DeviceClientPool(options, factory);
@@ -201,9 +202,11 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
 
             var connection = factory.Get(identity);
-            await WaitUntilAsync(() => Volatile.Read(ref connection.InvalidateCount) > 0).ConfigureAwait(false);
+            await WaitUntilAsync(() => Volatile.Read(ref connection.EnsureAvailableCount) >= 2).ConfigureAwait(false);
 
+            Assert.Equal(0, connection.InvalidateCount);
             Assert.True(connection.DisconnectCount > 0);
+            Assert.True(connection.EnsureAvailableCount >= 2);
         }
 
         private sealed class MaintenanceConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>

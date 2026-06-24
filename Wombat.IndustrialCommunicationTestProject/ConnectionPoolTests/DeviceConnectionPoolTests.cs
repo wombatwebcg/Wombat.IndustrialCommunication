@@ -297,6 +297,27 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         }
 
         [Fact]
+        public async Task Should_Force_Reconnect_After_Background_Fault()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "reconnect-faulted", ProtocolType = "Mock", Endpoint = "reconnect-faulted" };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
+            var connection = new FakePooledConnection(identity);
+            var entry = new PooledResourceEntry<IDeviceClient>(descriptor, connection, new NullEventPublisher());
+
+            var ready = await entry.EnsureAvailableAsync().ConfigureAwait(false);
+            Assert.True(ready.IsSuccess);
+
+            var faulted = await entry.MarkFailureAsync("模拟后台故障", null, ConnectionPoolMaintenanceMode.Background).ConfigureAwait(false);
+            Assert.False(faulted.IsSuccess);
+            Assert.Equal(ConnectionEntryLifecycleState.Faulted, entry.LifecycleState);
+
+            var force = await entry.ForceReconnectAsync("测试重连").ConfigureAwait(false);
+
+            Assert.True(force.IsSuccess);
+            Assert.Equal(ConnectionEntryLifecycleState.Ready, entry.LifecycleState);
+        }
+
+        [Fact]
         public async Task Should_Reject_Force_Reconnect_When_Lease_Is_Active()
         {
             var identity = new ConnectionIdentity { DeviceId = "reconnect-active", ProtocolType = "Mock", Endpoint = "reconnect-active" };
