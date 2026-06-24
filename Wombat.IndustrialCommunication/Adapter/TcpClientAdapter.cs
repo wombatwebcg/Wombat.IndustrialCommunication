@@ -1,29 +1,29 @@
 using Microsoft.Extensions.Logging;
+using Pipelines.Sockets.Unofficial;
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using System.IO;
 using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.Extensions.DataTypeExtensions;
+using Wombat.Network.Transports.Tcp;
 
 namespace Wombat.IndustrialCommunication
 {
 
     public class TcpClientAdapter : IStreamResource, IDisposable
     {
-        private TcpClient _tcpClient;
-        private IPEndPoint _remoteEndPoint;
+        private TcpTransportConnection _connection;
+        private Stream _stream;
+        private readonly IPEndPoint _remoteEndPoint;
         private TimeSpan _connectTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private TimeSpan _receiveTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private TimeSpan _sendTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
+        private int _connected;
         private bool _disposed;
         private const int DEFAULT_TIMEOUT_MS = 2000;
         private const int MIN_PORT = 1;
         private const int MAX_PORT = 65535;
-        private const int RECEIVE_POLL_INTERVAL_MS = 20;
         private ILogger _logger;
 
         public TcpClientAdapter(string ip, int port)
@@ -53,7 +53,7 @@ namespace Wombat.IndustrialCommunication
 
 
       
-        public bool Connected => _tcpClient?.Connected ?? false;
+        public bool Connected => Volatile.Read(ref _connected) == 1;
 
         public TimeSpan ConnectTimeout
         {
@@ -117,19 +117,6 @@ namespace Wombat.IndustrialCommunication
 
 
 
-        /// <summary>
-        /// 设置NetworkStream的超时
-        /// </summary>
-        private void SetStreamTimeouts()
-        {
-            if (_tcpClient?.Connected == true)
-            {
-                var stream = _tcpClient.GetStream();
-                stream.ReadTimeout = (int)_receiveTimeout.TotalMilliseconds;
-                stream.WriteTimeout = (int)_sendTimeout.TotalMilliseconds;
-            }
-        }
-
         public async Task<OperationResult> Send(byte[] buffer, int offset, int size, CancellationToken cancellationToken)
         {
             ValidateNotDisposed();
@@ -141,13 +128,24 @@ namespace Wombat.IndustrialCommunication
             if (offset < 0 || size < 0 || offset + size > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(offset), "Invalid offset or size");
 
+            CancellationTokenSource timeoutCts = null;
+            CancellationTokenSource linkedCts = null;
             try
             {
-                var stream = _tcpClient.GetStream();
-                
-                await stream.WriteAsync(buffer, offset, size, cancellationToken);
-                
+                if (_sendTimeout > TimeSpan.Zero)
+                {
+                    timeoutCts = new CancellationTokenSource(_sendTimeout);
+                    linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+                }
+
+                var effectiveToken = linkedCts?.Token ?? cancellationToken;
+                await _stream.WriteAsync(buffer, offset, size, effectiveToken).ConfigureAwait(false);
+                await _stream.FlushAsync(effectiveToken).ConfigureAwait(false);
                 return OperationResult.CreateSuccessResult();
+            }
+            catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                return OperationResult.CreateFailedResult($"Send operation timed out after {_sendTimeout.TotalMilliseconds}ms");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
@@ -156,6 +154,11 @@ namespace Wombat.IndustrialCommunication
             catch (Exception ex)
             {
                 return OperationResult.CreateFailedResult($"Send failed: {ex.Message}");
+            }
+            finally
+            {
+                linkedCts?.Dispose();
+                timeoutCts?.Dispose();
             }
         }
 
@@ -175,37 +178,22 @@ namespace Wombat.IndustrialCommunication
             if (offset < 0 || size < 0 || offset + size > buffer.Length)
                 throw new ArgumentOutOfRangeException(nameof(offset), "Invalid offset or size");
 
+            CancellationTokenSource timeoutCts = null;
+            CancellationTokenSource linkedCts = null;
             try
             {
-                var stream = _tcpClient.GetStream();
-                DebugLog("[TcpClientAdapter调试] 获取网络流成功，流状态: CanRead={CanRead}, CanWrite={CanWrite}", stream.CanRead, stream.CanWrite);
-                DebugLog("[TcpClientAdapter调试] 流超时设置: ReadTimeout={ReadTimeout}ms, WriteTimeout={WriteTimeout}ms", stream.ReadTimeout, stream.WriteTimeout);
-                
-                var deadlineUtc = DateTime.UtcNow.Add(_receiveTimeout);
-                DebugLog("[TcpClientAdapter调试] 开始等待响应数据，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+                DebugLog("[TcpClientAdapter调试] 获取传输流成功，流状态: CanRead={CanRead}, CanWrite={CanWrite}", _stream.CanRead, _stream.CanWrite);
+                if (_receiveTimeout > TimeSpan.Zero)
+                {
+                    timeoutCts = new CancellationTokenSource(_receiveTimeout);
+                    linkedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+                }
 
+                var effectiveToken = linkedCts?.Token ?? cancellationToken;
                 int totalRead = 0;
                 while (totalRead < size)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
-
-                    if (!stream.DataAvailable)
-                    {
-                        var remaining = deadlineUtc - DateTime.UtcNow;
-                        if (remaining <= TimeSpan.Zero)
-                        {
-                            DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
-                            return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
-                        }
-
-                        var delay = remaining.TotalMilliseconds > RECEIVE_POLL_INTERVAL_MS
-                            ? TimeSpan.FromMilliseconds(RECEIVE_POLL_INTERVAL_MS)
-                            : remaining;
-                        await Task.Delay(delay, cancellationToken).ConfigureAwait(false);
-                        continue;
-                    }
-
-                    int currentRead = await stream.ReadAsync(buffer, offset + totalRead, size - totalRead, cancellationToken).ConfigureAwait(false);
+                    int currentRead = await _stream.ReadAsync(buffer, offset + totalRead, size - totalRead, effectiveToken).ConfigureAwait(false);
                     DebugLog("[TcpClientAdapter调试] stream.ReadAsync 返回，读取字节数: {CurrentRead}", currentRead);
 
                     if (currentRead == 0)
@@ -222,6 +210,11 @@ namespace Wombat.IndustrialCommunication
 
                 return new OperationResult<int> { IsSuccess = true, ResultValue = totalRead };
             }
+            catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+            {
+                DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+                return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
+            }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作被外部取消");
@@ -233,6 +226,11 @@ namespace Wombat.IndustrialCommunication
                 DebugLog("[TcpClientAdapter调试] 异常类型: {ExceptionType}", ex.GetType().Name);
                 DebugLog("[TcpClientAdapter调试] 异常堆栈: {StackTrace}", ex.StackTrace);
                 return new OperationResult<int> { IsSuccess = false, Message = $"Receive failed: {ex.Message}" };
+            }
+            finally
+            {
+                linkedCts?.Dispose();
+                timeoutCts?.Dispose();
             }
         }
 
@@ -253,23 +251,7 @@ namespace Wombat.IndustrialCommunication
             if (Connected)
                 return OperationResult.CreateSuccessResult();
 
-            try
-            {
-                _tcpClient = new TcpClient();
-                _tcpClient.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
-                _tcpClient.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
-
-                _tcpClient.Connect(_remoteEndPoint.Address, _remoteEndPoint.Port);
-
-                // 连接成功后设置NetworkStream的超时
-                SetStreamTimeouts();
-
-                return OperationResult.CreateSuccessResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Connection failed: {ex.Message}");
-            }
+            return ConnectAsync().GetAwaiter().GetResult();
         }
 
         public OperationResult Disconnect()
@@ -278,7 +260,7 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                _tcpClient?.Close();
+                CloseConnection();
                 return OperationResult.CreateSuccessResult();
             }
             catch (Exception ex)
@@ -295,52 +277,39 @@ namespace Wombat.IndustrialCommunication
                 return OperationResult.CreateSuccessResult();
 
             CancellationTokenSource timeoutCts = null;
+            CancellationTokenSource combinedCts = null;
             try
             {
-                _tcpClient = new TcpClient();
-                _tcpClient.ReceiveTimeout = (int)_receiveTimeout.TotalMilliseconds;
-                _tcpClient.SendTimeout = (int)_sendTimeout.TotalMilliseconds;
-
-                // 创建超时 CancellationTokenSource
                 timeoutCts = new CancellationTokenSource(_connectTimeout);
-                
-                // 合并超时 token 和传入的 cancellationToken
-                var combinedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+                combinedCts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken);
+                var connection = await TcpTransportConnection.ConnectAsync(
+                    _remoteEndPoint,
+                    cancellationToken: combinedCts.Token).ConfigureAwait(false);
+                await connection.StartAsync(combinedCts.Token).ConfigureAwait(false);
 
-                // 使用 Task.WhenAny 实现超时控制
-                var connectTask = _tcpClient.ConnectAsync(_remoteEndPoint.Address, _remoteEndPoint.Port);
-                var timeoutTask = Task.Delay(Timeout.Infinite, combinedCts.Token);
-                
-                var completedTask = await Task.WhenAny(connectTask, timeoutTask);
-                
-                if (completedTask == timeoutTask)
-                {
-                    // 超时发生
-                    throw new OperationCanceledException("Connection timeout");
-                }
-                
-                // 等待连接任务完成（应该已经完成）
-                await connectTask;
-                
-                // 连接成功后设置NetworkStream的超时
-                SetStreamTimeouts();
-                
+                _connection = connection;
+                _stream = StreamConnection.GetDuplex(connection.Transport, nameof(TcpClientAdapter));
+                Volatile.Write(ref _connected, 1);
                 return OperationResult.CreateSuccessResult();
             }
             catch (OperationCanceledException) when (timeoutCts?.IsCancellationRequested == true)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult($"Connection timeout after {_connectTimeout.TotalMilliseconds}ms");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult("Connection was cancelled by user");
             }
             catch (Exception ex)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult($"Connection failed: {ex.Message}");
             }
             finally
             {
+                combinedCts?.Dispose();
                 timeoutCts?.Dispose();
             }
         }
@@ -351,7 +320,7 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                _tcpClient?.Close();
+                CloseConnection();
                 return OperationResult.CreateSuccessResult();
             }
             catch (Exception ex)
@@ -367,9 +336,34 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                _tcpClient?.Close();
+                CloseConnection();
             }
             catch { }
+        }
+
+        private void CloseConnection()
+        {
+            Volatile.Write(ref _connected, 0);
+
+            try
+            {
+                _stream?.Dispose();
+            }
+            catch { }
+            finally
+            {
+                _stream = null;
+            }
+
+            try
+            {
+                _connection?.CloseAsync().GetAwaiter().GetResult();
+            }
+            catch { }
+            finally
+            {
+                _connection = null;
+            }
         }
 
         public void Dispose()
@@ -385,15 +379,7 @@ namespace Wombat.IndustrialCommunication
 
             if (disposing)
             {
-                try
-                {
-                    _tcpClient?.Dispose();
-                }
-                catch { }
-                finally
-                {
-                    _tcpClient = null;
-                }
+                CloseConnection();
             }
 
             _disposed = true;

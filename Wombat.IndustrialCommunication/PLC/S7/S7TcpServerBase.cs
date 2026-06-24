@@ -111,18 +111,15 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (response != null)
                 {
                     OnPacketTraced(PacketTraceDirection.Sent, DescribeMessageMeaning(messageType, true), response);
-                    Task.Run(async () =>
+                    Logger?.LogDebug(
+                        "发送S7响应: {ResponseHex}",
+                        BitConverter.ToString(response).Replace("-", " "));
+
+                    var result = _transport.SendToSessionAsync(message.Session, response).ConfigureAwait(false).GetAwaiter().GetResult();
+                    if (!result.IsSuccess)
                     {
-                        Logger?.LogDebug(
-                            "发送S7响应: {ResponseHex}",
-                            BitConverter.ToString(response).Replace("-", " "));
-                            
-                        var result = await _transport.SendToSessionAsync(message.Session, response);
-                        if (!result.IsSuccess)
-                        {
-                            Logger?.LogError("发送S7响应失败: {ErrorMessage}", result.Message);
-                        }
-                    });
+                        Logger?.LogError("发送S7响应失败: {ErrorMessage}", result.Message);
+                    }
                 }
             }
             catch (Exception ex)

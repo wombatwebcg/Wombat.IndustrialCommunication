@@ -27,12 +27,15 @@
     <PackageReference Include="System.IO.Ports" Version="10.0.5" />
     <PackageReference Include="System.Reactive" Version="6.1.0" />
     <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.0.13" />
-    <PackageReference Include="Wombat.Network" Version="1.1.6" />
   </ItemGroup>
 
   <ItemGroup>
     <Folder Include="PLC\Base\" />
     <Folder Include="PLC\FINS\" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Wombat.Network\Wombat.Network\Wombat.Network.csproj" />
   </ItemGroup>
 
 </Project>

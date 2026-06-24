@@ -24,8 +24,6 @@ namespace Wombat.IndustrialCommunication
         private TimeSpan _responseWaitTime = TimeSpan.FromMilliseconds(500);
         // 会话字典，用于跟踪客户端会话
         private readonly Dictionary<INetworkSession, ClientState> _sessionStates = new Dictionary<INetworkSession, ClientState>();
-        // TPKT 协议需要按帧长度重组，避免 TCP 分包/粘包导致上层误判。
-        private readonly Dictionary<Guid, List<byte>> _sessionTpktBuffers = new Dictionary<Guid, List<byte>>();
         // 会话字典的锁
         private readonly AsyncLock _sessionLock = new AsyncLock();
         // 消息队列
@@ -250,7 +248,6 @@ namespace Wombat.IndustrialCommunication
             using (await _sessionLock.LockAsync())
             {
                 _sessionStates[e.Session] = new ClientState();
-                _sessionTpktBuffers[e.Session.Id] = new List<byte>();
             }
         }
 
@@ -262,7 +259,6 @@ namespace Wombat.IndustrialCommunication
             using (await _sessionLock.LockAsync())
             {
                 _sessionStates.Remove(e.Session);
-                _sessionTpktBuffers.Remove(e.Session.Id);
             }
         }
 
@@ -276,14 +272,14 @@ namespace Wombat.IndustrialCommunication
             {
                 return;
             }
-
-            var messages = await NormalizeReceivedMessagesAsync(e.Session, actualData);
             using (await _messageLock.LockAsync())
             {
-                foreach (var message in messages)
+                _messageQueue.Enqueue(new ReceivedMessage
                 {
-                    _messageQueue.Enqueue(message);
-                }
+                    Session = e.Session,
+                    Data = actualData,
+                    Timestamp = DateTime.Now
+                });
             }
         }
 
@@ -304,109 +300,6 @@ namespace Wombat.IndustrialCommunication
             byte[] slicedData = new byte[e.Count];
             Buffer.BlockCopy(e.Data, e.Offset, slicedData, 0, e.Count);
             return slicedData;
-        }
-
-        private async Task<List<ReceivedMessage>> NormalizeReceivedMessagesAsync(INetworkSession session, byte[] actualData)
-        {
-            var messages = new List<ReceivedMessage>();
-            if (session == null || actualData == null || actualData.Length == 0)
-            {
-                return messages;
-            }
-
-            bool shouldHandleAsTpkt = LooksLikeTpkt(actualData);
-
-            using (await _sessionLock.LockAsync())
-            {
-                if (!shouldHandleAsTpkt && !_sessionTpktBuffers.TryGetValue(session.Id, out List<byte> pendingBuffer))
-                {
-                    messages.Add(new ReceivedMessage
-                    {
-                        Session = session,
-                        Data = actualData,
-                        Timestamp = DateTime.Now
-                    });
-                    return messages;
-                }
-
-                if (!_sessionTpktBuffers.TryGetValue(session.Id, out List<byte> buffer))
-                {
-                    buffer = new List<byte>();
-                    _sessionTpktBuffers[session.Id] = buffer;
-                }
-
-                buffer.AddRange(actualData);
-
-                while (true)
-                {
-                    if (buffer.Count < 4)
-                    {
-                        break;
-                    }
-
-                    if (buffer[0] != 0x03 || buffer[1] != 0x00)
-                    {
-                        messages.Add(new ReceivedMessage
-                        {
-                            Session = session,
-                            Data = buffer.ToArray(),
-                            Timestamp = DateTime.Now
-                        });
-                        buffer.Clear();
-                        break;
-                    }
-
-                    int tpktLength = (buffer[2] << 8) | buffer[3];
-                    if (tpktLength < 4)
-                    {
-                        messages.Add(new ReceivedMessage
-                        {
-                            Session = session,
-                            Data = buffer.ToArray(),
-                            Timestamp = DateTime.Now
-                        });
-                        buffer.Clear();
-                        break;
-                    }
-
-                    if (buffer.Count < tpktLength)
-                    {
-                        break;
-                    }
-
-                    byte[] frame = buffer.GetRange(0, tpktLength).ToArray();
-                    buffer.RemoveRange(0, tpktLength);
-
-                    messages.Add(new ReceivedMessage
-                    {
-                        Session = session,
-                        Data = frame,
-                        Timestamp = DateTime.Now
-                    });
-                }
-
-                if (buffer.Count == 0)
-                {
-                    _sessionTpktBuffers.Remove(session.Id);
-                }
-            }
-
-            return messages;
-        }
-
-        private static bool LooksLikeTpkt(byte[] actualData)
-        {
-            if (actualData == null || actualData.Length == 0)
-            {
-                return false;
-            }
-
-            if (actualData[0] != 0x03)
-            {
-                return false;
-            }
-
-            return actualData.Length == 1 || actualData.Length < 2 || actualData[1] == 0x00;
         }
 
         /// <summary>

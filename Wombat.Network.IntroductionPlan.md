@@ -188,13 +188,15 @@
 优先用本地项目引用：
 
 ```xml
-<ProjectReference Include="..\\Wombat.Network\\Wombat.Network.csproj" />
+<ProjectReference Include="..\..\..\Wombat.Network\Wombat.Network\Wombat.Network.csproj" />
 ```
 
 原因：
 
 - 迁移期联调更快
 - 有兼容性问题时能直接修改底层库
+
+当前源码位置按仓库实际结构使用上面的 `ProjectReference`，不要误按 NuGet 包路径理解。
 
 ## 风险与规避
 

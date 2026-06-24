@@ -116,14 +116,11 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if (response != null)
                 {
                     OnPacketTraced(PacketTraceDirection.Sent, GetResponseMeaning(response[7]), response);
-                    Task.Run(async () =>
+                    var result = _transport.SendToSessionAsync(message.Session, response).ConfigureAwait(false).GetAwaiter().GetResult();
+                    if (!result.IsSuccess)
                     {
-                        var result = await _transport.SendToSessionAsync(message.Session, response);
-                        if (!result.IsSuccess)
-                        {
-                            Logger?.LogError("发送Modbus响应失败: {ErrorMessage}", result.Message);
-                        }
-                    });
+                        Logger?.LogError("发送Modbus响应失败: {ErrorMessage}", result.Message);
+                    }
                 }
             }
             catch (Exception ex)

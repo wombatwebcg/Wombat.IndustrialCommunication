@@ -1,6 +1,7 @@
 using System;
 using System.Net;
 using System.Net.Sockets;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
@@ -105,6 +106,65 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             }
         }
 
+        [Fact]
+        public async Task SingleConnection_Should_Handle_Sticky_And_Split_Modbus_Frames()
+        {
+            var port = GetFreePort();
+            var server = new ModbusTcpServer(TestIp, port) { SlaveId = Station };
+
+            try
+            {
+                server.DataStore.HoldingRegisters[0] = 0x1234;
+                server.DataStore.HoldingRegisters[1] = 0x5678;
+
+                var startResult = await server.StartAsync();
+                Assert.True(startResult.IsSuccess, $"启动服务失败: {startResult.Message}");
+
+                using var client = new TcpClient();
+                await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+                using var stream = client.GetStream();
+
+                var read0 = new ModbusTcpRequest(0x0100, Station, 0x03, 0, 1).ProtocolMessageFrame;
+                var read1 = new ModbusTcpRequest(0x0101, Station, 0x03, 1, 1).ProtocolMessageFrame;
+
+                var sticky = new byte[read0.Length + read1.Length];
+                Buffer.BlockCopy(read0, 0, sticky, 0, read0.Length);
+                Buffer.BlockCopy(read1, 0, sticky, read0.Length, read1.Length);
+
+                await stream.WriteAsync(sticky, 0, sticky.Length).ConfigureAwait(false);
+                await stream.FlushAsync().ConfigureAwait(false);
+
+                var response0 = await ReadModbusFrameAsync(stream, CancellationToken.None).ConfigureAwait(false);
+                var response1 = await ReadModbusFrameAsync(stream, CancellationToken.None).ConfigureAwait(false);
+
+                var parsed0 = new ModbusTcpResponse(response0);
+                var parsed1 = new ModbusTcpResponse(response1);
+
+                Assert.Equal(new byte[] { 0x01, 0x00 }, new[] { response0[0], response0[1] });
+                Assert.Equal(new byte[] { 0x01, 0x01 }, new[] { response1[0], response1[1] });
+                Assert.Equal(new byte[] { 0x12, 0x34 }, parsed0.Data);
+                Assert.Equal(new byte[] { 0x56, 0x78 }, parsed1.Data);
+
+                var write = new ModbusTcpRequest(0x0102, Station, 0x06, 1, 1, new byte[] { 0x9A, 0xBC }).ProtocolMessageFrame;
+                await stream.WriteAsync(write, 0, 5).ConfigureAwait(false);
+                await stream.FlushAsync().ConfigureAwait(false);
+                await Task.Delay(30).ConfigureAwait(false);
+                await stream.WriteAsync(write, 5, write.Length - 5).ConfigureAwait(false);
+                await stream.FlushAsync().ConfigureAwait(false);
+
+                var writeResponse = await ReadModbusFrameAsync(stream, CancellationToken.None).ConfigureAwait(false);
+                _ = new ModbusTcpResponse(writeResponse);
+
+                Assert.Equal(new byte[] { 0x01, 0x02 }, new[] { writeResponse[0], writeResponse[1] });
+                Assert.Equal(0x9ABC, server.DataStore.HoldingRegisters[1]);
+            }
+            finally
+            {
+                await server.StopAsync();
+                server.Dispose();
+            }
+        }
+
         private static int GetFreePort()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -112,6 +172,35 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
             var port = ((IPEndPoint)listener.LocalEndpoint).Port;
             listener.Stop();
             return port;
+        }
+
+        private static async Task<byte[]> ReadModbusFrameAsync(NetworkStream stream, CancellationToken cancellationToken)
+        {
+            var header = await ReadExactAsync(stream, 6, cancellationToken).ConfigureAwait(false);
+            int frameLength = 6 + ((header[4] << 8) | header[5]);
+            var rest = await ReadExactAsync(stream, frameLength - 6, cancellationToken).ConfigureAwait(false);
+            var frame = new byte[frameLength];
+            Buffer.BlockCopy(header, 0, frame, 0, header.Length);
+            Buffer.BlockCopy(rest, 0, frame, header.Length, rest.Length);
+            return frame;
+        }
+
+        private static async Task<byte[]> ReadExactAsync(NetworkStream stream, int length, CancellationToken cancellationToken)
+        {
+            var buffer = new byte[length];
+            int offset = 0;
+            while (offset < length)
+            {
+                int read = await stream.ReadAsync(buffer, offset, length - offset, cancellationToken).ConfigureAwait(false);
+                if (read == 0)
+                {
+                    throw new InvalidOperationException("连接已关闭，未读满预期长度");
+                }
+
+                offset += read;
+            }
+
+            return buffer;
         }
     }
 }
