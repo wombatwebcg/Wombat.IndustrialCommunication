@@ -339,6 +339,10 @@ namespace Wombat.IndustrialCommunication.PLC
                         responseData.Add((byte)(lengthInBits >> 8));
                         responseData.Add((byte)(lengthInBits & 0xFF));
                         responseData.AddRange(data);
+                        if (data.Length == 1 && i < itemCount - 1)
+                        {
+                            responseData.Add(0x00);
+                        }
                     }
                 }
 
@@ -540,6 +544,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             ? (request[paramOffset + 6] << 8) + request[paramOffset + 7]
                             : 0,
                         StartAddress = startAddressBits / 8,
+                        BitOffset = startAddressBits % 8,
                         Length = byteLength,
                         IsBit = isBit
                     };
@@ -591,6 +596,7 @@ namespace Wombat.IndustrialCommunication.PLC
                             ? (request[paramOffset + 6] << 8) + request[paramOffset + 7]
                             : 0,
                         StartAddress = startAddressBits / 8,
+                        BitOffset = startAddressBits % 8,
                         Length = byteLength,
                         IsBit = isBit,
                         Data = new byte[byteLength]
@@ -627,6 +633,7 @@ namespace Wombat.IndustrialCommunication.PLC
         public byte AreaType { get; set; }
         public int DbNumber { get; set; }
         public int StartAddress { get; set; }
+        public int BitOffset { get; set; }
         public int Length { get; set; }
         public bool IsBit { get; set; }
     }
@@ -639,6 +646,7 @@ namespace Wombat.IndustrialCommunication.PLC
         public byte AreaType { get; set; }
         public int DbNumber { get; set; }
         public int StartAddress { get; set; }
+        public int BitOffset { get; set; }
         public int Length { get; set; }
         public bool IsBit { get; set; }
         public byte[] Data { get; set; }

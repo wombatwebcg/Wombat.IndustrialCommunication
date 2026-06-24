@@ -388,6 +388,94 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             }
         }
 
+        [Fact]
+        public async Task Test_S7Server_BatchBitReadWrite_ShouldPreserveNeighborBits()
+        {
+            var testName = "S7服务器批量位读写保留相邻位测试";
+            LogTestStart(testName);
+
+            try
+            {
+                LogStep("启动S7服务器");
+                await StartServer();
+
+                using var client = new SiemensClient(TEST_SERVER_IP, TEST_SERVER_PORT, PLC_VERSION);
+                client.ConnectTimeout = TimeSpan.FromMilliseconds(CONNECT_TIMEOUT_MS);
+                client.ReceiveTimeout = TimeSpan.FromMilliseconds(OPERATION_TIMEOUT_MS);
+                client.SendTimeout = TimeSpan.FromMilliseconds(OPERATION_TIMEOUT_MS);
+
+                LogStep("连接客户端");
+                var connectResult = await client.ConnectAsync();
+                Assert.True(connectResult.IsSuccess, $"客户端连接失败: {connectResult.Message}");
+
+                Assert.True(_server.WriteDB(1, 0, new byte[] { 0xFF }).IsSuccess);
+                Assert.True(_server.WriteMerkers(0, new byte[] { 0xFF }).IsSuccess);
+                Assert.True(_server.WriteInputs(0, new byte[] { 0x00 }).IsSuccess);
+                Assert.True(_server.WriteOutputs(0, new byte[] { 0x80 }).IsSuccess);
+                LogInfo($"批量写前 DB1[0]={_server.ReadDB(1, 0, 1).ResultValue[0]}");
+
+                LogStep("执行批量位写");
+                var writeResult = await client.BatchWriteAsync(new Dictionary<string, (DataTypeEnums, object)>
+                {
+                    ["DB1.DBX0.1"] = (DataTypeEnums.Bool, (object)false),
+                    ["M0.2"] = (DataTypeEnums.Bool, (object)false),
+                    ["I0.3"] = (DataTypeEnums.Bool, (object)true),
+                    ["Q0.6"] = (DataTypeEnums.Bool, (object)false)
+                });
+
+                Assert.True(writeResult.IsSuccess, writeResult.Message);
+                LogInfo($"批量写后 DB1[0]={_server.ReadDB(1, 0, 1).ResultValue[0]}");
+
+                LogStep("执行批量位读");
+                var readResult = await client.BatchReadAsync(new Dictionary<string, DataTypeEnums>
+                {
+                    ["DB1.DBX0.0"] = DataTypeEnums.Bool,
+                    ["DB1.DBX0.1"] = DataTypeEnums.Bool,
+                    ["M0.1"] = DataTypeEnums.Bool,
+                    ["M0.2"] = DataTypeEnums.Bool,
+                    ["I0.3"] = DataTypeEnums.Bool,
+                    ["I0.4"] = DataTypeEnums.Bool,
+                    ["Q0.6"] = DataTypeEnums.Bool,
+                    ["Q0.7"] = DataTypeEnums.Bool
+                });
+
+                Assert.True(readResult.IsSuccess, readResult.Message);
+                Assert.False(Assert.IsType<bool>(readResult.ResultValue["DB1.DBX0.1"].Item2));
+                Assert.True(Assert.IsType<bool>(readResult.ResultValue["M0.1"].Item2));
+                Assert.False(Assert.IsType<bool>(readResult.ResultValue["M0.2"].Item2));
+                Assert.True(Assert.IsType<bool>(readResult.ResultValue["I0.3"].Item2));
+                Assert.False(Assert.IsType<bool>(readResult.ResultValue["I0.4"].Item2));
+                Assert.False(Assert.IsType<bool>(readResult.ResultValue["Q0.6"].Item2));
+                Assert.True(Assert.IsType<bool>(readResult.ResultValue["Q0.7"].Item2));
+
+                var dbByte = _server.ReadDB(1, 0, 1);
+                var merkerByte = _server.ReadMerkers(0, 1);
+                var inputByte = _server.ReadInputs(0, 1);
+                var outputByte = _server.ReadOutputs(0, 1);
+
+                Assert.True(dbByte.IsSuccess, dbByte.Message);
+                Assert.True(merkerByte.IsSuccess, merkerByte.Message);
+                Assert.True(inputByte.IsSuccess, inputByte.Message);
+                Assert.True(outputByte.IsSuccess, outputByte.Message);
+
+                Assert.Equal((byte)0xFD, dbByte.ResultValue[0]);
+                Assert.Equal((byte)0xFB, merkerByte.ResultValue[0]);
+                Assert.Equal((byte)0x08, inputByte.ResultValue[0]);
+                Assert.Equal((byte)0x80, outputByte.ResultValue[0]);
+
+                LogTestComplete(testName);
+            }
+            catch (Exception ex)
+            {
+                LogTestError(testName, ex);
+                throw;
+            }
+            finally
+            {
+                await CleanupResources();
+            }
+        }
+
         #endregion
 
         #region 私有方法

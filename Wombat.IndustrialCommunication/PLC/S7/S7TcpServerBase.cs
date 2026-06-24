@@ -473,7 +473,9 @@ namespace Wombat.IndustrialCommunication.PLC
                         }
 
                         // 从数据存储中读取数据
-                        byte[] data = DataStore.ReadArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.Length);
+                        byte[] data = parameter.IsBit
+                            ? ReadBitArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.BitOffset)
+                            : DataStore.ReadArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.Length);
                         
                         // 验证读取的数据
                         if (data == null || data.Length != parameter.Length)
@@ -710,7 +712,14 @@ namespace Wombat.IndustrialCommunication.PLC
                         }
 
                         // 向数据存储中写入数据
-                        DataStore.WriteArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.Data);
+                        if (parameter.IsBit)
+                        {
+                            WriteBitArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.BitOffset, parameter.Data);
+                        }
+                        else
+                        {
+                            DataStore.WriteArea((S7Area)parameter.AreaType, parameter.DbNumber, parameter.StartAddress, parameter.Data);
+                        }
                         writeResults.Add(true);
                         
                         Logger?.LogDebug("成功写入区域 {AreaType}，DB{DbNumber}，地址 {StartAddress}，长度 {Length}",
@@ -758,6 +767,42 @@ namespace Wombat.IndustrialCommunication.PLC
                 Logger?.LogError(ex, "处理S7写入请求时发生错误");
                 return S7ResponseBuilder.CreateErrorResponse(request, 0x04); // 服务器故障
             }
+        }
+
+        private byte[] ReadBitArea(S7Area area, int dbNumber, int startAddress, int bitOffset)
+        {
+            var source = DataStore.ReadArea(area, dbNumber, startAddress, 1);
+            if (source == null || source.Length != 1)
+            {
+                throw new InvalidOperationException("位读取返回了无效的数据长度");
+            }
+
+            return new[] { (byte)(((source[0] >> bitOffset) & 0x01) == 0x01 ? 0x01 : 0x00) };
+        }
+
+        private void WriteBitArea(S7Area area, int dbNumber, int startAddress, int bitOffset, byte[] data)
+        {
+            if (data == null || data.Length != 1)
+            {
+                throw new InvalidOperationException("位写入必须提供单字节载荷");
+            }
+
+            var buffer = DataStore.ReadArea(area, dbNumber, startAddress, 1);
+            if (buffer == null || buffer.Length != 1)
+            {
+                throw new InvalidOperationException("位写入读取原始字节失败");
+            }
+
+            if ((data[0] & 0x01) == 0x01)
+            {
+                buffer[0] = (byte)(buffer[0] | (1 << bitOffset));
+            }
+            else
+            {
+                buffer[0] = (byte)(buffer[0] & ~(1 << bitOffset));
+            }
+
+            DataStore.WriteArea(area, dbNumber, startAddress, buffer);
         }
     }
 } 

@@ -54,6 +54,53 @@ namespace Wombat.IndustrialCommunication.PLC
                    Convert.ToInt32(address.Substring(dotIndex + 1));
         }
 
+        private static void ApplyTypedAddressMetadata(SiemensAddress addressInfo, string typeSegment)
+        {
+            if (addressInfo == null || string.IsNullOrEmpty(typeSegment))
+            {
+                return;
+            }
+
+            switch (typeSegment)
+            {
+                case "DBX":
+                    addressInfo.DataType = DataTypeEnums.Bool;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = true;
+                    break;
+                case "DBB":
+                case "B":
+                case "MB":
+                case "IB":
+                case "QB":
+                case "VB":
+                    addressInfo.DataType = DataTypeEnums.Byte;
+                    addressInfo.ReadWriteLength = 1;
+                    addressInfo.IsBit = false;
+                    break;
+                case "DBW":
+                case "W":
+                case "MW":
+                case "IW":
+                case "QW":
+                case "VW":
+                    addressInfo.DataType = DataTypeEnums.Int16;
+                    addressInfo.ReadWriteLength = 2;
+                    addressInfo.IsBit = false;
+                    break;
+                case "DBD":
+                case "D":
+                case "MD":
+                case "ID":
+                case "QD":
+                case "VD":
+                    addressInfo.DataType = DataTypeEnums.Int32;
+                    addressInfo.ReadWriteLength = 4;
+                    addressInfo.IsBit = false;
+                    break;
+            }
+        }
+
         public static SiemensAddress ConvertArg(string address, int offest = 0)
         {
             if (string.IsNullOrEmpty(address))
@@ -84,6 +131,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     addressInfo.DbBlock = Convert.ToUInt16(address.Substring(2, dotIndex - 2));
                     int nextDotIndex = address.IndexOf('.', dotIndex + 1);
+                    string dbTypeSegment = nextDotIndex > 0 && address[dotIndex + 1] >= '0' && address[dotIndex + 1] <= '9'
+                        ? null
+                        : address.Substring(dotIndex + 1, Math.Min(3, address.Length - (dotIndex + 1)));
+                    ApplyTypedAddressMetadata(addressInfo, dbTypeSegment);
 
                     if (nextDotIndex > 0 && address[dotIndex + 1] >= '0' && address[dotIndex + 1] <= '9')
                     {
@@ -100,23 +151,17 @@ namespace Wombat.IndustrialCommunication.PLC
                 addressInfo.DbBlock = 1;
                 if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'M'))
                 {
-                    addressInfo.DataType = DataTypeEnums.Byte;
-                    addressInfo.ReadWriteLength = 1;
-                    addressInfo.IsBit = false;
+                    ApplyTypedAddressMetadata(addressInfo, "VB");
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 else if (address.Length >= 3 && address[1] == 'W')
                 {
-                    addressInfo.DataType = DataTypeEnums.Int16;
-                    addressInfo.ReadWriteLength = 2;
-                    addressInfo.IsBit = false;
+                    ApplyTypedAddressMetadata(addressInfo, "VW");
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 else if (address.Length >= 3 && address[1] == 'D')
                 {
-                    addressInfo.DataType = DataTypeEnums.Int32;
-                    addressInfo.ReadWriteLength = 4;
-                    addressInfo.IsBit = false;
+                    ApplyTypedAddressMetadata(addressInfo, "VD");
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 else if (address.Contains('.'))
@@ -145,23 +190,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
                 else if (address.Length >= 3 && (address[1] == 'B' || address[1] == 'W' || address[1] == 'D'))
                 {
-                    if (address[1] == 'B')
-                    {
-                        addressInfo.DataType = DataTypeEnums.Byte;
-                        addressInfo.ReadWriteLength = 1;
-                    }
-                    else if (address[1] == 'W')
-                    {
-                        addressInfo.DataType = DataTypeEnums.Int16;
-                        addressInfo.ReadWriteLength = 2;
-                    }
-                    else
-                    {
-                        addressInfo.DataType = DataTypeEnums.Int32;
-                        addressInfo.ReadWriteLength = 4;
-                    }
-
-                    addressInfo.IsBit = false;
+                    ApplyTypedAddressMetadata(addressInfo, address.Substring(1, 2));
                     addressInfo.BeginAddress = GetBeingAddress(address.Substring(2), offest);
                 }
                 else
