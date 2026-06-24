@@ -32,9 +32,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
         {
             using (await _sync.LockAsync().ConfigureAwait(false))
             {
-                if (State == ConnectionEntryLifecycleState.Invalidated || State == ConnectionEntryLifecycleState.Disposed)
+                if (State == ConnectionEntryLifecycleState.Disposed)
                 {
-                    return OperationResult.CreateFailedResult("资源已失效或已释放");
+                    return OperationResult.CreateFailedResult("资源已释放");
                 }
 
                 if (IsAvailableCore())
@@ -64,9 +64,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
         {
             using (await _sync.LockAsync().ConfigureAwait(false))
             {
-                if (State == ConnectionEntryLifecycleState.Invalidated || State == ConnectionEntryLifecycleState.Disposed)
+                if (State == ConnectionEntryLifecycleState.Disposed)
                 {
-                    return OperationResult.CreateFailedResult("资源已失效或已释放");
+                    return OperationResult.CreateFailedResult("资源已释放");
                 }
 
                 if (!IsAvailableCore())
@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Wrappers
 
         public OperationResult Invalidate(string reason)
         {
-            State = ConnectionEntryLifecycleState.Invalidated;
+            State = ConnectionEntryLifecycleState.Faulted;
             LastActiveTimeUtc = DateTime.UtcNow;
             BestEffortDisconnectOrShutdownCore();
             return OperationResult.CreateFailedResult(string.IsNullOrEmpty(reason) ? "资源已失效" : reason);

@@ -328,7 +328,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             {
                 InvalidateCount++;
                 DisconnectCount++;
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }

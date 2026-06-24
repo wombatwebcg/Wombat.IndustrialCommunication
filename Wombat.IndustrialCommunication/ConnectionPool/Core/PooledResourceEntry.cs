@@ -30,6 +30,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         private bool _isUnderMaintenance;
         private bool _isRemoving;
         private bool _forceClosing;
+        private bool _closedByForceClose;
         private string _forceCloseReason;
         private string _lastFailureReason;
         private DateTime? _lastConnectedTimeUtc;
@@ -174,7 +175,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 ConnectionLease existing;
                 if (!_leases.TryGetValue(lease.LeaseId, out existing))
                 {
-                    result = IsForceClosingRequestedCore() || IsTerminalLifecycleState()
+                    result = IsForceClosingRequestedCore() || IsTerminalLifecycleState() || _closedByForceClose
                         ? OperationResult.CreateSuccessResult("租约不存在或已释放")
                         : OperationResult.CreateFailedResult("租约不存在或已释放");
                 }
@@ -219,7 +220,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateSuccessResult("连接条目已释放");
                 }
 
-                if (_lifecycleState == ConnectionEntryLifecycleState.Invalidated && !_forceClosing)
+                if (_closedByForceClose && !_forceClosing)
                 {
                     return OperationResult.CreateSuccessResult("连接条目已处于已关闭状态");
                 }
@@ -259,14 +260,15 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             notifications = new List<Action>();
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
-                if (_lifecycleState == ConnectionEntryLifecycleState.Invalidated && !_forceClosing)
+                if (_closedByForceClose && !_forceClosing)
                 {
                     return OperationResult.CreateSuccessResult("连接条目已处于已关闭状态");
                 }
 
                 ReleaseAllLeasesCore(ConnectionPoolMaintenanceMode.ForceClose, "连接被强制关闭，租约已自动回收", notifications);
                 _forceClosing = false;
-                TransitionState(ConnectionEntryLifecycleState.Invalidated, ConnectionPoolEventType.ForceClosed, ForceClosedSuccessMessage, ConnectionPoolMaintenanceMode.ForceClose, disconnectResult.Exception, !disconnectResult.IsSuccess, notifications);
+                _closedByForceClose = true;
+                TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ForceClosed, ForceClosedSuccessMessage, ConnectionPoolMaintenanceMode.ForceClose, disconnectResult.Exception, !disconnectResult.IsSuccess, notifications);
             }
 
             PublishNotifications(notifications);
@@ -531,8 +533,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     && !_forceClosing
                     && _leases.Count == 0
                     && (_lifecycleState == ConnectionEntryLifecycleState.Ready
-                        || _lifecycleState == ConnectionEntryLifecycleState.Faulted
-                        || _lifecycleState == ConnectionEntryLifecycleState.Invalidated)
+                        || _lifecycleState == ConnectionEntryLifecycleState.Faulted)
                     && DateTime.UtcNow - LastActiveTimeUtc >= idleTimeout;
             }
         }
@@ -710,6 +711,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 _failureCount = 0;
                 _consecutiveHealthCheckFailures = 0;
+                _closedByForceClose = false;
                 _lastConnectedTimeUtc = DateTime.UtcNow;
                 _lastMaintenanceMode = mode;
                 LastActiveTimeUtc = DateTime.UtcNow;
@@ -824,7 +826,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             _lastFailureTimeUtc = DateTime.UtcNow;
             var result = Connection.Invalidate(_lastFailureReason);
             _forceClosing = false;
-            TransitionState(ConnectionEntryLifecycleState.Invalidated, ConnectionPoolEventType.Invalidated, _lastFailureReason, mode, result.Exception, true, notifications);
+            _closedByForceClose = false;
+            TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.Invalidated, _lastFailureReason, mode, result.Exception, true, notifications);
             return result;
         }
 
@@ -1222,8 +1225,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         private bool IsTerminalLifecycleState()
         {
-            return _lifecycleState == ConnectionEntryLifecycleState.Invalidated
-                || _lifecycleState == ConnectionEntryLifecycleState.Disposed;
+            return _lifecycleState == ConnectionEntryLifecycleState.Disposed;
         }
 
         private static ConnectionEntryState MapPublicState(ConnectionEntryLifecycleState lifecycleState)
@@ -1235,7 +1237,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 case ConnectionEntryLifecycleState.Leased:
                     return ConnectionEntryState.Busy;
                 case ConnectionEntryLifecycleState.Faulted:
-                case ConnectionEntryLifecycleState.Invalidated:
                 case ConnectionEntryLifecycleState.ForceClosing:
                     return ConnectionEntryState.Unavailable;
                 case ConnectionEntryLifecycleState.Uninitialized:

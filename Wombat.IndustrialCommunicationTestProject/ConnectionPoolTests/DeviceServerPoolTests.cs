@@ -158,7 +158,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 IsAvailable = false;
                 return OperationResult.CreateFailedResult(reason);
             }

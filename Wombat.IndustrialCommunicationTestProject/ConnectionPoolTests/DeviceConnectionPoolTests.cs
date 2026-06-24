@@ -469,10 +469,11 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(factory.LastConnection.DisconnectCount >= 1);
             Assert.True(snapshot.IsSuccess);
             Assert.Equal(ConnectionEntryState.Unavailable, snapshot.ResultValue.State);
-            Assert.Equal(ConnectionEntryLifecycleState.Invalidated, snapshot.ResultValue.LifecycleState);
+            Assert.Equal(ConnectionEntryLifecycleState.Faulted, snapshot.ResultValue.LifecycleState);
             Assert.Equal(0, snapshot.ResultValue.ActiveLeaseCount);
-            Assert.False(acquire.IsSuccess);
-            Assert.True(release.IsSuccess);
+            Assert.True(acquire.IsSuccess);
+            Assert.True(pool.Release(acquire.ResultValue).IsSuccess);
+            Assert.False(release.IsSuccess);
         }
 
         [Fact]
@@ -508,7 +509,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.False(executeResult.IsSuccess);
             Assert.True(executeResult.IsCancelled);
             Assert.Equal(1, executeCount);
-            Assert.Equal(ConnectionEntryLifecycleState.Invalidated, entry.LifecycleState);
+            Assert.Equal(ConnectionEntryLifecycleState.Faulted, entry.LifecycleState);
             Assert.True(connection.DisconnectCount >= 1);
             Assert.Contains("强制关闭", executeResult.Message);
         }
@@ -597,14 +598,14 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             public Task<OperationResult> ProbeAsync(TimeSpan timeout)
             {
                 LastActiveTimeUtc = DateTime.UtcNow;
-                return Task.FromResult(State == ConnectionEntryLifecycleState.Invalidated
+                return Task.FromResult(State == ConnectionEntryLifecycleState.Faulted
                     ? OperationResult.CreateFailedResult("连接已失效")
                     : OperationResult.CreateSuccessResult());
             }
 
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }
@@ -672,7 +673,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }
@@ -742,7 +743,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }

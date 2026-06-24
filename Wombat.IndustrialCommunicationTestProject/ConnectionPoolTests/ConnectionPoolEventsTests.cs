@@ -147,14 +147,14 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             public Task<OperationResult> ProbeAsync(TimeSpan timeout)
             {
                 LastActiveTimeUtc = DateTime.UtcNow;
-                return Task.FromResult(State == ConnectionEntryLifecycleState.Invalidated
+                return Task.FromResult(State == ConnectionEntryLifecycleState.Faulted
                     ? OperationResult.CreateFailedResult("连接已失效")
                     : OperationResult.CreateSuccessResult());
             }
 
             public OperationResult Invalidate(string reason)
             {
-                State = ConnectionEntryLifecycleState.Invalidated;
+                State = ConnectionEntryLifecycleState.Faulted;
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return OperationResult.CreateFailedResult(reason);
             }

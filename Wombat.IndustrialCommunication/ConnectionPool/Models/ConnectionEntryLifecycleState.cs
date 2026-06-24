@@ -36,18 +36,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         Faulted = 5,
 
         /// <summary>
-        /// 已被显式失效。
-        /// </summary>
-        Invalidated = 6,
-
-        /// <summary>
         /// 正在执行强制关闭流程。
         /// </summary>
-        ForceClosing = 7,
+        ForceClosing = 6,
 
         /// <summary>
         /// 已释放资源。
         /// </summary>
-        Disposed = 8
+        Disposed = 7
     }
 }
