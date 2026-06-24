@@ -4,19 +4,22 @@ using System.Linq;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication;
+using Wombat.IndustrialCommunication.ConnectionPool.Core;
+using Wombat.IndustrialCommunication.ConnectionPool.Factories;
+using Wombat.IndustrialCommunication.ConnectionPool.Models;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 {
-    [CollectionDefinition("S7Smart200RealPlc", DisableParallelization = true)]
-    public sealed class S7Smart200RealPlcCollection
+    [CollectionDefinition("ConnectionPool S7Smart200 RealPlc", DisableParallelization = true)]
+    public sealed class ConnectionPoolS7Smart200RealPlcCollection
     {
     }
 
-    [Collection("S7Smart200RealPlc")]
-    public class S7Smart200LargeBatchRealPlcTests
+    [Collection("ConnectionPool S7Smart200 RealPlc")]
+    public class ConnectionPoolS7Smart200LargeBatchRealPlcReconnectTests
     {
         private const string PlcIp = "192.168.10.100";
         private const int PlcPort = 102;
@@ -25,89 +28,79 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
-        private const int StableReconnectDelaySeconds = 1;
 
         private readonly ITestOutputHelper _output;
 
-        public S7Smart200LargeBatchRealPlcTests(ITestOutputHelper output)
+        public ConnectionPoolS7Smart200LargeBatchRealPlcReconnectTests(ITestOutputHelper output)
         {
             _output = output;
         }
 
         [Fact]
-        public async Task Smart200_BatchRead_ShouldRoundTrip_ContinuousRandomAndMixedAddresses_Over200()
+        public async Task ConnectionPool_Smart200_BatchRead_ShouldReconnectAndRoundTrip_ContinuousRandomAndMixedAddresses_Over200()
         {
-            await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-                "连续批量读回写校验 - 256 个连续字节地址",
-                BuildContinuousByteScenario(baseByteAddress: 1000, byteCount: 256, seed: 2026062201)).ConfigureAwait(false);
+            await ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+                "连接池连续批量读回写校验 - 256 个连续字节地址",
+                BuildContinuousByteScenario(baseByteAddress: 1000, byteCount: 256, seed: 2026062401)).ConfigureAwait(false);
 
-            await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-                "随机批量读回写校验 - 220 个离散字节地址",
-                BuildSparseByteScenario(baseByteAddress: 2000, addressCount: 220, maxOffset: 900, seed: 2026062202)).ConfigureAwait(false);
+            await ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+                "连接池随机批量读回写校验 - 220 个离散字节地址",
+                BuildSparseByteScenario(baseByteAddress: 2000, addressCount: 220, maxOffset: 900, seed: 2026062402)).ConfigureAwait(false);
 
-            await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-                "混合批量读回写校验 - Bool/Byte/Word/DWord 共 248 个地址",
-                BuildMixedScenario(baseByteAddress: 3000, seed: 2026062203)).ConfigureAwait(false);
+            await ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+                "连接池混合批量读回写校验 - Bool/Byte/Word/DWord 共 248 个地址",
+                BuildMixedScenario(baseByteAddress: 3000, seed: 2026062403)).ConfigureAwait(false);
         }
 
         [Fact]
-        public async Task Smart200_BatchWrite_ShouldRoundTrip_RandomAndMixedAddresses_Over200()
+        public async Task ConnectionPool_Smart200_BatchWrite_ShouldReconnectAndRoundTrip_RandomAndMixedAddresses_Over200()
         {
-            await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-                "随机批量写入回读校验 - 240 个离散字节地址",
-                BuildSparseByteScenario(baseByteAddress: 4200, addressCount: 240, maxOffset: 1200, seed: 2026062204)).ConfigureAwait(false);
+            await ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+                "连接池随机批量写入回读校验 - 240 个离散字节地址",
+                BuildSparseByteScenario(baseByteAddress: 4200, addressCount: 240, maxOffset: 1200, seed: 2026062404)).ConfigureAwait(false);
 
-            await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-                "混合批量写入回读校验 - Bool/Byte/Word/DWord 共 248 个地址",
-                BuildMixedScenario(baseByteAddress: 5000, seed: 2026062205)).ConfigureAwait(false);
+            await ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+                "连接池混合批量写入回读校验 - Bool/Byte/Word/DWord 共 248 个地址",
+                BuildMixedScenario(baseByteAddress: 5000, seed: 2026062405)).ConfigureAwait(false);
         }
 
-        private SiemensClient CreateClient()
+        private async Task ExecuteReadWriteRoundTripWithDedicatedPoolAsync(
+            string scenarioName,
+            Dictionary<string, (DataTypeEnums, object)> expectedValues)
         {
-            return new SiemensClient(PlcIp, PlcPort, PlcVersion)
+            using (var pool = CreatePool())
             {
-                ConnectTimeout = TimeSpan.FromSeconds(ConnectTimeoutSeconds),
-                ReceiveTimeout = TimeSpan.FromSeconds(OperationTimeoutSeconds),
-                SendTimeout = TimeSpan.FromSeconds(OperationTimeoutSeconds),
-                IsLongConnection = true,
-                EnableAutoReconnect = true,
-                ReconnectDelay = TimeSpan.FromSeconds(StableReconnectDelaySeconds),
-                DirtyResponseRetryAttempts = 1
-            };
+                var registerResult = pool.Register(CreateDescriptor());
+                Assert.True(registerResult.IsSuccess, "注册 SiemensS7 连接池失败: " + registerResult.Message);
+
+                await WaitUntilPoolReadyAsync(pool, $"开始场景 {scenarioName}").ConfigureAwait(false);
+                await ExecuteRoundTripScenarioWithReconnectAsync(pool, scenarioName, expectedValues).ConfigureAwait(false);
+            }
         }
 
-        private async Task WaitUntilConnectedAsync(SiemensClient client, string reason)
+        private async Task WaitUntilPoolReadyAsync(DeviceClientPool pool, string reason)
         {
             int attempt = 0;
             while (true)
             {
                 attempt++;
-                Log($"等待 PLC 上线，第 {attempt} 次连接尝试: {PlcIp}:{PlcPort}, 机型={PlcVersion}, 原因={reason}");
-                var connectResult = await client.ConnectAsync().ConfigureAwait(false);
-                DumpOperationResult($"Connect Attempt {attempt}", connectResult);
-                if (connectResult.IsSuccess && client.Connected)
+                Log($"等待连接池接通 PLC，第 {attempt} 次尝试: {PlcIp}:{PlcPort}, 机型={PlcVersion}, 原因={reason}");
+                var readyResult = await pool.ExecuteAsync(CreateIdentity(), _ =>
+                    Task.FromResult(OperationResult.CreateSuccessResult("连接池探活成功"))).ConfigureAwait(false);
+                DumpOperationResult($"Pool Connect Attempt {attempt}", readyResult);
+                if (readyResult.IsSuccess)
                 {
-                    Log($"PLC 已连接，连接尝试次数: {attempt}");
+                    Log($"连接池已可用，连接尝试次数: {attempt}");
                     return;
                 }
 
-                Log($"PLC 尚未连接，{ReconnectPollIntervalSeconds} 秒后继续等待。错误: {connectResult.Message}");
+                Log($"连接池尚未可用，{ReconnectPollIntervalSeconds} 秒后继续等待。错误: {readyResult.Message}");
                 await Task.Delay(TimeSpan.FromSeconds(ReconnectPollIntervalSeconds)).ConfigureAwait(false);
             }
         }
 
-        private async Task ExecuteReadWriteRoundTripWithDedicatedClientAsync(
-            string scenarioName,
-            Dictionary<string, (DataTypeEnums, object)> expectedValues)
-        {
-            using var client = CreateClient();
-            await WaitUntilConnectedAsync(client, $"开始场景 {scenarioName}").ConfigureAwait(false);
-            await ExecuteRoundTripScenarioWithReconnectAsync(client, scenarioName, expectedValues).ConfigureAwait(false);
-            await client.DisconnectAsync().ConfigureAwait(false);
-        }
-
         private async Task ExecuteRoundTripScenarioWithReconnectAsync(
-            SiemensClient client,
+            DeviceClientPool pool,
             string scenarioName,
             Dictionary<string, (DataTypeEnums, object)> expectedValues)
         {
@@ -115,61 +108,100 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             {
                 try
                 {
-                    if (!client.Connected)
-                    {
-                        await WaitUntilConnectedAsync(client, $"场景 {scenarioName} 执行前连接不可用").ConfigureAwait(false);
-                    }
-
-                    await ExecuteRoundTripScenarioAsync(client, scenarioName, expectedValues).ConfigureAwait(false);
+                    await WaitUntilPoolReadyAsync(pool, $"场景 {scenarioName} 执行前探活").ConfigureAwait(false);
+                    await ExecuteRoundTripScenarioAsync(pool, scenarioName, expectedValues).ConfigureAwait(false);
                     return;
                 }
                 catch (Exception ex)
                 {
-                    Log($"场景执行中断，准备等待重连后重试: {scenarioName}, 错误={ex.Message}");
-                    try
-                    {
-                        await client.DisconnectAsync().ConfigureAwait(false);
-                    }
-                    catch
-                    {
-                    }
-
-                    await WaitUntilConnectedAsync(client, $"场景 {scenarioName} 执行失败后重连").ConfigureAwait(false);
+                    Log($"连接池场景执行中断，准备等待重连后重试: {scenarioName}, 错误={ex.Message}");
+                    var forceReconnect = pool.ForceReconnect(CreateIdentity(), $"场景失败后强制重连: {scenarioName}");
+                    DumpOperationResult($"ForceReconnect - {scenarioName}", forceReconnect);
+                    await WaitUntilPoolReadyAsync(pool, $"场景 {scenarioName} 执行失败后重连").ConfigureAwait(false);
                 }
             }
         }
 
         private async Task ExecuteRoundTripScenarioAsync(
-            SiemensClient client,
+            DeviceClientPool pool,
             string scenarioName,
             Dictionary<string, (DataTypeEnums, object)> expectedValues)
         {
-            Log($"开始场景: {scenarioName}");
+            Log($"开始连接池场景: {scenarioName}");
             Log($"地址数量: {expectedValues.Count}");
             Log($"示例地址: {string.Join(", ", expectedValues.Keys.Take(8))}");
 
-            var batchWriteResult = await client.BatchWriteAsync(expectedValues).ConfigureAwait(false);
-            DumpOperationResult($"{scenarioName} - BatchWrite", batchWriteResult);
+            var batchWriteResult = await pool.ExecuteAsync(
+                CreateIdentity(),
+                async client => await client.BatchWriteAsync(expectedValues).ConfigureAwait(false)).ConfigureAwait(false);
+            DumpOperationResult($"{scenarioName} - Pool BatchWrite", batchWriteResult);
             if (!batchWriteResult.IsSuccess)
             {
-                throw new InvalidOperationException($"场景[{scenarioName}]批量写入失败: {batchWriteResult.Message}");
+                throw new InvalidOperationException($"场景[{scenarioName}]连接池批量写入失败: {batchWriteResult.Message}");
             }
-            Log($"批量写入完成: {batchWriteResult.Message}");
 
+            Log($"连接池批量写入完成: {batchWriteResult.Message}");
             await Task.Delay(WriteReadbackDelayMilliseconds).ConfigureAwait(false);
 
             var readRequest = expectedValues.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Item1);
-            var batchReadResult = await client.BatchReadAsync(readRequest).ConfigureAwait(false);
-            DumpOperationResult($"{scenarioName} - BatchRead", batchReadResult);
+            var batchReadResult = await pool.ExecuteAsync<Dictionary<string, (DataTypeEnums, object)>>(
+                CreateIdentity(),
+                async client => await client.BatchReadAsync(readRequest).ConfigureAwait(false)).ConfigureAwait(false);
+            DumpOperationResult($"{scenarioName} - Pool BatchRead", batchReadResult);
             if (!batchReadResult.IsSuccess)
             {
-                throw new InvalidOperationException($"场景[{scenarioName}]批量读取失败: {batchReadResult.Message}");
+                throw new InvalidOperationException($"场景[{scenarioName}]连接池批量读取失败: {batchReadResult.Message}");
             }
-            Log($"批量读取完成: {batchReadResult.Message}");
 
+            Log($"连接池批量读取完成: {batchReadResult.Message}");
             Assert.Equal(expectedValues.Count, batchReadResult.ResultValue.Count);
             AssertBatchValuesEqual(scenarioName, expectedValues, batchReadResult.ResultValue);
-            Log($"场景通过: {scenarioName}");
+            Log($"连接池场景通过: {scenarioName}");
+        }
+
+        private static DeviceClientPool CreatePool()
+        {
+            var options = new ConnectionPoolOptions
+            {
+                EnableBackgroundMaintenance = false,
+                MaxRetryCount = 1,
+                RetryBackoff = TimeSpan.FromMilliseconds(200),
+                LeaseTimeout = TimeSpan.FromSeconds(20),
+                IdleTimeout = TimeSpan.FromMinutes(5)
+            };
+
+            return new DeviceClientPool(options, new DefaultPooledDeviceClientConnectionFactory());
+        }
+
+        private static ResourceDescriptor CreateDescriptor()
+        {
+            return new ResourceDescriptor
+            {
+                Identity = CreateIdentity(),
+                ResourceRole = ResourceRole.Client,
+                DeviceConnectionType = DeviceConnectionType.SiemensS7,
+                ConnectionParameters = new SiemensS7ClientConnectionParameters
+                {
+                    Ip = PlcIp,
+                    Port = PlcPort,
+                    SiemensVersion = PlcVersion,
+                    Slot = 0,
+                    Rack = 0,
+                    ConnectTimeoutMilliseconds = ConnectTimeoutSeconds * 1000,
+                    ReceiveTimeoutMilliseconds = OperationTimeoutSeconds * 1000,
+                    SendTimeoutMilliseconds = OperationTimeoutSeconds * 1000
+                }
+            };
+        }
+
+        private static ConnectionIdentity CreateIdentity()
+        {
+            return new ConnectionIdentity
+            {
+                DeviceId = "siemens-s7-smart200-realplc-pool",
+                ProtocolType = "SiemensS7",
+                Endpoint = PlcIp + ":" + PlcPort
+            };
         }
 
         private void AssertBatchValuesEqual(
