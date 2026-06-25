@@ -28,6 +28,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
+        private const int StressLoopCount = 10;
 
         private readonly ITestOutputHelper _output;
 
@@ -74,7 +75,11 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 Assert.True(registerResult.IsSuccess, "注册 SiemensS7 连接池失败: " + registerResult.Message);
 
                 await WaitUntilPoolReadyAsync(pool, $"开始场景 {scenarioName}").ConfigureAwait(false);
-                await ExecuteRoundTripScenarioWithReconnectAsync(pool, scenarioName, expectedValues).ConfigureAwait(false);
+                for (int i = 1; i <= StressLoopCount; i++)
+                {
+                    Log($"开始第 {i}/{StressLoopCount} 轮: {scenarioName}");
+                    await ExecuteRoundTripScenarioWithReconnectAsync(pool, $"{scenarioName} [第{i}轮]", expectedValues).ConfigureAwait(false);
+                }
             }
         }
 
