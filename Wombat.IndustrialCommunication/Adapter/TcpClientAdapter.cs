@@ -145,6 +145,7 @@ namespace Wombat.IndustrialCommunication
             }
             catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult($"Send operation timed out after {_sendTimeout.TotalMilliseconds}ms");
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -153,6 +154,7 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult($"Send failed: {ex.Message}");
             }
             finally
@@ -199,6 +201,7 @@ namespace Wombat.IndustrialCommunication
                     if (currentRead == 0)
                     {
                         DebugLog("[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
+                        CloseConnection();
                         return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
                     }
 
@@ -213,6 +216,7 @@ namespace Wombat.IndustrialCommunication
             catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
+                CloseConnection();
                 return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
@@ -225,6 +229,7 @@ namespace Wombat.IndustrialCommunication
                 DebugLog("[TcpClientAdapter调试] 接收数据时发生异常: {Message}", ex.Message);
                 DebugLog("[TcpClientAdapter调试] 异常类型: {ExceptionType}", ex.GetType().Name);
                 DebugLog("[TcpClientAdapter调试] 异常堆栈: {StackTrace}", ex.StackTrace);
+                CloseConnection();
                 return new OperationResult<int> { IsSuccess = false, Message = $"Receive failed: {ex.Message}" };
             }
             finally
