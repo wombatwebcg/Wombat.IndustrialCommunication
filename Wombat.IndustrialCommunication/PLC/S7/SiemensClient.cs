@@ -383,6 +383,27 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
+        private bool ShouldReconnectAfterFailure(OperationResult result)
+        {
+            if (result == null || result.IsSuccess)
+            {
+                return false;
+            }
+
+            return S7Communication.IsProtocolSynchronizationFailure(result) || !Connected;
+        }
+
+        private async Task<OperationResult> ReconnectAfterFailureAsync(string reason)
+        {
+            if (!EnableAutoReconnect)
+            {
+                return OperationResult.CreateFailedResult($"连接异常后无法自动重连: {reason}");
+            }
+
+            _lastReconnectAttempt = DateTime.MinValue;
+            return await ConnectAsync().ConfigureAwait(false);
+        }
+
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
@@ -620,18 +641,18 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     lastResult = result;
-                    if (attempt >= attempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    if (attempt >= attempts || !ShouldReconnectAfterFailure(result))
                     {
                         return result;
                     }
 
-                    var reconnectResult = await ResetDirtyConnectionAsync(result.Message).ConfigureAwait(false);
+                    var reconnectResult = await ReconnectAfterFailureAsync(result.Message).ConfigureAwait(false);
                     if (!reconnectResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"检测到S7协议同步异常且重连失败：{reconnectResult.Message}");
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"批量读取失败后重连失败：{reconnectResult.Message}");
                     }
 
-                    Logger?.LogWarning("批量读取检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    Logger?.LogWarning("批量读取失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
                 }
 
                 return lastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("批量读取失败");
@@ -656,12 +677,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     LogBatchReadDispatch(result);
                     shortLastResult = result;
 
-                    if (result.IsSuccess || attempt >= shortAttempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    if (result.IsSuccess || attempt >= shortAttempts || !ShouldReconnectAfterFailure(result))
                     {
                         return result;
                     }
 
-                    Logger?.LogWarning("短连接模式批量读取检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    Logger?.LogWarning("短连接模式批量读取失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
                 }
                 catch (Exception ex)
                 {
@@ -717,18 +738,18 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
 
                     lastResult = result;
-                    if (attempt >= attempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    if (attempt >= attempts || !ShouldReconnectAfterFailure(result))
                     {
                         return result;
                     }
 
-                    var reconnectResult = await ResetDirtyConnectionAsync(result.Message).ConfigureAwait(false);
+                    var reconnectResult = await ReconnectAfterFailureAsync(result.Message).ConfigureAwait(false);
                     if (!reconnectResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"检测到S7协议同步异常且重连失败：{reconnectResult.Message}");
+                        return OperationResult.CreateFailedResult($"批量写入失败后重连失败：{reconnectResult.Message}");
                     }
 
-                    Logger?.LogWarning("批量写入检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    Logger?.LogWarning("批量写入失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
                 }
 
                 return lastResult ?? OperationResult.CreateFailedResult("批量写入失败");
@@ -753,12 +774,12 @@ namespace Wombat.IndustrialCommunication.PLC
                     LogBatchWriteDispatch(result);
                     shortLastResult = result;
 
-                    if (result.IsSuccess || attempt >= shortAttempts || !S7Communication.IsProtocolSynchronizationFailure(result))
+                    if (result.IsSuccess || attempt >= shortAttempts || !ShouldReconnectAfterFailure(result))
                     {
                         return result;
                     }
 
-                    Logger?.LogWarning("短连接模式批量写入检测到S7协议同步异常，准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    Logger?.LogWarning("短连接模式批量写入失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
                 }
                 catch (Exception ex)
                 {
