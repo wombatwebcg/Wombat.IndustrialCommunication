@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
-        private const int StressLoopCount = 10;
+        private const int StressLoopCount = 50;
 
         private readonly ITestOutputHelper _output;
 
