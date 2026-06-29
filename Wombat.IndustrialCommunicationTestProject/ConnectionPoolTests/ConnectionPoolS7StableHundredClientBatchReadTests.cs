@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication;
@@ -86,6 +87,75 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             }
         }
 
+        [Fact]
+        [Trait("Category", "Stress")]
+        public async Task ConnectionPool_S7_100Servers_100Clients_Should_Recover_When_Servers_Randomly_Drop_10Times_In_2Minutes()
+        {
+            if (!_fixture.IsAvailable)
+            {
+                _output.WriteLine(_fixture.StartupErrorMessage);
+                return;
+            }
+
+            using (var pool = CreatePool())
+            {
+                var identities = Enumerable.Range(0, ServerCount).Select(CreateIdentity).ToArray();
+                foreach (var identity in identities)
+                {
+                    var register = pool.Register(CreateDescriptor(identity));
+                    Assert.True(register.IsSuccess, "注册 S7 连接失败: " + identity.DeviceId + ", message=" + register.Message);
+                }
+
+                await WarmupConnectionsAsync(pool, identities).ConfigureAwait(false);
+
+                var expectedValues = BuildMixedScenario(baseByteAddress: 3000, seed: 2026062901);
+                await SeedServersAsync(pool, identities, expectedValues).ConfigureAwait(false);
+
+                var readRequest = expectedValues.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Item1);
+                var stopAtUtc = DateTime.UtcNow.AddMinutes(2);
+                var dropTask = RunRandomServerDropsAsync(stopAtUtc).ConfigureAwait(false);
+                var successCount = 0;
+                var failureCount = 0;
+                var round = 0;
+
+                while (DateTime.UtcNow < stopAtUtc)
+                {
+                    round++;
+                    var stopwatch = Stopwatch.StartNew();
+                    var results = await ReadAllAsync(pool, identities, readRequest).ConfigureAwait(false);
+                    stopwatch.Stop();
+
+                    var roundSuccess = 0;
+                    var roundFailure = 0;
+                    for (var i = 0; i < results.Length; i++)
+                    {
+                        if (results[i].IsSuccess)
+                        {
+                            AssertBatchValuesEqual(identities[i].DeviceId, expectedValues, results[i].ResultValue);
+                            roundSuccess++;
+                            continue;
+                        }
+
+                        roundFailure++;
+                    }
+
+                    successCount += roundSuccess;
+                    failureCount += roundFailure;
+                    _output.WriteLine("掉线恢复测试第 {0} 轮: success={1}, failure={2}, elapsedMs={3}",
+                        round,
+                        roundSuccess,
+                        roundFailure,
+                        stopwatch.ElapsedMilliseconds);
+                }
+
+                await dropTask;
+                await AssertAllRecoveredAsync(pool, identities, readRequest, expectedValues).ConfigureAwait(false);
+
+                Assert.True(successCount > 0, "掉线恢复测试没有任何成功读取");
+                _output.WriteLine("掉线恢复测试完成: rounds={0}, totalSuccess={1}, totalFailure={2}", round, successCount, failureCount);
+            }
+        }
+
         private static DeviceClientPool CreatePool()
         {
             return new DeviceClientPool(
@@ -124,6 +194,71 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var results = await Task.WhenAll(tasks).ConfigureAwait(false);
             Assert.All(results, result => Assert.True(result.IsSuccess, "批量写入种子数据失败: " + result.Message));
             await Task.Delay(150).ConfigureAwait(false);
+        }
+
+        private static Task<OperationResult<Dictionary<string, (DataTypeEnums, object)>>[]> ReadAllAsync(
+            DeviceClientPool pool,
+            ConnectionIdentity[] identities,
+            Dictionary<string, DataTypeEnums> readRequest)
+        {
+            var reads = identities.Select(identity => pool.ExecuteAsync<Dictionary<string, (DataTypeEnums, object)>>(
+                identity,
+                async client => await client.BatchReadAsync(readRequest).ConfigureAwait(false))).ToArray();
+            return Task.WhenAll(reads);
+        }
+
+        private async Task RunRandomServerDropsAsync(DateTime stopAtUtc)
+        {
+            var random = new Random(2026062902);
+            var startedAtUtc = DateTime.UtcNow;
+            var totalMilliseconds = Math.Max(1, (stopAtUtc - startedAtUtc).TotalMilliseconds);
+            var offsets = Enumerable.Range(0, 10)
+                .Select(_ => random.Next(0, (int)totalMilliseconds))
+                .OrderBy(value => value)
+                .ToArray();
+
+            for (var i = 0; i < offsets.Length; i++)
+            {
+                var dueAtUtc = startedAtUtc.AddMilliseconds(offsets[i]);
+                var delay = dueAtUtc - DateTime.UtcNow;
+                if (delay > TimeSpan.Zero)
+                {
+                    await Task.Delay(delay).ConfigureAwait(false);
+                }
+
+                var serverIndex = random.Next(0, ServerCount);
+                var downTime = TimeSpan.FromMilliseconds(random.Next(1000, 3000));
+                _output.WriteLine("随机掉线 {0}/10: server={1}, downtimeMs={2}", i + 1, serverIndex, downTime.TotalMilliseconds);
+                await _fixture.DropServerAsync(serverIndex, downTime).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task AssertAllRecoveredAsync(
+            DeviceClientPool pool,
+            ConnectionIdentity[] identities,
+            Dictionary<string, DataTypeEnums> readRequest,
+            Dictionary<string, (DataTypeEnums, object)> expectedValues)
+        {
+            var deadline = DateTime.UtcNow.AddSeconds(30);
+            OperationResult<Dictionary<string, (DataTypeEnums, object)>>[] lastResults = null;
+            while (DateTime.UtcNow < deadline)
+            {
+                lastResults = await ReadAllAsync(pool, identities, readRequest).ConfigureAwait(false);
+                if (lastResults.All(result => result.IsSuccess))
+                {
+                    for (var i = 0; i < lastResults.Length; i++)
+                    {
+                        AssertBatchValuesEqual(identities[i].DeviceId, expectedValues, lastResults[i].ResultValue);
+                    }
+
+                    return;
+                }
+
+                await Task.Delay(1000).ConfigureAwait(false);
+            }
+
+            var failed = lastResults == null ? identities.Length : lastResults.Count(result => result == null || !result.IsSuccess);
+            Assert.True(false, "随机掉线结束后仍有连接未恢复，失败数: " + failed);
         }
 
         private static ResourceDescriptor CreateDescriptor(ConnectionIdentity identity)
@@ -220,6 +355,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
     public sealed class S7HundredServerFixture : IAsyncLifetime, IDisposable
     {
         private readonly List<S7TcpServer> _servers = new List<S7TcpServer>();
+        private readonly object _syncRoot = new object();
 
         public string StartupErrorMessage { get; private set; }
 
@@ -274,6 +410,31 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             _servers.Clear();
             return Task.CompletedTask;
+        }
+
+        public async Task DropServerAsync(int index, TimeSpan downTime)
+        {
+            S7TcpServer server;
+            lock (_syncRoot)
+            {
+                server = _servers[index];
+                var shutdown = server.Shutdown();
+                if (!shutdown.IsSuccess)
+                {
+                    throw new InvalidOperationException("停止 S7TcpServer 失败: index=" + index + ", message=" + shutdown.Message);
+                }
+            }
+
+            await Task.Delay(downTime).ConfigureAwait(false);
+
+            lock (_syncRoot)
+            {
+                var listen = server.Listen();
+                if (!listen.IsSuccess)
+                {
+                    throw new InvalidOperationException("恢复 S7TcpServer 失败: index=" + index + ", message=" + listen.Message);
+                }
+            }
         }
 
         public void Dispose()

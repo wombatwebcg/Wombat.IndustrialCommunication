@@ -20,6 +20,9 @@
 - 服务端生命周期能力已分离：`Start/Stop` 仅在 `IDeviceServerPool` 暴露。
 - 事件语义已增强：`ConnectionPoolEventArgs` 新增 `ResourceRole` 字段，池级与条目级事件会补齐角色信息（`Client/Server`）。
 - 旧命名已清理：在 `ConnectionPool` 目录中未发现 `IDeviceConnectionPool*`、`IPooledDeviceConnection*`、`DeviceConnectionPool` 实装残留。
+- 高并发控制面已补强：强制关闭、强制重连、故障恢复已接入内部调度器，支持批量提交与独立并发阈值。
+- 事件分发已改为后台异步出队，慢订阅者不会同步阻塞池主流程。
+- 客户端同步 `Ping` 探测已移除，连接真实性以协议层 `ConnectAsync/ProbeAsync` 与业务执行结果为准。
 
 ### 与方案对照（当前代码现态）
 - 对照 1：方案中的统一入口基类 `ResourcePool<TResource>` 已实现，并被 `DeviceClientPool` 与 `DeviceServerPool` 继承。
@@ -31,7 +34,7 @@
 - `ConnectionPool/Core`
   - 双门面池实现（`DeviceClientPool`、`DeviceServerPool`）
   - 通用池基类（`ResourcePool<T>`）
-  - 泛型条目/执行器/维护服务（`PooledResourceEntry<T>`、`PooledResourceExecutor<T>`、`ConnectionPoolMaintenanceService<T>`）
+  - 泛型条目/执行器/维护服务/控制调度器（`PooledResourceEntry<T>`、`PooledResourceExecutor<T>`、`ConnectionPoolMaintenanceService<T>`、`ConnectionControlScheduler<T>`）
 - `ConnectionPool/Factories`
   - `DefaultPooledDeviceClientConnectionFactory`
   - `DefaultPooledDeviceServerConnectionFactory`
@@ -46,6 +49,8 @@
 - 实现：`DeviceClientPool`
 - 典型能力：
   - `Register/Acquire/Release/Invalidate/Unregister/ForceReconnect`
+  - `ForceCloseAsync/ForceReconnectAsync`
+  - `ForceCloseManyAsync/ForceReconnectManyAsync/RecoverManyAsync`
   - `ExecuteAsync`
   - `ReadPointsAsync/WritePointsAsync`
   - `GetStates/GetState/GetEntrySnapshots/GetPoolSnapshot`
@@ -193,15 +198,88 @@ if (register.IsSuccess)
 }
 ```
 
+### 批量控制示例
+批量控制接口只负责提交控制命令并汇总每个条目的结果，实际执行受 `ConnectionPoolOptions` 中的并发阈值控制。
+
+```csharp
+var identities = new[]
+{
+    new ConnectionIdentity { DeviceId = "plc-1", ProtocolType = "SiemensS7", Endpoint = "192.168.1.10:102" },
+    new ConnectionIdentity { DeviceId = "plc-2", ProtocolType = "SiemensS7", Endpoint = "192.168.1.11:102" }
+};
+
+var closeMany = await clientPool.ForceCloseManyAsync(identities, "批量强制关闭");
+foreach (var item in closeMany.ResultValue)
+{
+    Console.WriteLine($"{item.Key.DeviceId}: {item.Value.IsSuccess}, {item.Value.Message}");
+}
+
+var reconnectMany = await clientPool.ForceReconnectManyAsync(identities, "批量强制重连");
+```
+
 ## 维护与恢复
 `DeviceClientPool` 与 `DeviceServerPool` 通过 `ResourcePool<TResource>` 共享同一套维护机制：
 - 过期租约清理：`CleanupExpiredLeases()`
 - 空闲条目回收：`CleanupIdle()`
 - 后台维护循环：由 `ConnectionPoolOptions.EnableBackgroundMaintenance` 控制
-- 可恢复故障重试：由 `PooledResourceExecutor<TResource>` 与 `ConnectionExecutionOptions` 协同决定
+- 可恢复故障重试：由 `PooledResourceExecutor<TResource>`、`ConnectionExecutionOptions` 与 `ConnectionControlScheduler<TResource>` 协同决定
+
+高并发控制面行为：
+- 条目进入 `Faulted` 后会投递恢复任务，恢复不再依赖后台全池扫描内联执行。
+- 后台维护保留租约过期回收、空闲在线连接探活和轻量清理。
+- 健康检查与恢复使用不同并发阈值，避免离线恢复风暴占满探活通道。
+- `ForceCloseAsync` 与 `ForceReconnectAsync` 经内部调度器执行，批量接口不会在调用线程逐条串行跑完整控制流程。
+- 恢复退避包含指数退避和随机抖动，避免大量离线条目同拍重连。
+- 租约过期扫描会跳过存在活跃执行的条目，避免长时间 IO 被误回收。
 
 服务端侧补充：
 - `StartAsync` 内置重试与指数退避（上限封顶），并对常见端口冲突信息做专门失败提示。
+
+## 高并发参数
+`ConnectionPoolOptions` 中与控制面相关的参数：
+- `MaxConcurrentRecoveries`：同时允许执行的故障恢复数，默认 `4`。
+- `MaxConcurrentForceCloses`：同时允许执行的强制关闭/强制重连数，默认 `16`。
+- `MaxConcurrentHealthChecks`：后台健康检查并发数，默认 `4`。
+- `MaxConcurrentExecutionsPerEntry`：单条目同时允许的业务执行数，默认 `1`；设置为 `0` 或负数表示不限制。
+- `FaultedReconnectCooldown`：故障态再次恢复前的冷却时间。
+- `RetryBackoff`：恢复与执行重试的基础退避时间。
+- `MaxRetryCount`：恢复性重试次数。
+
+示例：
+
+```csharp
+var options = new ConnectionPoolOptions
+{
+    MaxConnections = 512,
+    EnableBackgroundMaintenance = true,
+    MaxConcurrentRecoveries = 32,
+    MaxConcurrentForceCloses = 64,
+    MaxConcurrentHealthChecks = 16,
+    MaxConcurrentExecutionsPerEntry = 1,
+    FaultedReconnectCooldown = TimeSpan.FromSeconds(2),
+    RetryBackoff = TimeSpan.FromMilliseconds(200),
+    MaxRetryCount = 3
+};
+```
+
+## 高并发测试
+当前已增加的连接池高并发测试：
+- `ConnectionPoolS7StableHundredClientBatchReadTests.ConnectionPool_S7_100Servers_100Clients_Should_BatchRead_Stably`
+  - 本地启动 100 个 `S7TcpServer`
+  - 注册 100 个 S7 client
+  - 预写入 248 个混合 DB1 地址
+  - 多轮 100 路并发 `BatchReadAsync`，校验每个 client 的读回值
+- `ConnectionPoolS7StableHundredClientBatchReadTests.ConnectionPool_S7_100Servers_100Clients_Should_Recover_When_Servers_Randomly_Drop_10Times_In_2Minutes`
+  - 基于同样的 100 server/client 场景
+  - 2 分钟内随机执行 10 次单 server `Shutdown -> 短暂停机 -> Listen`
+  - 掉线窗口内允许读取失败
+  - 测试结束后要求 100 个 client 全部恢复并读回正确值
+
+单独运行示例：
+
+```powershell
+dotnet test Wombat.IndustrialCommunicationTestProject\Wombat.IndustrialCommunicationTestProject.csproj --filter "FullyQualifiedName~ConnectionPoolS7StableHundredClientBatchReadTests"
+```
 
 ## 破坏性变更与迁移提示
 ### 已删除/废弃的旧类型
