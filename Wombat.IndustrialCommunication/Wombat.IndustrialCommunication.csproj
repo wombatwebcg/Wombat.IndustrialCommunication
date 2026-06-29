@@ -35,8 +35,4 @@
     <Folder Include="PLC\FINS\" />
   </ItemGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\..\..\Wombat.Network\Wombat.Network\Wombat.Network.csproj" />
-  </ItemGroup>
-
 </Project>

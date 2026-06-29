@@ -150,6 +150,7 @@ namespace Wombat.IndustrialCommunication
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                CloseConnection();
                 return OperationResult.CreateFailedResult("Send operation was cancelled");
             }
             catch (Exception ex)
@@ -222,6 +223,7 @@ namespace Wombat.IndustrialCommunication
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作被外部取消");
+                CloseConnection();
                 return new OperationResult<int> { IsSuccess = false, Message = "Receive operation was cancelled" };
             }
             catch (Exception ex)
