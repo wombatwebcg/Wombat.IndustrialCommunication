@@ -150,7 +150,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 HealthCheckInterval = TimeSpan.FromMilliseconds(20),
                 LeaseExpirationSweepInterval = TimeSpan.FromMilliseconds(20),
                 IdleTimeout = TimeSpan.FromSeconds(5),
-                MaxConcurrentMaintenanceOperations = 2
+                MaxConcurrentHealthChecks = 2
             };
             var pool = new DeviceClientPool(options, factory);
             var maintenanceCompleted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);

@@ -58,6 +58,26 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         public int MaxConcurrentMaintenanceOperations { get; set; } = 4;
 
         /// <summary>
+        /// 故障恢复同时允许执行的最大条目数。
+        /// </summary>
+        public int MaxConcurrentRecoveries { get; set; } = 4;
+
+        /// <summary>
+        /// 强制关闭/重连同时允许执行的最大条目数。
+        /// </summary>
+        public int MaxConcurrentForceCloses { get; set; } = 16;
+
+        /// <summary>
+        /// 后台健康检查同时允许执行的最大条目数。
+        /// </summary>
+        public int MaxConcurrentHealthChecks { get; set; } = 4;
+
+        /// <summary>
+        /// 单条目同时允许执行的最大业务操作数。0 或负数表示不限制。
+        /// </summary>
+        public int MaxConcurrentExecutionsPerEntry { get; set; } = 1;
+
+        /// <summary>
         /// 是否隔离事件订阅者异常，避免异常向主流程传播。
         /// </summary>
         public bool IsolateEventSubscriberExceptions { get; set; } = true;

@@ -71,7 +71,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         [Fact]
         public async Task Should_Allow_Parallel_Execution_For_Same_And_Different_Devices()
         {
-            var options = new ConnectionPoolOptions { LeaseTimeout = TimeSpan.FromSeconds(5), MaxRetryCount = 0 };
+            var options = new ConnectionPoolOptions { LeaseTimeout = TimeSpan.FromSeconds(5), MaxRetryCount = 0, MaxConcurrentExecutionsPerEntry = 0 };
             var pool = new DeviceClientPool(options, new FakePooledConnectionFactory());
 
             var idA = new ConnectionIdentity { DeviceId = "A", ProtocolType = "Mock", Endpoint = "A" };
@@ -126,6 +126,45 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.Same(allStarted.Task, started);
             Assert.True(sameDeviceMaxConcurrency >= 2, "同设备连接在当前实现下应允许并发执行");
             Assert.True(differentDeviceStarted >= 1, "不同设备执行不应被同设备连接阻塞");
+        }
+
+        [Fact]
+        public async Task Should_Not_Expire_Lease_While_Execution_Is_Active()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "lease-exec", ProtocolType = "Mock", Endpoint = "lease-exec" };
+            var pool = new DeviceClientPool(
+                new ConnectionPoolOptions
+                {
+                    EnableBackgroundMaintenance = false,
+                    LeaseTimeout = TimeSpan.FromMilliseconds(50),
+                    MaxRetryCount = 0
+                },
+                new FakePooledConnectionFactory());
+            var executionStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseExecution = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            Assert.True(pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity)).IsSuccess);
+            var execution = pool.ExecuteAsync(identity, async _ =>
+            {
+                executionStarted.TrySetResult(true);
+                await releaseExecution.Task.ConfigureAwait(false);
+                return OperationResult.CreateSuccessResult();
+            });
+
+            await executionStarted.Task.ConfigureAwait(false);
+            await Task.Delay(80).ConfigureAwait(false);
+
+            var expired = pool.CleanupExpiredLeases();
+            var snapshot = pool.GetState(identity);
+
+            releaseExecution.TrySetResult(true);
+            var executionResult = await execution.ConfigureAwait(false);
+
+            Assert.True(expired.IsSuccess);
+            Assert.Equal(0, expired.ResultValue);
+            Assert.True(snapshot.IsSuccess);
+            Assert.Equal(1, snapshot.ResultValue.ActiveLeaseCount);
+            Assert.True(executionResult.IsSuccess);
         }
 
         [Fact]
@@ -495,6 +534,25 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.True(acquire.IsSuccess);
             Assert.True(pool.Release(acquire.ResultValue).IsSuccess);
             Assert.False(release.IsSuccess);
+        }
+
+        [Fact]
+        public async Task Should_Force_Close_Many_And_Return_Per_Entry_Results()
+        {
+            var pool = new DeviceClientPool(
+                new ConnectionPoolOptions { EnableBackgroundMaintenance = false, MaxConcurrentForceCloses = 2 },
+                new FakePooledConnectionFactory());
+            var idA = new ConnectionIdentity { DeviceId = "close-many-a", ProtocolType = "Mock", Endpoint = "close-many-a" };
+            var idB = new ConnectionIdentity { DeviceId = "close-many-b", ProtocolType = "Mock", Endpoint = "close-many-b" };
+
+            Assert.True(pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(idA)).IsSuccess);
+            Assert.True(pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(idB)).IsSuccess);
+
+            var result = await pool.ForceCloseManyAsync(new[] { idA, idB }, "批量关闭").ConfigureAwait(false);
+
+            Assert.True(result.IsSuccess);
+            Assert.Equal(2, result.ResultValue.Count);
+            Assert.All(result.ResultValue.Values, item => Assert.True(item.IsSuccess));
         }
 
         [Fact]

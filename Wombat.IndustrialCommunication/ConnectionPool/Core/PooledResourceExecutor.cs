@@ -59,7 +59,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return CompleteCancelledResult(entry.CreateCancelledExecutionResult<T>(cancellationToken), diagnostics);
                 }
 
-                var executeResult = await entry.ExecuteAsync(action, cancellationToken, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+                var executeResult = await entry.ExecuteAsync(action, cancellationToken, ConnectionPoolMaintenanceMode.UserCall, options == null ? 0 : options.MaxConcurrentExecutionsPerEntry).ConfigureAwait(false);
                 MergeDiagnostics(diagnostics, executeResult);
                 if (executeResult.IsSuccess)
                 {
@@ -87,7 +87,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return CompleteCancelledResult(entry.CreateCancelledExecutionResult<T>(cancellationToken), diagnostics);
                 }
 
-                await entry.TryRecoverAsync("检测到可恢复异常，准备重建资源", ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 if (!await WaitRetryBackoffAsync(entry, retryBackoff, cancellationToken).ConfigureAwait(false))
                 {
                     return CompleteCancelledResult(entry.CreateCancelledExecutionResult<T>(cancellationToken), diagnostics);

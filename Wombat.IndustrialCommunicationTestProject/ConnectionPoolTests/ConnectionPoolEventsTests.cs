@@ -27,6 +27,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             var lease = await pool.AcquireAsync(identity);
             Assert.True(lease.IsSuccess);
             Assert.True(pool.Release(lease.ResultValue).IsSuccess);
+            await WaitUntilAsync(() => leases.Contains(ConnectionPoolEventType.LeaseReleased)).ConfigureAwait(false);
 
             Assert.Contains(ConnectionEntryState.Disconnected, states);
             Assert.Contains(ConnectionEntryState.Ready, states);
@@ -59,6 +60,7 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
 
             pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
             var lease = await pool.AcquireAsync(identity).ConfigureAwait(false);
+            await WaitUntilAsync(() => invokedCount == 1).ConfigureAwait(false);
 
             Assert.True(lease.IsSuccess);
             Assert.Equal(1, invokedCount);
@@ -98,6 +100,32 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.Same(snapshotTask, completed);
             Assert.True(snapshotTask.Result.IsSuccess);
             Assert.True(releaseResult.IsSuccess);
+        }
+
+        [Fact]
+        public async Task Should_Not_Block_Main_Flow_When_Subscriber_Is_Slow()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "evt-async", ProtocolType = "Mock", Endpoint = "evt-async" };
+            var pool = new DeviceClientPool(new ConnectionPoolOptions { EnableBackgroundMaintenance = false }, new EventConnectionFactory());
+            var handlerStarted = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var handlerRelease = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            pool.LeaseChanged += (sender, args) =>
+            {
+                if (args.EventType == ConnectionPoolEventType.LeaseAcquired)
+                {
+                    handlerStarted.TrySetResult(true);
+                    handlerRelease.Task.GetAwaiter().GetResult();
+                }
+            };
+
+            pool.Register(ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity));
+            var acquireTask = pool.AcquireAsync(identity);
+            var completed = await Task.WhenAny(acquireTask, Task.Delay(200)).ConfigureAwait(false);
+
+            Assert.Same(acquireTask, completed);
+            Assert.True(acquireTask.Result.IsSuccess);
+            handlerRelease.TrySetResult(true);
         }
 
         private sealed class EventConnectionFactory : IPooledResourceConnectionFactory<IDeviceClient>
@@ -176,6 +204,22 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
                 LastActiveTimeUtc = DateTime.UtcNow;
                 return await action(null).ConfigureAwait(false);
             }
+        }
+
+        private static async Task WaitUntilAsync(Func<bool> condition, int timeoutMilliseconds = 2000)
+        {
+            var deadline = DateTime.UtcNow.AddMilliseconds(timeoutMilliseconds);
+            while (DateTime.UtcNow < deadline)
+            {
+                if (condition())
+                {
+                    return;
+                }
+
+                await Task.Delay(20).ConfigureAwait(false);
+            }
+
+            Assert.True(condition(), "等待事件到达超时");
         }
     }
 }

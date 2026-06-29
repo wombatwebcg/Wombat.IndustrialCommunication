@@ -409,6 +409,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public async Task<OperationResult<T>> ExecuteAsync<T>(Func<TResource, CancellationToken, Task<OperationResult<T>>> action, CancellationToken cancellationToken, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
         {
+            return await ExecuteAsync(action, cancellationToken, mode, 0).ConfigureAwait(false);
+        }
+
+        public async Task<OperationResult<T>> ExecuteAsync<T>(Func<TResource, CancellationToken, Task<OperationResult<T>>> action, CancellationToken cancellationToken, ConnectionPoolMaintenanceMode mode, int maxConcurrentExecutions)
+        {
             if (action == null)
             {
                 return OperationResult.CreateFailedResult<T>("执行委托不能为空");
@@ -431,6 +436,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 else if (IsForceClosingRequestedCore())
                 {
                     result = CreateExecutionCancelledResultCore<T>(null, true);
+                    RefreshSnapshotCore(DateTime.UtcNow);
+                    blocked = true;
+                }
+                else if (maxConcurrentExecutions > 0 && _activeExecutionCount >= maxConcurrentExecutions)
+                {
+                    result = OperationResult.CreateFailedResult<T>("连接条目执行并发已满");
                     RefreshSnapshotCore(DateTime.UtcNow);
                     blocked = true;
                 }
@@ -532,6 +543,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return !_isRemoving
                     && !_forceClosing
                     && _leases.Count == 0
+                    && _activeExecutionCount == 0
                     && (_lifecycleState == ConnectionEntryLifecycleState.Ready
                         || _lifecycleState == ConnectionEntryLifecycleState.Faulted)
                     && DateTime.UtcNow - LastActiveTimeUtc >= idleTimeout;
@@ -544,7 +556,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             OperationResult<int> result;
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
-                if (_isRemoving || _lifecycleState == ConnectionEntryLifecycleState.Disposed || _forceClosing)
+                if (_isRemoving || _lifecycleState == ConnectionEntryLifecycleState.Disposed || _forceClosing || _activeExecutionCount > 0)
                 {
                     result = OperationResult.CreateSuccessResult(0);
                 }
@@ -760,11 +772,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 _lastFailureTimeUtc = utcNow;
                 TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ConnectFailed, _lastFailureReason, mode, probeResult.Exception, true, notifications);
 
-                if (CanRecoverNow(options, utcNow))
-                {
-                    return await TryRecoverCoreAsync("探活失败，尝试恢复连接", mode, notifications).ConfigureAwait(false);
-                }
-
                 return probeResult;
             }
 
@@ -775,7 +782,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             if (_lifecycleState == ConnectionEntryLifecycleState.Faulted)
             {
-                return await TryRecoverCoreAsync("健康检查触发恢复", mode, notifications).ConfigureAwait(false);
+                return OperationResult.CreateFailedResult("连接故障，已交由恢复队列处理");
             }
 
             return await EnsureConnectedCoreAsync(mode, _lifecycleState == ConnectionEntryLifecycleState.Reconnecting, notifications).ConfigureAwait(false);
