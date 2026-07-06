@@ -17,6 +17,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 
         public bool IsSuccess { get; set; }
 
+        public int ErrorCode { get; set; }
+
+        public bool IsRetryable { get; set; }
+
         public string Message { get; set; }
 
         public object Value { get; set; }
@@ -27,6 +31,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
             Address = string.Empty;
             DataType = DataTypeEnums.None;
             Length = 1;
+            ErrorCode = WriteErrorCodes.Success;
             Message = string.Empty;
             Value = null;
         }

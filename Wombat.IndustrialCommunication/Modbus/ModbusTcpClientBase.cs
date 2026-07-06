@@ -167,7 +167,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         data);
 
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, "无效的Modbus地址格式");
 
             }
         }
@@ -188,7 +188,7 @@ namespace Wombat.IndustrialCommunication.Modbus
 
                 }
                 
-                return OperationResult.CreateFailedResult<byte[]>($"地址转换失败,{address}尝试写入{value}");
+                return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, $"地址转换失败,{address}尝试写入{value}");
 
             }
         }
@@ -208,7 +208,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         value.ToBytes());
 
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, "无效的Modbus地址格式");
 
             }
         }
@@ -219,6 +219,13 @@ namespace Wombat.IndustrialCommunication.Modbus
             {
                 var dataPackage = operationResult.ResultValue.ProtocolMessageFrame;
                 var modbusTcpResponse = new ModbusTcpResponse(dataPackage);
+                if ((modbusTcpResponse.FunctionCode & 0x80) != 0)
+                {
+                    operationResult.IsSuccess = false;
+                    operationResult.ErrorCode = WriteErrorCodes.NormalizeModbusWriteError(dataPackage[8]);
+                    operationResult.Message = $"ModbusTCP回复错误码:{dataPackage[8]}";
+                    return OperationResult.CreateFailedResult<byte[]>(operationResult);
+                }
                 return new OperationResult<byte[]>(operationResult, modbusTcpResponse.ProtocolMessageFrame).Complete();
             }
             return OperationResult.CreateFailedResult<byte[]>(operationResult);
@@ -366,6 +373,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.InvalidAddress;
                         result.Message = "没有有效的地址可以写入";
                         return result.Complete();
                     }
@@ -402,22 +410,26 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (successCount == addressInfos.Count)
                     {
                         result.IsSuccess = true;
+                        result.ErrorCode = WriteErrorCodes.Success;
                         result.Message = $"成功写入 {successCount} 个地址";
                     }
                     else if (successCount > 0)
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.BatchPartialFailure;
                         result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
                     }
                     else
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.ProtocolException;
                         result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
                     }
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
+                    result.ErrorCode = WriteErrorCodes.ProtocolException;
                     result.Message = $"批量写入异常: {ex.Message}";
                     result.Exception = ex;
                 }

@@ -248,7 +248,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var finsAddress = new FinsAddress(address);
                     if (!finsAddress.IsValid)
                     {
-                        return OperationResult.CreateFailedResult("无效的FINS地址格式");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, "无效的FINS地址格式");
                     }
 
                     // 创建写入请求
@@ -259,14 +259,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var sendResult = await Transport.SendRequestAsync(requestFrame);
                     if (!sendResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"发送写入请求失败: {sendResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"发送写入请求失败: {sendResult.Message}");
                     }
 
                     // 接收响应头部
                     var responseHeaderResult = await Transport.ReceiveResponseAsync(0, FinsConstants.FINS_HEADER_LENGTH);
                     if (!responseHeaderResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"接收响应头部失败: {responseHeaderResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"接收响应头部失败: {responseHeaderResult.Message}");
                     }
 
                     var responseHeader = responseHeaderResult.ResultValue;
@@ -276,7 +276,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var responseCodeResult = await Transport.ReceiveResponseAsync(0, responseCodeLength);
                     if (!responseCodeResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"接收响应码失败: {responseCodeResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"接收响应码失败: {responseCodeResult.Message}");
                     }
 
                     // 合并头部和响应码 (写入响应通常没有数据部分)
@@ -286,14 +286,14 @@ namespace Wombat.IndustrialCommunication.PLC
                     var writeResponse = new FinsWriteResponse(fullResponse);
                     if (!writeResponse.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult(writeResponse.ErrorMessage);
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.NormalizeFinsWriteError(writeResponse.ErrorCode), writeResponse.ErrorMessage);
                     }
 
                     return OperationResult.CreateSuccessResult();
                 }
                 catch (Exception ex)
                 {
-                    return OperationResult.CreateFailedResult($"写入操作异常: {ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
         }

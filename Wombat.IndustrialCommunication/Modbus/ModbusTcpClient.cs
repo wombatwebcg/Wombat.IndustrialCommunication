@@ -470,12 +470,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                         var reconnectResult = await CheckAndReconnectAsync();
                         if (!reconnectResult.IsSuccess)
                         {
-                            return OperationResult.CreateFailedResult($"Modbus TCP自动重连失败，无法写入数据");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus TCP自动重连失败，无法写入数据");
                         }
                     }
                     else
                     {
-                        return OperationResult.CreateFailedResult($"Modbus TCP客户端没有连接");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus TCP客户端没有连接");
                     }
                 }
                 
@@ -506,7 +506,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogError(ex, "写入Modbus TCP数据时发生异常，地址：{Address}", address);
                     
                     // 返回失败结果
-                    return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
             else
@@ -523,7 +523,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
-                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                     }
                     
                     connected = true;
@@ -542,7 +542,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, "短连接模式写入Modbus TCP数据时发生异常，地址：{Address}", address);
-                    return OperationResult.CreateFailedResult($"短连接写入失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
                 finally
                 {

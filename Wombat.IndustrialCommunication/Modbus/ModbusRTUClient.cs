@@ -451,12 +451,12 @@ namespace Wombat.IndustrialCommunication.Modbus
                         var reconnectResult = await CheckAndReconnectAsync();
                         if (!reconnectResult.IsSuccess)
                         {
-                            return OperationResult.CreateFailedResult($"Modbus RTU自动重连失败，无法写入数据");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus RTU自动重连失败，无法写入数据");
                         }
                     }
                     else
                     {
-                        return OperationResult.CreateFailedResult($"Modbus RTU客户端没有连接");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus RTU客户端没有连接");
                     }
                 }
                 
@@ -487,7 +487,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogError(ex, "写入Modbus RTU数据时发生异常，地址：{Address}", address);
                     
                     // 返回失败结果
-                    return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
             else
@@ -504,7 +504,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
-                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                     }
                     
                     connected = true;
@@ -523,7 +523,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, "短连接模式写入Modbus RTU数据时发生异常，地址：{Address}", address);
-                    return OperationResult.CreateFailedResult($"短连接写入失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
                 finally
                 {
@@ -1052,6 +1052,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (addressInfos.Count == 0)
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.InvalidAddress;
                         result.Message = "没有有效的地址可以写入";
                         return result.Complete();
                     }
@@ -1097,22 +1098,26 @@ namespace Wombat.IndustrialCommunication.Modbus
                     if (successCount == addressInfos.Count)
                     {
                         result.IsSuccess = true;
+                        result.ErrorCode = WriteErrorCodes.Success;
                         result.Message = $"成功写入 {successCount} 个地址";
                     }
                     else if (successCount > 0)
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.BatchPartialFailure;
                         result.Message = $"部分写入成功 ({successCount}/{addressInfos.Count}): {string.Join("; ", writeErrors)}";
                     }
                     else
                     {
                         result.IsSuccess = false;
+                        result.ErrorCode = WriteErrorCodes.ProtocolException;
                         result.Message = $"批量写入失败: {string.Join("; ", writeErrors)}";
                     }
                 }
                 catch (Exception ex)
                 {
                     result.IsSuccess = false;
+                    result.ErrorCode = WriteErrorCodes.ProtocolException;
                     result.Message = $"批量写入异常: {ex.Message}";
                     result.Exception = ex;
                 }

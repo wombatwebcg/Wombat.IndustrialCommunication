@@ -448,7 +448,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (!reconnectResult.IsSuccess)
                         {
                             Logger?.LogError($"FINS写入操作失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult($"连接失败: {reconnectResult.Message}");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {reconnectResult.Message}");
                         }
                     }
 
@@ -470,7 +470,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, $"FINS长连接写入异常: 地址={address}");
-                    return OperationResult.CreateFailedResult($"写入异常: {ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
             else
@@ -490,7 +490,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (!connectResult.IsSuccess)
                     {
                         Logger?.LogError($"FINS短连接写入失败，连接建立失败: {connectResult.Message}");
-                        return OperationResult.CreateFailedResult($"连接失败: {connectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {connectResult.Message}");
                     }
 
                     try
@@ -527,7 +527,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, $"FINS短连接写入异常: 地址={address}");
-                    return OperationResult.CreateFailedResult($"写入异常: {ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
         }
@@ -888,7 +888,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (!reconnectResult.IsSuccess)
                         {
                             Logger?.LogError($"FINS批量写入失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult($"连接失败: {reconnectResult.Message}");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {reconnectResult.Message}");
                         }
                         Logger?.LogDebug("FINS批量写入：自动重连成功");
                     }
@@ -925,7 +925,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (!connectResult.IsSuccess)
                         {
                             Logger?.LogError($"FINS批量写入失败，连接建立失败: {connectResult.Message}");
-                            return OperationResult.CreateFailedResult($"连接失败: {connectResult.Message}");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {connectResult.Message}");
                         }
                         
                         // 执行批量写入
@@ -956,7 +956,7 @@ namespace Wombat.IndustrialCommunication.PLC
             catch (Exception ex)
             {
                 Logger?.LogError($"FINS批量写入异常: {ex.Message}");
-                return OperationResult.CreateFailedResult($"批量写入失败: {ex.Message}");
+                return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
             }
         }
 

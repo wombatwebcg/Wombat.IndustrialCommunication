@@ -190,6 +190,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 aggregate.ResultValue = results;
                 aggregate.IsSuccess = true;
+                aggregate.ErrorCode = WriteErrorCodes.Success;
                 aggregate.Message = "点位写入列表为空";
                 return aggregate.Complete();
             }
@@ -257,6 +258,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             aggregate.ResultValue = results;
             aggregate.IsSuccess = failedMessages.Count == 0;
+            aggregate.ErrorCode = failedMessages.Count == 0 ? WriteErrorCodes.Success : ResolveAggregateWriteErrorCode(results);
             aggregate.Message = failedMessages.Count == 0 ? StringResources.Language.SuccessText : string.Join("; ", failedMessages.ToArray());
             return aggregate.Complete();
         }
@@ -451,6 +453,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 DataType = point.DataType,
                 Length = point.Length,
                 IsSuccess = pointResult.IsSuccess,
+                ErrorCode = pointResult.ErrorCode,
+                IsRetryable = WriteErrorCodes.IsRetryable(pointResult.ErrorCode),
                 Message = pointResult.Message,
                 Value = point.Value
             };
@@ -510,8 +514,31 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         {
             var cancelled = OperationResult.CreateFailedResult<IList<DevicePointWriteResult>>(forceClosed ? ForceClosedExecutionMessage : OperationCancelledMessage);
             cancelled.IsCancelled = true;
+            cancelled.ErrorCode = WriteErrorCodes.OperationCancelled;
             cancelled.ResultValue = partialResults ?? new List<DevicePointWriteResult>();
             return cancelled.Complete();
+        }
+
+        private static int ResolveAggregateWriteErrorCode(IList<DevicePointWriteResult> results)
+        {
+            if (results == null || results.Count == 0)
+            {
+                return WriteErrorCodes.ProtocolException;
+            }
+
+            var failures = results.Where(x => x != null && !x.IsSuccess).ToList();
+            if (failures.Count == 0)
+            {
+                return WriteErrorCodes.Success;
+            }
+
+            if (failures.Count < results.Count)
+            {
+                return WriteErrorCodes.BatchPartialFailure;
+            }
+
+            var first = failures.FirstOrDefault(x => x.ErrorCode != WriteErrorCodes.Success);
+            return first == null ? WriteErrorCodes.ProtocolException : first.ErrorCode;
         }
 
         private static string ResolvePointName(string name, string address)

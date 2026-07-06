@@ -59,10 +59,10 @@ namespace Wombat.IndustrialCommunication.Modbus
                 {
                     var result = new OperationResult<byte[]>();
                     result.IsSuccess = false;
-                    result.ErrorCode = dataPackage[2];
+                    result.ErrorCode = WriteErrorCodes.NormalizeModbusWriteError(dataPackage[2]);
                     response.Requsts.ForEach((log) => { result.Requsts.Add(log); });
                     response.Responses.ForEach((log) => { result.Responses.Add(log); });
-                    result.Message = $"ModbusRTU回复错误码:{result.ErrorCode}";
+                    result.Message = $"ModbusRTU回复错误码:{dataPackage[2]}";
                     return OperationResult.CreateFailedResult<byte[]>(result);
                 }
 
@@ -107,7 +107,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         modbusAddress.Address,
                         (ushort)length);
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                return OperationResult.CreateFailedResult<byte[]>(WriteErrorCodes.InvalidAddress, "无效的Modbus地址格式", null);
 
             }
         }
@@ -130,7 +130,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         data);
 
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, "无效的Modbus地址格式");
 
             }
         }
@@ -150,7 +150,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                         BitConverter.GetBytes(value));
 
                 }
-                return OperationResult.CreateFailedResult<byte[]>(result);
+                return OperationResult.CreateFailedResult(WriteErrorCodes.InvalidAddress, "无效的Modbus地址格式");
 
             }
         }
@@ -187,8 +187,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 if ((response.FunctionCode & 0x80) != 0)
                 {
                     result.IsSuccess = false;
-                    result.ErrorCode = dataPackage[2];
-                    result.Message = $"ModbusRTU回复错误码:{result.ErrorCode}";
+                    result.ErrorCode = WriteErrorCodes.NormalizeModbusWriteError(dataPackage[2]);
+                    result.Message = $"ModbusRTU回复错误码:{dataPackage[2]}";
                     return OperationResult.CreateFailedResult<byte[]>(result);
                 }
 

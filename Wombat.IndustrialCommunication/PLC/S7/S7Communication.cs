@@ -256,7 +256,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 result.IsSuccess = false;
                 result.Message = ex.Message;
-                result.ErrorCode = 408;
+                result.ErrorCode = WriteErrorCodes.OperationTimeout;
                 result.Exception = ex;
             }
             return result.Complete();

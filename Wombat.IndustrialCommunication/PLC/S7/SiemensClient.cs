@@ -515,12 +515,12 @@ namespace Wombat.IndustrialCommunication.PLC
                         var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
                         if (!reconnectResult.IsSuccess)
                         {
-                            return OperationResult.CreateFailedResult($"S7客户端自动重连失败，无法写入数据");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "S7客户端自动重连失败，无法写入数据");
                         }
                     }
                     else
                     {
-                        return OperationResult.CreateFailedResult($"客户端没有连接");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "客户端没有连接");
                     }
                 }
                 
@@ -547,7 +547,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     Logger?.LogError(ex, "写入S7数据时发生异常，地址：{Address}", address);
                     
                     // 返回失败结果
-                    return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
             }
             else
@@ -564,7 +564,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
-                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                     }
                     
                     connected = true;
@@ -588,7 +588,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 {
                     // 记录异常
                     Logger?.LogError(ex, "短连接模式写入S7数据时发生异常，地址：{Address}", address);
-                    return OperationResult.CreateFailedResult($"短连接写入失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
                 finally
                 {
@@ -716,12 +716,12 @@ namespace Wombat.IndustrialCommunication.PLC
                         var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
                         if (!reconnectResult.IsSuccess)
                         {
-                            return OperationResult.CreateFailedResult("S7客户端自动重连失败，无法批量写入数据");
+                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "S7客户端自动重连失败，无法批量写入数据");
                         }
                     }
                     else
                     {
-                        return OperationResult.CreateFailedResult($"S7客户端没有连接 ip:{IPEndPoint.Address}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"S7客户端没有连接 ip:{IPEndPoint.Address}");
                     }
                 }
 
@@ -746,13 +746,13 @@ namespace Wombat.IndustrialCommunication.PLC
                     var reconnectResult = await ReconnectAfterFailureAsync(result.Message).ConfigureAwait(false);
                     if (!reconnectResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"批量写入失败后重连失败：{reconnectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"批量写入失败后重连失败：{reconnectResult.Message}");
                     }
 
                     Logger?.LogWarning("批量写入失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
                 }
 
-                return lastResult ?? OperationResult.CreateFailedResult("批量写入失败");
+                return lastResult ?? OperationResult.CreateFailedResult(WriteErrorCodes.ProtocolException, "批量写入失败");
             }
 
             var shortAttempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
@@ -767,7 +767,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var connectResult = await ConnectAsync().ConfigureAwait(false);
                     if (!connectResult.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                     }
 
                     var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
@@ -784,7 +784,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, "短连接模式批量写入S7数据时发生异常");
-                    return OperationResult.CreateFailedResult($"短连接批量写入失败：{ex.Message}");
+                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
                 }
                 finally
                 {
@@ -799,7 +799,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
             }
 
-            return shortLastResult ?? OperationResult.CreateFailedResult("短连接批量写入失败");
+            return shortLastResult ?? OperationResult.CreateFailedResult(WriteErrorCodes.ProtocolException, "短连接批量写入失败");
         }
 
         private void LogBatchReadDispatch(OperationResult<Dictionary<string, (DataTypeEnums, object)>> result)
