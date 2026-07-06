@@ -296,6 +296,7 @@ namespace Wombat.IndustrialCommunication
                         _activeSessions.Add(session);
                     }
 
+                    Logger?.LogInformation("客户端已连接: local={LocalEndPoint}, remote={RemoteEndPoint}", _localEndPoint, session.RemoteEndPoint);
                     ClientConnected?.Invoke(this, new SessionEventArgs(session));
                     _ = Task.Run(() => session.RunAsync(cancellationToken));
                 }
@@ -341,6 +342,7 @@ namespace Wombat.IndustrialCommunication
 
             if (removed && raiseDisconnectedEvent)
             {
+                Logger?.LogInformation("客户端已断开: local={LocalEndPoint}, remote={RemoteEndPoint}", _localEndPoint, session.RemoteEndPoint);
                 ClientDisconnected?.Invoke(this, new SessionEventArgs(session));
             }
         }
