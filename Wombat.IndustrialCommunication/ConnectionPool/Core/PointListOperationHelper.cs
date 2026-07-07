@@ -120,7 +120,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var useBatchReadResult = false;
             if (batchReadRequest.Count > 1)
             {
-                batchReadResult = await client.BatchReadAsync(batchReadRequest).ConfigureAwait(false);
+                batchReadResult = await client.BatchReadAsync(batchReadRequest, cancellationToken).ConfigureAwait(false);
                 MergeOperationTrace(aggregate, batchReadResult);
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -151,7 +151,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
                 else
                 {
-                    pointResult = await ReadSinglePointAsync(client, point).ConfigureAwait(false);
+                    pointResult = await ReadSinglePointAsync(client, point, cancellationToken).ConfigureAwait(false);
                     MergeOperationTrace(aggregate, pointResult);
                 }
 
@@ -204,7 +204,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var batchWriteSucceededAddresses = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (batchWriteRequest.Count > 1)
             {
-                var batchWriteResult = await client.BatchWriteAsync(batchWriteRequest).ConfigureAwait(false);
+                var batchWriteResult = await client.BatchWriteAsync(batchWriteRequest, cancellationToken).ConfigureAwait(false);
                 MergeOperationTrace(aggregate, batchWriteResult);
                 if (cancellationToken.IsCancellationRequested)
                 {
@@ -238,7 +238,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
                 else
                 {
-                    pointResult = await WriteSinglePointAsync(client, point).ConfigureAwait(false);
+                    pointResult = await WriteSinglePointAsync(client, point, cancellationToken).ConfigureAwait(false);
                     MergeOperationTrace(aggregate, pointResult);
                 }
 
@@ -263,7 +263,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return aggregate.Complete();
         }
 
-        private static async Task<OperationResult<object>> ReadSinglePointAsync(IDeviceClient client, DevicePointReadRequest point)
+        private static async Task<OperationResult<object>> ReadSinglePointAsync(IDeviceClient client, DevicePointReadRequest point, CancellationToken cancellationToken)
         {
             if (point.DataType == DataTypeEnums.String)
             {
@@ -272,7 +272,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateFailedResult<object>(string.Format("点位 {0} 的字符串读取长度必须大于 0", point.Name));
                 }
 
-                var stringResult = await client.ReadStringAsync(point.Address, point.Length).ConfigureAwait(false);
+                var stringResult = await client.ReadStringAsync(point.Address, point.Length, cancellationToken).ConfigureAwait(false);
                 return stringResult.IsSuccess
                     ? new OperationResult<object>(stringResult, stringResult.ResultValue).Complete()
                     : OperationResult.CreateFailedResult<object>(stringResult);
@@ -280,13 +280,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             if (point.Length > 1)
             {
-                return await client.ReadAsync(point.DataType, point.Address, point.Length).ConfigureAwait(false);
+                return await client.ReadAsync(point.DataType, point.Address, point.Length, cancellationToken).ConfigureAwait(false);
             }
 
-            return await client.ReadAsync(point.DataType, point.Address).ConfigureAwait(false);
+            return await client.ReadAsync(point.DataType, point.Address, cancellationToken).ConfigureAwait(false);
         }
 
-        private static async Task<OperationResult> WriteSinglePointAsync(IDeviceClient client, DevicePointWriteRequest point)
+        private static async Task<OperationResult> WriteSinglePointAsync(IDeviceClient client, DevicePointWriteRequest point, CancellationToken cancellationToken)
         {
             if (point.Value == null)
             {
@@ -301,16 +301,16 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateFailedResult(string.Format("点位 {0} 的字符串写入值不能为空", point.Name));
                 }
 
-                return await client.WriteAsync(point.Address, stringValue).ConfigureAwait(false);
+                return await client.WriteAsync(point.DataType, point.Address, stringValue, cancellationToken).ConfigureAwait(false);
             }
 
             var arrayValue = point.Value as Array;
             if (arrayValue != null)
             {
-                return await client.WriteAsync(point.DataType, point.Address, ConvertToObjectArray(arrayValue)).ConfigureAwait(false);
+                return await client.WriteAsync(point.DataType, point.Address, ConvertToObjectArray(arrayValue), cancellationToken).ConfigureAwait(false);
             }
 
-            return await client.WriteAsync(point.DataType, point.Address, point.Value).ConfigureAwait(false);
+            return await client.WriteAsync(point.DataType, point.Address, point.Value, cancellationToken).ConfigureAwait(false);
         }
 
         private static object[] ConvertToObjectArray(Array values)

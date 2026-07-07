@@ -69,11 +69,16 @@ namespace Wombat.IndustrialCommunication
 
         public TimeSpan ResponseInterval { get; set; } = TimeSpan.FromMilliseconds(50);
 
-        public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
+        public Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length)
+        {
+            return ReceiveResponseAsync(offset, length, CancellationToken.None);
+        }
+
+        public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length, CancellationToken cancellationToken)
         {
             DebugLog("[DeviceMessageTransport调试] 开始接收响应: offset={Offset}, length={Length}", offset, length);
             
-            using (await _asyncLock.LockAsync())
+            using (await _asyncLock.LockAsync(cancellationToken))
             {
                 DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始接收数据");
                 
@@ -85,7 +90,8 @@ namespace Wombat.IndustrialCommunication
                     
                     try
                     {
-                        using (var cts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
+                        using (var timeoutCts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
+                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
                         {
                             DebugLog("[DeviceMessageTransport调试] 设置接收超时: {ReceiveTimeout}ms", _streamResource.ReceiveTimeout);
                             
@@ -154,12 +160,17 @@ namespace Wombat.IndustrialCommunication
 
             }
         }
-        public async Task<OperationResult> SendRequestAsync(byte[] request)
+        public Task<OperationResult> SendRequestAsync(byte[] request)
+        {
+            return SendRequestAsync(request, CancellationToken.None);
+        }
+
+        public async Task<OperationResult> SendRequestAsync(byte[] request, CancellationToken cancellationToken)
         {
             DebugLog("[DeviceMessageTransport调试] 开始发送请求，数据长度: {RequestLength}", request?.Length ?? 0);
             DebugLog("[DeviceMessageTransport调试] 请求数据: {RequestData}", string.Join(" ", request?.Select(b => b.ToString("X2")) ?? new string[0]));
             
-            using (await _asyncLock.LockAsync())
+            using (await _asyncLock.LockAsync(cancellationToken))
             {
                 DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始发送数据");
                 
@@ -172,7 +183,8 @@ namespace Wombat.IndustrialCommunication
                     
                     try
                     {
-                        using (var cts = new CancellationTokenSource(_streamResource.SendTimeout))
+                        using (var timeoutCts = new CancellationTokenSource(_streamResource.SendTimeout))
+                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
                         {
                             DebugLog("[DeviceMessageTransport调试] 设置发送超时: {SendTimeout}ms", _streamResource.SendTimeout);
                             
@@ -241,17 +253,22 @@ namespace Wombat.IndustrialCommunication
 
             }
         }
-        public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
+        public virtual Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
+        {
+            return UnicastReadMessageAsync(request, CancellationToken.None);
+        }
+
+        public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
         {
             OperationResult<IDeviceReadWriteMessage> result = new OperationResult<IDeviceReadWriteMessage>();
             try
             {
-                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame, cancellationToken);
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 if (commandRequest1.IsSuccess)
                 {
-                    await Task.Delay(ResponseInterval);
-                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                    await Task.Delay(ResponseInterval, cancellationToken);
+                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength, cancellationToken);
                     if (!response1Result.IsSuccess)
                     {
                         return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(response1Result);
@@ -280,17 +297,22 @@ namespace Wombat.IndustrialCommunication
             return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
 
         }
-        public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
+        public virtual Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
+        {
+            return UnicastWriteMessageAsync(request, CancellationToken.None);
+        }
+
+        public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
         {
             OperationResult<IDeviceReadWriteMessage> result = new OperationResult<IDeviceReadWriteMessage>();
             try
             {
-                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame, cancellationToken);
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 if (commandRequest1.IsSuccess)
                 {
-                    await Task.Delay(ResponseInterval);
-                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength);
+                    await Task.Delay(ResponseInterval, cancellationToken);
+                    var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength, cancellationToken);
                     if (!response1Result.IsSuccess)
                     {
                         return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();

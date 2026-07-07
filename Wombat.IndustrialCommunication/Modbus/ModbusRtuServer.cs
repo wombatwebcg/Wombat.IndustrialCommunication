@@ -734,7 +734,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步分批读取
         /// </summary>
-        public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>(BatchRead(addresses));
         }
@@ -902,7 +902,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步读取String
         /// </summary>
-        public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
+        public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<string>>(ReadString(address, length));
         }
@@ -910,7 +910,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 根据类型异步读取数据
         /// </summary>
-        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
+        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address));
         }
@@ -918,7 +918,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 根据类型异步读取数据
         /// </summary>
-        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address, length));
         }
@@ -1225,7 +1225,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步分批写入
         /// </summary>
-        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult>(BatchWrite(addresses));
         }
@@ -1401,7 +1401,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步写入数据
         /// </summary>
-        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Write(dataTypeEnum, address, value));
         }
@@ -1409,7 +1409,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 异步写入数据
         /// </summary>
-        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value)
+        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Write(dataTypeEnum, address, value));
         }

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.ComponentModel.DataAnnotations;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -182,8 +183,9 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 异步批量读取数据
         /// </summary>
-        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             throw new NotImplementedException();
         }
 
@@ -191,6 +193,12 @@ namespace Wombat.IndustrialCommunication
         /// 异步读取数据
         /// </summary>
         protected internal abstract ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType,bool isBit = false);
+
+        protected internal virtual ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return ReadAsync(address, length, dataType, isBit);
+        }
 
         /// <summary>
         /// 异步读取单个字节
@@ -710,17 +718,17 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
+        public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length, CancellationToken cancellationToken = default)
         {
-            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.String);
+            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.String, false, cancellationToken);
             if (!readResult.IsSuccess)
             {
                 return new OperationResult<string> { IsSuccess = false, Message = readResult.Message };
             }
-            return new OperationResult<string> 
-            { 
-                IsSuccess = true, 
-                ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII) 
+            return new OperationResult<string>
+            {
+                IsSuccess = true,
+                ResultValue = readResult.ResultValue.ToString(0, length, encoding: Encoding.ASCII)
             };
         }
 
@@ -847,8 +855,9 @@ namespace Wombat.IndustrialCommunication
 
         #region WriteAsync
 
-        public virtual ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public virtual ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
             throw new NotImplementedException();
         }
 
@@ -860,6 +869,12 @@ namespace Wombat.IndustrialCommunication
         /// <param name="isBit">值</param>
         /// <returns></returns>
         protected internal abstract Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false);
+
+        protected internal virtual Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return WriteAsync(address, data, dataType, isBit);
+        }
 
         public virtual async Task<OperationResult> WriteAsync(string address, byte[] value) => await WriteAsync(address, value, DataTypeEnums.Byte, false);
 
@@ -1246,14 +1261,82 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default)
         {
-            return await Task.FromResult(Read(dataTypeEnum, address));
+            return await ReadAsync(dataTypeEnum, address, 1, cancellationToken);
         }
 
-        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length, CancellationToken cancellationToken = default)
         {
-            return await Task.FromResult(Read(dataTypeEnum, address, length));
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                switch (dataTypeEnum)
+                {
+                    case DataTypeEnums.Bool:
+                        {
+                            var readResult = await ReadAsync(address, length, DataTypeEnums.Bool, true, cancellationToken);
+                            return readResult.IsSuccess
+                                ? new OperationResult<object>(readResult, readResult.ResultValue.ToBool(0, length, false))
+                                : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Byte:
+                        {
+                            var readResult = await ReadAsync(address, length, DataTypeEnums.Byte, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Int16:
+                        {
+                            var readResult = await ReadAsync(address, 2 * length, DataTypeEnums.Int16, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToInt16(0, length, IsReverse)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.UInt16:
+                        {
+                            var readResult = await ReadAsync(address, 2 * length, DataTypeEnums.UInt16, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToUInt16(0, length, IsReverse)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Int32:
+                        {
+                            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.Int32, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToInt32(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.UInt32:
+                        {
+                            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.UInt32, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToUInt32(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Int64:
+                        {
+                            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.Int64, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToInt64(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.UInt64:
+                        {
+                            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.UInt64, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToUInt64(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Float:
+                        {
+                            var readResult = await ReadAsync(address, 4 * length, DataTypeEnums.Float, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToFloat(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.Double:
+                        {
+                            var readResult = await ReadAsync(address, 8 * length, DataTypeEnums.Double, false, cancellationToken);
+                            return readResult.IsSuccess ? new OperationResult<object>(readResult, readResult.ResultValue.ToDouble(0, length, DataFormat)) : new OperationResult<object>(readResult);
+                        }
+                    case DataTypeEnums.String:
+                        return new OperationResult<object> { IsSuccess = false, Message = "string泛型读取没有实现" };
+                    default:
+                        return new OperationResult<object> { IsSuccess = false, Message = "未知的数据类型" };
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                var cancelled = OperationResult.CreateFailedResult<object>("操作已取消");
+                cancelled.IsCancelled = true;
+                return cancelled.Complete();
+            }
         }
 
         private static object ExtractFirstValue(object value)
@@ -1346,36 +1429,37 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default)
         {
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 switch (dataTypeEnum)
                 {
                     case DataTypeEnums.None:
                         return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                     case DataTypeEnums.Bool:
-                        return await WriteAsync(address, (bool)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (bool)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToBytes(), DataTypeEnums.Bool, true, cancellationToken);
                     case DataTypeEnums.Byte:
-                        return await WriteAsync(address, (byte)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (byte)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }, DataTypeEnums.Byte, false, cancellationToken);
                     case DataTypeEnums.Int16:
-                        return await WriteAsync(address, (short)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (short)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(IsReverse), DataTypeEnums.Int16, false, cancellationToken);
                     case DataTypeEnums.UInt16:
-                        return await WriteAsync(address, (ushort)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (ushort)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(IsReverse), DataTypeEnums.UInt16, false, cancellationToken);
                     case DataTypeEnums.Int32:
-                        return await WriteAsync(address, (int)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (int)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.Int32, false, cancellationToken);
                     case DataTypeEnums.UInt32:
-                        return await WriteAsync(address, (uint)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (uint)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.UInt32, false, cancellationToken);
                     case DataTypeEnums.Int64:
-                        return await WriteAsync(address, (long)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (long)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.Int64, false, cancellationToken);
                     case DataTypeEnums.UInt64:
-                        return await WriteAsync(address, (ulong)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (ulong)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.UInt64, false, cancellationToken);
                     case DataTypeEnums.Float:
-                        return await WriteAsync(address, (float)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (float)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.Float, false, cancellationToken);
                     case DataTypeEnums.Double:
-                        return await WriteAsync(address, (double)(value.ToString().ConvertFromStringToObject(dataTypeEnum)));
+                        return await WriteAsync(address, new[] { (double)(value.ToString().ConvertFromStringToObject(dataTypeEnum)) }.ToByte(DataFormat), DataTypeEnums.Double, false, cancellationToken);
                     case DataTypeEnums.String:
-                        return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
+                        return await WriteAsync(address, Encoding.ASCII.GetBytes(Convert.ToString(value)), DataTypeEnums.String, false, cancellationToken);
                     default:
                         return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
                 }
@@ -1386,37 +1470,52 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values)
+        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values, CancellationToken cancellationToken = default)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            byte[] data;
             switch (dataTypeEnum)
             {
                 case DataTypeEnums.None:
                     return new OperationResult { IsSuccess = false, Message = "数据类型为null" };
                 case DataTypeEnums.Bool:
-                    return await WriteAsync(address, values.Cast<bool>().ToArray());
+                    data = values.Cast<bool>().ToArray().ToBytes();
+                    return await WriteAsync(address, data, dataTypeEnum, true, cancellationToken);
                 case DataTypeEnums.Byte:
-                    return await WriteAsync(address, values.Cast<byte>().ToArray());
+                    data = values.Cast<byte>().ToArray();
+                    break;
                 case DataTypeEnums.Int16:
-                    return await WriteAsync(address, values.Cast<short>().ToArray());
+                    data = values.Cast<short>().ToArray().ToByte(IsReverse);
+                    break;
                 case DataTypeEnums.UInt16:
-                    return await WriteAsync(address, values.Cast<ushort>().ToArray());
+                    data = values.Cast<ushort>().ToArray().ToByte(IsReverse);
+                    break;
                 case DataTypeEnums.Int32:
-                    return await WriteAsync(address, values.Cast<int>().ToArray());
+                    data = values.Cast<int>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.UInt32:
-                    return await WriteAsync(address, values.Cast<uint>().ToArray());
+                    data = values.Cast<uint>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.Int64:
-                    return await WriteAsync(address, values.Cast<long>().ToArray());
+                    data = values.Cast<long>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.UInt64:
-                    return await WriteAsync(address, values.Cast<ulong>().ToArray());
+                    data = values.Cast<ulong>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.Float:
-                    return await WriteAsync(address, values.Cast<float>().ToArray());
+                    data = values.Cast<float>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.Double:
-                    return await WriteAsync(address, values.Cast<double>().ToArray());
+                    data = values.Cast<double>().ToArray().ToByte(DataFormat);
+                    break;
                 case DataTypeEnums.String:
-                    return new OperationResult { IsSuccess = false, Message = "string写入未实现" };
+                    data = Encoding.ASCII.GetBytes(string.Concat(values.Select(t => Convert.ToString(t))));
+                    break;
                 default:
                     return new OperationResult { IsSuccess = false, Message = "未知的数据类型" };
             }
+
+            return await WriteAsync(address, data, dataTypeEnum, false, cancellationToken);
         }
 
         #endregion

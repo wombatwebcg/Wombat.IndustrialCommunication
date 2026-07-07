@@ -531,9 +531,46 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
             Assert.Equal(ConnectionEntryState.Unavailable, snapshot.ResultValue.State);
             Assert.Equal(ConnectionEntryLifecycleState.Faulted, snapshot.ResultValue.LifecycleState);
             Assert.Equal(0, snapshot.ResultValue.ActiveLeaseCount);
-            Assert.True(acquire.IsSuccess);
-            Assert.True(pool.Release(acquire.ResultValue).IsSuccess);
-            Assert.False(release.IsSuccess);
+            Assert.False(acquire.IsSuccess);
+            Assert.True(release.IsSuccess);
+        }
+
+        [Fact]
+        public async Task Should_Force_Close_Without_Waiting_For_Active_Execution_To_Drain()
+        {
+            var identity = new ConnectionIdentity { DeviceId = "force-close-no-drain", ProtocolType = "Mock", Endpoint = "force-close-no-drain" };
+            var descriptor = ConnectionPoolTestDescriptors.CreateModbusTcpClientDescriptor(identity);
+            var connection = new TestObjectConnection(identity);
+            var events = new List<ConnectionPoolEventType>();
+            var entry = new PooledResourceEntry<object>(descriptor, connection, new RecordingEventPublisher(events));
+            var started = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseExecution = new TaskCompletionSource<OperationResult<object>>(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            var executeTask = entry.ExecuteAsync<object>((resource, cancellationToken) =>
+            {
+                started.TrySetResult(true);
+                return releaseExecution.Task;
+            }, CancellationToken.None);
+
+            await started.Task.ConfigureAwait(false);
+
+            var forceCloseTask = entry.ForceCloseAsync("测试强制关闭", CancellationToken.None);
+            var completed = await Task.WhenAny(forceCloseTask, Task.Delay(200)).ConfigureAwait(false);
+
+            Assert.Same(forceCloseTask, completed);
+            Assert.True(forceCloseTask.Result.IsSuccess);
+            Assert.False(executeTask.IsCompleted);
+            Assert.Equal(0, entry.ActiveLeaseCount);
+            Assert.Equal(ConnectionEntryLifecycleState.Faulted, entry.LifecycleState);
+            Assert.DoesNotContain(ConnectionPoolEventType.ForceCloseDrained, events);
+
+            releaseExecution.SetResult(OperationResult.CreateSuccessResult<object>(new object()));
+            var executeResult = await executeTask.ConfigureAwait(false);
+
+            Assert.False(executeResult.IsSuccess);
+            Assert.True(executeResult.IsCancelled);
+            Assert.Contains("强制关闭", executeResult.Message);
+            Assert.Contains(ConnectionPoolEventType.ForceCloseDrained, events);
         }
 
         [Fact]
@@ -854,6 +891,36 @@ namespace Wombat.IndustrialCommunicationTest.ConnectionPoolTests
         {
             public void Publish(ConnectionPoolEventArgs args)
             {
+            }
+
+            public void PublishStateChanged(ConnectionStateChangedEventArgs args)
+            {
+            }
+
+            public void PublishLeaseEvent(ConnectionLeaseEventArgs args)
+            {
+            }
+
+            public void PublishMaintenanceEvent(ConnectionMaintenanceEventArgs args)
+            {
+            }
+        }
+
+        private sealed class RecordingEventPublisher : IConnectionPoolEventPublisher
+        {
+            private readonly IList<ConnectionPoolEventType> _events;
+
+            public RecordingEventPublisher(IList<ConnectionPoolEventType> events)
+            {
+                _events = events;
+            }
+
+            public void Publish(ConnectionPoolEventArgs args)
+            {
+                if (args != null)
+                {
+                    _events.Add(args.EventType);
+                }
             }
 
             public void PublishStateChanged(ConnectionStateChangedEventArgs args)

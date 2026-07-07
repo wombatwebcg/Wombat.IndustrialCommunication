@@ -5,6 +5,7 @@ using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -336,6 +337,11 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length,DataTypeEnums dataType, bool isBit = false)
         {
+            return await ReadAsync(address, length, dataType, isBit, CancellationToken.None);
+        }
+
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
             // 获取操作名称，用于日志记录
             string operationName = $"Read_{(isBit ? "Bit" : "Byte")}";
             
@@ -364,7 +370,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogDebug("开始读取Modbus TCP数据，地址：{Address}，长度：{Length}", address, length);
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length,dataType, isBit);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -409,7 +415,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     connected = true;
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, dataType, isBit);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -446,6 +452,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
         {
             return await HandleWriteAsync(() => base.WriteAsync(address, data,dataType, isBit), address);
+        }
+
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data, dataType, isBit, cancellationToken), address);
         }
 
         public override async Task<OperationResult> WriteAsync(string address, bool[] data)

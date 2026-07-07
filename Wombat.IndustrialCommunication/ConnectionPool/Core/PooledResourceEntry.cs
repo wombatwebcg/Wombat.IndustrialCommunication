@@ -121,7 +121,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             OperationResult<ConnectionLease> result;
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
-                if (_isRemoving || IsTerminalLifecycleState())
+                if (_isRemoving || IsTerminalLifecycleState() || _closedByForceClose)
                 {
                     result = OperationResult.CreateFailedResult<ConnectionLease>("连接条目不可租用");
                 }
@@ -211,7 +211,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var effectiveReason = string.IsNullOrWhiteSpace(reason) ? "请求强制关闭连接" : reason;
             var shouldCancelExecutions = false;
             var shouldDisconnect = false;
-            Task drainTask;
 
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
@@ -234,8 +233,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     shouldCancelExecutions = true;
                     shouldDisconnect = true;
                 }
-
-                drainTask = _activeExecutionDrainSource.Task;
             }
 
             PublishNotifications(notifications);
@@ -249,12 +246,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             if (shouldDisconnect)
             {
                 disconnectResult = Connection.DisconnectOrShutdown();
-            }
-
-            var drained = await WaitForDrainAsync(drainTask, cancellationToken).ConfigureAwait(false);
-            if (!drained)
-            {
-                return CreateCancelledOperationResult();
             }
 
             notifications = new List<Action>();
@@ -421,7 +412,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             var notifications = new List<Action>();
             OperationResult<T> result;
-            var startVersion = 0;
             var blocked = false;
             var executionCancellationRequested = false;
             CancellationTokenSource linkedCancellationTokenSource = null;
@@ -447,7 +437,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
                 else
                 {
-                    startVersion = _stateVersion;
                     RegisterActiveExecutionCore();
                     linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _activeExecutionCancellationTokenSource.Token);
                     QueuePoolEvent(ConnectionPoolEventType.ExecuteStarting, State, _lifecycleState, "开始执行连接操作", mode, null, notifications);
@@ -481,11 +470,18 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 var utcNow = DateTime.UtcNow;
                 LastActiveTimeUtc = utcNow;
-                result = NormalizeExecutionResultCore(result, executionCancellationRequested);
-                CompleteActiveExecutionCore();
+                var forceCloseTail = IsForceClosingRequestedCore();
+                var tailOnly = _isRemoving || IsTerminalLifecycleState() || forceCloseTail;
+                result = NormalizeExecutionResultCore(result, executionCancellationRequested || tailOnly);
+                var drained = CompleteActiveExecutionCore();
 
-                if (_isRemoving || IsTerminalLifecycleState() || _stateVersion != startVersion)
+                if (tailOnly)
                 {
+                    if (drained && forceCloseTail)
+                    {
+                        QueuePoolEvent(ConnectionPoolEventType.ForceCloseDrained, State, _lifecycleState, "强制关闭后的活跃执行尾部已清退", ConnectionPoolMaintenanceMode.ForceClose, null, notifications);
+                    }
+
                     RefreshSnapshotCore(utcNow);
                 }
                 else if (result != null && result.IsSuccess)
@@ -699,7 +695,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         private async Task<OperationResult> EnsureConnectedCoreAsync(ConnectionPoolMaintenanceMode mode, bool reconnecting, IList<Action> notifications)
         {
-            if (_isRemoving || IsTerminalLifecycleState())
+            if (_isRemoving || IsTerminalLifecycleState() || _closedByForceClose)
             {
                 return OperationResult.CreateFailedResult("连接条目不可用");
             }
@@ -866,7 +862,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         private bool IsForceClosingRequestedCore()
         {
-            return _forceClosing || _lifecycleState == ConnectionEntryLifecycleState.ForceClosing;
+            return _forceClosing || _closedByForceClose || _lifecycleState == ConnectionEntryLifecycleState.ForceClosing;
         }
 
         private void RegisterActiveExecutionCore()
@@ -881,8 +877,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             RefreshSnapshotCore(DateTime.UtcNow);
         }
 
-        private void CompleteActiveExecutionCore()
+        private bool CompleteActiveExecutionCore()
         {
+            var drained = false;
             if (_activeExecutionCount > 0)
             {
                 _activeExecutionCount--;
@@ -891,10 +888,12 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             if (_activeExecutionCount == 0 && _activeExecutionDrainSource != null)
             {
                 _activeExecutionDrainSource.TrySetResult(true);
+                drained = true;
             }
 
             IncrementStateVersionCore();
             RefreshSnapshotCore(DateTime.UtcNow);
+            return drained;
         }
 
         private void ReleaseAllLeasesCore(ConnectionPoolMaintenanceMode mode, string message, IList<Action> notifications)
@@ -1057,30 +1056,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 notifications[i]();
             }
-        }
-
-        private static async Task<bool> WaitForDrainAsync(Task drainTask, CancellationToken cancellationToken)
-        {
-            if (drainTask == null)
-            {
-                return true;
-            }
-
-            if (!cancellationToken.CanBeCanceled)
-            {
-                await drainTask.ConfigureAwait(false);
-                return true;
-            }
-
-            var cancellationTask = Task.Delay(Timeout.Infinite, cancellationToken);
-            var completedTask = await Task.WhenAny(drainTask, cancellationTask).ConfigureAwait(false);
-            if (!ReferenceEquals(completedTask, drainTask))
-            {
-                return false;
-            }
-
-            await drainTask.ConfigureAwait(false);
-            return true;
         }
 
         private static TaskCompletionSource<bool> CreateDrainSource(bool completed)

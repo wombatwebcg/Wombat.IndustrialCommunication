@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
@@ -810,9 +811,9 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
-        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
                 try
@@ -851,6 +852,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                     var errors = new List<string>();
                     foreach (var block in optimizedBlocks)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         try
                         {
                             string blockAddress = $"{block.StationNumber};{block.FunctionCode};{block.StartAddress}";
@@ -913,9 +915,9 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
-        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 var result = new OperationResult();
                 try
@@ -943,6 +945,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                     var successCount = 0;
                     foreach (var addressInfo in addressInfos)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         try
                         {
                             if (!internalAddresses.TryGetValue(addressInfo.OriginalAddress, out var value))

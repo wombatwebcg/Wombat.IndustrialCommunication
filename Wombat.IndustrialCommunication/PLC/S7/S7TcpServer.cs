@@ -1517,7 +1517,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchReadAsync
-        public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>>(BatchRead(addresses));
         }
@@ -1643,19 +1643,19 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // ReadStringAsync
-        public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
+        public ValueTask<OperationResult<string>> ReadStringAsync(string address, int length, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<string>>(ReadString(address, length));
         }
         
         // ReadAsync
-        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
+        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address));
         }
         
         // ReadAsync
-        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult<object>>(Read(dataTypeEnum, address, length));
         }
@@ -2145,7 +2145,7 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // BatchWriteAsync
-        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
             return new ValueTask<OperationResult>(BatchWrite(addresses));
         }
@@ -2277,13 +2277,13 @@ namespace Wombat.IndustrialCommunication.PLC
         }
         
         // WriteAsync
-        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Write(dataTypeEnum, address, value));
         }
         
         // WriteAsync
-        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value)
+        public Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value, CancellationToken cancellationToken = default)
         {
             return Task.FromResult(Write(dataTypeEnum, address, value));
         }

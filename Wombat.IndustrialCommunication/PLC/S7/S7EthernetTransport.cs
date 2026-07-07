@@ -3,6 +3,7 @@ using System.Buffers;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
@@ -24,7 +25,12 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
+        public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
+        {
+            return UnicastReadMessageAsync(request, CancellationToken.None);
+        }
+
+        public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
         {
             if (request == null)
             {
@@ -42,13 +48,13 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame, cancellationToken);
                 if (!commandRequest.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
 
-                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result).ConfigureAwait(false);
+                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result, cancellationToken).ConfigureAwait(false);
                 if (!receiveResult.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
@@ -79,7 +85,12 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
+        public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
+        {
+            return UnicastWriteMessageAsync(request, CancellationToken.None);
+        }
+
+        public override async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
         {
             if (request == null)
             {
@@ -97,13 +108,13 @@ namespace Wombat.IndustrialCommunication
             try
             {
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
-                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame);
+                var commandRequest = await SendRequestAsync(request.ProtocolMessageFrame, cancellationToken);
                 if (!commandRequest.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
 
-                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result).ConfigureAwait(false);
+                var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result, cancellationToken).ConfigureAwait(false);
                 if (!receiveResult.IsSuccess)
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
@@ -134,9 +145,9 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        private async Task<OperationResult<byte[]>> ReceiveFullResponseAsync(int headerLength, OperationResult result)
+        private async Task<OperationResult<byte[]>> ReceiveFullResponseAsync(int headerLength, OperationResult result, CancellationToken cancellationToken)
         {
-            var headerResponse = await ReceiveResponseAsync(0, headerLength).ConfigureAwait(false);
+            var headerResponse = await ReceiveResponseAsync(0, headerLength, cancellationToken).ConfigureAwait(false);
             if (!headerResponse.IsSuccess)
             {
                 return OperationResult.CreateFailedResult<byte[]>(headerResponse);
@@ -145,7 +156,7 @@ namespace Wombat.IndustrialCommunication
             result.Responses.Add(string.Join(" ", headerResponse.ResultValue.Select(t => t.ToString("X2"))));
 
             var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
-            var dataResponse = await ReceiveResponseAsync(0, dataLength).ConfigureAwait(false);
+            var dataResponse = await ReceiveResponseAsync(0, dataLength, cancellationToken).ConfigureAwait(false);
             if (!dataResponse.IsSuccess)
             {
                 return OperationResult.CreateFailedResult<byte[]>(dataResponse);

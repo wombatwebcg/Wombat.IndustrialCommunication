@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -406,6 +407,11 @@ namespace Wombat.IndustrialCommunication.PLC
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
+            return await ReadAsync(address, length, dataType, isBit, CancellationToken.None);
+        }
+
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
             if (IsLongConnection)
             {
                 // 长连接模式 - 检查连接状态并在必要时自动重连
@@ -427,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 
                 try
                 {
-                    var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
                         Logger?.LogDebug("成功读取S7数据，地址：{Address}", address);
@@ -467,7 +473,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     
                     connected = true;
                     
-                    var result = await base.ReadAsync(address, length,dataType, isBit).ConfigureAwait(false);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken).ConfigureAwait(false);
                     if (result.IsSuccess)
                     {
                         Logger?.LogDebug("短连接模式成功读取S7数据，地址：{Address}", address);
@@ -505,6 +511,11 @@ namespace Wombat.IndustrialCommunication.PLC
 
         protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit = false)
         {
+            return await WriteAsync(address, data, dataType, isBit, CancellationToken.None);
+        }
+
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
             if (IsLongConnection)
             {
                 // 长连接模式 - 检查连接状态并在必要时自动重连
@@ -527,7 +538,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 try
                 {
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data,dataType, isBit).ConfigureAwait(false);
+                    var result = await base.WriteAsync(address, data, dataType, isBit, cancellationToken).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)
@@ -570,7 +581,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     connected = true;
                     
                     // 执行写入操作
-                    var result = await base.WriteAsync(address, data,dataType, isBit).ConfigureAwait(false);
+                    var result = await base.WriteAsync(address, data, dataType, isBit, cancellationToken).ConfigureAwait(false);
                     
                     // 记录成功的写入操作
                     if (result.IsSuccess)
@@ -608,7 +619,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
             if (IsLongConnection)
             {
@@ -633,7 +644,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 for (int attempt = 1; attempt <= attempts; attempt++)
                 {
-                    var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
                     LogBatchReadDispatch(result);
                     if (result.IsSuccess)
                     {
@@ -673,7 +684,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接模式连接失败：{connectResult.Message}");
                     }
 
-                    var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
                     LogBatchReadDispatch(result);
                     shortLastResult = result;
 
@@ -705,7 +716,7 @@ namespace Wombat.IndustrialCommunication.PLC
             return shortLastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("短连接批量读取失败");
         }
 
-        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
             if (IsLongConnection)
             {
@@ -730,7 +741,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 for (int attempt = 1; attempt <= attempts; attempt++)
                 {
-                    var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
                     LogBatchWriteDispatch(result);
                     if (result.IsSuccess)
                     {
@@ -770,7 +781,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                     }
 
-                    var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
                     LogBatchWriteDispatch(result);
                     shortLastResult = result;
 

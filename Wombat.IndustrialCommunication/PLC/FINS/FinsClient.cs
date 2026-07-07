@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Wombat.Extensions.DataTypeExtensions;
@@ -768,7 +769,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses">地址列表</param>
         /// <returns>读取结果</returns>
-        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
             if (addresses == null || addresses.Count == 0)
             {
@@ -796,7 +797,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     
                     // 执行批量读取
-                    var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
                     
                     if (result.IsSuccess)
                     {
@@ -831,7 +832,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         }
                         
                         // 执行批量读取
-                        var result = await base.BatchReadAsync(addresses).ConfigureAwait(false);
+                        var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
                         
                         if (result.IsSuccess)
                         {
@@ -867,7 +868,7 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses">地址数据列表</param>
         /// <returns>写入结果</returns>
-        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
             if (addresses == null || addresses.Count == 0)
             {
@@ -894,7 +895,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     
                     // 执行批量写入
-                    var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                    var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
                     
                     if (result.IsSuccess)
                     {
@@ -929,7 +930,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         }
                         
                         // 执行批量写入
-                        var result = await base.BatchWriteAsync(addresses).ConfigureAwait(false);
+                        var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
                         
                         if (result.IsSuccess)
                         {

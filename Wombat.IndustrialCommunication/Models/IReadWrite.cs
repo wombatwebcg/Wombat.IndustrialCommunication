@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
@@ -203,7 +204,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
         /// 
-        ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses);
+        ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default);
 
 
 
@@ -366,13 +367,12 @@ namespace Wombat.IndustrialCommunication
         /// </summary>
         /// <param name="address">地址</param>
         /// <returns></returns>
-        ValueTask<OperationResult<string>> ReadStringAsync(string address, int length);
+        ValueTask<OperationResult<string>> ReadStringAsync(string address, int length, CancellationToken cancellationToken = default);
 
 
 
-        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address);
-
-        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length);
+        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default);
+        ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length, CancellationToken cancellationToken = default);
 
         #endregion
 
@@ -598,7 +598,7 @@ namespace Wombat.IndustrialCommunication
         /// <param name="addresses">地址集合</param>
         /// <param name="batchNumber">批量读取数量</param>
         /// <returns></returns>
-        ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses);
+        ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default);
 
 
         /// <summary>
@@ -780,10 +780,8 @@ namespace Wombat.IndustrialCommunication
         /// <param name="value">值</param>
         /// <param name="type">数据类型</param>
         /// <returns></returns>
-        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value);
-
-
-        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value);
+        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default);
+        Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] value, CancellationToken cancellationToken = default);
 
 
 

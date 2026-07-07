@@ -418,7 +418,12 @@ namespace Wombat.IndustrialCommunication.PLC
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
-            using (await _lock.LockAsync())
+            return await ReadAsync(address, length, dataType, isBit, CancellationToken.None);
+        }
+
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            using (await _lock.LockAsync(cancellationToken))
             {
                 OperationResult<byte[]> result = new OperationResult<byte[]>();
                 if (Transport is S7EthernetTransport s7Transport)
@@ -430,9 +435,10 @@ namespace Wombat.IndustrialCommunication.PLC
                         List<byte> bytesContent = new List<byte>();
                         while (alreadyFinished < length)
                         {
+                            cancellationToken.ThrowIfCancellationRequested();
                             ushort readLength = (ushort)Math.Min(length - alreadyFinished, maxCount);
 
-                            var tempResult = await internalReadAsync(s7Transport, address, alreadyFinished, readLength, isBit);
+                            var tempResult = await internalReadAsync(s7Transport, address, alreadyFinished, readLength, isBit, cancellationToken);
                             if (tempResult.IsSuccess)
                             {
                                 result.Requsts.Add(tempResult.Requsts[0]);
@@ -452,17 +458,17 @@ namespace Wombat.IndustrialCommunication.PLC
                     }
                     else
                     {
-                        return await internalReadAsync(s7Transport, address, 0, length, isBit);
+                        return await internalReadAsync(s7Transport, address, 0, length, isBit, cancellationToken);
                     }
                 }
                 return OperationResult.CreateFailedResult<byte[]>();
             }
 
-            async ValueTask<OperationResult<byte[]>> internalReadAsync(S7EthernetTransport transport, string internalAddress, int internalOffest, int internalLength, bool internalIsBit = false)
+            async ValueTask<OperationResult<byte[]>> internalReadAsync(S7EthernetTransport transport, string internalAddress, int internalOffest, int internalLength, bool internalIsBit, CancellationToken token)
             {
                 var tempResult = new OperationResult<byte>();
                 var readRequest = new S7ReadRequest(internalAddress, internalOffest, internalLength, internalIsBit, GetNextPduReference());
-                var response = await transport.UnicastReadMessageAsync(readRequest);
+                var response = await transport.UnicastReadMessageAsync(readRequest, token);
                 if (response.IsSuccess)
                 {
                     int realLength = internalLength;
@@ -560,13 +566,18 @@ namespace Wombat.IndustrialCommunication.PLC
 
       protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType, bool isBit = false)
         {
-            using (await _lock.LockAsync())
+            return await WriteAsync(address, data, dataType, isBit, CancellationToken.None);
+        }
+
+      protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            using (await _lock.LockAsync(cancellationToken))
             {
                 OperationResult<byte> result = new OperationResult<byte>();
                 if (Transport is S7EthernetTransport s7Transport)
                 {
                     var writeRequest = new S7WriteRequest(address, 0, data, isBit, GetNextPduReference());
-                    var response = await s7Transport.UnicastWriteMessageAsync(writeRequest);
+                    var response = await s7Transport.UnicastWriteMessageAsync(writeRequest, cancellationToken);
                     if (response.IsSuccess)
                     {
                         var dataPackage = response.ResultValue.ProtocolMessageFrame;
@@ -607,9 +618,9 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses">地址字典，键为地址，值为数据类型</param>
         /// <returns>读取结果</returns>
-        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
 
@@ -641,11 +652,11 @@ namespace Wombat.IndustrialCommunication.PLC
 
                     if (dispatchDecision.Mode == S7BatchReadPathKind.NativeRandomRead)
                     {
-                        pathResult = await BatchReadByNativeRandomAsync(addresses, addressInfos, dispatchDecision).ConfigureAwait(false);
+                        pathResult = await BatchReadByNativeRandomAsync(addresses, addressInfos, dispatchDecision, cancellationToken).ConfigureAwait(false);
                     }
                     else
                     {
-                        pathResult = await BatchReadByBlockAsync(addresses, addressInfos, dispatchDecision).ConfigureAwait(false);
+                        pathResult = await BatchReadByBlockAsync(addresses, addressInfos, dispatchDecision, cancellationToken).ConfigureAwait(false);
                     }
 
                     result.SetInfo(pathResult);
@@ -844,7 +855,8 @@ namespace Wombat.IndustrialCommunication.PLC
         private async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadByBlockAsync(
             Dictionary<string, DataTypeEnums> addresses,
             List<S7BatchHelper.S7AddressInfo> addressInfos,
-            S7BatchReadDispatchAnalysis dispatchDecision)
+            S7BatchReadDispatchAnalysis dispatchDecision,
+            CancellationToken cancellationToken)
         {
             var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
             double minEfficiencyRatio = EfficiencyRatio > 0 ? EfficiencyRatio : GetBlockReadMinEfficiency();
@@ -862,16 +874,17 @@ namespace Wombat.IndustrialCommunication.PLC
 
             foreach (var block in optimizedBlocks)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
-                    await DelayBeforeNextBatchReadAsync(hasPreviousBlock).ConfigureAwait(false);
+                    await DelayBeforeNextBatchReadAsync(hasPreviousBlock, cancellationToken).ConfigureAwait(false);
                     if (block.Addresses.Count == 0)
                     {
                         errors.Add("地址块中没有地址信息");
                         continue;
                     }
 
-                    var readResult = await ReadBlockWithBoundaryFallbackAsync(block).ConfigureAwait(false);
+                    var readResult = await ReadBlockWithBoundaryFallbackAsync(block, cancellationToken).ConfigureAwait(false);
                     MergeBatchReadLogs(readResult, result.Requsts, result.Responses);
 
                     if (readResult.IsSuccess)
@@ -925,7 +938,8 @@ namespace Wombat.IndustrialCommunication.PLC
         private async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadByNativeRandomAsync(
             Dictionary<string, DataTypeEnums> addresses,
             List<S7BatchHelper.S7AddressInfo> addressInfos,
-            S7BatchReadDispatchAnalysis dispatchDecision)
+            S7BatchReadDispatchAnalysis dispatchDecision,
+            CancellationToken cancellationToken)
         {
             var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
             var items = BuildReadItems(addressInfos);
@@ -935,7 +949,8 @@ namespace Wombat.IndustrialCommunication.PLC
 
             foreach (var batch in batches)
             {
-                var batchResult = await ExecuteReadBatchAsync(batch).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var batchResult = await ExecuteReadBatchAsync(batch, cancellationToken).ConfigureAwait(false);
                 MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
 
                 if (!batchResult.IsSuccess)
@@ -1103,7 +1118,12 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private async ValueTask<OperationResult<S7WriteResponse>> ExecuteWriteBatchAsync(S7WriteBatch batch)
+        private ValueTask<OperationResult<S7WriteResponse>> ExecuteWriteBatchAsync(S7WriteBatch batch)
+        {
+            return ExecuteWriteBatchAsync(batch, CancellationToken.None);
+        }
+
+        private async ValueTask<OperationResult<S7WriteResponse>> ExecuteWriteBatchAsync(S7WriteBatch batch, CancellationToken cancellationToken)
         {
             if (!(Transport is S7EthernetTransport s7Transport))
             {
@@ -1111,7 +1131,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
 
             var request = new S7WriteRequest(batch.Items, GetNextPduReference());
-            var response = await s7Transport.UnicastWriteMessageAsync(request).ConfigureAwait(false);
+            var response = await s7Transport.UnicastWriteMessageAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccess)
             {
                 var failureMessage = !string.IsNullOrEmpty(response.Message)
@@ -1149,7 +1169,12 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private async ValueTask<OperationResult<S7ReadResponse>> ExecuteReadBatchAsync(S7ReadBatch batch)
+        private ValueTask<OperationResult<S7ReadResponse>> ExecuteReadBatchAsync(S7ReadBatch batch)
+        {
+            return ExecuteReadBatchAsync(batch, CancellationToken.None);
+        }
+
+        private async ValueTask<OperationResult<S7ReadResponse>> ExecuteReadBatchAsync(S7ReadBatch batch, CancellationToken cancellationToken)
         {
             if (!(Transport is S7EthernetTransport s7Transport))
             {
@@ -1157,7 +1182,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
 
             var request = new S7ReadRequest(batch.Items, GetNextPduReference());
-            var response = await s7Transport.UnicastReadMessageAsync(request).ConfigureAwait(false);
+            var response = await s7Transport.UnicastReadMessageAsync(request, cancellationToken).ConfigureAwait(false);
             if (!response.IsSuccess)
             {
                 var failureMessage = !string.IsNullOrEmpty(response.Message)
@@ -1277,19 +1302,29 @@ namespace Wombat.IndustrialCommunication.PLC
             return S7BatchMessageFormatter.BuildWriteDispatchMessage("NativeRandomWrite", detail);
         }
 
-        private async Task DelayBeforeNextBatchReadAsync(bool hasPreviousBlock)
+        private Task DelayBeforeNextBatchReadAsync(bool hasPreviousBlock)
+        {
+            return DelayBeforeNextBatchReadAsync(hasPreviousBlock, CancellationToken.None);
+        }
+
+        private async Task DelayBeforeNextBatchReadAsync(bool hasPreviousBlock, CancellationToken cancellationToken)
         {
             if (!hasPreviousBlock || BatchReadStationInterval <= TimeSpan.Zero)
             {
                 return;
             }
 
-            await Task.Delay(BatchReadStationInterval).ConfigureAwait(false);
+            await Task.Delay(BatchReadStationInterval, cancellationToken).ConfigureAwait(false);
         }
 
-        private async ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block)
+        private ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block)
         {
-            var initialResult = await ReadBatchBlockAsync(block);
+            return ReadBlockWithBoundaryFallbackAsync(block, CancellationToken.None);
+        }
+
+        private async ValueTask<OperationResult<byte[]>> ReadBlockWithBoundaryFallbackAsync(S7BatchHelper.S7AddressBlock block, CancellationToken cancellationToken)
+        {
+            var initialResult = await ReadBatchBlockAsync(block, null, cancellationToken);
             if (initialResult.IsSuccess
                 || IsProtocolSynchronizationFailure(initialResult)
                 || !ShouldShrinkBlockBoundary(block, initialResult))
@@ -1309,8 +1344,9 @@ namespace Wombat.IndustrialCommunication.PLC
             int high = originalLength - 1;
             while (low <= high)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 int mid = low + ((high - low) / 2);
-                var retryResult = await ReadBatchBlockAsync(block, mid);
+                var retryResult = await ReadBatchBlockAsync(block, mid, cancellationToken);
                 MergeBatchReadLogs(retryResult, mergedRequests, mergedResponses);
 
                 if (retryResult.IsSuccess)
@@ -1355,7 +1391,12 @@ namespace Wombat.IndustrialCommunication.PLC
             return failedResult;
         }
 
-        private async ValueTask<OperationResult<byte[]>> ReadBatchBlockAsync(S7BatchHelper.S7AddressBlock block, int? overrideLength = null)
+        private ValueTask<OperationResult<byte[]>> ReadBatchBlockAsync(S7BatchHelper.S7AddressBlock block, int? overrideLength = null)
+        {
+            return ReadBatchBlockAsync(block, overrideLength, CancellationToken.None);
+        }
+
+        private async ValueTask<OperationResult<byte[]>> ReadBatchBlockAsync(S7BatchHelper.S7AddressBlock block, int? overrideLength, CancellationToken cancellationToken)
         {
             var readLength = overrideLength ?? block.TotalLength;
             var blockAddress = BuildBatchReadBlockAddress(block);
@@ -1364,7 +1405,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 return OperationResult.CreateFailedResult<byte[]>($"不支持的地址区域类型: {GetBatchReadAreaType(block)}");
             }
 
-            return await ReadAsync(blockAddress, readLength, DataTypeEnums.Byte, false);
+            return await ReadAsync(blockAddress, readLength, DataTypeEnums.Byte, false, cancellationToken);
         }
 
         private static void MergeBatchReadLogs(OperationResult<byte[]> source, List<string> requests, List<string> responses)
@@ -1510,9 +1551,9 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="addresses">地址字典，键为地址，值为(数据类型, 值)</param>
         /// <returns>写入结果</returns>
-        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 try
                 {
@@ -1527,7 +1568,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return OperationResult.CreateFailedResult("没有有效地址可写入");
                     }
 
-                    return await BatchWriteByNativeRandomAsync(addresses, addressInfos).ConfigureAwait(false);
+                    return await BatchWriteByNativeRandomAsync(addresses, addressInfos, cancellationToken).ConfigureAwait(false);
                 }
                 catch (Exception ex)
                 {
@@ -1540,6 +1581,14 @@ namespace Wombat.IndustrialCommunication.PLC
             Dictionary<string, (DataTypeEnums, object)> addresses,
             List<S7BatchHelper.S7AddressInfo> addressInfos)
         {
+            return await BatchWriteByNativeRandomAsync(addresses, addressInfos, CancellationToken.None);
+        }
+
+        protected internal virtual async ValueTask<OperationResult> BatchWriteByNativeRandomAsync(
+            Dictionary<string, (DataTypeEnums, object)> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos,
+            CancellationToken cancellationToken)
+        {
             var result = new OperationResult();
             var items = BuildWriteItems(addressInfos, addresses);
             var batches = SplitWriteBatches(items);
@@ -1548,7 +1597,8 @@ namespace Wombat.IndustrialCommunication.PLC
 
             foreach (var batch in batches)
             {
-                var batchResult = await ExecuteWriteBatchAsync(batch).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                var batchResult = await ExecuteWriteBatchAsync(batch, cancellationToken).ConfigureAwait(false);
                 MergeBatchReadLogs(batchResult, result.Requsts, result.Responses);
                 if (!batchResult.IsSuccess)
                 {
@@ -1582,12 +1632,21 @@ namespace Wombat.IndustrialCommunication.PLC
             Dictionary<string, (DataTypeEnums, object)> addresses,
             List<S7BatchHelper.S7AddressInfo> addressInfos)
         {
+            return await BatchWriteBySingleAsync(addresses, addressInfos, CancellationToken.None);
+        }
+
+        protected internal virtual async ValueTask<OperationResult> BatchWriteBySingleAsync(
+            Dictionary<string, (DataTypeEnums, object)> addresses,
+            List<S7BatchHelper.S7AddressInfo> addressInfos,
+            CancellationToken cancellationToken)
+        {
             var result = new OperationResult();
             var writeErrors = new List<string>();
             var successCount = 0;
 
             foreach (var addressInfo in addressInfos)
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 try
                 {
                     if (!addresses.TryGetValue(addressInfo.OriginalAddress, out var valueTuple))
@@ -1610,7 +1669,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         continue;
                     }
 
-                    var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, S7BatchHelper.IsBitType(addressInfo.DataType)).ConfigureAwait(false);
+                    var writeResult = await WriteAsync(writeAddress, data, DataTypeEnums.Byte, S7BatchHelper.IsBitType(addressInfo.DataType), cancellationToken).ConfigureAwait(false);
                     if (writeResult.IsSuccess)
                     {
                         successCount++;

@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -18,7 +19,7 @@ namespace Wombat.IndustrialCommunication
             throw new NotImplementedException();
         }
 
-        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public virtual ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -801,7 +802,7 @@ namespace Wombat.IndustrialCommunication
             return result.Complete();
         }
 
-        public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length)
+        public async ValueTask<OperationResult<string>> ReadStringAsync(string address, int length, CancellationToken cancellationToken = default)
         {
             var readResult = await ReadAsync(address, 4 * length);
             var result = new OperationResult<string>(readResult);
@@ -822,7 +823,7 @@ namespace Wombat.IndustrialCommunication
 
         }
 
-        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
 
@@ -1415,7 +1416,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1466,7 +1467,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length)
+        public async ValueTask<OperationResult<object>> ReadAsync(DataTypeEnums dataTypeEnum, string address, int length, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1517,7 +1518,7 @@ namespace Wombat.IndustrialCommunication
         }
 
 
-        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1598,7 +1599,7 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values)
+        public async Task<OperationResult> WriteAsync(DataTypeEnums dataTypeEnum, string address, object[] values, CancellationToken cancellationToken = default)
         {
             try
             {
@@ -1678,7 +1679,7 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        public ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address)
+        public ValueTask<OperationResult<object>> QueueReadAsync(DataTypeEnums dataTypeEnum, string address, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }
@@ -1688,7 +1689,7 @@ namespace Wombat.IndustrialCommunication
             throw new NotImplementedException();
         }
 
-        public ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value)
+        public ValueTask<OperationResult> QueueWriteAsync(DataTypeEnums dataTypeEnum, string address, object value, CancellationToken cancellationToken = default)
         {
             throw new NotImplementedException();
         }

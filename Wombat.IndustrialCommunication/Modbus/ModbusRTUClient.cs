@@ -3,6 +3,7 @@ using System;
 using System.Collections.Generic;
 using System.IO.Ports;
 using System.Text;
+using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using Wombat.Extensions.DataTypeExtensions;
@@ -317,6 +318,11 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
+            return await ReadAsync(address, length, dataType, isBit, CancellationToken.None);
+        }
+
+        protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
             // 获取操作名称，用于日志记录
             string operationName = $"Read_{(isBit ? "Bit" : "Byte")}";
             
@@ -345,7 +351,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogDebug("开始读取Modbus RTU数据，地址：{Address}，长度：{Length}", address, length);
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length, dataType, isBit);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -390,7 +396,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     connected = true;
                     
                     // 执行读取操作
-                    var result = await base.ReadAsync(address, length,dataType, isBit);
+                    var result = await base.ReadAsync(address, length, dataType, isBit, cancellationToken);
                     
                     // 记录成功的读取操作
                     if (result.IsSuccess)
@@ -427,6 +433,11 @@ namespace Wombat.IndustrialCommunication.Modbus
         protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data,DataTypeEnums dataType ,bool isBit = false)
         {
             return await HandleWriteAsync(() => base.WriteAsync(address, data,dataType, isBit), address);
+        }
+
+        protected internal override async Task<OperationResult> WriteAsync(string address, byte[] data, DataTypeEnums dataType, bool isBit, CancellationToken cancellationToken)
+        {
+            return await HandleWriteAsync(() => base.WriteAsync(address, data, dataType, isBit, cancellationToken), address);
         }
 
         public override async Task<OperationResult> WriteAsync(string address, bool[] data)
@@ -586,9 +597,14 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         private Task<OperationResult> WriteByFunctionAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data)
         {
+            return WriteByFunctionAsync(stationNumber, functionCode, address, registerOrCoilCount, data, CancellationToken.None);
+        }
+
+        private Task<OperationResult> WriteByFunctionAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data, CancellationToken cancellationToken)
+        {
             string requestAddress = $"{stationNumber};{functionCode};{address}";
             return HandleWriteAsync(
-                () => WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data),
+                () => WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data, cancellationToken),
                 requestAddress);
         }
 
@@ -931,9 +947,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 批量读取方法
         /// </summary>
-        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses)
+        public override async ValueTask<OperationResult<Dictionary<string, (DataTypeEnums, object)>>> BatchReadAsync(Dictionary<string, DataTypeEnums> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 var result = new OperationResult<Dictionary<string, (DataTypeEnums, object)>>();
                 try
@@ -973,15 +989,17 @@ namespace Wombat.IndustrialCommunication.Modbus
                     byte? previousStationNumber = null;
                     foreach (var block in orderedBlocks)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         try
                         {
-                            await DelayBeforeNextStationBatchReadAsync(previousStationNumber, block.StationNumber).ConfigureAwait(false);
+                            await DelayBeforeNextStationBatchReadAsync(previousStationNumber, block.StationNumber, cancellationToken).ConfigureAwait(false);
                             string blockKey = $"{block.StationNumber}_{block.FunctionCode}_{block.StartAddress}_{block.TotalLength}";
                             var readResult = await ReadByModbusAddressAsync(
                                 block.StationNumber,
                                 block.FunctionCode,
                                 block.StartAddress,
-                                block.TotalLength);
+                                block.TotalLength,
+                                cancellationToken);
                             if (readResult.IsSuccess)
                             {
                                 blockDataDict[blockKey] = readResult.ResultValue;
@@ -1036,9 +1054,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <summary>
         /// 批量写入方法
         /// </summary>
-        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses)
+        public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 var result = new OperationResult();
                 try
@@ -1060,6 +1078,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var successCount = 0;
                     foreach (var addressInfo in addressInfos)
                     {
+                        cancellationToken.ThrowIfCancellationRequested();
                         try
                         {
                             if (!internalAddresses.TryGetValue(addressInfo.OriginalAddress, out var value))
@@ -1078,7 +1097,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                                 addressInfo.FunctionCode,
                                 addressInfo.Address,
                                 CalculateWriteEntityCount(addressInfo.FunctionCode, data, addressInfo.FunctionCode == 0x05 || addressInfo.FunctionCode == 0x0F),
-                                data);
+                                data,
+                                cancellationToken);
                             if (writeResult.IsSuccess)
                             {
                                 successCount++;
