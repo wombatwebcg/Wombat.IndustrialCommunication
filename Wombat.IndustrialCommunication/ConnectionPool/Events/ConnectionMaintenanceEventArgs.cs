@@ -8,5 +8,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Events
         public int ScannedEntryCount { get; set; }
 
         public int AffectedEntryCount { get; set; }
+
     }
 }

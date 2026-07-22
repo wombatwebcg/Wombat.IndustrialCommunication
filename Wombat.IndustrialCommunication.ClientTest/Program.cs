@@ -15,10 +15,10 @@ namespace Wombat.IndustrialCommunication.ClientTest
 {
     internal static class Program
     {
-        private const string DeviceIp = "192.168.2.134";
+        private const string DeviceIp = "127.0.0.1";
         private const int DevicePort = 9001;
         private const int TotalRounds = 5;
-        private static readonly TimeSpan DelayBetweenRounds = TimeSpan.FromSeconds(0);
+        private static readonly TimeSpan DelayBetweenRounds = TimeSpan.FromSeconds(1);
         private static readonly string LogFilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "logs",

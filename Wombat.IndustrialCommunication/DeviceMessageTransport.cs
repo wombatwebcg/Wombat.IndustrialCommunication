@@ -118,7 +118,12 @@ namespace Wombat.IndustrialCommunication
                                     else
                                     {
                                         DebugLog("[DeviceMessageTransport调试] 接收失败，尝试次数: {Attempt}, 最大重试次数: {Retries}", attempt, _retries);
-                                        
+
+                                        if (!_streamResource.Connected)
+                                        {
+                                            return OperationResult.CreateFailedResult<byte[]>(read?.Message ?? "连接已断开");
+                                        }
+
                                         if (attempt++ > _retries)
                                         {
                                             return OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{_retries},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}ms");
@@ -154,6 +159,10 @@ namespace Wombat.IndustrialCommunication
 
                         }
 
+                        if (attempt++ > _retries)
+                        {
+                            return OperationResult.CreateFailedResult<byte[]>($"读取设备异常：{e.Message}");
+                        }
                     }
                 } while (!success);
                 return OperationResult.CreateFailedResult<byte[]>();
@@ -247,6 +256,10 @@ namespace Wombat.IndustrialCommunication
 
                         }
 
+                        if (attempt++ > _retries)
+                        {
+                            return OperationResult.CreateFailedResult($"写入设备异常：{e.Message}");
+                        }
                     }
                 } while (!success);
                 return OperationResult.CreateFailedResult();

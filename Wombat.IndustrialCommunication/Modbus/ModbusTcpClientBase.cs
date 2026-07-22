@@ -1,5 +1,4 @@
-﻿﻿﻿﻿﻿using Newtonsoft.Json.Linq;
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -52,7 +51,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return ReadByModbusAddressAsync(stationNumber, functionCode, address, length, CancellationToken.None);
         }
 
-        protected async ValueTask<OperationResult<byte[]>> ReadByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort length, CancellationToken cancellationToken)
+        protected virtual async ValueTask<OperationResult<byte[]>> ReadByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort length, CancellationToken cancellationToken)
         {
             var request = new ModbusTcpRequest(GenerateTransactionId(), stationNumber, functionCode, address, length);
             var response = await Transport.UnicastReadMessageAsync(request, cancellationToken);

@@ -73,6 +73,40 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
             Assert.True(successResult.IsSuccess, successResult.Message);
         }
 
+        [Fact]
+        public async Task SendRequestAsync_WhenSendThrows_ShouldStopAfterConfiguredRetries()
+        {
+            var stream = new SequencedStreamResource();
+            for (var i = 0; i < 3; i++)
+            {
+                stream.EnqueueSend(_ => Task.FromException<OperationResult>(new InvalidOperationException("Not connected")));
+            }
+
+            var transport = new DeviceMessageTransport(stream)
+            {
+                Retries = 2,
+                WaitToRetryMilliseconds = TimeSpan.Zero
+            };
+
+            var result = await transport.SendRequestAsync(new byte[] { 0x01, 0x02 }).ConfigureAwait(false);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(3, stream.SendCallCount);
+        }
+
+        [Fact]
+        public async Task ReceiveResponseAsync_WhenStreamIsDisconnected_ShouldNotRetry()
+        {
+            var stream = new SequencedStreamResource { ConnectedValue = false };
+            stream.EnqueueReceive(_ => Task.FromResult(OperationResult.CreateFailedResult<int>("连接已断开")));
+            var transport = new DeviceMessageTransport(stream) { Retries = 2 };
+
+            var result = await transport.ReceiveResponseAsync(0, 2).ConfigureAwait(false);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(1, stream.ReceiveCallCount);
+        }
+
         private sealed class SequencedStreamResource : IStreamResource
         {
             private readonly Queue<Func<CancellationToken, Task<OperationResult<int>>>> _receiveSteps = new Queue<Func<CancellationToken, Task<OperationResult<int>>>>();
@@ -82,12 +116,15 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
 
             public TimeSpan SendTimeout { get; set; } = TimeSpan.FromSeconds(1);
 
-            public bool Connected
-            {
-                get { return true; }
-            }
+            public bool ConnectedValue { get; set; } = true;
+
+            public bool Connected => ConnectedValue;
 
             public int StreamCloseCallCount { get; private set; }
+
+            public int SendCallCount { get; private set; }
+
+            public int ReceiveCallCount { get; private set; }
 
             public void EnqueueReceive(Func<CancellationToken, Task<OperationResult<int>>> step)
             {
@@ -101,6 +138,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
 
             public Task<OperationResult<int>> Receive(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
             {
+                ReceiveCallCount++;
                 if (_receiveSteps.Count == 0)
                 {
                     return Task.FromResult(OperationResult.CreateFailedResult<int>("没有配置接收步骤"));
@@ -111,6 +149,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
 
             public Task<OperationResult> Send(byte[] buffer, int offset, int length, CancellationToken cancellationToken)
             {
+                SendCallCount++;
                 if (_sendSteps.Count == 0)
                 {
                     return Task.FromResult(OperationResult.CreateFailedResult("没有配置发送步骤"));

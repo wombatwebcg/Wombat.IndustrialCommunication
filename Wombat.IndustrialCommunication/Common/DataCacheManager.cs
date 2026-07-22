@@ -42,7 +42,14 @@ namespace Wombat.IndustrialCommunication
     /// 缓存项
     /// </summary>
     /// <typeparam name="T">缓存数据类型</typeparam>
-    internal class CacheItem<T>
+    internal interface ICacheItem
+    {
+        bool IsExpired { get; }
+        DateTime LastAccessTime { get; }
+        int AccessCount { get; }
+    }
+
+    internal class CacheItem<T> : ICacheItem
     {
         /// <summary>
         /// 缓存数据
@@ -482,9 +489,7 @@ namespace Wombat.IndustrialCommunication
                     {
                         if (_cache.TryGetValue(key, out object cacheObj))
                         {
-                            // 由于缓存项类型不确定，需要使用反射判断是否过期
-                            var expirationTimeProp = cacheObj.GetType().GetProperty("IsExpired");
-                            bool isExpired = expirationTimeProp != null && (bool)expirationTimeProp.GetValue(cacheObj);
+                            bool isExpired = ((ICacheItem)cacheObj).IsExpired;
                             
                             if (isExpired && _cache.TryRemove(key, out _))
                             {
@@ -501,13 +506,10 @@ namespace Wombat.IndustrialCommunication
                     foreach (var kvp in _cache)
                     {
                         // 计算评分：50% 访问时间 + 50% 访问次数
-                        var lastAccessTimeProp = kvp.Value.GetType().GetProperty("LastAccessTime");
-                        var accessCountProp = kvp.Value.GetType().GetProperty("AccessCount");
-                        
-                        if (lastAccessTimeProp != null && accessCountProp != null)
+                        if (kvp.Value is ICacheItem cacheItem)
                         {
-                            DateTime lastAccessTime = (DateTime)lastAccessTimeProp.GetValue(kvp.Value);
-                            int accessCount = (int)accessCountProp.GetValue(kvp.Value);
+                            DateTime lastAccessTime = cacheItem.LastAccessTime;
+                            int accessCount = cacheItem.AccessCount;
                             
                             // 评分：访问时间越近、访问次数越多，得分越高
                             int score = (int)((DateTime.Now - lastAccessTime).TotalSeconds) - accessCount;
@@ -564,4 +566,4 @@ namespace Wombat.IndustrialCommunication
             _cache.Clear();
         }
     }
-} 
+}

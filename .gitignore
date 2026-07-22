@@ -361,3 +361,6 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/AOT裁剪兼容改造计划.md
+/AOT裁剪兼容风险清单.md
+/四类通信组件用法指南.md

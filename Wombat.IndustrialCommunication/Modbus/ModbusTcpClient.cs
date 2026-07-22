@@ -319,20 +319,68 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return OperationResult.CreateFailedResult("未启用自动重连");
             }
             
-            // 检查重连间隔
-            var now = DateTime.Now;
-            if ((now - _lastReconnectAttempt) < ReconnectDelay)
+            var remainingDelay = ReconnectDelay - (DateTime.Now - _lastReconnectAttempt);
+            if (remainingDelay > TimeSpan.Zero)
             {
-                return OperationResult.CreateFailedResult("重连间隔未到");
+                await Task.Delay(remainingDelay).ConfigureAwait(false);
+
+                if (Connected)
+                {
+                    return OperationResult.CreateSuccessResult("连接正常");
+                }
             }
             
             // 记录重连尝试时间
-            _lastReconnectAttempt = now;
+            _lastReconnectAttempt = DateTime.Now;
             
             Logger?.LogInformation("尝试重连Modbus TCP，地址：{Address}:{Port}", IPEndPoint.Address, IPEndPoint.Port);
             
             // 执行重连
             return await ConnectAsync();
+        }
+
+        protected override async ValueTask<OperationResult<byte[]>> ReadByModbusAddressAsync(
+            byte stationNumber,
+            byte functionCode,
+            ushort address,
+            ushort length,
+            CancellationToken cancellationToken)
+        {
+            for (var reconnectAttempt = 0; ; reconnectAttempt++)
+            {
+                if (!EnableAutoReconnect)
+                {
+                    if (!Connected)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>("Modbus TCP客户端没有连接");
+                    }
+                }
+                else if (!Connected)
+                {
+                    var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
+                    if (!reconnectResult.IsSuccess)
+                    {
+                        return OperationResult.CreateFailedResult<byte[]>(reconnectResult.Message);
+                    }
+                }
+
+                var readResult = await base.ReadByModbusAddressAsync(
+                    stationNumber,
+                    functionCode,
+                    address,
+                    length,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (readResult.IsSuccess || Connected || reconnectAttempt >= Retries)
+                {
+                    return readResult;
+                }
+
+                Logger?.LogWarning("Modbus TCP读取站号 {StationNumber} 失败，重连后重试 {Attempt}/{Retries}",
+                    stationNumber,
+                    reconnectAttempt + 1,
+                    Retries);
+            }
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length,DataTypeEnums dataType, bool isBit = false)

@@ -8,6 +8,15 @@ Wombat.IndustrialCommunication是一个基于.NET Standard 2.0的开源工业通
 
 本项目可用于工业自动化、数据采集、远程监控、设备管理等多种工业场景，支持客户端和服务器双向通讯。
 
+## 文档
+
+- [四类通信组件用法指南](四类通信组件用法指南.md)
+- [通讯库 ForceClose 修复计划](通讯库ForceClose两阶段彻底修复计划.md)
+- [AOT/裁剪兼容风险清单](AOT裁剪兼容风险清单.md)
+- [AOT 与裁剪兼容改造计划](AOT裁剪兼容改造计划.md)
+- [Wombat.Network 使用说明](Wombat.Network-README.md)
+- [Wombat.Network 引入计划](Wombat.Network.IntroductionPlan.md)
+
 ## 特点
 
 - **多协议支持**：支持Modbus TCP/RTU、西门子S7、三菱PLC等多种主流工业协议
@@ -75,10 +84,11 @@ git clone https://github.com/wombatwebcg/Wombat.IndustrialCommunication.git
 ### 依赖项
 
 本项目依赖以下NuGet包：
-- System.IO.Ports (>= 9.0.5)
-- System.Reactive (>= 6.0.1)
-- Wombat.Extensions.DataTypeExtensions (>= 1.0.12)
-- Wombat.Network (>= 1.1.4)
+- Microsoft.Extensions.Logging (10.0.5)
+- System.IO.Ports (10.0.5)
+- System.Reactive (6.1.0)
+- Wombat.Extensions.DataTypeExtensions (1.0.13)
+- Wombat.Network (1.1.6)
 
 ## 使用示例
 

@@ -23,7 +23,7 @@
 如果你通过 NuGet 使用：
 
 ```xml
-<PackageReference Include="Wombat.Network" Version="1.1.5" />
+<PackageReference Include="Wombat.Network" Version="1.1.6" />
 ```
 
 当前项目目标框架是 `netstandard2.0`。
@@ -315,7 +315,7 @@ dotnet test .\Wombat.Network.UnitTest\Wombat.Network.UnitTest.csproj
 
 ## 8. 公开 API 对照
 
-当前公开模型以 [..\Wombat.Network.API.md](..\Wombat.Network.API.md) 为准。
+当前公开模型以本说明中的示例和仓库中的实际源码为准。
 
 如果你在旧代码里还看到了这些名字，它们已经不是当前推荐入口：
 
