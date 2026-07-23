@@ -18,7 +18,7 @@ namespace Wombat.IndustrialCommunication.ClientTest
         private const string DeviceIp = "127.0.0.1";
         private const int DevicePort = 9001;
         private const int TotalRounds = 5;
-        private static readonly TimeSpan DelayBetweenRounds = TimeSpan.FromSeconds(1);
+        private static readonly TimeSpan DelayBetweenRounds = TimeSpan.FromSeconds(0);
         private static readonly string LogFilePath = Path.Combine(
             AppDomain.CurrentDomain.BaseDirectory,
             "logs",
@@ -168,9 +168,9 @@ namespace Wombat.IndustrialCommunication.ClientTest
         {
             var client = new ModbusTcpClient(DeviceIp, DevicePort)
             {
-                ConnectTimeout = TimeSpan.FromSeconds(5),
-                ReceiveTimeout = TimeSpan.FromSeconds(5),
-                SendTimeout = TimeSpan.FromSeconds(5),
+                ConnectTimeout = TimeSpan.FromSeconds(2),
+                ReceiveTimeout = TimeSpan.FromSeconds(1),
+                SendTimeout = TimeSpan.FromSeconds(1),
                 IsLongConnection = true,
                 BatchReadStationInterval = TimeSpan.FromSeconds(1),
                 Logger = loggerFactory.CreateLogger<ModbusTcpClient>()
