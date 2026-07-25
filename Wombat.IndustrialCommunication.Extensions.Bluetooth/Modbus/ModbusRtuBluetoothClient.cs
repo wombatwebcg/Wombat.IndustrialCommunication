@@ -14,17 +14,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
         private readonly BluetoothStreamAdapter _bluetoothAdapter;
         private readonly AsyncLock _lock = new AsyncLock();
 
-        public bool EnableAutoReconnect { get; set; } = true;
-
-        public int MaxReconnectAttempts { get; set; } = 5;
-
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(2);
-
         public TimeSpan ConnectionCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
-
-        public int ShortConnectionReconnectAttempts { get; set; } = 1;
-
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
 
         public ModbusRtuBluetoothClient(IBluetoothChannel channel)
             : base(new DeviceMessageTransport(new BluetoothStreamAdapter(channel)))
@@ -177,8 +167,10 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
+            if (cancellationToken.IsCancellationRequested)
+                return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Bluetooth connection was cancelled" };
             using (await _lock.LockAsync())
             {
                 if (Connected)
@@ -192,6 +184,11 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                     Logger?.LogDebug("正在连接Modbus RTU蓝牙");
                     var startTime = DateTime.Now;
                     var result = await _bluetoothAdapter.ConnectAsync();
+                    if (cancellationToken.IsCancellationRequested)
+                    {
+                        await _bluetoothAdapter.DisconnectAsync().ConfigureAwait(false);
+                        return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Bluetooth connection was cancelled" };
+                    }
 
                     if (result.IsSuccess)
                     {
@@ -261,49 +258,13 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
-        public async Task<OperationResult> CheckAndReconnectAsync()
-        {
-            if (Connected)
-            {
-                return OperationResult.CreateSuccessResult("连接正常");
-            }
-
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("未启用自动重连");
-            }
-
-            var now = DateTime.Now;
-            if ((now - _lastReconnectAttempt) < ReconnectDelay)
-            {
-                return OperationResult.CreateFailedResult("重连间隔未到");
-            }
-
-            _lastReconnectAttempt = now;
-
-            Logger?.LogInformation("尝试重连Modbus RTU蓝牙");
-
-            return await ConnectAsync();
-        }
-
         protected override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             if (IsLongConnection)
             {
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙自动重连失败，无法读取数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙客户端没有连接");
                 }
 
                 try
@@ -394,18 +355,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             {
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult("Modbus RTU蓝牙自动重连失败，无法写入数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult("Modbus RTU蓝牙客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult("Modbus RTU蓝牙客户端没有连接");
                 }
 
                 try

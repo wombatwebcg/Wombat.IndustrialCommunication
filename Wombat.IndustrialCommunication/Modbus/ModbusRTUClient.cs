@@ -15,23 +15,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         private readonly SerialPortAdapter _serialPortAdapter;
         private readonly AsyncLock _lock = new AsyncLock();
         
-        // 是否启用自动重连
-        public bool EnableAutoReconnect { get; set; } = true;
-        
-        // 最大自动重连次数
-        public int MaxReconnectAttempts { get; set; } = 5;
-        
-        // 重连等待时间
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(2);
-        
         // 连接检查间隔
         public TimeSpan ConnectionCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
-        
-        // 短连接模式下的最大重连次数
-        public int ShortConnectionReconnectAttempts { get; set; } = 1;
-        
-        // 上次重连尝试时间
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
         
         // 串口名称
         public string PortName => _serialPortAdapter?.PortName;
@@ -180,7 +165,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             using (await _lock.LockAsync())
             {
@@ -199,7 +184,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var startTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result = await _serialPortAdapter.ConnectAsync();
+                    var result = await _serialPortAdapter.ConnectAsync(cancellationToken);
                     
                     if (result.IsSuccess)
                     {
@@ -282,40 +267,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        /// <summary>
-        /// 检查连接状态并在必要时自动重连
-        /// </summary>
-        /// <returns>连接操作结果</returns>
-        public async Task<OperationResult> CheckAndReconnectAsync()
-        {
-            // 如果已连接，直接返回成功
-            if (Connected)
-            {
-                return OperationResult.CreateSuccessResult("连接正常");
-            }
-            
-            // 如果未启用自动重连，返回失败
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("未启用自动重连");
-            }
-            
-            // 检查重连间隔
-            var now = DateTime.Now;
-            if ((now - _lastReconnectAttempt) < ReconnectDelay)
-            {
-                return OperationResult.CreateFailedResult("重连间隔未到");
-            }
-            
-            // 记录重连尝试时间
-            _lastReconnectAttempt = now;
-            
-            Logger?.LogInformation("尝试重连Modbus RTU，串口：{PortName}", PortName);
-            
-            // 执行重连
-            return await ConnectAsync();
-        }
-
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
             return await ReadAsync(address, length, dataType, isBit, CancellationToken.None);
@@ -328,21 +279,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>($"Modbus RTU自动重连失败，无法读取数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>($"Modbus RTU客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult<byte[]>("Modbus RTU客户端没有连接");
                 }
                 
                 try
@@ -454,21 +393,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus RTU自动重连失败，无法写入数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus RTU客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus RTU客户端没有连接");
                 }
                 
                 try

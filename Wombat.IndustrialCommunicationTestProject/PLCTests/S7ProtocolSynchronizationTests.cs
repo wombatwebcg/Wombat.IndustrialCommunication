@@ -143,7 +143,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task SiemensClient_BatchReadAsync_OnProtocolSynchronizationFailure_ShouldReconnectAndRetryWholeBatch()
+        public async Task SiemensClient_BatchReadAsync_OnProtocolSynchronizationFailure_ShouldFailWithoutRetry()
         {
             using var server = new RetryOnceS7TestServer(new byte[] { 0x5A });
             await server.StartAsync().ConfigureAwait(false);
@@ -155,9 +155,7 @@ public class S7ProtocolSynchronizationTests
                     ConnectTimeout = TimeSpan.FromSeconds(2),
                     ReceiveTimeout = TimeSpan.FromSeconds(2),
                     SendTimeout = TimeSpan.FromSeconds(2),
-                    DirtyResponseRetryAttempts = 1,
                     IsLongConnection = true,
-                    EnableAutoReconnect = true
                 };
 
                 var connectResult = await client.ConnectAsync().ConfigureAwait(false);
@@ -168,10 +166,10 @@ public class S7ProtocolSynchronizationTests
                     ["VB2000"] = DataTypeEnums.Byte
                 }).ConfigureAwait(false);
 
-                Assert.True(result.IsSuccess, result.Message);
-                Assert.Equal((byte)0x5A, Assert.IsType<byte>(result.ResultValue["VB2000"].Item2));
-                Assert.Equal(2, server.ReadRequestCount);
-                Assert.True(server.ConnectionCount >= 2, $"Expected reconnect, actual connections: {server.ConnectionCount}");
+                Assert.False(result.IsSuccess);
+                Assert.Contains("S7响应PDU Reference不匹配", result.Message);
+                Assert.Equal(1, server.ReadRequestCount);
+                Assert.Equal(1, server.ConnectionCount);
             }
             finally
             {

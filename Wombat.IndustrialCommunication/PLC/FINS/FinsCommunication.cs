@@ -50,10 +50,11 @@ namespace Wombat.IndustrialCommunication.PLC
         /// </summary>
         /// <param name="connectTimeout">连接超时时间</param>
         /// <returns>初始化结果</returns>
-        public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
+        public async Task<OperationResult> InitAsync(TimeSpan connectTimeout, CancellationToken cancellationToken = default)
         {
             // 连接超时控制，防止死锁
-            using (var cts = new CancellationTokenSource(connectTimeout))
+            using (var timeout = new CancellationTokenSource(connectTimeout))
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token))
             {
                 try
                 {
@@ -74,11 +75,11 @@ namespace Wombat.IndustrialCommunication.PLC
                             result.Requsts.Add(string.Join(" ", handshakeCommand.Select(t => t.ToString("X2"))));
                             
                             // 发送握手命令
-                            var handshakeRequestResult = await Transport.SendRequestAsync(handshakeCommand);
+                            var handshakeRequestResult = await Transport.SendRequestAsync(handshakeCommand, cts.Token);
                             if (handshakeRequestResult.IsSuccess)
                             {
                                 // 接收完整握手响应（24字节）
-                                var responseResult = await Transport.ReceiveResponseAsync(0, 24);
+                                var responseResult = await Transport.ReceiveResponseAsync(0, 24, cts.Token);
                                 if (responseResult.IsSuccess)
                                 {
                                     var response = responseResult.ResultValue;
@@ -120,6 +121,7 @@ namespace Wombat.IndustrialCommunication.PLC
                                 return handshakeRequestResult;
                             }
                         }
+                        catch (OperationCanceledException) { throw; }
                         catch (Exception ex)
                         {
                             result.IsSuccess = false;
@@ -130,7 +132,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         return result.Complete();
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     return OperationResult.CreateFailedResult("FINS协议初始化超时");
                 }

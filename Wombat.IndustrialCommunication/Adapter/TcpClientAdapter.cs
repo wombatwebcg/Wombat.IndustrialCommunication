@@ -20,6 +20,7 @@ namespace Wombat.IndustrialCommunication
         private TimeSpan _receiveTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private TimeSpan _sendTimeout = TimeSpan.FromMilliseconds(DEFAULT_TIMEOUT_MS);
         private int _connected;
+        private readonly SemaphoreSlim _lifecycleGate = new SemaphoreSlim(1, 1);
         private bool _disposed;
         private const int DEFAULT_TIMEOUT_MS = 2000;
         private const int MIN_PORT = 1;
@@ -145,18 +146,17 @@ namespace Wombat.IndustrialCommunication
             }
             catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult($"Send operation timed out after {_sendTimeout.TotalMilliseconds}ms");
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.SendTimeout, Message = $"Send operation timed out after {_sendTimeout.TotalMilliseconds}ms" };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult("Send operation was cancelled");
+                return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Send operation was cancelled" };
             }
             catch (Exception ex)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult($"Send failed: {ex.Message}");
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Exception = ex, Message = $"Send failed: {ex.Message}" };
             }
             finally
             {
@@ -202,8 +202,8 @@ namespace Wombat.IndustrialCommunication
                     if (currentRead == 0)
                     {
                         DebugLog("[TcpClientAdapter调试] 没有读取到数据，可能连接已关闭");
-                        CloseConnection();
-                        return new OperationResult<int> { IsSuccess = false, Message = "Connection closed by remote host during receive" };
+                        await CloseConnectionAsync().ConfigureAwait(false);
+                        return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.ConnectionClosed, Message = "Connection closed by remote host during receive" };
                     }
 
                     totalRead += currentRead;
@@ -217,22 +217,21 @@ namespace Wombat.IndustrialCommunication
             catch (OperationCanceledException) when (timeoutCts != null && timeoutCts.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作超时，超时时间: {ReceiveTimeout}ms", _receiveTimeout.TotalMilliseconds);
-                CloseConnection();
-                return new OperationResult<int> { IsSuccess = false, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.ReceiveTimeout, Message = $"Receive operation timed out after {_receiveTimeout.TotalMilliseconds}ms" };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作被外部取消");
-                CloseConnection();
-                return new OperationResult<int> { IsSuccess = false, Message = "Receive operation was cancelled" };
+                return new OperationResult<int> { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Receive operation was cancelled" };
             }
             catch (Exception ex)
             {
                 DebugLog("[TcpClientAdapter调试] 接收数据时发生异常: {Message}", ex.Message);
                 DebugLog("[TcpClientAdapter调试] 异常类型: {ExceptionType}", ex.GetType().Name);
                 DebugLog("[TcpClientAdapter调试] 异常堆栈: {StackTrace}", ex.StackTrace);
-                CloseConnection();
-                return new OperationResult<int> { IsSuccess = false, Message = $"Receive failed: {ex.Message}" };
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Exception = ex, Message = $"Receive failed: {ex.Message}" };
             }
             finally
             {
@@ -249,31 +248,6 @@ namespace Wombat.IndustrialCommunication
             }
 
             Logger?.LogDebug(message, args);
-        }
-
-        public OperationResult Connect()
-        {
-            ValidateNotDisposed();
-
-            if (Connected)
-                return OperationResult.CreateSuccessResult();
-
-            return ConnectAsync().GetAwaiter().GetResult();
-        }
-
-        public OperationResult Disconnect()
-        {
-            ValidateNotDisposed();
-
-            try
-            {
-                CloseConnection();
-                return OperationResult.CreateSuccessResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Disconnect failed: {ex.Message}");
-            }
         }
 
         public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
@@ -301,18 +275,18 @@ namespace Wombat.IndustrialCommunication
             }
             catch (OperationCanceledException) when (timeoutCts?.IsCancellationRequested == true)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult($"Connection timeout after {_connectTimeout.TotalMilliseconds}ms");
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.ConnectTimeout, Message = $"Connection timeout after {_connectTimeout.TotalMilliseconds}ms" };
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult("Connection was cancelled by user");
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Connection was cancelled by user" };
             }
             catch (Exception ex)
             {
-                CloseConnection();
-                return OperationResult.CreateFailedResult($"Connection failed: {ex.Message}");
+                await CloseConnectionAsync().ConfigureAwait(false);
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Exception = ex, Message = $"Connection failed: {ex.Message}" };
             }
             finally
             {
@@ -327,7 +301,7 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                CloseConnection();
+                await CloseConnectionAsync().ConfigureAwait(false);
                 return OperationResult.CreateSuccessResult();
             }
             catch (Exception ex)
@@ -343,33 +317,31 @@ namespace Wombat.IndustrialCommunication
 
             try
             {
-                CloseConnection();
+                _ = CloseConnectionAsync();
             }
             catch { }
         }
 
-        private void CloseConnection()
+        private async Task CloseConnectionAsync()
         {
-            Volatile.Write(ref _connected, 0);
-
+            await _lifecycleGate.WaitAsync().ConfigureAwait(false);
             try
             {
-                _stream?.Dispose();
-            }
-            catch { }
-            finally
-            {
+                Volatile.Write(ref _connected, 0);
+
+                try { _stream?.Dispose(); } catch { }
                 _stream = null;
-            }
 
-            try
-            {
-                _connection?.CloseAsync().GetAwaiter().GetResult();
+                var connection = _connection;
+                _connection = null;
+                if (connection != null)
+                {
+                    try { await connection.CloseAsync().ConfigureAwait(false); } catch { }
+                }
             }
-            catch { }
             finally
             {
-                _connection = null;
+                _lifecycleGate.Release();
             }
         }
 
@@ -386,7 +358,10 @@ namespace Wombat.IndustrialCommunication
 
             if (disposing)
             {
-                CloseConnection();
+                Volatile.Write(ref _connected, 0);
+                try { _stream?.Dispose(); } catch { }
+                _stream = null;
+                _connection = null;
             }
 
             _disposed = true;

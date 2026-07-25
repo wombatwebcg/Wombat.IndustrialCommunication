@@ -119,7 +119,8 @@ namespace Wombat.IndustrialCommunication
 
         #region Private Fields
 
-        private readonly AsyncLock _lock = new AsyncLock();
+        private readonly SemaphoreSlim _ioGate = new SemaphoreSlim(1, 1);
+        private readonly SemaphoreSlim _lifecycleGate = new SemaphoreSlim(1, 1);
         private SerialPort _serialPort;
         private bool _disposed;
 
@@ -173,7 +174,8 @@ namespace Wombat.IndustrialCommunication
             if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
             if (offset + size > buffer.Length) throw new ArgumentException("Invalid offset or size");
 
-            using (await _lock.LockAsync())
+            await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 try
                 {
@@ -201,6 +203,7 @@ namespace Wombat.IndustrialCommunication
                     return OperationResult.CreateFailedResult(errorMessage);
                 }
             }
+            finally { _ioGate.Release(); }
         }
 
         /// <summary>
@@ -214,7 +217,8 @@ namespace Wombat.IndustrialCommunication
             if (size < 0) throw new ArgumentOutOfRangeException(nameof(size));
             if (offset + size > buffer.Length) throw new ArgumentException("Invalid offset or size");
 
-            using (await _lock.LockAsync())
+            await _ioGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
             {
                 try
                 {
@@ -242,28 +246,23 @@ namespace Wombat.IndustrialCommunication
                     return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ex };
                 }
             }
+            finally { _ioGate.Release(); }
         }
 
         /// <summary>
         /// 连接串口
         /// </summary>
-        public OperationResult Connect() => ConnectAsync().GetAwaiter().GetResult();
-
-        /// <summary>
-        /// 断开串口连接
-        /// </summary>
-        public OperationResult Disconnect() => DisconnectAsync().GetAwaiter().GetResult();
-
-        /// <summary>
-        /// 异步连接串口
-        /// </summary>
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
+            if (cancellationToken.IsCancellationRequested)
+                return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Serial connection was cancelled" };
 
             var result = new OperationResult();
+            await _lifecycleGate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
+                cancellationToken.ThrowIfCancellationRequested();
                 _serialPort.PortName = PortName;
                 _serialPort.BaudRate = BaudRate;
                 _serialPort.Parity = Parity;
@@ -277,6 +276,7 @@ namespace Wombat.IndustrialCommunication
                 }
 
                 _serialPort.Open();
+                cancellationToken.ThrowIfCancellationRequested();
                 result.IsSuccess = _serialPort.IsOpen;
                 
                 if (result.IsSuccess)
@@ -284,22 +284,31 @@ namespace Wombat.IndustrialCommunication
                     Logger?.LogInformation("Successfully connected to serial port {PortName}", PortName);
                 }
             }
+            catch (OperationCanceledException ex)
+            {
+                if (_serialPort.IsOpen) _serialPort.Close();
+                return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Exception = ex, Message = "Serial connection was cancelled" };
+            }
             catch (Exception ex)
             {
                 result.Message = ex.Message;
+                result.Exception = ex;
+                result.FailureKind = OperationFailureKind.TransportFailure;
                 Logger?.LogError(ex, "Failed to connect to serial port {PortName}", PortName);
             }
+            finally { _lifecycleGate.Release(); }
             return result;
         }
 
         /// <summary>
         /// 异步断开串口连接
         /// </summary>
-        public Task<OperationResult> DisconnectAsync()
+        public async Task<OperationResult> DisconnectAsync()
         {
             if (_disposed) throw new ObjectDisposedException(nameof(SerialPortAdapter));
 
             var result = new OperationResult();
+            await _lifecycleGate.WaitAsync().ConfigureAwait(false);
             try
             {
                 if (_serialPort.IsOpen)
@@ -312,9 +321,12 @@ namespace Wombat.IndustrialCommunication
             catch (Exception ex)
             {
                 result.Message = ex.Message;
+                result.Exception = ex;
+                result.FailureKind = OperationFailureKind.TransportFailure;
                 Logger?.LogError(ex, "Failed to disconnect from serial port {PortName}", PortName);
             }
-            return Task.FromResult(result);
+            finally { _lifecycleGate.Release(); }
+            return result;
         }
 
         /// <summary>

@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -9,7 +10,16 @@ namespace Wombat.IndustrialCommunication
 
     public delegate void LoggerDelegate(string name, Exception ex = null);
 
-    public interface IClient: IClientConfiguration
+    public interface IProtocolClient
+    {
+        bool Connected { get; }
+
+        Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default);
+
+        Task<OperationResult> DisconnectAsync();
+    }
+
+    public interface IClient: IClientConfiguration, IProtocolClient
     {
         string Version { get; }
 
@@ -17,15 +27,7 @@ namespace Wombat.IndustrialCommunication
 
         bool IsLongConnection { get; set; }
 
-        bool Connected { get; }
-
-        OperationResult Connect();
-
         OperationResult Disconnect();
-
-        Task<OperationResult> ConnectAsync();
-
-        Task<OperationResult> DisconnectAsync();
 
 
 

@@ -150,6 +150,25 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
+        public async Task TcpServerAdapter_Should_Close_Configured_Idle_Session()
+        {
+            int port = GetFreePort();
+            using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port)
+            {
+                IdleSessionTimeout = TimeSpan.FromMilliseconds(100)
+            };
+            INetworkSession disconnected = null;
+            adapter.ClientDisconnected += (sender, args) => disconnected = args.Session;
+
+            Assert.True((await adapter.ListenAsync()).IsSuccess);
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+
+            await WaitUntilAsync(() => disconnected != null).ConfigureAwait(false);
+            Assert.NotNull(disconnected);
+        }
+
+        [Fact]
         public async Task ServerMessageTransport_Should_Close_Client_When_Request_Backlog_Is_Full()
         {
             int port = GetFreePort();

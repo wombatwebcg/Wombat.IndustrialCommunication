@@ -11,6 +11,69 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
     public class TcpClientAdapterTimeoutTests
     {
         [Fact]
+        public async Task ConnectAsync_WithCancelledToken_ReturnsStructuredCancellation()
+        {
+            using (var adapter = new TcpClientAdapter("127.0.0.1", 1))
+            using (var cancellation = new CancellationTokenSource())
+            {
+                cancellation.Cancel();
+
+                var result = await adapter.ConnectAsync(cancellation.Token).ConfigureAwait(false);
+
+                Assert.False(result.IsSuccess);
+                Assert.True(result.IsCancelled);
+                Assert.Equal(OperationFailureKind.Cancelled, result.FailureKind);
+                Assert.False(adapter.Connected);
+            }
+        }
+
+        [Fact]
+        public async Task ReceiveCancellation_DoesNotCloseConnection()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var serverTask = listener.AcceptTcpClientAsync();
+
+            using (var adapter = new TcpClientAdapter("127.0.0.1", ((IPEndPoint)listener.LocalEndpoint).Port))
+            {
+                Assert.True((await adapter.ConnectAsync().ConfigureAwait(false)).IsSuccess);
+                using (var server = await serverTask.ConfigureAwait(false))
+                using (var cancellation = new CancellationTokenSource(50))
+                {
+                    var result = await adapter.Receive(new byte[1], 0, 1, cancellation.Token).ConfigureAwait(false);
+
+                    Assert.False(result.IsSuccess);
+                    Assert.True(result.IsCancelled);
+                    Assert.Equal(OperationFailureKind.Cancelled, result.FailureKind);
+                    Assert.True(adapter.Connected);
+                }
+            }
+
+            listener.Stop();
+        }
+
+        [Fact]
+        public async Task ConcurrentDisconnect_IsIdempotent()
+        {
+            var listener = new TcpListener(IPAddress.Loopback, 0);
+            listener.Start();
+            var serverTask = listener.AcceptTcpClientAsync();
+
+            using (var adapter = new TcpClientAdapter("127.0.0.1", ((IPEndPoint)listener.LocalEndpoint).Port))
+            {
+                Assert.True((await adapter.ConnectAsync().ConfigureAwait(false)).IsSuccess);
+                using (var server = await serverTask.ConfigureAwait(false))
+                {
+                    var results = await Task.WhenAll(adapter.DisconnectAsync(), adapter.DisconnectAsync(), adapter.DisconnectAsync()).ConfigureAwait(false);
+                    Assert.All(results, result => Assert.True(result.IsSuccess, result.Message));
+                    Assert.False(adapter.Connected);
+                }
+            }
+
+            listener.Stop();
+        }
+
+        [Fact]
         public async Task ReceiveTimeout_ShouldCloseConnection()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
@@ -34,6 +97,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
                 var timeoutBuffer = new byte[11];
                 var firstReceive = await adapter.Receive(timeoutBuffer, 0, timeoutBuffer.Length, CancellationToken.None).ConfigureAwait(false);
                 Assert.False(firstReceive.IsSuccess);
+                Assert.Equal(OperationFailureKind.ReceiveTimeout, firstReceive.FailureKind);
                 Assert.False(string.IsNullOrWhiteSpace(firstReceive.Message));
                 Assert.False(adapter.Connected);
             }

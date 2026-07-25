@@ -16,7 +16,17 @@ namespace Wombat.IndustrialCommunication
         Cancelled = 4,
         Validation = 5,
         Protocol = 6,
-        Business = 7
+        Business = 7,
+        InvalidConfiguration = 8,
+        InvalidAddress = 9,
+        QueueTimeout = 10,
+        ConnectTimeout = 11,
+        SendTimeout = 12,
+        ReceiveTimeout = 13,
+        TransportFailure = 14,
+        ProtocolViolation = 15,
+        DeviceRejected = 16,
+        OutcomeUnknown = 17
     }
 
     /// <summary>
@@ -256,7 +266,7 @@ namespace Wombat.IndustrialCommunication
             var result = new OperationResult<T>()
             {
                 IsSuccess = false,
-                ErrorCode = -1,
+                ErrorCode = orgin.ErrorCode,
                 Exception = orgin.Exception,
                 FailureKind = orgin.FailureKind,
                 Responses = orgin.Responses,
@@ -280,7 +290,7 @@ namespace Wombat.IndustrialCommunication
             var result = new OperationResult<T>()
             {
                 IsSuccess = false,
-                ErrorCode = -1,
+                ErrorCode = orgin.ErrorCode,
                 Exception = orgin.Exception,
                 FailureKind = orgin.FailureKind,
                 Responses = orgin.Responses,

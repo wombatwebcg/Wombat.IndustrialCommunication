@@ -6,10 +6,8 @@ using System.Linq;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.IndustrialCommunication.ConnectionPool.Core;
-using Wombat.IndustrialCommunication.ConnectionPool.Factories;
-using Wombat.IndustrialCommunication.ConnectionPool.Models;
 using Wombat.IndustrialCommunication.PLC;
+using Wombat.IndustrialCommunication.Servers;
 
 namespace Wombat.IndustrialCommunication.ServerTest
 {
@@ -26,8 +24,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
 
         private static ILoggerFactory? _loggerFactory;
         private static ILogger? _logger;
-        private static DeviceServerPool? _serverPool;
-        private static ConnectionIdentity[]? _identities;
+        private static ServerHost[]? _hosts;
 
         private static async Task Main()
         {
@@ -42,10 +39,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
             {
                 _loggerFactory = CreateLoggerFactory();
                 _logger = _loggerFactory.CreateLogger("S7HundredServerPool");
-                _serverPool = CreateServerPool();
-                _identities = Enumerable.Range(0, ServerCount).Select(CreateIdentity).ToArray();
-
-                RegisterServers();
+                _hosts = Enumerable.Range(0, ServerCount).Select(CreateHost).ToArray();
                 await StartServersAsync(stop.Token).ConfigureAwait(false);
                 await InitializeServersAsync().ConfigureAwait(false);
 
@@ -83,51 +77,31 @@ namespace Wombat.IndustrialCommunication.ServerTest
             });
         }
 
-        private static DeviceServerPool CreateServerPool()
+        private static ServerHost CreateHost(int index)
         {
-            return new DeviceServerPool(
-                new ConnectionPoolOptions
-                {
-                    MaxConnections = ServerCount + 10,
-                    MaxRetryCount = 1,
-                    RetryBackoff = TimeSpan.FromMilliseconds(200),
-                    EnableBackgroundMaintenance = false
-                },
-                new DefaultPooledDeviceServerConnectionFactory());
-        }
-
-        private static void RegisterServers()
-        {
-            var identities = _identities ?? Array.Empty<ConnectionIdentity>();
-            foreach (var identity in identities)
+            var server = new S7TcpServer(Ip, BasePort + index)
             {
-                EnsureSuccess(_serverPool!.Register(CreateDescriptor(identity)), "注册 S7 服务端失败: " + identity.DeviceId);
-            }
+                MaxConnections = 10,
+                ConnectTimeout = TimeSpan.FromMilliseconds(OperationTimeoutMilliseconds),
+                ReceiveTimeout = TimeSpan.FromMilliseconds(OperationTimeoutMilliseconds),
+                SendTimeout = TimeSpan.FromMilliseconds(OperationTimeoutMilliseconds)
+            };
+            return new ServerHost("s7-server-" + index, server);
         }
 
         private static async Task StartServersAsync(CancellationToken cancellationToken)
         {
-            var identities = _identities ?? Array.Empty<ConnectionIdentity>();
-            foreach (var identity in identities)
+            foreach (var host in _hosts ?? Array.Empty<ServerHost>())
             {
-                EnsureSuccess(await _serverPool!.StartAsync(identity, cancellationToken).ConfigureAwait(false), "启动 S7 服务端失败: " + identity.DeviceId);
+                EnsureSuccess(await host.StartAsync(cancellationToken).ConfigureAwait(false), "启动 S7 服务端失败: " + host.Id);
             }
         }
 
         private static async Task InitializeServersAsync()
         {
-            var identities = _identities ?? Array.Empty<ConnectionIdentity>();
-            foreach (var identity in identities)
+            foreach (var host in _hosts ?? Array.Empty<ServerHost>())
             {
-                EnsureSuccess(
-                    await _serverPool!.ExecuteAsync(
-                        identity,
-                        server =>
-                        {
-                            if (server is not S7TcpServer s7Server)
-                            {
-                                return Task.FromResult(OperationResult.CreateFailedResult("当前连接不是 S7TcpServer"));
-                            }
+                var s7Server = (S7TcpServer)host.Server;
 
                             s7Server.SetSiemensVersion(SiemensVersion.S7_1200);
                             s7Server.SetRackSlot(0, 0);
@@ -140,25 +114,19 @@ namespace Wombat.IndustrialCommunication.ServerTest
                             s7Server.DataWritten -= HandleS7DataWritten;
                             s7Server.DataWritten += HandleS7DataWritten;
 
-                            var createDbResult = s7Server.CreateDataBlock(1, 4096);
-                            return Task.FromResult(createDbResult.IsSuccess
-                                ? OperationResult.CreateSuccessResult("S7 服务端初始化完成")
-                                : OperationResult.CreateFailedResult("创建 S7 DB1 失败: " + BuildErrorMessage(createDbResult)));
-                        }).ConfigureAwait(false),
-                    "初始化 S7 服务端失败: " + identity.DeviceId);
+                EnsureSuccess(s7Server.CreateDataBlock(1, 4096), "初始化 S7 服务端失败: " + host.Id);
             }
         }
 
         private static async Task RunRandomServerDropsAsync(CancellationToken cancellationToken)
         {
-            var identities = _identities ?? Array.Empty<ConnectionIdentity>();
-            var tasks = identities
-                .Select((identity, index) => RunServerRandomDropsAsync(index, identity, cancellationToken))
+            var tasks = (_hosts ?? Array.Empty<ServerHost>())
+                .Select((host, index) => RunServerRandomDropsAsync(index, host, cancellationToken))
                 .ToArray();
             await Task.WhenAll(tasks).ConfigureAwait(false);
         }
 
-        private static async Task RunServerRandomDropsAsync(int index, ConnectionIdentity identity, CancellationToken cancellationToken)
+        private static async Task RunServerRandomDropsAsync(int index, ServerHost host, CancellationToken cancellationToken)
         {
             var random = new Random(unchecked(Environment.TickCount * 31 + index));
 
@@ -180,7 +148,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
                     }
 
                     var downTime = TimeSpan.FromMilliseconds(random.Next(MinDropDurationMilliseconds, MaxDropDurationMilliseconds));
-                    await DropServerAsync(identity, downTime, cancellationToken).ConfigureAwait(false);
+                    await DropServerAsync(index, host, downTime, cancellationToken).ConfigureAwait(false);
                 }
 
                 var nextWindowDelay = windowStartedAtUtc.AddMilliseconds(DropWindowMilliseconds) - DateTime.UtcNow;
@@ -191,51 +159,21 @@ namespace Wombat.IndustrialCommunication.ServerTest
             }
         }
 
-        private static async Task DropServerAsync(ConnectionIdentity identity, TimeSpan downTime, CancellationToken cancellationToken)
+        private static async Task DropServerAsync(int index, ServerHost host, TimeSpan downTime, CancellationToken cancellationToken)
         {
             var logger = _logger ?? throw new InvalidOperationException("日志未初始化");
-            logger.LogWarning("随机掉线: {DeviceId} {Endpoint}, downtimeMs={DowntimeMs}", identity.DeviceId, identity.Endpoint, downTime.TotalMilliseconds);
+            logger.LogWarning("随机掉线: {DeviceId}, downtimeMs={DowntimeMs}", host.Id, downTime.TotalMilliseconds);
 
-            EnsureSuccess(await _serverPool!.StopAsync(identity, "随机掉线", cancellationToken).ConfigureAwait(false), "停止 S7 服务端失败: " + identity.DeviceId);
-            logger.LogWarning("停机后 TCP 探测: {DeviceId} {Endpoint}, canConnect={CanConnect}", identity.DeviceId, identity.Endpoint, await CanConnectAsync(identity, cancellationToken).ConfigureAwait(false));
+            EnsureSuccess(await host.StopAsync().ConfigureAwait(false), "停止 S7 服务端失败: " + host.Id);
+            logger.LogWarning("停机后 TCP 探测: {DeviceId}, canConnect={CanConnect}", host.Id, await CanConnectAsync(index, cancellationToken).ConfigureAwait(false));
             await Task.Delay(downTime, cancellationToken).ConfigureAwait(false);
-            EnsureSuccess(await _serverPool.StartAsync(identity, cancellationToken).ConfigureAwait(false), "恢复 S7 服务端失败: " + identity.DeviceId);
-            logger.LogInformation("恢复后 TCP 探测: {DeviceId} {Endpoint}, canConnect={CanConnect}", identity.DeviceId, identity.Endpoint, await CanConnectAsync(identity, cancellationToken).ConfigureAwait(false));
+            EnsureSuccess(await host.StartAsync(cancellationToken).ConfigureAwait(false), "恢复 S7 服务端失败: " + host.Id);
+            logger.LogInformation("恢复后 TCP 探测: {DeviceId}, canConnect={CanConnect}", host.Id, await CanConnectAsync(index, cancellationToken).ConfigureAwait(false));
 
-            logger.LogInformation("已恢复: {DeviceId} {Endpoint}", identity.DeviceId, identity.Endpoint);
+            logger.LogInformation("已恢复: {DeviceId}", host.Id);
         }
 
-        private static ResourceDescriptor CreateDescriptor(ConnectionIdentity identity)
-        {
-            return new ResourceDescriptor
-            {
-                Identity = identity,
-                ResourceRole = ResourceRole.Server,
-                ConnectionType = DeviceConnectionType.SiemensS7.ToString(),
-                DeviceConnectionType = DeviceConnectionType.SiemensS7,
-                ConnectionParameters = new SiemensS7ServerConnectionParameters
-                {
-                    Ip = Ip,
-                    Port = BasePort + int.Parse(identity.DeviceId.Substring("s7-server-".Length)),
-                    MaxConnections = 10,
-                    ConnectTimeoutMilliseconds = OperationTimeoutMilliseconds,
-                    ReceiveTimeoutMilliseconds = OperationTimeoutMilliseconds,
-                    SendTimeoutMilliseconds = OperationTimeoutMilliseconds
-                }
-            };
-        }
-
-        private static ConnectionIdentity CreateIdentity(int index)
-        {
-            return new ConnectionIdentity
-            {
-                DeviceId = "s7-server-" + index,
-                ProtocolType = "SiemensS7",
-                Endpoint = Ip + ":" + (BasePort + index)
-            };
-        }
-
-        private static async Task<bool> CanConnectAsync(ConnectionIdentity identity, CancellationToken cancellationToken)
+        private static async Task<bool> CanConnectAsync(int index, CancellationToken cancellationToken)
         {
             using var client = new TcpClient();
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -243,7 +181,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
 
             try
             {
-                await client.ConnectAsync(Ip, BasePort + int.Parse(identity.DeviceId.Substring("s7-server-".Length)), timeout.Token).ConfigureAwait(false);
+                await client.ConnectAsync(Ip, BasePort + index, timeout.Token).ConfigureAwait(false);
                 return true;
             }
             catch
@@ -321,20 +259,18 @@ namespace Wombat.IndustrialCommunication.ServerTest
 
         private static void DisposeResources()
         {
-            if (_serverPool != null && _identities != null)
+            if (_hosts != null)
             {
-                foreach (var identity in _identities)
+                foreach (var host in _hosts)
                 {
                     try
                     {
-                        _serverPool.Stop(identity, "测试程序退出，停止 S7 服务端");
+                        host.Dispose();
                     }
                     catch
                     {
                     }
                 }
-
-                _serverPool.Dispose();
             }
 
             _loggerFactory?.Dispose();

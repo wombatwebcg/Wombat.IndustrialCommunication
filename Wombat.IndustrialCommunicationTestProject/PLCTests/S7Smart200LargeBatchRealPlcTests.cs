@@ -25,7 +25,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
-        private const int StableReconnectDelaySeconds = 1;
         private const int StressLoopCount = 20;
 
         private readonly ITestOutputHelper _output;
@@ -71,9 +70,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 ReceiveTimeout = TimeSpan.FromSeconds(OperationTimeoutSeconds),
                 SendTimeout = TimeSpan.FromSeconds(OperationTimeoutSeconds),
                 IsLongConnection = true,
-                EnableAutoReconnect = true,
-                ReconnectDelay = TimeSpan.FromSeconds(StableReconnectDelaySeconds),
-                DirtyResponseRetryAttempts = 1
             };
         }
 

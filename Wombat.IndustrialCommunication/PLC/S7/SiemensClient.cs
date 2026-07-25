@@ -16,26 +16,8 @@ namespace Wombat.IndustrialCommunication.PLC
         
         public IPEndPoint IPEndPoint { get; private set; }
         
-        // 是否启用自动重连
-        public bool EnableAutoReconnect { get; set; } = true;
-        
-        // 最大自动重连次数
-        public int MaxReconnectAttempts { get; set; } = 3;
-        
-        // 重连等待时间
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(5);
-        
         // 连接检查间隔
         public TimeSpan ConnectionCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
-        
-        // 短连接模式下的最大重连次数
-        public int ShortConnectionReconnectAttempts { get; set; } = 1;
-
-        // 检测到脏响应后，丢弃当前连接并重试的次数
-        public int DirtyResponseRetryAttempts { get; set; } = 1;
-        
-        // 上次重连尝试时间
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
         
         public SiemensClient(string ip, int port, SiemensVersion siemensVersion, byte slot = 0, byte rack = 0)
             :base(new S7EthernetTransport(new TcpClientAdapter(ip, port)))
@@ -180,9 +162,9 @@ namespace Wombat.IndustrialCommunication.PLC
             return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
         }
 
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
-            using (await _lock.LockAsync())
+            using (await _lock.LockAsync(cancellationToken))
             {
                 // 已经连接，直接返回成功
                 if (Connected)
@@ -200,7 +182,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     var tcpConnectStartTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result =await  _tcpClientAdapter.ConnectAsync();
+                    var result =await  _tcpClientAdapter.ConnectAsync(cancellationToken);
                     
                     var tcpConnectTime = (DateTime.Now - tcpConnectStartTime).TotalMilliseconds;
                     Logger?.LogDebug("TCP连接耗时：{TcpConnectTime}ms", tcpConnectTime);
@@ -210,7 +192,7 @@ namespace Wombat.IndustrialCommunication.PLC
                         // 连接成功后初始化S7协议
                         
                         var initStartTime = DateTime.Now;
-                        var initResult = await InitWithoutLockAsync(ConnectTimeout);
+                        var initResult = await InitWithoutLockAsync(ConnectTimeout, cancellationToken);
                         var initTime = (DateTime.Now - initStartTime).TotalMilliseconds;
                         Logger?.LogDebug("S7协议初始化耗时：{InitTime}ms，超时设置：{InitTimeout}ms", initTime, ConnectTimeout);
                         
@@ -238,6 +220,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     
                     return result;
                 }
+                catch (OperationCanceledException) { throw; }
                 catch (Exception ex)
                 {
                     Logger?.LogError(ex, "连接西门子PLC时发生异常，地址：{Address}:{Port}", IPEndPoint.Address, IPEndPoint.Port);
@@ -296,83 +279,13 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        /// <summary>
-        /// 检查连接状态并在必要时自动重连
-        /// </summary>
-        /// <returns>连接操作结果</returns>
-        public async Task<OperationResult> CheckAndReconnectAsync()
-        {
-            // 如果已连接，直接返回成功
-            if (Connected)
-            {
-                return OperationResult.CreateSuccessResult("连接正常");
-            }
-            
-            // 如果未启用自动重连，返回失败
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("未启用自动重连");
-            }
-            
-            // 检查重连间隔
-            var now = DateTime.Now;
-            if ((now - _lastReconnectAttempt) < ReconnectDelay)
-            {
-                return OperationResult.CreateFailedResult("重连间隔未到");
-            }
-            
-            // 记录重连尝试时间
-            _lastReconnectAttempt = now;
-            
-            Logger?.LogInformation("尝试重连西门子PLC，地址：{Address}:{Port}", IPEndPoint.Address, IPEndPoint.Port);
-            
-            // 执行重连
-            return await ConnectAsync();
-        }
-
-        private async Task<OperationResult> ResetDirtyConnectionAsync(string reason)
-        {
-            try
-            {
-                Logger?.LogWarning("检测到S7协议同步异常，准备重置连接，原因：{Reason}", reason);
-                _tcpClientAdapter?.StreamClose();
-            }
-            catch (Exception ex)
-            {
-                Logger?.LogWarning(ex, "关闭S7连接以丢弃脏响应时发生异常，原因：{Reason}", reason);
-            }
-
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("检测到S7协议同步异常，但未启用自动重连");
-            }
-
-            _lastReconnectAttempt = DateTime.MinValue;
-            return await ConnectAsync().ConfigureAwait(false);
-        }
-
-        private async Task HandleProtocolSynchronizationFailureAsync(string operation, string address, string reason)
+        private Task HandleProtocolSynchronizationFailureAsync(string operation, string address, string reason)
         {
             Logger?.LogWarning(
                 "S7{Operation}检测到协议同步异常，地址：{Address}，原因：{Reason}，准备废弃当前连接",
                 operation,
                 address,
                 reason);
-
-            if (IsLongConnection)
-            {
-                var reconnectResult = await ResetDirtyConnectionAsync(reason).ConfigureAwait(false);
-                if (!reconnectResult.IsSuccess)
-                {
-                    Logger?.LogWarning(
-                        "S7{Operation}协议同步异常后重置连接失败，地址：{Address}，错误：{Error}",
-                        operation,
-                        address,
-                        reconnectResult.Message);
-                }
-
-                return;
-            }
 
             try
             {
@@ -382,27 +295,7 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 Logger?.LogWarning(ex, "S7{Operation}协议同步异常后关闭短连接失败，地址：{Address}", operation, address);
             }
-        }
-
-        private bool ShouldReconnectAfterFailure(OperationResult result)
-        {
-            if (result == null || result.IsSuccess)
-            {
-                return false;
-            }
-
-            return S7Communication.IsProtocolSynchronizationFailure(result) || !Connected;
-        }
-
-        private async Task<OperationResult> ReconnectAfterFailureAsync(string reason)
-        {
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult($"连接异常后无法自动重连: {reason}");
-            }
-
-            _lastReconnectAttempt = DateTime.MinValue;
-            return await ConnectAsync().ConfigureAwait(false);
+            return Task.CompletedTask;
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
@@ -414,21 +307,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>($"S7客户端自动重连失败，无法读取数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
-                    }
+                    return OperationResult.CreateFailedResult<byte[]>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
                 }
                 
                 try
@@ -518,21 +399,9 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "S7客户端自动重连失败，无法写入数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "客户端没有连接");
                 }
                 
                 try
@@ -625,95 +494,28 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("S7客户端自动重连失败，无法批量读取数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
-                    }
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"S7客户端没有连接 ip:{IPEndPoint.Address}");
                 }
 
-                var attempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
-                OperationResult<Dictionary<string, (DataTypeEnums, object)>> lastResult = null;
-
-                for (int attempt = 1; attempt <= attempts; attempt++)
-                {
-                    var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
-                    LogBatchReadDispatch(result);
-                    if (result.IsSuccess)
-                    {
-                        return result;
-                    }
-
-                    lastResult = result;
-                    if (attempt >= attempts || !ShouldReconnectAfterFailure(result))
-                    {
-                        return result;
-                    }
-
-                    var reconnectResult = await ReconnectAfterFailureAsync(result.Message).ConfigureAwait(false);
-                    if (!reconnectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"批量读取失败后重连失败：{reconnectResult.Message}");
-                    }
-
-                    Logger?.LogWarning("批量读取失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
-                }
-
-                return lastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("批量读取失败");
+                var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
+                LogBatchReadDispatch(result);
+                return result;
             }
 
-            var shortAttempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
-            OperationResult<Dictionary<string, (DataTypeEnums, object)>> shortLastResult = null;
-
-            for (int attempt = 1; attempt <= shortAttempts; attempt++)
+            try
             {
-                try
+                await DisconnectAsync().ConfigureAwait(false);
+                var connectResult = await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                if (!connectResult.IsSuccess)
                 {
-                    await DisconnectAsync().ConfigureAwait(false);
-
-                    var connectResult = await ConnectAsync().ConfigureAwait(false);
-                    if (!connectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接模式连接失败：{connectResult.Message}");
-                    }
-
-                    var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
-                    LogBatchReadDispatch(result);
-                    shortLastResult = result;
-
-                    if (result.IsSuccess || attempt >= shortAttempts || !ShouldReconnectAfterFailure(result))
-                    {
-                        return result;
-                    }
-
-                    Logger?.LogWarning("短连接模式批量读取失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接模式连接失败：{connectResult.Message}");
                 }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "短连接模式批量读取S7数据时发生异常");
-                    return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接批量读取失败：{ex.Message}");
-                }
-                finally
-                {
-                    try
-                    {
-                        await DisconnectAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger?.LogWarning(ex, "短连接模式批量读取后断开连接时发生异常");
-                    }
-                }
+                var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
+                LogBatchReadDispatch(result);
+                return result;
             }
-
-            return shortLastResult ?? OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("短连接批量读取失败");
+            catch (Exception ex) { return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>(ex); }
+            finally { await DisconnectAsync().ConfigureAwait(false); }
         }
 
         public override async ValueTask<OperationResult> BatchWriteAsync(Dictionary<string, (DataTypeEnums, object)> addresses, CancellationToken cancellationToken = default)
@@ -722,95 +524,28 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "S7客户端自动重连失败，无法批量写入数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"S7客户端没有连接 ip:{IPEndPoint.Address}");
-                    }
+                    return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"S7客户端没有连接 ip:{IPEndPoint.Address}");
                 }
 
-                var attempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
-                OperationResult lastResult = null;
-
-                for (int attempt = 1; attempt <= attempts; attempt++)
-                {
-                    var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
-                    LogBatchWriteDispatch(result);
-                    if (result.IsSuccess)
-                    {
-                        return result;
-                    }
-
-                    lastResult = result;
-                    if (attempt >= attempts || !ShouldReconnectAfterFailure(result))
-                    {
-                        return result;
-                    }
-
-                    var reconnectResult = await ReconnectAfterFailureAsync(result.Message).ConfigureAwait(false);
-                    if (!reconnectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"批量写入失败后重连失败：{reconnectResult.Message}");
-                    }
-
-                    Logger?.LogWarning("批量写入失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
-                }
-
-                return lastResult ?? OperationResult.CreateFailedResult(WriteErrorCodes.ProtocolException, "批量写入失败");
+                var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
+                LogBatchWriteDispatch(result);
+                return result;
             }
 
-            var shortAttempts = Math.Max(0, DirtyResponseRetryAttempts) + 1;
-            OperationResult shortLastResult = null;
-
-            for (int attempt = 1; attempt <= shortAttempts; attempt++)
+            try
             {
-                try
+                await DisconnectAsync().ConfigureAwait(false);
+                var connectResult = await ConnectAsync(cancellationToken).ConfigureAwait(false);
+                if (!connectResult.IsSuccess)
                 {
-                    await DisconnectAsync().ConfigureAwait(false);
-
-                    var connectResult = await ConnectAsync().ConfigureAwait(false);
-                    if (!connectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
-                    }
-
-                    var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
-                    LogBatchWriteDispatch(result);
-                    shortLastResult = result;
-
-                    if (result.IsSuccess || attempt >= shortAttempts || !ShouldReconnectAfterFailure(result))
-                    {
-                        return result;
-                    }
-
-                    Logger?.LogWarning("短连接模式批量写入失败后准备整批重试，第 {Attempt} 次，原因：{Reason}", attempt + 1, result.Message);
+                    return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"短连接模式连接失败：{connectResult.Message}");
                 }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "短连接模式批量写入S7数据时发生异常");
-                    return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException);
-                }
-                finally
-                {
-                    try
-                    {
-                        await DisconnectAsync().ConfigureAwait(false);
-                    }
-                    catch (Exception ex)
-                    {
-                        Logger?.LogWarning(ex, "短连接模式批量写入后断开连接时发生异常");
-                    }
-                }
+                var result = await base.BatchWriteAsync(addresses, cancellationToken).ConfigureAwait(false);
+                LogBatchWriteDispatch(result);
+                return result;
             }
-
-            return shortLastResult ?? OperationResult.CreateFailedResult(WriteErrorCodes.ProtocolException, "短连接批量写入失败");
+            catch (Exception ex) { return OperationResult.CreateFailedResult(ex, WriteErrorCodes.ProtocolException); }
+            finally { await DisconnectAsync().ConfigureAwait(false); }
         }
 
         private void LogBatchReadDispatch(OperationResult<Dictionary<string, (DataTypeEnums, object)>> result)

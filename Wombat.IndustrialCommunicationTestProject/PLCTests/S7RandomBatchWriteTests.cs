@@ -228,7 +228,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task SiemensClient_BatchWriteAsync_OnProtocolSynchronizationFailure_ShouldReconnectAndRetryWholeBatch()
+        public async Task SiemensClient_BatchWriteAsync_OnProtocolSynchronizationFailure_ShouldReportOutcomeUnknownWithoutRetry()
         {
             using var server = new RetryOnceS7WriteTestServer();
             await server.StartAsync().ConfigureAwait(false);
@@ -240,9 +240,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     ConnectTimeout = TimeSpan.FromSeconds(2),
                     ReceiveTimeout = TimeSpan.FromSeconds(2),
                     SendTimeout = TimeSpan.FromSeconds(2),
-                    DirtyResponseRetryAttempts = 1,
                     IsLongConnection = true,
-                    EnableAutoReconnect = true
                 };
 
                 var connectResult = await client.ConnectAsync().ConfigureAwait(false);
@@ -254,9 +252,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                     ["VB2001"] = (DataTypeEnums.Byte, (object)(byte)0x6B)
                 }).ConfigureAwait(false);
 
-                Assert.True(result.IsSuccess, result.Message);
-                Assert.Equal(2, server.WriteRequestCount);
-                Assert.True(server.ConnectionCount >= 2, $"Expected reconnect, actual connections: {server.ConnectionCount}");
+                Assert.False(result.IsSuccess);
+                Assert.Equal(OperationFailureKind.OutcomeUnknown, result.FailureKind);
+                Assert.Equal(1, server.WriteRequestCount);
+                Assert.Equal(1, server.ConnectionCount);
             }
             finally
             {

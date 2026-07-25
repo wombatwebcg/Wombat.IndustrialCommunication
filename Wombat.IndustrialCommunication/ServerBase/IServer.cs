@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -32,6 +33,10 @@ namespace Wombat.IndustrialCommunication
         OperationResult Listen();
 
         OperationResult Shutdown();
+
+        Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken));
+
+        Task<OperationResult> ShutdownAsync();
 
 
 

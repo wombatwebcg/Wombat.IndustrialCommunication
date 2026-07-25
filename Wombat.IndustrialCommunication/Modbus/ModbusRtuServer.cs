@@ -161,13 +161,20 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns>操作结果</returns>
         public OperationResult Listen()
         {
+            return ListenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public async Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (EnableSnapshotPersistence)
             {
                 TryLoadSnapshot();
-                StartSnapshotTimer();
             }
 
-            return StartAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            var result = await StartAsync().ConfigureAwait(false);
+            if (result.IsSuccess && EnableSnapshotPersistence) StartSnapshotTimer();
+            return result;
         }
 
         /// <summary>
@@ -176,13 +183,18 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <returns>操作结果</returns>
         public OperationResult Shutdown()
         {
+            return ShutdownAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public async Task<OperationResult> ShutdownAsync()
+        {
             if (EnableSnapshotPersistence)
             {
                 TrySaveSnapshot(true);
                 StopSnapshotTimer();
             }
 
-            return StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return await StopAsync().ConfigureAwait(false);
         }
 
         /// <summary>

@@ -18,8 +18,6 @@ namespace Wombat.IndustrialCommunication
     {
         private AsyncLock _asyncLock = new AsyncLock();
         private IStreamResource _streamResource;
-        private int _retries = 2;
-        private TimeSpan _waitToRetryMilliseconds = TimeSpan.FromMilliseconds(100);
 
         public ILogger Logger { get; set; }
 
@@ -52,18 +50,14 @@ namespace Wombat.IndustrialCommunication
 
         public int Retries
         {
-            get { return _retries; }
-            set { _retries = value; }
+            get { return 0; }
+            set { }
         }
 
         public TimeSpan WaitToRetryMilliseconds
         {
-            get { return _waitToRetryMilliseconds; }
-            set
-            {
-
-                _waitToRetryMilliseconds = value;
-            }
+            get { return TimeSpan.Zero; }
+            set { }
         }
 
 
@@ -76,99 +70,25 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult<byte[]>> ReceiveResponseAsync(int offset, int length, CancellationToken cancellationToken)
         {
-            DebugLog("[DeviceMessageTransport调试] 开始接收响应: offset={Offset}, length={Length}", offset, length);
-            
             using (await _asyncLock.LockAsync(cancellationToken))
+            using (var timeoutCts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
             {
-                DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始接收数据");
-                
-                int attempt = 1;
-                bool success = false;
-                do
+                try
                 {
-                    DebugLog("[DeviceMessageTransport调试] 尝试第 {Attempt} 次接收", attempt);
-                    
-                    try
-                    {
-                        using (var timeoutCts = new CancellationTokenSource(_streamResource.ReceiveTimeout))
-                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
-                        {
-                            DebugLog("[DeviceMessageTransport调试] 设置接收超时: {ReceiveTimeout}ms", _streamResource.ReceiveTimeout);
-                            
-                            try
-                            {
-                                byte[] buffer = new byte[length];
-                                DebugLog("[DeviceMessageTransport调试] 创建缓冲区，大小: {Length} 字节", length);
-                                
-                                DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Receive");
-                                
-                                var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
-                                DebugLog("[DeviceMessageTransport调试] _streamResource.Receive 返回结果: IsSuccess={IsSuccess}", read?.IsSuccess);
-                                
-                                bool readAgain = true;
-                                do
-                                {
-                                    if (read?.IsSuccess ?? false)
-                                    {
-                                        DebugLog("[DeviceMessageTransport调试] 接收成功，数据: {Data}", string.Join(" ", buffer.Select(b => b.ToString("X2"))));
-                                        readAgain = false;
-                                        success = true;
-                                        return OperationResult.CreateSuccessResult(buffer);
-                                    }
-                                    else
-                                    {
-                                        DebugLog("[DeviceMessageTransport调试] 接收失败，尝试次数: {Attempt}, 最大重试次数: {Retries}", attempt, _retries);
-
-                                        if (!_streamResource.Connected)
-                                        {
-                                            return OperationResult.CreateFailedResult<byte[]>(read?.Message ?? "连接已断开");
-                                        }
-
-                                        if (attempt++ > _retries)
-                                        {
-                                            return OperationResult.CreateFailedResult<byte[]>($"读取设备失败,重试次数:{_retries},超时参数:{_streamResource.ReceiveTimeout.TotalMilliseconds}ms");
-                                        }
-                                        // 可选：等待一段时间后重试
-                                        await Task.Delay(WaitToRetryMilliseconds, cts.Token);
-                                    }
-                                } while (readAgain);
-                            }
-                            catch (OperationCanceledException)
-                            {
-                                return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
-                            }
-                            catch (ObjectDisposedException)
-                            {
-                                // 流被关闭引发的异常
-                                return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
-                            }
-                            catch (Exception e)
-                            {
-                                return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
-                            }
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        if (e is FormatException ||
-                            e is NotImplementedException ||
-                            e is TimeoutException ||
-                            e is IOException)
-                        {
-                            Debug.WriteLine("{0}, {1} retries remaining - {2}", e.GetType().Name, _retries - attempt + 1, e);
-
-                        }
-
-                        if (attempt++ > _retries)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>($"读取设备异常：{e.Message}");
-                        }
-                    }
-                } while (!success);
-                return OperationResult.CreateFailedResult<byte[]>();
-
+                    var buffer = new byte[length];
+                    var read = await _streamResource.Receive(buffer, offset, length, cts.Token);
+                    return read?.IsSuccess ?? false
+                        ? OperationResult.CreateSuccessResult(buffer)
+                        : OperationResult.CreateFailedResult<byte[]>(read);
+                }
+                catch (Exception exception)
+                {
+                    return OperationResult.CreateFailedResult<byte[]>(exception);
+                }
             }
         }
+
         public Task<OperationResult> SendRequestAsync(byte[] request)
         {
             return SendRequestAsync(request, CancellationToken.None);
@@ -176,96 +96,24 @@ namespace Wombat.IndustrialCommunication
 
         public async Task<OperationResult> SendRequestAsync(byte[] request, CancellationToken cancellationToken)
         {
-            DebugLog("[DeviceMessageTransport调试] 开始发送请求，数据长度: {RequestLength}", request?.Length ?? 0);
-            DebugLog("[DeviceMessageTransport调试] 请求数据: {RequestData}", string.Join(" ", request?.Select(b => b.ToString("X2")) ?? new string[0]));
-            
             using (await _asyncLock.LockAsync(cancellationToken))
+            using (var timeoutCts = new CancellationTokenSource(_streamResource.SendTimeout))
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
             {
-                DebugLog("[DeviceMessageTransport调试] 获得异步锁，开始发送数据");
-                
-                int attempt = 1;
-                bool success = false;
-                bool readAgain = true;
-                do
+                try
                 {
-                    DebugLog("[DeviceMessageTransport调试] 尝试第 {Attempt} 次发送", attempt);
-                    
-                    try
-                    {
-                        using (var timeoutCts = new CancellationTokenSource(_streamResource.SendTimeout))
-                        using (var cts = CancellationTokenSource.CreateLinkedTokenSource(timeoutCts.Token, cancellationToken))
-                        {
-                            DebugLog("[DeviceMessageTransport调试] 设置发送超时: {SendTimeout}ms", _streamResource.SendTimeout);
-                            
-                            var ss = _streamResource.SendTimeout;
-                            DebugLog("[DeviceMessageTransport调试] 开始调用 _streamResource.Send");
-                            
-                            var write = await _streamResource?.Send(request, 0, request.Length, cts.Token);
-                            DebugLog("[DeviceMessageTransport调试] _streamResource.Send 返回结果: IsSuccess={IsSuccess}", write?.IsSuccess);
-                            
-                            do
-                            {
-                                try
-                                {
-
-                                    if (write?.IsSuccess ?? false)
-                                    {
-                                        DebugLog("[DeviceMessageTransport调试] 发送成功");
-                                        readAgain = false;
-                                        success = true;
-                                        return OperationResult.CreateSuccessResult(write);
-                                    }
-                                    else
-                                    {
-                                        DebugLog("[DeviceMessageTransport调试] 发送失败，尝试次数: {Attempt}, 最大重试次数: {Retries}", attempt, _retries);
-                                        
-                                        if (attempt++ > _retries)
-                                        {
-                                            var retryResult = OperationResult.CreateFailedResult<byte[]>($"写入设备失败,重试次数:{_retries - attempt + 1},超时参数:{_streamResource.SendTimeout.TotalMilliseconds}");
-                                            retryResult.Requsts.Add(string.Join(" ", request.Select(t => t.ToString("X2"))));
-                                            return retryResult;
-                                        }
-                                    }
-                                }
-                                catch (OperationCanceledException)
-                                {
-                                    return OperationResult.CreateFailedResult<byte[]>("操作超时或被取消");
-                                }
-                                catch (ObjectDisposedException)
-                                {
-                                    // 流被关闭引发的异常
-                                    return OperationResult.CreateFailedResult<byte[]>("连接已关闭");
-                                }
-                                catch (Exception e)
-                                {
-                                    return OperationResult.CreateFailedResult<byte[]>($"操作失败：{e.Message}");
-                                }
-
-                            } while (readAgain);
-
-                        }
-                    }
-                    catch (Exception e)
-                    {
-                        if (e is FormatException ||
-                            e is NotImplementedException ||
-                            e is TimeoutException ||
-                            e is IOException)
-                        {
-                            Debug.WriteLine("{0}, {1} retries remaining - {2}", e.GetType().Name, _retries - attempt + 1, e);
-
-                        }
-
-                        if (attempt++ > _retries)
-                        {
-                            return OperationResult.CreateFailedResult($"写入设备异常：{e.Message}");
-                        }
-                    }
-                } while (!success);
-                return OperationResult.CreateFailedResult();
-
+                    var write = await _streamResource.Send(request, 0, request.Length, cts.Token);
+                    return write?.IsSuccess ?? false
+                        ? OperationResult.CreateSuccessResult(write)
+                        : OperationResult.CreateFailedResult(write);
+                }
+                catch (Exception exception)
+                {
+                    return OperationResult.CreateFailedResult(exception);
+                }
             }
         }
+
         public virtual Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request)
         {
             return UnicastReadMessageAsync(request, CancellationToken.None);
@@ -318,17 +166,21 @@ namespace Wombat.IndustrialCommunication
         public virtual async Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
         {
             OperationResult<IDeviceReadWriteMessage> result = new OperationResult<IDeviceReadWriteMessage>();
+            bool requestSent = false;
             try
             {
                 var commandRequest1 = await SendRequestAsync(request.ProtocolMessageFrame, cancellationToken);
                 result.Requsts.Add(string.Join(" ", request.ProtocolMessageFrame.Select(t => t.ToString("X2"))));
                 if (commandRequest1.IsSuccess)
                 {
+                    requestSent = true;
                     await Task.Delay(ResponseInterval, cancellationToken);
                     var response1Result = await ReceiveResponseAsync(0, request.ProtocolResponseLength, cancellationToken);
                     if (!response1Result.IsSuccess)
                     {
-                        return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                        var unknown = OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(response1Result);
+                        unknown.FailureKind = OperationFailureKind.OutcomeUnknown;
+                        return unknown;
                     }
                     result.Responses.Add(string.Join(" ", response1Result.ResultValue.Select(t => t.ToString("X2"))));
                     var package = response1Result.ResultValue;
@@ -346,10 +198,13 @@ namespace Wombat.IndustrialCommunication
             }
             catch (Exception ex)
             {
-                result.IsSuccess = false;
-                result.Message = ex.Message;
+                var failed = OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(ex);
+                if (requestSent)
+                {
+                    failed.FailureKind = OperationFailureKind.OutcomeUnknown;
+                }
+                return failed;
             }
-            return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
 
         }
 

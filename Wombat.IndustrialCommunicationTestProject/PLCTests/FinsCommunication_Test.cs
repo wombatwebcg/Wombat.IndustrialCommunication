@@ -536,15 +536,11 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             finsClient.Logger = _logger;
             
             // 设置自动重连参数
-            finsClient.EnableAutoReconnect = true;
-            finsClient.ReconnectDelay = TimeSpan.FromSeconds(1);
             finsClient.Retries = 3;
 
             try
             {
                 _output.WriteLine("测试自动重连机制");
-                _output.WriteLine($"自动重连: {finsClient.EnableAutoReconnect}");
-                _output.WriteLine($"重连延迟: {finsClient.ReconnectDelay.TotalSeconds}秒");
                 _output.WriteLine($"重试次数: {finsClient.Retries}");
                 
                 var connectResult = await finsClient.ConnectAsync();
@@ -619,23 +615,15 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 _output.WriteLine("测试重连参数配置");
                 
                 // 测试默认重连参数
-                _output.WriteLine($"默认自动重连: {finsClient.EnableAutoReconnect}");
-                _output.WriteLine($"默认重连延迟: {finsClient.ReconnectDelay.TotalSeconds}秒");
                 _output.WriteLine($"默认重试次数: {finsClient.Retries}");
                 
                 // 修改重连参数
-                finsClient.EnableAutoReconnect = true;
-                finsClient.ReconnectDelay = TimeSpan.FromSeconds(2);
                 finsClient.Retries = 5;
                 
                 _output.WriteLine("修改重连参数后:");
-                _output.WriteLine($"自动重连: {finsClient.EnableAutoReconnect}");
-                _output.WriteLine($"重连延迟: {finsClient.ReconnectDelay.TotalSeconds}秒");
                 _output.WriteLine($"重试次数: {finsClient.Retries}");
                 
                 // 验证参数设置
-                Assert.True(finsClient.EnableAutoReconnect, "自动重连应该被启用");
-                Assert.Equal(2, finsClient.ReconnectDelay.TotalSeconds);
                 Assert.Equal(5, finsClient.Retries);
                 
                 _output.WriteLine("重连参数配置测试通过");
@@ -2190,8 +2178,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
             // 验证默认配置
             Assert.True(finsClient.IsLongConnection, "默认应该是长连接模式");
-            Assert.True(finsClient.EnableAutoReconnect, "默认应该启用自动重连");
-            Assert.Equal(TimeSpan.FromSeconds(5), finsClient.ReconnectDelay);
             Assert.Equal(2, finsClient.Retries);
             Assert.Equal(TimeSpan.FromMilliseconds(100), finsClient.WaitToRetryMilliseconds);
             Assert.Equal(TimeSpan.FromMilliseconds(50), finsClient.ResponseInterval);
@@ -2200,23 +2186,17 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             _output.WriteLine($"端口: {finsClient.Port}");
             _output.WriteLine($"超时时间: {finsClient.Timeout}");
             _output.WriteLine($"是否长连接: {finsClient.IsLongConnection}");
-            _output.WriteLine($"是否启用自动重连: {finsClient.EnableAutoReconnect}");
-            _output.WriteLine($"重连延迟: {finsClient.ReconnectDelay}");
             _output.WriteLine($"重试次数: {finsClient.Retries}");
             _output.WriteLine($"重试等待时间: {finsClient.WaitToRetryMilliseconds}");
             _output.WriteLine($"响应间隔: {finsClient.ResponseInterval}");
 
             // 测试属性修改
             finsClient.IsLongConnection = false;
-            finsClient.EnableAutoReconnect = false;
-            finsClient.ReconnectDelay = TimeSpan.FromSeconds(10);
             finsClient.Retries = 5;
             finsClient.WaitToRetryMilliseconds = TimeSpan.FromMilliseconds(200);
             finsClient.ResponseInterval = TimeSpan.FromMilliseconds(100);
 
             Assert.False(finsClient.IsLongConnection);
-            Assert.False(finsClient.EnableAutoReconnect);
-            Assert.Equal(TimeSpan.FromSeconds(10), finsClient.ReconnectDelay);
             Assert.Equal(5, finsClient.Retries);
             Assert.Equal(TimeSpan.FromMilliseconds(200), finsClient.WaitToRetryMilliseconds);
             Assert.Equal(TimeSpan.FromMilliseconds(100), finsClient.ResponseInterval);

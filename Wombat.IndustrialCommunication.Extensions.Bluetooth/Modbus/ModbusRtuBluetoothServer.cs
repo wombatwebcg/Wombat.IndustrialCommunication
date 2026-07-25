@@ -3,6 +3,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
 using Wombat.IndustrialCommunication.Modbus.Data;
 
@@ -77,16 +78,28 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
 
         public OperationResult Listen()
         {
+            return ListenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public async Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
             if (EnableSnapshotPersistence)
             {
                 TryLoadSnapshot();
-                StartSnapshotTimer();
             }
 
-            return StartAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            var result = await StartAsync().ConfigureAwait(false);
+            if (result.IsSuccess && EnableSnapshotPersistence) StartSnapshotTimer();
+            return result;
         }
 
         public OperationResult Shutdown()
+        {
+            return ShutdownAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+        }
+
+        public async Task<OperationResult> ShutdownAsync()
         {
             if (EnableSnapshotPersistence)
             {
@@ -94,7 +107,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                 StopSnapshotTimer();
             }
 
-            return StopAsync().ConfigureAwait(false).GetAwaiter().GetResult();
+            return await StopAsync().ConfigureAwait(false);
         }
 
         public void UseLogger(ILogger logger)

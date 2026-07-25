@@ -98,6 +98,7 @@ namespace Wombat.IndustrialCommunication
             }
 
             var result = new OperationResult<S7WriteResponse>();
+            var requestSent = false;
             if (!(request is S7WriteRequest s7WriteRequest))
             {
                 result.IsSuccess = false;
@@ -113,11 +114,14 @@ namespace Wombat.IndustrialCommunication
                 {
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(commandRequest);
                 }
+                requestSent = true;
 
                 var receiveResult = await ReceiveFullResponseAsync(request.ProtocolResponseLength, result, cancellationToken).ConfigureAwait(false);
                 if (!receiveResult.IsSuccess)
                 {
-                    return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
+                    var failed = OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(receiveResult);
+                    failed.FailureKind = OperationFailureKind.OutcomeUnknown;
+                    return failed;
                 }
 
                 var fullResponse = receiveResult.ResultValue;
@@ -125,6 +129,7 @@ namespace Wombat.IndustrialCommunication
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
                     result.IsSuccess = false;
+                    result.FailureKind = OperationFailureKind.OutcomeUnknown;
                     result.Message = pduValidation.Message;
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
@@ -140,6 +145,7 @@ namespace Wombat.IndustrialCommunication
             catch (Exception ex)
             {
                 result.IsSuccess = false;
+                if (requestSent) result.FailureKind = OperationFailureKind.OutcomeUnknown;
                 result.Message = $"写入操作过程中发生错误: {ex.Message}";
                 return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
             }

@@ -173,18 +173,19 @@ namespace Wombat.IndustrialCommunication.PLC
 
         internal virtual double GetBatchReadDispatchRequestWeight() => DefaultBatchReadDispatchRequestWeight;
 
-        public async Task<OperationResult> InitAsync(TimeSpan connectTimeout)
+        public async Task<OperationResult> InitAsync(TimeSpan connectTimeout, CancellationToken cancellationToken = default)
         {
-            using (var cts = new CancellationTokenSource(connectTimeout))
+            using (var timeout = new CancellationTokenSource(connectTimeout))
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token))
             {
                 try
                 {
                     using (await _lock.LockAsync(cts.Token))
                     {
-                        return await InitCoreAsync();
+                        return await InitCoreAsync(cts.Token);
                     }
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     return OperationResult.CreateFailedResult("S7 协议初始化超时");
                 }
@@ -195,15 +196,16 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        internal async Task<OperationResult> InitWithoutLockAsync(TimeSpan connectTimeout)
+        internal async Task<OperationResult> InitWithoutLockAsync(TimeSpan connectTimeout, CancellationToken cancellationToken = default)
         {
-            using (var cts = new CancellationTokenSource(connectTimeout))
+            using (var timeout = new CancellationTokenSource(connectTimeout))
+            using (var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token))
             {
                 try
                 {
-                    return await InitCoreAsync();
+                    return await InitCoreAsync(cts.Token);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
                 {
                     return OperationResult.CreateFailedResult("S7 协议初始化超时");
                 }
@@ -214,7 +216,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private async Task<OperationResult> InitCoreAsync()
+        private async Task<OperationResult> InitCoreAsync(CancellationToken cancellationToken)
         {
             var result = new OperationResult();
             try
@@ -222,7 +224,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 var command1 = BuildConnectCommand();
                 var command2 = BuildSetupCommunicationCommand();
 
-                var handshake1Result = await SendAndReceiveInitFrameAsync(command1, "首次握手");
+                var handshake1Result = await SendAndReceiveInitFrameAsync(command1, "首次握手", cancellationToken);
                 result.Requsts.Add(string.Join(" ", command1.Select(t => t.ToString("X2"))));
                 if (!handshake1Result.IsSuccess)
                 {
@@ -236,7 +238,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     return OperationResult.CreateFailedResult(result, handshake1Validation.Message);
                 }
 
-                var handshake2Result = await SendAndReceiveInitFrameAsync(command2, "二次握手");
+                var handshake2Result = await SendAndReceiveInitFrameAsync(command2, "二次握手", cancellationToken);
                 result.Requsts.Add(string.Join(" ", command2.Select(t => t.ToString("X2"))));
                 if (!handshake2Result.IsSuccess)
                 {
@@ -252,6 +254,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
                 NegotiatedPduLimit = ExtractNegotiatedPduLength(handshake2Result.ResultValue);
             }
+            catch (OperationCanceledException) { throw; }
             catch (Exception ex)
             {
                 result.IsSuccess = false;
@@ -309,15 +312,15 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private async Task<OperationResult<byte[]>> SendAndReceiveInitFrameAsync(byte[] command, string stageName)
+        private async Task<OperationResult<byte[]>> SendAndReceiveInitFrameAsync(byte[] command, string stageName, CancellationToken cancellationToken)
         {
-            var sendResult = await Transport.SendRequestAsync(command);
+            var sendResult = await Transport.SendRequestAsync(command, cancellationToken);
             if (!sendResult.IsSuccess)
             {
                 return OperationResult.CreateFailedResult<byte[]>($"{stageName}发送失败: {sendResult.Message}");
             }
 
-            var headerResult = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength);
+            var headerResult = await Transport.ReceiveResponseAsync(0, SiemensConstant.InitHeadLength, cancellationToken);
             if (!headerResult.IsSuccess)
             {
                 return OperationResult.CreateFailedResult<byte[]>($"{stageName}读取头失败: {headerResult.Message}");
@@ -342,7 +345,7 @@ namespace Wombat.IndustrialCommunication.PLC
 
             int contentLength = totalLength - 4;
             var payloadResult = contentLength > 0
-                ? await Transport.ReceiveResponseAsync(0, contentLength)
+                ? await Transport.ReceiveResponseAsync(0, contentLength, cancellationToken)
                 : OperationResult.CreateSuccessResult(Array.Empty<byte>());
 
             if (!payloadResult.IsSuccess)
@@ -1143,12 +1146,17 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 var failed = OperationResult.CreateFailedResult<S7WriteResponse>(failureMessage);
+                failed.FailureKind = response.FailureKind;
                 failed.Requsts.AddRange(response.Requsts);
                 failed.Responses.AddRange(response.Responses);
                 return failed;
             }
 
             var parsed = S7WriteResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            if (!parsed.IsSuccess)
+            {
+                parsed.FailureKind = OperationFailureKind.OutcomeUnknown;
+            }
             parsed.Requsts.AddRange(response.Requsts);
             parsed.Responses.AddRange(response.Responses);
             return parsed;
@@ -1603,6 +1611,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!batchResult.IsSuccess)
                 {
                     result.IsSuccess = false;
+                    result.FailureKind = batchResult.FailureKind;
                     result.Message = BuildBatchWriteMessage(batchResult.Message);
                     return result.Complete();
                 }

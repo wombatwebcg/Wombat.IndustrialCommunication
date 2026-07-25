@@ -24,14 +24,17 @@ namespace Wombat.IndustrialCommunication
         private readonly AsyncLock _sessionsLock = new AsyncLock();
         private readonly IPEndPoint _localEndPoint;
         private readonly List<ClientSession> _activeSessions = new List<ClientSession>();
+        private readonly Dictionary<ClientSession, Task> _sessionTasks = new Dictionary<ClientSession, Task>();
 
         private CancellationTokenSource _cancellationTokenSource;
         private TcpTransportListener _listener;
+        private Task _acceptTask;
         private bool _disposed;
         private int _listening;
 
         private int _receiveBufferSize = 8192;
         private TimeSpan _receiveTimeout = TimeSpan.FromSeconds(30);
+        private TimeSpan _idleSessionTimeout;
         private TimeSpan _sendTimeout = TimeSpan.FromSeconds(30);
         private int _backlog = 100;
 
@@ -185,7 +188,7 @@ namespace Wombat.IndustrialCommunication
                 _listener = new TcpTransportListener(_localEndPoint, _backlog);
                 await _listener.StartAsync(_cancellationTokenSource.Token).ConfigureAwait(false);
                 Volatile.Write(ref _listening, 1);
-                _ = Task.Run(() => AcceptClientsAsync(_cancellationTokenSource.Token));
+                _acceptTask = AcceptClientsAsync(_cancellationTokenSource.Token);
                 Logger?.LogInformation("成功在 {EndPoint} 上开始监听", _listener.LocalEndPoint);
                 return OperationResult.CreateSuccessResult();
             }
@@ -215,17 +218,27 @@ namespace Wombat.IndustrialCommunication
                     listener.Dispose();
                 }
 
+                var acceptTask = Interlocked.Exchange(ref _acceptTask, null);
+                if (acceptTask != null)
+                {
+                    try { await acceptTask.ConfigureAwait(false); }
+                    catch (OperationCanceledException) { }
+                }
+
                 List<ClientSession> sessions;
+                Task[] sessionTasks;
                 using (await _sessionsLock.LockAsync().ConfigureAwait(false))
                 {
                     sessions = _activeSessions.ToList();
-                    _activeSessions.Clear();
+                    sessionTasks = _sessionTasks.Values.ToArray();
                 }
 
                 foreach (var session in sessions)
                 {
                     session.Close(raiseDisconnectedEvent: true);
                 }
+
+                await Task.WhenAll(sessionTasks).ConfigureAwait(false);
 
                 cts?.Dispose();
                 return OperationResult.CreateSuccessResult();
@@ -310,7 +323,10 @@ namespace Wombat.IndustrialCommunication
 
                     Logger?.LogInformation("客户端已连接: local={LocalEndPoint}, remote={RemoteEndPoint}", _localEndPoint, session.RemoteEndPoint);
                     ClientConnected?.Invoke(this, new SessionEventArgs(session));
-                    _ = Task.Run(() => session.RunAsync(cancellationToken));
+                    using (await _sessionsLock.LockAsync().ConfigureAwait(false))
+                    {
+                        _sessionTasks[session] = Task.Run(() => RunSessionAsync(session, cancellationToken));
+                    }
                 }
                 catch (ObjectDisposedException)
                 {
@@ -356,6 +372,27 @@ namespace Wombat.IndustrialCommunication
             {
                 Logger?.LogInformation("客户端已断开: local={LocalEndPoint}, remote={RemoteEndPoint}", _localEndPoint, session.RemoteEndPoint);
                 ClientDisconnected?.Invoke(this, new SessionEventArgs(session));
+            }
+        }
+
+        public TimeSpan IdleSessionTimeout
+        {
+            get => _idleSessionTimeout;
+            set => _idleSessionTimeout = value >= TimeSpan.Zero ? value : throw new ArgumentOutOfRangeException(nameof(value));
+        }
+
+        private async Task RunSessionAsync(ClientSession session, CancellationToken cancellationToken)
+        {
+            try
+            {
+                await session.RunAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                using (await _sessionsLock.LockAsync().ConfigureAwait(false))
+                {
+                    _sessionTasks.Remove(session);
+                }
             }
         }
 
@@ -465,7 +502,7 @@ namespace Wombat.IndustrialCommunication
                         try
                         {
                             var readTask = _stream.ReadAsync(_receiveBuffer, 0, _receiveBuffer.Length, cancellationToken);
-                            var timeout = _pendingBuffer.Count == 0 ? TimeSpan.Zero : _server._receiveTimeout;
+                            var timeout = _pendingBuffer.Count == 0 ? _server._idleSessionTimeout : _server._receiveTimeout;
                             int bytesRead = await ReadWithTimeoutAsync(readTask, timeout, cancellationToken).ConfigureAwait(false);
                             if (bytesRead == 0)
                             {

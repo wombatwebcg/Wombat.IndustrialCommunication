@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
@@ -42,6 +43,17 @@ namespace Wombat.IndustrialCommunication
         public OperationResult Shutdown()
         {
             return DoShutdown();
+        }
+
+        public Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            return Task.FromResult(Listen());
+        }
+
+        public Task<OperationResult> ShutdownAsync()
+        {
+            return Task.FromResult(Shutdown());
         }
 
         abstract internal OperationResult DoShutdown();

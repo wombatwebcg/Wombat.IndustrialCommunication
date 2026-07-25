@@ -123,21 +123,6 @@ namespace Wombat.IndustrialCommunication.PLC
         public bool IsLongConnection { get; set; } = true;
 
         /// <summary>
-        /// 是否启用自动重连
-        /// </summary>
-        public bool EnableAutoReconnect { get; set; } = true;
-
-        /// <summary>
-        /// 重连延迟时间
-        /// </summary>
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(5);
-
-        /// <summary>
-        /// 上次重连尝试时间
-        /// </summary>
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
-
-        /// <summary>
         /// 重试次数
         /// </summary>
         public int Retries
@@ -195,17 +180,17 @@ namespace Wombat.IndustrialCommunication.PLC
         /// 连接到PLC
         /// </summary>
         /// <returns>连接结果</returns>
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             // 首先建立TCP连接
-            var connectResult = await _tcpClientAdapter.ConnectAsync();
+            var connectResult = await _tcpClientAdapter.ConnectAsync(cancellationToken);
             if (!connectResult.IsSuccess)
             {
                 return connectResult;
             }
 
             // 然后进行FINS协议初始化
-            var initResult = await InitAsync(Timeout);
+            var initResult = await InitAsync(Timeout, cancellationToken);
             if (!initResult.IsSuccess)
             {
                 await _tcpClientAdapter.DisconnectAsync(); // 如果初始化失败，断开TCP连接
@@ -222,60 +207,6 @@ namespace Wombat.IndustrialCommunication.PLC
         public async Task<OperationResult> DisconnectAsync()
         {
             return await _tcpClientAdapter.DisconnectAsync();
-        }
-
-        /// <summary>
-        /// 检查连接状态并在必要时执行自动重连
-        /// </summary>
-        /// <returns>重连结果</returns>
-        public async Task<OperationResult> CheckAndReconnectAsync()
-        {
-            try
-            {
-                // 检查当前连接状态
-                if (IsConnected)
-                {
-                    return OperationResult.CreateSuccessResult("连接正常");
-                }
-
-                // 检查是否启用自动重连
-                if (!EnableAutoReconnect)
-                {
-                    return OperationResult.CreateFailedResult("自动重连已禁用");
-                }
-
-                // 检查重连间隔时间
-                var timeSinceLastAttempt = DateTime.Now - _lastReconnectAttempt;
-                if (timeSinceLastAttempt < ReconnectDelay)
-                {
-                    var remainingTime = ReconnectDelay - timeSinceLastAttempt;
-                    return OperationResult.CreateFailedResult($"重连间隔未到，还需等待 {remainingTime.TotalSeconds:F1} 秒");
-                }
-
-                // 更新重连尝试时间
-                _lastReconnectAttempt = DateTime.Now;
-
-                // 记录重连尝试
-                Logger?.LogInformation("开始尝试自动重连到FINS设备");
-
-                // 执行重连
-                var reconnectResult = await ConnectAsync().ConfigureAwait(false);
-                if (reconnectResult.IsSuccess)
-                {
-                    Logger?.LogInformation("FINS设备自动重连成功");
-                }
-                else
-                {
-                    Logger?.LogError($"FINS设备自动重连失败: {reconnectResult.Message}");
-                }
-
-                return reconnectResult;
-            }
-            catch (Exception ex)
-            {
-                Logger?.LogError(ex, "FINS设备自动重连过程中发生异常");
-                return OperationResult.CreateFailedResult($"自动重连异常: {ex.Message}");
-            }
         }
 
         /// <summary>
@@ -308,17 +239,11 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (IsLongConnection)
             {
-                // 长连接模式：检查连接状态并自动重连
                 try
                 {
-                    if (!IsConnected && EnableAutoReconnect)
+                    if (!IsConnected)
                     {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            Logger?.LogError($"FINS读取操作失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult<byte[]>($"连接失败: {reconnectResult.Message}");
-                        }
+                        return OperationResult.CreateFailedResult<byte[]>("FINS客户端没有连接");
                     }
 
                     // 执行读取操作
@@ -440,17 +365,11 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             if (IsLongConnection)
             {
-                // 长连接模式：检查连接状态并自动重连
                 try
                 {
-                    if (!IsConnected && EnableAutoReconnect)
+                    if (!IsConnected)
                     {
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            Logger?.LogError($"FINS写入操作失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {reconnectResult.Message}");
-                        }
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "FINS客户端没有连接");
                     }
 
                     // 执行写入操作
@@ -783,17 +702,9 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsLongConnection)
                 {
-                    // 长连接模式：检查连接状态并自动重连
-                    if (!IsConnected && EnableAutoReconnect)
+                    if (!IsConnected)
                     {
-                        Logger?.LogDebug("FINS批量读取：检测到连接断开，尝试自动重连");
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            Logger?.LogError($"FINS批量读取失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"连接失败: {reconnectResult.Message}");
-                        }
-                        Logger?.LogDebug("FINS批量读取：自动重连成功");
+                        return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>("FINS客户端没有连接");
                     }
                     
                     // 执行批量读取
@@ -881,17 +792,9 @@ namespace Wombat.IndustrialCommunication.PLC
             {
                 if (IsLongConnection)
                 {
-                    // 长连接模式：检查连接状态并自动重连
-                    if (!IsConnected && EnableAutoReconnect)
+                    if (!IsConnected)
                     {
-                        Logger?.LogDebug("FINS批量写入：检测到连接断开，尝试自动重连");
-                        var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            Logger?.LogError($"FINS批量写入失败，自动重连失败: {reconnectResult.Message}");
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, $"连接失败: {reconnectResult.Message}");
-                        }
-                        Logger?.LogDebug("FINS批量写入：自动重连成功");
+                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "FINS客户端没有连接");
                     }
                     
                     // 执行批量写入

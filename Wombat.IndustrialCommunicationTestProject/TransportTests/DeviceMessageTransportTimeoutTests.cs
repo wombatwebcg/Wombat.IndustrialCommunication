@@ -74,13 +74,10 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task SendRequestAsync_WhenSendThrows_ShouldStopAfterConfiguredRetries()
+        public async Task SendRequestAsync_WhenSendThrows_ShouldOnlySendOnce()
         {
             var stream = new SequencedStreamResource();
-            for (var i = 0; i < 3; i++)
-            {
-                stream.EnqueueSend(_ => Task.FromException<OperationResult>(new InvalidOperationException("Not connected")));
-            }
+            stream.EnqueueSend(_ => Task.FromException<OperationResult>(new InvalidOperationException("Not connected")));
 
             var transport = new DeviceMessageTransport(stream)
             {
@@ -91,7 +88,28 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
             var result = await transport.SendRequestAsync(new byte[] { 0x01, 0x02 }).ConfigureAwait(false);
 
             Assert.False(result.IsSuccess);
-            Assert.Equal(3, stream.SendCallCount);
+            Assert.Equal(1, stream.SendCallCount);
+        }
+
+        [Fact]
+        public async Task UnicastWrite_WhenResponseFails_ShouldReportOutcomeUnknownWithoutRetry()
+        {
+            var stream = new SequencedStreamResource();
+            stream.EnqueueSend(_ => Task.FromResult(OperationResult.CreateSuccessResult()));
+            stream.EnqueueReceive(_ => Task.FromResult(OperationResult.CreateFailedResult<int>("connection closed")));
+            var transport = new DeviceMessageTransport(stream) { ResponseInterval = TimeSpan.Zero };
+            var request = new DeviceReadWriteMessage
+            {
+                ProtocolMessageFrame = new byte[] { 0x01 },
+                ProtocolResponseLength = 1
+            };
+
+            var result = await transport.UnicastWriteMessageAsync(request).ConfigureAwait(false);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(OperationFailureKind.OutcomeUnknown, result.FailureKind);
+            Assert.Equal(1, stream.SendCallCount);
+            Assert.Equal(1, stream.ReceiveCallCount);
         }
 
         [Fact]

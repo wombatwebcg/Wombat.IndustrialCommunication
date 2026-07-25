@@ -218,9 +218,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             {
                 // Arrange - 配置自动重连
                 LogStep("配置自动重连参数");
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = MAX_RECONNECT_ATTEMPTS;
-                client.ReconnectDelay = TimeSpan.FromSeconds(RECONNECT_DELAY_SECONDS);
                 
                 // Act & Assert - 建立连接
                 LogStep("建立PLC连接");
@@ -274,7 +271,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 // 清理：禁用自动重连并断开连接
                 if (client != null)
                 {
-                    client.EnableAutoReconnect = false;
                     await SafeDisconnectAsync();
                 }
             }
@@ -339,8 +335,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 
                 // Act & Assert - 测试启用自动重连的短连接
                 LogStep("启用自动重连并测试短连接数组读写");
-                client.EnableAutoReconnect = true;
-                client.MaxReconnectAttempts = 1;
                 
                 var testIntArray = new int[] { 1, 2, 3, 4, 5 };
                 var writeArrayResult = await client.WriteAsync("DB200.DBD110", testIntArray);
@@ -370,7 +364,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 if (client != null)
                 {
                     client.IsLongConnection = true;
-                    client.EnableAutoReconnect = false;
                     await SafeDisconnectAsync();
                 }
             }
@@ -1587,7 +1580,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             if (client.Connected)
             {
                 _output?.WriteLine("确保断开连接");
-                client.EnableAutoReconnect = false;
                 client.Disconnect();
             }
         }
@@ -1597,7 +1589,6 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
             if (client.Connected)
             {
                 _output?.WriteLine("确保断开连接");
-                client.EnableAutoReconnect = false;
                 await client.DisconnectAsync();
             }
         }

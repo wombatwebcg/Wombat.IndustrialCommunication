@@ -45,23 +45,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         
         public IPEndPoint IPEndPoint { get; private set; }
         
-        // 是否启用自动重连
-        public bool EnableAutoReconnect { get; set; } = true;
-        
-        // 最大自动重连次数
-        public int MaxReconnectAttempts { get; set; } = 5;
-        
-        // 重连等待时间
-        public TimeSpan ReconnectDelay { get; set; } = TimeSpan.FromSeconds(2);
-        
-        // 上次重连尝试时间
-        private DateTime _lastReconnectAttempt = DateTime.MinValue;
-        
         // 连接检查间隔
         public TimeSpan ConnectionCheckInterval { get; set; } = TimeSpan.FromSeconds(30);
-        
-        // 短连接模式下的最大重连次数
-        public int ShortConnectionReconnectAttempts { get; set; } = 1;
         
         public ModbusTcpClient(string ip, int port = 502 )
             : base(new DeviceMessageTransport(new TcpClientAdapter(ip,  port)))
@@ -206,7 +191,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
         }
 
-        public async Task<OperationResult> ConnectAsync()
+        public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             using (await _lock.LockAsync())
             {
@@ -225,7 +210,7 @@ namespace Wombat.IndustrialCommunication.Modbus
                     var startTime = DateTime.Now;
                     
                     // 执行底层传输连接操作
-                    var result =await _tcpClientAdapter.ConnectAsync();
+                    var result =await _tcpClientAdapter.ConnectAsync(cancellationToken);
                     
                     if (result.IsSuccess)
                     {
@@ -301,44 +286,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
 
-        /// <summary>
-        /// 检查连接状态并在必要时自动重连
-        /// </summary>
-        /// <returns>连接操作结果</returns>
-        public async Task<OperationResult> CheckAndReconnectAsync()
-        {
-            // 如果已连接，直接返回成功
-            if (Connected)
-            {
-                return OperationResult.CreateSuccessResult("连接正常");
-            }
-            
-            // 如果未启用自动重连，返回失败
-            if (!EnableAutoReconnect)
-            {
-                return OperationResult.CreateFailedResult("未启用自动重连");
-            }
-            
-            var remainingDelay = ReconnectDelay - (DateTime.Now - _lastReconnectAttempt);
-            if (remainingDelay > TimeSpan.Zero)
-            {
-                await Task.Delay(remainingDelay).ConfigureAwait(false);
-
-                if (Connected)
-                {
-                    return OperationResult.CreateSuccessResult("连接正常");
-                }
-            }
-            
-            // 记录重连尝试时间
-            _lastReconnectAttempt = DateTime.Now;
-            
-            Logger?.LogInformation("尝试重连Modbus TCP，地址：{Address}:{Port}", IPEndPoint.Address, IPEndPoint.Port);
-            
-            // 执行重连
-            return await ConnectAsync();
-        }
-
         protected override async ValueTask<OperationResult<byte[]>> ReadByModbusAddressAsync(
             byte stationNumber,
             byte functionCode,
@@ -346,41 +293,13 @@ namespace Wombat.IndustrialCommunication.Modbus
             ushort length,
             CancellationToken cancellationToken)
         {
-            for (var reconnectAttempt = 0; ; reconnectAttempt++)
+            if (!Connected)
             {
-                if (!EnableAutoReconnect)
-                {
-                    if (!Connected)
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>("Modbus TCP客户端没有连接");
-                    }
-                }
-                else if (!Connected)
-                {
-                    var reconnectResult = await CheckAndReconnectAsync().ConfigureAwait(false);
-                    if (!reconnectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>(reconnectResult.Message);
-                    }
-                }
-
-                var readResult = await base.ReadByModbusAddressAsync(
-                    stationNumber,
-                    functionCode,
-                    address,
-                    length,
-                    cancellationToken).ConfigureAwait(false);
-
-                if (readResult.IsSuccess || Connected || reconnectAttempt >= Retries)
-                {
-                    return readResult;
-                }
-
-                Logger?.LogWarning("Modbus TCP读取站号 {StationNumber} 失败，重连后重试 {Attempt}/{Retries}",
-                    stationNumber,
-                    reconnectAttempt + 1,
-                    Retries);
+                return OperationResult.CreateFailedResult<byte[]>("Modbus TCP客户端没有连接");
             }
+
+            return await base.ReadByModbusAddressAsync(
+                stationNumber, functionCode, address, length, cancellationToken).ConfigureAwait(false);
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length,DataTypeEnums dataType, bool isBit = false)
@@ -395,21 +314,9 @@ namespace Wombat.IndustrialCommunication.Modbus
             
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult<byte[]>($"Modbus TCP自动重连失败，无法读取数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>($"Modbus TCP客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult<byte[]>("Modbus TCP客户端没有连接");
                 }
                 
                 try
@@ -521,21 +428,9 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             if (IsLongConnection)
             {
-                // 长连接模式 - 检查连接状态并在必要时自动重连
                 if (!Connected)
                 {
-                    if (EnableAutoReconnect)
-                    {
-                        var reconnectResult = await CheckAndReconnectAsync();
-                        if (!reconnectResult.IsSuccess)
-                        {
-                            return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus TCP自动重连失败，无法写入数据");
-                        }
-                    }
-                    else
-                    {
-                        return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus TCP客户端没有连接");
-                    }
+                    return OperationResult.CreateFailedResult(WriteErrorCodes.ConnectionNotEstablished, "Modbus TCP客户端没有连接");
                 }
                 
                 try
