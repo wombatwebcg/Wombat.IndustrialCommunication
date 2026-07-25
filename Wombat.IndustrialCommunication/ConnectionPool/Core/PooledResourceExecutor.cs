@@ -1,5 +1,4 @@
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.ConnectionPool.Models;
@@ -39,7 +38,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 MergeDiagnostics(diagnostics, ensure);
                 if (!ensure.IsSuccess)
                 {
-                    if (IsCancellationRequested(entry, cancellationToken) || !ShouldRetry(attempt, maxRetry))
+                    if (IsCancellationRequested(entry, cancellationToken) || !ConnectionFailureClassifier.IsRecoverable(ensure) || !ShouldRetry(attempt, maxRetry))
                     {
                         AddRetryDecisionInfo(diagnostics, effectiveExecutionOptions, ensure, false, attempt, maxRetry);
                         return CompleteCancelledResult(ShouldReturnCancelled(entry, cancellationToken, ensure) ? entry.CreateCancelledExecutionResult<T>(cancellationToken) : OperationResult.CreateFailedResult<T>(ensure), diagnostics);
@@ -72,7 +71,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return CompleteCancelledResult(executeResult, diagnostics);
                 }
 
-                var recoverable = IsRecoverable(executeResult);
+                var recoverable = ConnectionFailureClassifier.IsRecoverable(executeResult);
                 if (!recoverable || !ShouldRetry(attempt, maxRetry))
                 {
                     AddRetryDecisionInfo(diagnostics, effectiveExecutionOptions, executeResult, false, attempt, maxRetry);
@@ -155,13 +154,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return;
             }
 
-            if (!executionOptions.ResolveRetryEnabled() && IsRecoverable(result))
+            if (!executionOptions.ResolveRetryEnabled() && ConnectionFailureClassifier.IsRecoverable(result))
             {
                 AddOperationInfo(diagnostics, string.Format("执行分类 {0} 默认或显式禁用恢复性重试，失败后直接返回。", executionOptions.Kind));
                 return;
             }
 
-            if (executionOptions.ResolveRetryEnabled() && IsRecoverable(result) && attempt > maxRetry)
+            if (executionOptions.ResolveRetryEnabled() && ConnectionFailureClassifier.IsRecoverable(result) && attempt > maxRetry)
             {
                 AddOperationInfo(diagnostics, string.Format("执行分类 {0} 已达到最大恢复性重试次数 {1}。", executionOptions.Kind, maxRetry));
             }
@@ -216,27 +215,6 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 target.OperationInfo.Add(info);
             }
-        }
-
-        private static bool IsRecoverable(OperationResult result)
-        {
-            if (result == null)
-            {
-                return false;
-            }
-
-            if (result.Exception is TimeoutException || result.Exception is IOException || result.Exception is ObjectDisposedException)
-            {
-                return true;
-            }
-
-            if (string.IsNullOrWhiteSpace(result.Message))
-            {
-                return false;
-            }
-
-            var message = result.Message.ToLowerInvariant();
-            return message.Contains("timeout") || message.Contains("timed out") || message.Contains("connection") || message.Contains("socket") || message.Contains("closed") || message.Contains("listen") || message.Contains("port");
         }
 
         private static bool IsCancellationRequested(PooledResourceEntry<TResource> entry, CancellationToken cancellationToken)

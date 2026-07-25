@@ -167,11 +167,26 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
             }
 
-            var lease = await entry.AcquireAsync(Options.LeaseTimeout, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
+            OperationResult<ConnectionLease> lease;
+            using (var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _maintenanceCancellationTokenSource.Token))
+            {
+                try
+                {
+                    lease = await entry.AcquireAsync(Options.LeaseTimeout, ConnectionPoolMaintenanceMode.UserCall, linkedCancellation.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    lease = OperationResult.CreateFailedResult<ConnectionLease>(_disposed ? "连接池已释放" : "操作已取消");
+                    lease.IsCancelled = true;
+                    return lease.Complete();
+                }
+            }
             if (!lease.IsSuccess)
             {
                 return lease;
             }
+
+            lease.ResultValue.SetRelease(value => Release(value));
 
             var releaseAfterLock = false;
             using (_poolLock.Lock())
@@ -192,7 +207,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             if (releaseAfterLock)
             {
-                entry.ReleaseAsync(lease.ResultValue, false, _disposed ? ConnectionPoolMaintenanceMode.Dispose : ConnectionPoolMaintenanceMode.UserCall).GetAwaiter().GetResult();
+                lease.ResultValue.DetachRelease();
+                await entry.ReleaseAsync(lease.ResultValue, false, _disposed ? ConnectionPoolMaintenanceMode.Dispose : ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
                 if (_disposed)
                 {
                     return OperationResult.CreateFailedResult<ConnectionLease>("连接池已释放");
@@ -206,10 +222,17 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public OperationResult Release(ConnectionLease lease)
         {
+            return ReleaseAsync(lease).GetAwaiter().GetResult();
+        }
+
+        public async Task<OperationResult> ReleaseAsync(ConnectionLease lease)
+        {
             if (lease == null || lease.Identity == null)
             {
                 return OperationResult.CreateFailedResult("租约不能为空");
             }
+
+            lease.DetachRelease();
 
             PooledResourceEntry<TResource> entry;
             using (_poolLock.Lock())
@@ -222,7 +245,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return OperationResult.CreateSuccessResult("连接条目已移除，租约已自动关闭");
             }
 
-            return entry.ReleaseAsync(lease, false, ConnectionPoolMaintenanceMode.UserCall).GetAwaiter().GetResult();
+            return await entry.ReleaseAsync(lease, false, ConnectionPoolMaintenanceMode.UserCall).ConfigureAwait(false);
         }
 
         public OperationResult Invalidate(ConnectionIdentity identity, string reason)
@@ -380,7 +403,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var lease = await AcquireAsync(identity, cancellationToken).ConfigureAwait(false);
             if (!lease.IsSuccess)
             {
-                return OperationResult.CreateFailedResult<T>(lease);
+                var failed = OperationResult.CreateFailedResult<T>(lease);
+                failed.IsCancelled = lease.IsCancelled;
+                return failed;
             }
 
             try
@@ -389,7 +414,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
             finally
             {
-                Release(lease.ResultValue);
+                await ReleaseAsync(lease.ResultValue).ConfigureAwait(false);
             }
         }
 
@@ -414,7 +439,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     return OperationResult.CreateSuccessResult<object>(null);
                 }
 
-                return OperationResult.CreateFailedResult<object>(result);
+                var failed = OperationResult.CreateFailedResult<object>(result);
+                failed.IsCancelled = result.IsCancelled;
+                return failed;
             }, executionOptions, cancellationToken).ConfigureAwait(false);
 
             if (wrapped.IsSuccess)
@@ -422,7 +449,9 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return new OperationResult().SetInfo(wrapped).Complete();
             }
 
-            return OperationResult.CreateFailedResult(wrapped);
+            var failedResult = OperationResult.CreateFailedResult(wrapped);
+            failedResult.IsCancelled = wrapped.IsCancelled;
+            return failedResult;
         }
 
         public OperationResult<int> CleanupIdle()
@@ -550,6 +579,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         public void Dispose()
         {
+            DisposeAsync().GetAwaiter().GetResult();
+        }
+
+        public async Task DisposeAsync(CancellationToken cancellationToken = default(CancellationToken))
+        {
             List<KeyValuePair<ConnectionIdentity, PooledResourceEntry<TResource>>> candidates = null;
             var entriesToDispose = new List<PooledResourceEntry<TResource>>();
             using (_poolLock.Lock())
@@ -566,7 +600,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             foreach (var pair in candidates)
             {
-                pair.Value.PrepareForRemovalAsync(true, ConnectionPoolMaintenanceMode.Dispose).GetAwaiter().GetResult();
+                await pair.Value.PrepareForRemovalAsync(true, ConnectionPoolMaintenanceMode.Dispose).ConfigureAwait(false);
                 PooledResourceEntry<TResource> removedEntry;
                 using (_poolLock.Lock())
                 {
@@ -583,7 +617,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
                 try
                 {
-                    _maintenanceTask.GetAwaiter().GetResult();
+                    await _maintenanceTask.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
                 {
@@ -599,7 +633,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             foreach (var entry in entriesToDispose)
             {
-                entry.DisposeAsync(ConnectionPoolMaintenanceMode.Dispose).GetAwaiter().GetResult();
+                await entry.DisposeAsync(ConnectionPoolMaintenanceMode.Dispose).ConfigureAwait(false);
             }
 
             _maintenanceCancellationTokenSource.Dispose();

@@ -22,6 +22,8 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
         private readonly AsyncLock _entryLock = new AsyncLock();
         private readonly IDictionary<string, ConnectionLease> _leases = new Dictionary<string, ConnectionLease>(StringComparer.OrdinalIgnoreCase);
         private readonly IConnectionPoolEventPublisher _eventPublisher;
+        private SemaphoreSlim _executionSemaphore;
+        private int _executionSemaphoreLimit;
         private CancellationTokenSource _activeExecutionCancellationTokenSource;
         private int _activeExecutionCount;
         private TaskCompletionSource<bool> _activeExecutionDrainSource;
@@ -102,24 +104,24 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
         }
 
-        public async Task<OperationResult> EnsureAvailableAsync(ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
+        public async Task<OperationResult> EnsureAvailableAsync(ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall, CancellationToken cancellationToken = default(CancellationToken))
         {
             var notifications = new List<Action>();
             OperationResult result;
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            using (await _entryLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
-                result = await EnsureConnectedCoreAsync(mode, _lifecycleState == ConnectionEntryLifecycleState.Reconnecting, notifications).ConfigureAwait(false);
+                result = await EnsureConnectedCoreAsync(mode, _lifecycleState == ConnectionEntryLifecycleState.Reconnecting, notifications, cancellationToken).ConfigureAwait(false);
             }
 
             PublishNotifications(notifications);
             return result;
         }
 
-        public async Task<OperationResult<ConnectionLease>> AcquireAsync(TimeSpan leaseTimeout, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall)
+        public async Task<OperationResult<ConnectionLease>> AcquireAsync(TimeSpan leaseTimeout, ConnectionPoolMaintenanceMode mode = ConnectionPoolMaintenanceMode.UserCall, CancellationToken cancellationToken = default(CancellationToken))
         {
             var notifications = new List<Action>();
             OperationResult<ConnectionLease> result;
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            using (await _entryLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (_isRemoving || IsTerminalLifecycleState() || _closedByForceClose)
                 {
@@ -131,7 +133,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 }
                 else
                 {
-                    var ready = await EnsureConnectedCoreAsync(mode, false, notifications).ConfigureAwait(false);
+                    var ready = await EnsureConnectedCoreAsync(mode, false, notifications, cancellationToken).ConfigureAwait(false);
                     if (!ready.IsSuccess)
                     {
                         result = OperationResult.CreateFailedResult<ConnectionLease>(ready);
@@ -175,9 +177,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 ConnectionLease existing;
                 if (!_leases.TryGetValue(lease.LeaseId, out existing))
                 {
-                    result = IsForceClosingRequestedCore() || IsTerminalLifecycleState() || _closedByForceClose
-                        ? OperationResult.CreateSuccessResult("租约不存在或已释放")
-                        : OperationResult.CreateFailedResult("租约不存在或已释放");
+                    result = OperationResult.CreateSuccessResult("租约不存在或已释放");
                 }
                 else
                 {
@@ -212,7 +212,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var shouldCancelExecutions = false;
             var shouldDisconnect = false;
 
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            using (await _entryLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (_lifecycleState == ConnectionEntryLifecycleState.Disposed)
                 {
@@ -373,13 +373,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return OperationResult.CreateSuccessResult();
         }
 
-        public async Task<OperationResult> TryRecoverAsync(string reason, ConnectionPoolMaintenanceMode mode)
+        public async Task<OperationResult> TryRecoverAsync(string reason, ConnectionPoolMaintenanceMode mode, CancellationToken cancellationToken = default(CancellationToken))
         {
             var notifications = new List<Action>();
             OperationResult result;
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            using (await _entryLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
-                result = await TryRecoverCoreAsync(reason, mode, notifications).ConfigureAwait(false);
+                result = await TryRecoverCoreAsync(reason, mode, notifications, cancellationToken).ConfigureAwait(false);
             }
 
             PublishNotifications(notifications);
@@ -413,8 +413,41 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             var notifications = new List<Action>();
             OperationResult<T> result;
             var blocked = false;
+            var executionSlotAcquired = false;
             var executionCancellationRequested = false;
             CancellationTokenSource linkedCancellationTokenSource = null;
+
+            if (maxConcurrentExecutions > 0)
+            {
+                SemaphoreSlim executionSemaphore;
+                using (await _entryLock.LockAsync().ConfigureAwait(false))
+                {
+                    if (_executionSemaphore == null)
+                    {
+                        _executionSemaphore = new SemaphoreSlim(maxConcurrentExecutions, maxConcurrentExecutions);
+                        _executionSemaphoreLimit = maxConcurrentExecutions;
+                    }
+                    else if (_executionSemaphoreLimit != maxConcurrentExecutions)
+                    {
+                        return OperationResult.CreateFailedResult<T>("单连接执行并发上限不能在运行期间更改");
+                    }
+
+                    executionSemaphore = _executionSemaphore;
+                    linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _activeExecutionCancellationTokenSource.Token);
+                }
+
+                try
+                {
+                    await executionSemaphore.WaitAsync(linkedCancellationTokenSource.Token).ConfigureAwait(false);
+                    executionSlotAcquired = true;
+                }
+                catch (OperationCanceledException)
+                {
+                    linkedCancellationTokenSource.Dispose();
+                    return CreateCancelledExecutionResult<T>(cancellationToken);
+                }
+            }
+
             using (await _entryLock.LockAsync().ConfigureAwait(false))
             {
                 if (_isRemoving || IsTerminalLifecycleState())
@@ -429,16 +462,13 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                     RefreshSnapshotCore(DateTime.UtcNow);
                     blocked = true;
                 }
-                else if (maxConcurrentExecutions > 0 && _activeExecutionCount >= maxConcurrentExecutions)
-                {
-                    result = OperationResult.CreateFailedResult<T>("连接条目执行并发已满");
-                    RefreshSnapshotCore(DateTime.UtcNow);
-                    blocked = true;
-                }
                 else
                 {
                     RegisterActiveExecutionCore();
-                    linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _activeExecutionCancellationTokenSource.Token);
+                    if (linkedCancellationTokenSource == null)
+                    {
+                        linkedCancellationTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _activeExecutionCancellationTokenSource.Token);
+                    }
                     QueuePoolEvent(ConnectionPoolEventType.ExecuteStarting, State, _lifecycleState, "开始执行连接操作", mode, null, notifications);
                     LastActiveTimeUtc = DateTime.UtcNow;
                     RefreshSnapshotCore(LastActiveTimeUtc);
@@ -448,6 +478,11 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
             if (blocked)
             {
+                linkedCancellationTokenSource?.Dispose();
+                if (executionSlotAcquired)
+                {
+                    _executionSemaphore.Release();
+                }
                 PublishNotifications(notifications);
                 return result;
             }
@@ -463,6 +498,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 {
                     executionCancellationRequested = executionCancellationRequested || linkedCancellationTokenSource.IsCancellationRequested;
                     linkedCancellationTokenSource.Dispose();
+                }
+                if (executionSlotAcquired)
+                {
+                    _executionSemaphore.Release();
                 }
             }
 
@@ -494,12 +533,17 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 {
                     RefreshSnapshotCore(utcNow);
                 }
-                else
+                else if (ConnectionFailureClassifier.IsRecoverable(result))
                 {
                     _failureCount++;
                     _lastFailureReason = result == null || string.IsNullOrWhiteSpace(result.Message) ? "连接执行失败" : result.Message;
                     _lastFailureTimeUtc = utcNow;
                     TransitionState(ConnectionEntryLifecycleState.Faulted, ConnectionPoolEventType.ExecuteFailed, _lastFailureReason, mode, result == null ? null : result.Exception, true, notifications);
+                }
+                else
+                {
+                    QueuePoolEvent(ConnectionPoolEventType.ExecuteFailed, State, _lifecycleState, result == null ? "连接执行失败" : result.Message, mode, result == null ? null : result.Exception, notifications);
+                    RefreshSnapshotCore(utcNow);
                 }
             }
 
@@ -626,10 +670,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return result;
         }
 
-        public async Task<OperationResult> ForceReconnectAsync(string reason)
+        public async Task<OperationResult> ForceReconnectAsync(string reason, CancellationToken cancellationToken = default(CancellationToken))
         {
             var notifications = new List<Action>();
-            using (await _entryLock.LockAsync().ConfigureAwait(false))
+            using (await _entryLock.LockAsync(cancellationToken).ConfigureAwait(false))
             {
                 if (_forceClosing)
                 {
@@ -652,7 +696,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             PublishNotifications(notifications);
-            return await TryRecoverAsync(reason, ConnectionPoolMaintenanceMode.ForceReconnect).ConfigureAwait(false);
+            return await TryRecoverAsync(reason, ConnectionPoolMaintenanceMode.ForceReconnect, cancellationToken).ConfigureAwait(false);
         }
 
         public ConnectionEntrySnapshot CreateSnapshot()
@@ -693,7 +737,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return disconnect;
         }
 
-        private async Task<OperationResult> EnsureConnectedCoreAsync(ConnectionPoolMaintenanceMode mode, bool reconnecting, IList<Action> notifications)
+        private async Task<OperationResult> EnsureConnectedCoreAsync(ConnectionPoolMaintenanceMode mode, bool reconnecting, IList<Action> notifications, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (_isRemoving || IsTerminalLifecycleState() || _closedByForceClose)
             {
@@ -714,7 +758,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 false,
                 notifications);
 
-            var result = await Connection.EnsureAvailableAsync().ConfigureAwait(false);
+            var result = await WithCancellation(Connection.EnsureAvailableAsync(), cancellationToken).ConfigureAwait(false);
             if (result.IsSuccess)
             {
                 _failureCount = 0;
@@ -784,7 +828,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             return await EnsureConnectedCoreAsync(mode, _lifecycleState == ConnectionEntryLifecycleState.Reconnecting, notifications).ConfigureAwait(false);
         }
 
-        private async Task<OperationResult> TryRecoverCoreAsync(string reason, ConnectionPoolMaintenanceMode mode, IList<Action> notifications)
+        private async Task<OperationResult> TryRecoverCoreAsync(string reason, ConnectionPoolMaintenanceMode mode, IList<Action> notifications, CancellationToken cancellationToken = default(CancellationToken))
         {
             if (IsTerminalLifecycleState())
             {
@@ -806,7 +850,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             {
             }
 
-            var recovered = await EnsureConnectedCoreAsync(mode, true, notifications).ConfigureAwait(false);
+            var recovered = await EnsureConnectedCoreAsync(mode, true, notifications, cancellationToken).ConfigureAwait(false);
             if (!recovered.IsSuccess)
             {
                 return recovered;
@@ -1188,6 +1232,26 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
             }
 
             return options.ProbeTimeout;
+        }
+
+        private static async Task<OperationResult> WithCancellation(Task<OperationResult> task, CancellationToken cancellationToken)
+        {
+            if (!cancellationToken.CanBeCanceled)
+            {
+                return await task.ConfigureAwait(false);
+            }
+
+            var cancelled = new TaskCompletionSource<bool>();
+            using (cancellationToken.Register(() => cancelled.TrySetResult(true)))
+            {
+                if (task != await Task.WhenAny(task, cancelled.Task).ConfigureAwait(false))
+                {
+                    _ = task.ContinueWith(t => { var ignored = t.Exception; }, CancellationToken.None, TaskContinuationOptions.OnlyOnFaulted, TaskScheduler.Default);
+                    throw new OperationCanceledException(cancellationToken);
+                }
+            }
+
+            return await task.ConfigureAwait(false);
         }
 
         private bool IsTerminalLifecycleState()

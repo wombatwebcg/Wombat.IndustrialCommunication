@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
                 return Task.FromResult(OperationResult.CreateFailedResult("连接条目不能为空"));
             }
 
-            return RunWithGateAsync(_forceCloseGate, token => entry.ForceReconnectAsync(reason), cancellationToken);
+            return RunWithGateAsync(_forceCloseGate, token => entry.ForceReconnectAsync(reason, token), cancellationToken);
         }
 
         public void Dispose()
@@ -128,17 +128,26 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Core
 
         private async Task<OperationResult> RunWithGateAsync(SemaphoreSlim gate, Func<CancellationToken, Task<OperationResult>> action, CancellationToken cancellationToken)
         {
-            using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token))
+            try
             {
-                await gate.WaitAsync(linked.Token).ConfigureAwait(false);
-                try
+                using (var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, _shutdown.Token))
                 {
-                    return await action(linked.Token).ConfigureAwait(false);
+                    await gate.WaitAsync(linked.Token).ConfigureAwait(false);
+                    try
+                    {
+                        return await action(linked.Token).ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        gate.Release();
+                    }
                 }
-                finally
-                {
-                    gate.Release();
-                }
+            }
+            catch (OperationCanceledException)
+            {
+                var cancelled = OperationResult.CreateFailedResult("操作已取消");
+                cancelled.IsCancelled = true;
+                return cancelled.Complete();
             }
         }
 

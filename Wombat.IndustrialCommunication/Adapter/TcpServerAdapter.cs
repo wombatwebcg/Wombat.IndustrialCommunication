@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunication
         private int _listening;
 
         private int _receiveBufferSize = 8192;
-        private TimeSpan _receiveTimeout = TimeSpan.Zero;
+        private TimeSpan _receiveTimeout = TimeSpan.FromSeconds(30);
         private TimeSpan _sendTimeout = TimeSpan.FromSeconds(30);
         private int _backlog = 100;
 
@@ -84,7 +84,7 @@ namespace Wombat.IndustrialCommunication
         public int MaxConnections
         {
             get => _backlog;
-            set => _backlog = value;
+            set => _backlog = value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value));
         }
 
         public event EventHandler<DataReceivedEventArgs> DataReceived;
@@ -290,10 +290,22 @@ namespace Wombat.IndustrialCommunication
                     connection = (TcpTransportConnection)await _listener.AcceptAsync(cancellationToken).ConfigureAwait(false);
                     await connection.StartAsync(cancellationToken).ConfigureAwait(false);
                     var session = new ClientSession(connection, this);
+                    bool accepted;
 
                     using (await _sessionsLock.LockAsync().ConfigureAwait(false))
                     {
-                        _activeSessions.Add(session);
+                        accepted = _activeSessions.Count < _backlog;
+                        if (accepted)
+                        {
+                            _activeSessions.Add(session);
+                        }
+                    }
+
+                    if (!accepted)
+                    {
+                        Logger?.LogWarning("拒绝客户端连接，已达到最大连接数 {MaxConnections}", _backlog);
+                        session.Close(raiseDisconnectedEvent: false);
+                        continue;
                     }
 
                     Logger?.LogInformation("客户端已连接: local={LocalEndPoint}, remote={RemoteEndPoint}", _localEndPoint, session.RemoteEndPoint);
@@ -453,7 +465,8 @@ namespace Wombat.IndustrialCommunication
                         try
                         {
                             var readTask = _stream.ReadAsync(_receiveBuffer, 0, _receiveBuffer.Length, cancellationToken);
-                            int bytesRead = await ReadWithTimeoutAsync(readTask, _server._receiveTimeout, cancellationToken).ConfigureAwait(false);
+                            var timeout = _pendingBuffer.Count == 0 ? TimeSpan.Zero : _server._receiveTimeout;
+                            int bytesRead = await ReadWithTimeoutAsync(readTask, timeout, cancellationToken).ConfigureAwait(false);
                             if (bytesRead == 0)
                             {
                                 break;
@@ -463,7 +476,7 @@ namespace Wombat.IndustrialCommunication
                         }
                         catch (TimeoutException)
                         {
-                            continue;
+                            break;
                         }
                     }
                 }

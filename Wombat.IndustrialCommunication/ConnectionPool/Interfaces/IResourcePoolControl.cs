@@ -18,6 +18,10 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Interfaces
 
         OperationResult Release(ConnectionLease lease);
 
+        Task<OperationResult> ReleaseAsync(ConnectionLease lease);
+
+        Task DisposeAsync(CancellationToken cancellationToken = default(CancellationToken));
+
         OperationResult Invalidate(ConnectionIdentity identity, string reason);
 
         Task<OperationResult> ForceCloseAsync(ConnectionIdentity identity, string reason, CancellationToken cancellationToken = default(CancellationToken));

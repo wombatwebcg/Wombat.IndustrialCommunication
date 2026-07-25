@@ -1,12 +1,14 @@
 using System;
+using System.Threading;
 
 namespace Wombat.IndustrialCommunication.ConnectionPool.Models
 {
     /// <summary>
     /// 连接租约信息，用于表达获取-释放生命周期。
     /// </summary>
-    public class ConnectionLease
+    public class ConnectionLease : IDisposable
     {
+        private Action<ConnectionLease> _release;
         /// <summary>
         /// 租约 ID，由连接池生成并用于释放。
         /// </summary>
@@ -44,6 +46,21 @@ namespace Wombat.IndustrialCommunication.ConnectionPool.Models
         public bool IsExpired(DateTime utcNow)
         {
             return ExpiresAtUtc <= utcNow;
+        }
+
+        public void Dispose()
+        {
+            Interlocked.Exchange(ref _release, null)?.Invoke(this);
+        }
+
+        internal void SetRelease(Action<ConnectionLease> release)
+        {
+            _release = release;
+        }
+
+        internal void DetachRelease()
+        {
+            Interlocked.Exchange(ref _release, null);
         }
     }
 }

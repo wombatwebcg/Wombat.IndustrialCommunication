@@ -28,6 +28,7 @@ namespace Wombat.IndustrialCommunication
         private readonly AsyncLock _sessionLock = new AsyncLock();
         // 消息队列
         private readonly Queue<ReceivedMessage> _messageQueue = new Queue<ReceivedMessage>();
+        private int _maxPendingMessages = 1024;
         // 消息队列的锁
         private readonly AsyncLock _messageLock = new AsyncLock();
         // 消息处理程序
@@ -68,6 +69,12 @@ namespace Wombat.IndustrialCommunication
         {
             get => _responseWaitTime;
             set => _responseWaitTime = value;
+        }
+
+        public int MaxPendingMessages
+        {
+            get => _maxPendingMessages;
+            set => _maxPendingMessages = value > 0 ? value : throw new ArgumentOutOfRangeException(nameof(value));
         }
 
         /// <summary>
@@ -272,14 +279,24 @@ namespace Wombat.IndustrialCommunication
             {
                 return;
             }
+            bool queueFull;
             using (await _messageLock.LockAsync())
             {
-                _messageQueue.Enqueue(new ReceivedMessage
+                queueFull = _messageQueue.Count >= _maxPendingMessages;
+                if (!queueFull)
                 {
-                    Session = e.Session,
-                    Data = actualData,
-                    Timestamp = DateTime.Now
-                });
+                    _messageQueue.Enqueue(new ReceivedMessage
+                    {
+                        Session = e.Session,
+                        Data = actualData,
+                        Timestamp = DateTime.Now
+                    });
+                }
+            }
+
+            if (queueFull)
+            {
+                e.Session?.Close();
             }
         }
 

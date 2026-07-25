@@ -1,10 +1,23 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
+using System.Net.Sockets;
 using System.Text;
 
 namespace Wombat.IndustrialCommunication
 {
+    public enum OperationFailureKind
+    {
+        None = 0,
+        Timeout = 1,
+        ConnectionClosed = 2,
+        Transport = 3,
+        Cancelled = 4,
+        Validation = 5,
+        Protocol = 6,
+        Business = 7
+    }
 
     /// <summary>
     /// 操作结果的类，只带有成功标志和错误信息 -> The class that operates the result, with only success flags and error messages
@@ -69,6 +82,11 @@ namespace Wombat.IndustrialCommunication
         public Exception Exception { get; set; }
 
         /// <summary>
+        /// 供调用方进行结构化故障判断；未分类的旧结果保持 None。
+        /// </summary>
+        public OperationFailureKind FailureKind { get; set; }
+
+        /// <summary>
         /// 耗时（毫秒）
         /// </summary>
         public double? TimeConsuming { get; internal set; }
@@ -114,6 +132,7 @@ namespace Wombat.IndustrialCommunication
             Message = result.Message;
             ErrorCode = result.ErrorCode;
             Exception = result.Exception;
+            FailureKind = result.FailureKind;
             InitialTime = result.InitialTime;
             result.OperationInfo.ForEach((message) => { OperationInfo.Add(message); });
             return this;
@@ -239,6 +258,7 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = -1,
                 Exception = orgin.Exception,
+                FailureKind = orgin.FailureKind,
                 Responses = orgin.Responses,
                 Requsts = orgin.Requsts,
                 InitialTime = orgin.InitialTime,
@@ -262,6 +282,7 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = -1,
                 Exception = orgin.Exception,
+                FailureKind = orgin.FailureKind,
                 Responses = orgin.Responses,
                 Requsts = orgin.Requsts,
                 InitialTime = orgin.InitialTime,
@@ -606,7 +627,8 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = -1,
                 Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
-                Exception = exception
+                Exception = exception,
+                FailureKind = ClassifyException(exception)
             };
         }
 
@@ -623,7 +645,8 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = -1,
                 Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
-                Exception = exception
+                Exception = exception,
+                FailureKind = ClassifyException(exception)
             };
         }
 
@@ -642,6 +665,7 @@ namespace Wombat.IndustrialCommunication
                 ErrorCode = -1,
                 Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
                 Exception = exception,
+                FailureKind = ClassifyException(exception),
                 ResultValue = value
             };
         }
@@ -694,7 +718,8 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = errorCode,
                 Message = exception?.Message ?? StringResources.Language.ExceptionMessage,
-                Exception = exception
+                Exception = exception,
+                FailureKind = ClassifyException(exception)
             };
         }
 
@@ -882,7 +907,8 @@ namespace Wombat.IndustrialCommunication
                 IsSuccess = false,
                 ErrorCode = exception.HResult != 0 ? exception.HResult : -1,
                 Message = exception.Message,
-                Exception = exception
+                Exception = exception,
+                FailureKind = ClassifyException(exception)
             };
 
             // 如果有内部异常，添加到操作信息中
@@ -892,6 +918,41 @@ namespace Wombat.IndustrialCommunication
             }
 
             return result;
+        }
+
+        private static OperationFailureKind ClassifyException(Exception exception)
+        {
+            if (exception == null)
+            {
+                return OperationFailureKind.None;
+            }
+
+            if (exception is AggregateException aggregate && aggregate.InnerExceptions.Count == 1)
+            {
+                return ClassifyException(aggregate.InnerExceptions[0]);
+            }
+
+            if (exception is TimeoutException)
+            {
+                return OperationFailureKind.Timeout;
+            }
+
+            if (exception is ObjectDisposedException)
+            {
+                return OperationFailureKind.ConnectionClosed;
+            }
+
+            if (exception is SocketException || exception is IOException)
+            {
+                return OperationFailureKind.Transport;
+            }
+
+            if (exception is OperationCanceledException)
+            {
+                return OperationFailureKind.Cancelled;
+            }
+
+            return exception is ArgumentException ? OperationFailureKind.Validation : OperationFailureKind.None;
         }
 
         #endregion

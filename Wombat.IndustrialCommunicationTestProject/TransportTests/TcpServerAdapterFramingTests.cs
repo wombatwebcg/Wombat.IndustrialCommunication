@@ -100,6 +100,91 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
             Assert.Same(connected, disconnected);
         }
 
+        [Fact]
+        public async Task TcpServerAdapter_Should_Reject_Connections_Above_MaxConnections()
+        {
+            int port = GetFreePort();
+            using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port) { MaxConnections = 1 };
+            int connectedCount = 0;
+            adapter.ClientConnected += (sender, args) => connectedCount++;
+
+            var listen = await adapter.ListenAsync().ConfigureAwait(false);
+            Assert.True(listen.IsSuccess, listen.Message);
+
+            using var first = new TcpClient();
+            using var second = new TcpClient();
+            await first.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+            await WaitUntilAsync(() => connectedCount == 1).ConfigureAwait(false);
+            await second.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+            await Task.Delay(100).ConfigureAwait(false);
+
+            Assert.Equal(1, connectedCount);
+        }
+
+        [Fact]
+        public async Task TcpServerAdapter_Should_Timeout_Incomplete_Frame_But_Keep_Idle_Connection()
+        {
+            int port = GetFreePort();
+            using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port)
+            {
+                ReceiveTimeout = TimeSpan.FromMilliseconds(100)
+            };
+            INetworkSession disconnected = null;
+            adapter.ClientDisconnected += (sender, args) => disconnected = args.Session;
+
+            var listen = await adapter.ListenAsync().ConfigureAwait(false);
+            Assert.True(listen.IsSuccess, listen.Message);
+
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+            await Task.Delay(200).ConfigureAwait(false);
+            Assert.Null(disconnected);
+
+            using var stream = client.GetStream();
+            byte[] frame = BuildModbusFrame(4);
+            await stream.WriteAsync(frame, 0, 3).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
+            await WaitUntilAsync(() => disconnected != null).ConfigureAwait(false);
+
+            Assert.NotNull(disconnected);
+        }
+
+        [Fact]
+        public async Task ServerMessageTransport_Should_Close_Client_When_Request_Backlog_Is_Full()
+        {
+            int port = GetFreePort();
+            using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port);
+            using var transport = new ServerMessageTransport(adapter) { MaxPendingMessages = 1 };
+            using var releaseHandler = new System.Threading.ManualResetEventSlim();
+            var handlerEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            INetworkSession disconnected = null;
+            transport.RegisterMessageHandler(message =>
+            {
+                handlerEntered.TrySetResult(true);
+                releaseHandler.Wait(TimeSpan.FromSeconds(3));
+            });
+            adapter.ClientDisconnected += (sender, args) => disconnected = args.Session;
+
+            var listen = await transport.StartAsync().ConfigureAwait(false);
+            Assert.True(listen.IsSuccess, listen.Message);
+
+            using var client = new TcpClient();
+            await client.ConnectAsync(IPAddress.Loopback, port).ConfigureAwait(false);
+            using var stream = client.GetStream();
+            byte[] frame = BuildModbusFrame(5);
+            await stream.WriteAsync(frame, 0, frame.Length).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
+            await handlerEntered.Task.ConfigureAwait(false);
+
+            byte[] queuedFrames = frame.Concat(frame).ToArray();
+            await stream.WriteAsync(queuedFrames, 0, queuedFrames.Length).ConfigureAwait(false);
+            await stream.FlushAsync().ConfigureAwait(false);
+            await WaitUntilAsync(() => disconnected != null).ConfigureAwait(false);
+
+            releaseHandler.Set();
+            Assert.NotNull(disconnected);
+        }
+
         private static byte[] BuildS7Frame()
         {
             return new byte[]
