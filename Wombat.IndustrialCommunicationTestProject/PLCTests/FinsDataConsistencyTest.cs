@@ -15,6 +15,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     /// <summary>
     /// FINS客户端数据一致性测试 - 连接到真实FINS服务器
     /// </summary>
+    [Trait("Category", "RealPlc")]
     public class FinsDataConsistencyTest : IDisposable
     {
         private readonly ITestOutputHelper _output;

@@ -159,7 +159,17 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 return Task.FromResult(CreateSuccessResult(request));
             }
 
+            public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
+            {
+                return Task.FromResult(CreateSuccessResult(request));
+            }
+
             public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request)
+            {
+                return Task.FromResult(CreateSuccessResult(request));
+            }
+
+            public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastWriteMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
             {
                 return Task.FromResult(CreateSuccessResult(request));
             }

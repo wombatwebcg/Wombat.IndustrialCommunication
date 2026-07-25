@@ -14,6 +14,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
     /// <summary>
     /// FINS协议通信报文格式测试
     /// </summary>
+    [Trait("Category", "RealPlc")]
     public class FinsCommunication_Test
     {
         private readonly ITestOutputHelper _output;

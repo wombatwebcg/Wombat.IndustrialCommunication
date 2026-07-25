@@ -153,18 +153,6 @@ namespace Wombat.IndustrialCommunication.Modbus
         public bool IsLongConnection { get; set; } = true;
         public TimeSpan ResponseInterval { get; set; }
 
-        public OperationResult Connect()
-        {
-            try
-            {
-                return ConnectAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Modbus Rtu客户端连接失败: {ex.Message}");
-            }
-        }
-
         public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             using (await _lock.LockAsync())
@@ -207,18 +195,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                     Logger?.LogError(ex, "连接Modbus RTU时发生异常，串口：{PortName}", PortName);
                     return OperationResult.CreateFailedResult($"连接异常: {ex.Message}");
                 }
-            }
-        }
-
-        public OperationResult Disconnect()
-        {
-            try
-            {
-                return DisconnectAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Modbus Rtu客户端断开连接失败: {ex.Message}");
             }
         }
 
@@ -481,29 +457,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
         
-        /// <summary>
-        /// 释放资源
-        /// </summary>
-        /// <param name="disposing">是否释放托管资源</param>
-        protected new virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // 确保断开连接
-                Disconnect();
-            }
-            
-            base.Dispose(disposing);
-        }
-        
-        /// <summary>
-        /// 释放资源
-        /// </summary>
-        public new void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
 
         private static string BuildLogicalReadAddress(byte stationNumber, byte functionCode, ushort address)
         {

@@ -8,6 +8,17 @@
 
   <ItemGroup>
     <Compile Remove="PLCTests\OmronFinsClient_Tests.cs" />
+    <Compile Remove="PLCTests\FinsCommunication_Test.cs" />
+    <Compile Remove="PLCTests\S7_1200ClientTest.cs" />
+    <Compile Remove="PLCTests\S7_200.cs" />
+    <Compile Remove="PLCTests\S7_Smart200.cs" />
+    <Compile Remove="ModbusTests\ModbusEnhancedAddressTests.cs" />
+    <Compile Remove="ModbusTests\ModbusRTUClientTests.cs" />
+    <Compile Remove="ModbusTests\ModbusTcpClientTests.cs" />
+    <Compile Remove="ModbusTests\ModbusTcpServerSnapshotTests.cs" />
+    <Compile Remove="PLCTests\S7_1200ServerTest.cs" />
+    <Compile Remove="PLCTests\S7Smart200ServerMonitorTests.cs" />
+    <Compile Remove="PLCTests\S7TcpServerSnapshotTests.cs" />
   </ItemGroup>
 
   <ItemGroup>

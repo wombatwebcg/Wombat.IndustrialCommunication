@@ -14,6 +14,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
     /// <summary>
     /// ModbusTcpClient 功能测试
     /// </summary>
+    [Trait("Category", "RealPlc")]
     public class ModbusTcpClientTests
     {
         private const string TEST_TCP_IP = "127.0.0.1"; // 请根据实际情况修改

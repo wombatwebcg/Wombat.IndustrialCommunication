@@ -15,6 +15,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
     /// <summary>
     /// ModbusRTUClient 功能测试
     /// </summary>
+    [Trait("Category", "RealPlc")]
     public class ModbusRTUClientTests
     {
         private const string TEST_RTU_PORT = "COM1"; // 请根据实际情况修改

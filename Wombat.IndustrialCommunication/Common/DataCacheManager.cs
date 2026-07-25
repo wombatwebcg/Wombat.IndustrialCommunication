@@ -292,7 +292,7 @@ namespace Wombat.IndustrialCommunication
                     // 如果启用后台更新且接近过期，触发后台更新
                     if (_config.EnableBackgroundRefresh && cacheItem.NeedsBackgroundRefresh(_config.BackgroundRefreshThreshold))
                     {
-                        RefreshCacheInBackgroundAsync(key, valueFactory, expirationMs, cancellationToken).ConfigureAwait(false);
+                        await RefreshCacheInBackgroundAsync(key, valueFactory, expirationMs, cancellationToken).ConfigureAwait(false);
                     }
                     
                     _logger?.LogDebug("缓存命中: {CacheKey}, 访问次数: {AccessCount}", cacheKey, cacheItem.AccessCount);

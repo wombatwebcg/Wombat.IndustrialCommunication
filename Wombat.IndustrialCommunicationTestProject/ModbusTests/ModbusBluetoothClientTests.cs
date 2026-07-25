@@ -28,16 +28,16 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
         }
 
         [Fact]
-        public async Task ShortConnection_WriteHoldingRegisterAsync_ShouldAutoDisconnect()
+        public async Task DisconnectedWrite_DoesNotOwnConnectionLifecycle()
         {
             var channel = new FakeBluetoothChannel();
-            var client = new ModbusRtuBluetoothClient(channel) { IsLongConnection = false };
+            var client = new ModbusRtuBluetoothClient(channel);
 
             var writeResult = await client.WriteHoldingRegisterAsync(1, 0, 123);
-            Assert.True(writeResult.IsSuccess, writeResult.Message);
+            Assert.False(writeResult.IsSuccess);
             Assert.False(client.Connected);
-            Assert.True(channel.ConnectCount >= 1);
-            Assert.True(channel.DisconnectCount >= 1);
+            Assert.Equal(0, channel.ConnectCount);
+            Assert.Equal(0, channel.DisconnectCount);
         }
 
         private sealed class FakeBluetoothChannel : IBluetoothChannel

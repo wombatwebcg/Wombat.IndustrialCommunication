@@ -151,21 +151,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
-        public bool IsLongConnection { get; set; } = true;
-
         public TimeSpan ResponseInterval { get; set; }
-
-        public OperationResult Connect()
-        {
-            try
-            {
-                return ConnectAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Modbus Rtu蓝牙客户端连接失败: {ex.Message}");
-            }
-        }
 
         public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
@@ -183,7 +169,7 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                 {
                     Logger?.LogDebug("正在连接Modbus RTU蓝牙");
                     var startTime = DateTime.Now;
-                    var result = await _bluetoothAdapter.ConnectAsync();
+                    var result = await _bluetoothAdapter.ConnectAsync(cancellationToken);
                     if (cancellationToken.IsCancellationRequested)
                     {
                         await _bluetoothAdapter.DisconnectAsync().ConfigureAwait(false);
@@ -207,18 +193,6 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
                     Logger?.LogError(ex, "连接Modbus RTU蓝牙时发生异常");
                     return OperationResult.CreateFailedResult($"连接异常: {ex.Message}");
                 }
-            }
-        }
-
-        public OperationResult Disconnect()
-        {
-            try
-            {
-                return DisconnectAsync().GetAwaiter().GetResult();
-            }
-            catch (Exception ex)
-            {
-                return OperationResult.CreateFailedResult($"Modbus Rtu蓝牙客户端断开连接失败: {ex.Message}");
             }
         }
 
@@ -260,77 +234,19 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
 
         protected override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
         {
-            if (IsLongConnection)
+            if (!Connected)
             {
-                if (!Connected)
-                {
-                    return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙客户端没有连接");
-                }
-
-                try
-                {
-                    Logger?.LogDebug("开始读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
-                    var result = await base.ReadAsync(address, length, dataType, isBit);
-
-                    if (result.IsSuccess)
-                    {
-                        Logger?.LogDebug("成功读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
-                    }
-                    else
-                    {
-                        Logger?.LogWarning("读取Modbus RTU蓝牙数据失败，地址：{Address}，长度：{Length}，错误：{Error}", address, length, result.Message);
-                    }
-
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "读取Modbus RTU蓝牙数据时发生异常，地址：{Address}，长度：{Length}", address, length);
-                    return OperationResult.CreateFailedResult<byte[]>($"读取数据失败：{ex.Message}");
-                }
+                return OperationResult.CreateFailedResult<byte[]>("Modbus RTU蓝牙客户端没有连接");
             }
-            else
+
+            try
             {
-                bool connected = false;
-                try
-                {
-                    await DisconnectAsync();
-
-                    var connectResult = await ConnectAsync();
-                    if (!connectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult<byte[]>($"短连接模式连接失败：{connectResult.Message}");
-                    }
-
-                    connected = true;
-
-                    var result = await base.ReadAsync(address, length, dataType, isBit);
-                    if (result.IsSuccess)
-                    {
-                        Logger?.LogDebug("短连接模式成功读取Modbus RTU蓝牙数据，地址：{Address}，长度：{Length}", address, length);
-                    }
-
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "短连接模式读取Modbus RTU蓝牙数据时发生异常，地址：{Address}，长度：{Length}", address, length);
-                    return OperationResult.CreateFailedResult<byte[]>($"短连接读取失败：{ex.Message}");
-                }
-                finally
-                {
-                    if (connected)
-                    {
-                        try
-                        {
-                            await DisconnectAsync();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger?.LogWarning(ex, "短连接模式操作后断开蓝牙连接时发生异常");
-                        }
-                    }
-                }
+                return await base.ReadAsync(address, length, dataType, isBit);
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "读取Modbus RTU蓝牙数据时发生异常，地址：{Address}，长度：{Length}", address, length);
+                return OperationResult.CreateFailedResult<byte[]>($"读取数据失败：{ex.Message}");
             }
         }
 
@@ -351,77 +267,19 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
 
         private async Task<OperationResult> HandleWriteAsync(Func<Task<OperationResult>> writeAction, string address)
         {
-            if (IsLongConnection)
+            if (!Connected)
             {
-                if (!Connected)
-                {
-                    return OperationResult.CreateFailedResult("Modbus RTU蓝牙客户端没有连接");
-                }
-
-                try
-                {
-                    Logger?.LogDebug("开始写入Modbus RTU蓝牙数据，地址：{Address}", address);
-                    var result = await writeAction();
-
-                    if (result.IsSuccess)
-                    {
-                        Logger?.LogDebug("成功写入Modbus RTU蓝牙数据，地址：{Address}", address);
-                    }
-                    else
-                    {
-                        Logger?.LogWarning("写入Modbus RTU蓝牙数据失败，地址：{Address}，错误：{Error}", address, result.Message);
-                    }
-
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "写入Modbus RTU蓝牙数据时发生异常，地址：{Address}", address);
-                    return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
-                }
+                return OperationResult.CreateFailedResult("Modbus RTU蓝牙客户端没有连接");
             }
-            else
+
+            try
             {
-                bool connected = false;
-                try
-                {
-                    await DisconnectAsync();
-
-                    var connectResult = await ConnectAsync();
-                    if (!connectResult.IsSuccess)
-                    {
-                        return OperationResult.CreateFailedResult($"短连接模式连接失败：{connectResult.Message}");
-                    }
-
-                    connected = true;
-
-                    var result = await writeAction();
-                    if (result.IsSuccess)
-                    {
-                        Logger?.LogDebug("短连接模式成功写入Modbus RTU蓝牙数据，地址：{Address}", address);
-                    }
-
-                    return result;
-                }
-                catch (Exception ex)
-                {
-                    Logger?.LogError(ex, "短连接模式写入Modbus RTU蓝牙数据时发生异常，地址：{Address}", address);
-                    return OperationResult.CreateFailedResult($"短连接写入失败：{ex.Message}");
-                }
-                finally
-                {
-                    if (connected)
-                    {
-                        try
-                        {
-                            await DisconnectAsync();
-                        }
-                        catch (Exception ex)
-                        {
-                            Logger?.LogWarning(ex, "短连接模式操作后断开蓝牙连接时发生异常");
-                        }
-                    }
-                }
+                return await writeAction();
+            }
+            catch (Exception ex)
+            {
+                Logger?.LogError(ex, "写入Modbus RTU蓝牙数据时发生异常，地址：{Address}", address);
+                return OperationResult.CreateFailedResult($"写入数据失败：{ex.Message}");
             }
         }
 
@@ -988,20 +846,5 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             return OperationResult.CreateFailedResult<byte[]>();
         }
 
-        protected new virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                Disconnect();
-            }
-
-            base.Dispose(disposing);
-        }
-
-        public new void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
     }
 }

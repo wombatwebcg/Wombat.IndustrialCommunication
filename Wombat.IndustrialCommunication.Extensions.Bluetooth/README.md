@@ -19,7 +19,7 @@
 - `IBluetoothChannel`：平台无关的蓝牙字节通道抽象（连接、断开、收发、超时）
 - `BluetoothStreamAdapter`：把 `IBluetoothChannel` 适配为主库 `IStreamResource`
 - `BluetoothClientFactory`：校验并下发 `BluetoothConnectionOptions`，创建客户端
-- `ModbusRtuBluetoothClient`：支持长连接/短连接、自动重连、批量读写
+- `ModbusRtuBluetoothClient`：执行单次连接、断开和 Modbus 读写；生命周期由 Channel 管理
 - `BluetoothServerAdapter` + `ModbusRtuBluetoothServer`：蓝牙服务端透传（含 DataStore 快照持久化）
 
 ## 2. 必填参数与校验规则
@@ -41,8 +41,7 @@
 2. 通过设备发现流程拿到 `DeviceId/ServiceId/WriteCharacteristicId/NotifyCharacteristicId`
 3. 构建并校验 `BluetoothConnectionOptions`
 4. `BluetoothClientFactory.CreateModbusRtuClient(...)` 创建客户端
-5. 按需设置连接策略（`IsLongConnection`、`EnableAutoReconnect` 等）
-6. `Connect/ConnectAsync` 后进行 Modbus 读写
+5. 通过 `ChannelManager` 注册并执行客户端操作
 
 最小示例：
 
@@ -71,11 +70,6 @@ if (!validate.IsSuccess)
 
 IBluetoothChannel channel = new YourBluetoothChannelImplementation(options);
 var client = BluetoothClientFactory.CreateModbusRtuClient(channel, options);
-
-client.IsLongConnection = true;
-client.EnableAutoReconnect = true;
-client.MaxReconnectAttempts = 5;
-client.ReconnectDelay = TimeSpan.FromSeconds(2);
 
 var connectResult = await client.ConnectAsync();
 if (!connectResult.IsSuccess)
@@ -138,7 +132,7 @@ if (!listenResult.IsSuccess)
 - 自动选择 `CanWrite=true` 作为写入特征
 - 自动选择 `CanNotify=true`（或回退 `CanRead=true`）作为接收特征
 - 将上述四元组（设备/服务/写入特征/通知特征）写入 `BluetoothConnectionOptions`
-- 再创建 `ModbusRtuBluetoothClient` 并启用自动重连参数
+- 再创建 `ModbusRtuBluetoothClient`，由 Channel 统一管理连接恢复
 
 对接自定义宿主时，建议按同样顺序做参数发现与回显，避免用户手填 UUID 导致误配。
 
@@ -153,7 +147,7 @@ if (!listenResult.IsSuccess)
 - `ReceiveAsync` 在超时前返回“完整可消费字节”，避免碎片化导致 Modbus 错帧
 - `SendAsync` 与 `ReceiveAsync` 保证串行化，避免并发读写交叉污染帧
 - 当 Notify 不可用时提供 Read 轮询降级策略
-- 断链后及时上抛失败，让上层自动重连逻辑生效
+- 断链后及时上抛结构化失败，让 Channel 生命周期接管恢复
 
 ## 7. 常见问题
 
@@ -164,7 +158,7 @@ if (!listenResult.IsSuccess)
   排查：检查 `DeviceId/ServiceId/WriteCharacteristicId/NotifyCharacteristicId` 是否为空或 UUID 格式错误
 
 - 现象：偶发断连后无法恢复  
-  排查：开启 `EnableAutoReconnect`，并适当调大 `ReconnectDelay` 与超时参数
+  排查：确认客户端通过 `ChannelManager` 执行，并检查 Channel 的重连与超时配置
 
 - 现象：读到的数据错帧  
   排查：确保底层通道是“有序字节流”，并按 Modbus RTU 请求-响应节奏完整收发

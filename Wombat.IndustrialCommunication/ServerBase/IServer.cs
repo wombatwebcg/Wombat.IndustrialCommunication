@@ -30,10 +30,6 @@ namespace Wombat.IndustrialCommunication
 
         bool IsListening { get; }
 
-        OperationResult Listen();
-
-        OperationResult Shutdown();
-
         Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken));
 
         Task<OperationResult> ShutdownAsync();

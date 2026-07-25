@@ -142,11 +142,11 @@ namespace Wombat.IndustrialCommunication.Channels
             }
             if (options is SiemensS7ChannelOptions s7)
             {
-                return new SiemensClient(s7.Host, s7.Port, s7.Version, s7.Slot, s7.Rack) { ConnectTimeout = s7.ConnectTimeout, SendTimeout = s7.OperationTimeout, ReceiveTimeout = s7.OperationTimeout, Retries = 0, IsLongConnection = true };
+                return new SiemensClient(s7.Host, s7.Port, s7.Version, s7.Slot, s7.Rack) { ConnectTimeout = s7.ConnectTimeout, SendTimeout = s7.OperationTimeout, ReceiveTimeout = s7.OperationTimeout, Retries = 0 };
             }
             if (options is FinsTcpChannelOptions fins)
             {
-                return new FinsClient(fins.Host, fins.Port) { ConnectTimeout = fins.ConnectTimeout, SendTimeout = fins.OperationTimeout, ReceiveTimeout = fins.OperationTimeout, Retries = 0, IsLongConnection = true };
+                return new FinsClient(fins.Host, fins.Port) { ConnectTimeout = fins.ConnectTimeout, SendTimeout = fins.OperationTimeout, ReceiveTimeout = fins.OperationTimeout, Retries = 0 };
             }
             throw new NotSupportedException($"Channel options '{options.GetType().Name}' are not supported.");
         }

@@ -157,11 +157,6 @@ namespace Wombat.IndustrialCommunication.PLC
         public bool IsLongConnection { get; set; } = true;
         public TimeSpan ResponseInterval { get; set; }
 
-        public OperationResult Connect()
-        {
-            return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
-        }
-
         public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             using (await _lock.LockAsync(cancellationToken))
@@ -227,11 +222,6 @@ namespace Wombat.IndustrialCommunication.PLC
                     return OperationResult.CreateFailedResult($"连接异常: {ex.Message}");
                 }
             }
-        }
-
-        public OperationResult Disconnect()
-        {
-            return Task.Run(async () => await DisconnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> DisconnectAsync()
@@ -582,19 +572,5 @@ namespace Wombat.IndustrialCommunication.PLC
             Logger?.LogInformation("S7批量写入完成，调度信息：{DispatchMessage}", result.Message);
         }
         
-        /// <summary>
-        /// 释放资源
-        /// </summary>
-        /// <param name="disposing">是否释放托管资源</param>
-        protected override void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // 确保断开连接
-                Disconnect();
-            }
-            
-            base.Dispose(disposing);
-        }
     }
 }

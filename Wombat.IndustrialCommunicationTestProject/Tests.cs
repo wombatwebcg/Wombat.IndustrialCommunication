@@ -15,10 +15,9 @@ namespace Wombat.IndustrialCommunicationTestProject
 
         [Fact]
 
-        public void ObservableArrayTest()
+        public async Task ObservableArrayTest()
         {
-            int count = 100_000;
-            var array = new ObservableArray<int>(count)
+            await using var array = new ObservableArray<int>(1)
             {
                 ThrottleInterval = TimeSpan.FromMilliseconds(100),
                 MaxThrottleInterval = TimeSpan.FromMilliseconds(500),
@@ -44,22 +43,8 @@ namespace Wombat.IndustrialCommunicationTestProject
             //    array.Set(i, i * 10);
             //    array.Set(i, i * 20);
             //});
-            Task.Run(() =>
-            {
-                while(true)
-                {
-                    Random random = new Random();
-                    for (int i = 0; i < count; i++)
-                    {
-                        //array.Set(i, random.Next(1,count) * 10);
-                    }
-
-                }
-            });
-            //array.Set(0, 999);
-            //Thread.Sleep(70000);
-            //array.StopWatching();
-            for (; ; );
+            array.Set(0, 999);
+            Assert.Equal(999, array.Get(0));
         }
     }
 }

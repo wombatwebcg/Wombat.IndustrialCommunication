@@ -4,7 +4,7 @@ using System.Threading.Tasks;
 
 namespace Wombat.IndustrialCommunication.Servers
 {
-    public sealed class ServerHost : IAsyncDisposable, IDisposable
+    public sealed class ServerHost : IAsyncDisposable
     {
         private readonly SemaphoreSlim _lifecycleLock = new SemaphoreSlim(1, 1);
         private bool _disposed;
@@ -58,11 +58,6 @@ namespace Wombat.IndustrialCommunication.Servers
             _disposed = true;
             (Server as IDisposable)?.Dispose();
             _lifecycleLock.Dispose();
-        }
-
-        public void Dispose()
-        {
-            DisposeAsync().AsTask().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         private void ThrowIfDisposed()

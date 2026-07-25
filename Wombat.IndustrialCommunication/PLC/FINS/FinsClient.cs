@@ -210,24 +210,6 @@ namespace Wombat.IndustrialCommunication.PLC
         }
 
         /// <summary>
-        /// 同步连接到PLC
-        /// </summary>
-        /// <returns>连接结果</returns>
-        public OperationResult Connect()
-        {
-            return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
-        /// 同步断开连接
-        /// </summary>
-        /// <returns>断开连接结果</returns>
-        public OperationResult Disconnect()
-        {
-            return Task.Run(async () => await DisconnectAsync()).GetAwaiter().GetResult();
-        }
-
-        /// <summary>
         /// 内部读取方法，实现连接管理和自动重连
         /// </summary>
         /// <param name="address">地址</param>

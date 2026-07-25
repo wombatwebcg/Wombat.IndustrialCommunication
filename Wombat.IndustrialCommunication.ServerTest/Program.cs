@@ -58,7 +58,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
             }
             finally
             {
-                DisposeResources();
+                await DisposeResourcesAsync().ConfigureAwait(false);
             }
         }
 
@@ -257,7 +257,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
             return bytes.Length == 0 ? "(empty)" : BitConverter.ToString(bytes).Replace("-", " ");
         }
 
-        private static void DisposeResources()
+        private static async Task DisposeResourcesAsync()
         {
             if (_hosts != null)
             {
@@ -265,7 +265,7 @@ namespace Wombat.IndustrialCommunication.ServerTest
                 {
                     try
                     {
-                        host.Dispose();
+                        await host.DisposeAsync().ConfigureAwait(false);
                     }
                     catch
                     {

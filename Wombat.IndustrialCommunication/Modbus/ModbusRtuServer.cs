@@ -155,15 +155,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             InitializeSnapshotPersistence();
         }
 
-        /// <summary>
-        /// 开始监听
-        /// </summary>
-        /// <returns>操作结果</returns>
-        public OperationResult Listen()
-        {
-            return ListenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
         public async Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -175,15 +166,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             var result = await StartAsync().ConfigureAwait(false);
             if (result.IsSuccess && EnableSnapshotPersistence) StartSnapshotTimer();
             return result;
-        }
-
-        /// <summary>
-        /// 停止监听
-        /// </summary>
-        /// <returns>操作结果</returns>
-        public OperationResult Shutdown()
-        {
-            return ShutdownAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> ShutdownAsync()
@@ -2009,9 +1991,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                 StopSnapshotTimer();
                 _snapshotTimer?.Dispose();
 
-                // 确保服务器已关闭
-                Shutdown();
-                
                 // 释放传输资源
                 _serverTransport?.Dispose();
             }

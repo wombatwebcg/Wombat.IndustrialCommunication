@@ -73,6 +73,11 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
                 return Task.FromResult(OperationResult.CreateSuccessResult(response));
             }
 
+            public override Task<OperationResult<IDeviceReadWriteMessage>> UnicastReadMessageAsync(IDeviceReadWriteMessage request, CancellationToken cancellationToken)
+            {
+                return UnicastReadMessageAsync(request);
+            }
+
             private TimeSpan GetElapsedTime()
             {
                 long currentTimestamp = Stopwatch.GetTimestamp();

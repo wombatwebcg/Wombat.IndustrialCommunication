@@ -25,11 +25,5 @@ namespace Wombat.IndustrialCommunication
 
         ILogger Logger { get; set; }
 
-        bool IsLongConnection { get; set; }
-
-        OperationResult Disconnect();
-
-
-
     }
 }

@@ -186,11 +186,6 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         public override string Version => nameof(ModbusTcpClient);
 
-        public OperationResult Connect()
-        {
-            return Task.Run(async () => await ConnectAsync()).GetAwaiter().GetResult();
-        }
-
         public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
         {
             using (await _lock.LockAsync())
@@ -234,11 +229,6 @@ namespace Wombat.IndustrialCommunication.Modbus
                     return OperationResult.CreateFailedResult($"连接异常: {ex.Message}");
                 }
             }
-        }
-
-        public OperationResult Disconnect()
-        {
-            return Task.Run(async () => await DisconnectAsync()).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> DisconnectAsync()
@@ -516,29 +506,6 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
         }
         
-        /// <summary>
-        /// 释放资源
-        /// </summary>
-        /// <param name="disposing">是否释放托管资源</param>
-        protected new virtual void Dispose(bool disposing)
-        {
-            if (disposing)
-            {
-                // 确保断开连接
-                Disconnect();
-            }
-            
-            base.Dispose(disposing);
-        }
-        
-        /// <summary>
-        /// 释放资源
-        /// </summary>
-        public new void Dispose()
-        {
-            Dispose(true);
-            GC.SuppressFinalize(this);
-        }
 
         private static string BuildLogicalReadAddress(byte stationNumber, byte functionCode, ushort address)
         {

@@ -547,3 +547,42 @@ ReconnectCount
 
 第一批不创建 `ChannelManager`。底层连接的取消和关闭语义未稳定前，上层状态机没有可靠基础。
 
+## 15. 阶段 8：未闭环项收口
+
+本阶段只处理阶段 1-7 尚未满足硬门槛或缺少验证证据的事项；旧连接池删除、`ChannelManager`、`ServerHost` 和双目标框架构建不重复实施。
+
+### 15.1 清除异步契约遗留
+
+- 删除核心库及 Bluetooth 扩展中的 sync-over-async，重点包括 `DeviceDataReaderWriterBase`、`SiemensClient`、`FinsClient`、Server Adapter 和 Bluetooth Adapter/Client/Server 中的 `Task.Run(...).GetAwaiter().GetResult()` 或直接 `.GetAwaiter().GetResult()` 包装。
+- 所有公开异步连接、收发、协议读写和批量读写 API 继续传递调用方 `CancellationToken`，不得在异步调用链中退回 `CancellationToken.None`。
+- 同步 API 若必须保留，使用独立同步实现；无法提供独立实现的同步入口直接删除。
+- 修复或明确接管未等待任务，消除 `DataCacheManager` 的 CS4014，并逐项审计 `ConcurrentTaskQueue`、`ObservableArray`、`ServerMessageTransport` 和各 Server Adapter 创建的后台任务。
+
+### 15.2 完成协议生命周期迁移
+
+- 清理 Bluetooth 扩展 README 和实现中遗留的 `EnableAutoReconnect`、`ReconnectDelay`、`MaxReconnectAttempts`、`IsLongConnection` 语义，连接恢复统一交给 Channel 生命周期。
+- 将 S7、FINS 的真实 PLC 场景改为通过 `ChannelManager` 执行，验证默认并发为 1、断线恢复合并、停止后旧运行时不能重新上线。
+- 为 Modbus TCP、Modbus RTU、S7 和 FINS 的每条写路径补齐“发送前失败可按策略重试一次；发送后响应丢失返回 `OutcomeUnknown` 且不重试”的可执行测试。
+- 补齐 FINS 节点握手失败释放 Socket、S7 PDU 协商失败释放 Socket、畸形响应和半包的结构化错误测试。
+
+### 15.3 补齐 Channel 与 Server 竞态矩阵
+
+- Channel：不同通道并行、连接中停止、操作中停止并释放、并发故障仅一次恢复、恢复任务共享、非法状态跳转、事件顺序、事件订阅者异常隔离、重启隔离。
+- Server：端口占用、并发会话、停止等待全部会话、单会话异常隔离、会话上限拒绝可观测、会话取消、快照持久化、串口独占冲突。
+- 所有后台循环必须由明确的 `CancellationTokenSource` 和可等待任务拥有；停止和释放测试必须断言任务已结束，不以固定延时推断结束。
+
+### 15.4 全库稳定性验证
+
+- 运行完整单元测试，并将依赖真实 PLC 的测试显式分类；自动化测试与实机测试分别输出可追溯结果，不允许因设备不可达静默通过。
+- 对 TCP 断开、半包、超时、写后断线和并发停止执行网络故障注入。
+- 使用 S7 与 FINS 实机验证 Channel 模型；使用 Modbus TCP/RTU 验证多站号共享通道、报文不交叉和协议上限切包。
+- 审计日志中的凭据、地址、原始报文和缓存集合，确认无敏感数据泄露或无限增长。
+- 更新根 README、四类通信组件指南和 Bluetooth README，使示例只使用最终 Channel/ServerHost API。
+
+硬门槛：
+
+1. `rg "Task\\.Run.*GetAwaiter|GetAwaiter\\(\\)\\.GetResult|EnableAutoReconnect|ReconnectDelay|MaxReconnectAttempts" Wombat.IndustrialCommunication Wombat.IndustrialCommunication.Extensions.Bluetooth` 无需保留的业务命中。
+2. `netstandard2.0` 与 `net10.0` 构建通过，且无未等待任务警告。
+3. 阶段 1-7 的测试矩阵全部存在并通过；网络故障注入结果可重复。
+4. S7、FINS 和 Modbus 实机测试通过并留存设备、配置、时间和结果记录。
+5. 所有 Channel、Listener、Session 和后台任务在停止/释放后均已结束。

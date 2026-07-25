@@ -132,12 +132,15 @@ namespace Wombat.IndustrialCommunication
     /// <para>通过动态节流机制平衡高频更新场景的性能与实时性。</para>
     /// </summary>
     /// <typeparam name="T">数组元素类型，需实现 IEquatable<T> 以支持高效值比较</typeparam>
-    public class ObservableArray<T> where T : IEquatable<T>
+    public class ObservableArray<T> : IAsyncDisposable where T : IEquatable<T>
     {
         // 核心数据存储（使用内存池优化）
         private Memory<T> arrayMemory;
         // 最后一次触发通知时的数据快照（用于检测变更）
         private Memory<T> lastSnapshotMemory;
+        private readonly T[] arrayBuffer;
+        private readonly T[] snapshotBuffer;
+        private readonly Task processingTask;
 
         // 变更缓冲区（线程安全字典存储待处理的索引-值变更）
         private ConcurrentDictionary<int, T> changeBuffer = new ConcurrentDictionary<int, T>();
@@ -179,15 +182,17 @@ namespace Wombat.IndustrialCommunication
         public ObservableArray(int length)
         {
             // 从内存池租用数组空间（优化频繁分配）
-            arrayMemory = new Memory<T>(ArrayPool<T>.Shared.Rent(length));
-            lastSnapshotMemory = new Memory<T>(ArrayPool<T>.Shared.Rent(length));
+            arrayBuffer = ArrayPool<T>.Shared.Rent(length);
+            snapshotBuffer = ArrayPool<T>.Shared.Rent(length);
+            arrayMemory = new Memory<T>(arrayBuffer, 0, length);
+            lastSnapshotMemory = new Memory<T>(snapshotBuffer, 0, length);
 
             // 初始化内存空间为默认值
             arrayMemory.Span.Clear();
             lastSnapshotMemory.Span.Clear();
 
             // 启动后台变更处理任务
-            Task.Run(ProcessChanges);
+            processingTask = ProcessChanges();
         }
 
         /// <summary>
@@ -310,10 +315,13 @@ namespace Wombat.IndustrialCommunication
                     else
                     {
                         // 无变更时降低CPU占用
-                        await Task.Delay(10);
+                        await Task.Delay(10, cts.Token);
                         CheckForChanges();
                     }
                 }
+            }
+            catch (OperationCanceledException) when (cts.IsCancellationRequested)
+            {
             }
             catch (Exception ex)
             {
@@ -328,12 +336,14 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 停止监听并释放资源
         /// </summary>
-        public void StopWatching()
+        public async ValueTask DisposeAsync()
         {
             cts.Cancel();
-            ArrayPool<T>.Shared.Return(arrayMemory.ToArray());     // 归还内存池数组
-            ArrayPool<T>.Shared.Return(lastSnapshotMemory.ToArray());
+            await processingTask.ConfigureAwait(false);
+            ArrayPool<T>.Shared.Return(arrayBuffer);
+            ArrayPool<T>.Shared.Return(snapshotBuffer);
             writeLock.Dispose();
+            cts.Dispose();
         }
     }
 

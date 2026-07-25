@@ -76,11 +76,6 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
 
         public new bool IsListening => base.IsListening;
 
-        public OperationResult Listen()
-        {
-            return ListenAsync().ConfigureAwait(false).GetAwaiter().GetResult();
-        }
-
         public async Task<OperationResult> ListenAsync(CancellationToken cancellationToken = default(CancellationToken))
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -92,11 +87,6 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             var result = await StartAsync().ConfigureAwait(false);
             if (result.IsSuccess && EnableSnapshotPersistence) StartSnapshotTimer();
             return result;
-        }
-
-        public OperationResult Shutdown()
-        {
-            return ShutdownAsync().ConfigureAwait(false).GetAwaiter().GetResult();
         }
 
         public async Task<OperationResult> ShutdownAsync()
@@ -178,7 +168,6 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             {
                 StopSnapshotTimer();
                 _snapshotTimer?.Dispose();
-                Shutdown();
                 _serverTransport?.Dispose();
             }
 

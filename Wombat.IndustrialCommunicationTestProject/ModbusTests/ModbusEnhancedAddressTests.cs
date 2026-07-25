@@ -15,6 +15,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
     /// Modbus增强地址格式功能测试
     /// 测试新的逻辑地址格式：40001、30001、10001、20001等
     /// </summary>
+    [Trait("Category", "RealPlc")]
     public class ModbusEnhancedAddressTests
     {
         private const string TEST_TCP_IP = "127.0.0.1";
