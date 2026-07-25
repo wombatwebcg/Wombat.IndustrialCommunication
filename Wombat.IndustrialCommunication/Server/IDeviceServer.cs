@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Server
 {
     public interface IDeviceServer:IServer,IReadWrite
     {

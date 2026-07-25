@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

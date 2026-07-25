@@ -4,7 +4,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
-using Wombat.IndustrialCommunication.Servers;
+using Wombat.IndustrialCommunication.Server;
 using Xunit;
 
 namespace Wombat.IndustrialCommunicationTest.ServerTests

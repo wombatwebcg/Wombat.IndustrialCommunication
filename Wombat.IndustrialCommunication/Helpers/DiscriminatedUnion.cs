@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Helpers
 {
 
     public enum DiscriminatedUnionOption

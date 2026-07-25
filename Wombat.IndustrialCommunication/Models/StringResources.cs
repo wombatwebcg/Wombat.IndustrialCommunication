@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
     /// <summary>
     /// 系统的字符串资源及多语言管理中心 ->

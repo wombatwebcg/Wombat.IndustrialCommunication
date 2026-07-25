@@ -4,7 +4,7 @@ using System.Runtime.Serialization;
 using System.Security.Permissions;
 
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Exceptions
 {
     /// <summary>
     ///     Represents slave errors that occur during communication.

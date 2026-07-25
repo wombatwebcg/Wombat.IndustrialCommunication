@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 
 
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
 
     public class MemoryCollection<T>

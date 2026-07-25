@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
+using Wombat.IndustrialCommunication.Abstractions;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Exceptions
 {
     public class ExceptionResponse : IDeviceMessage
     {

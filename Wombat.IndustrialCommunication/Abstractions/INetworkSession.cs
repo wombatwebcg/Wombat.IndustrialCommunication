@@ -1,7 +1,8 @@
 using System;
 using System.Threading.Tasks;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Abstractions
 {
     /// <summary>
     /// 网络会话接口

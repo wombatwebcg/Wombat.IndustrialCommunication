@@ -1,11 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Text;
 using System.Xml.Linq;
 using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
     public class DeviceInternalDataCollection<T> : Collection<T>
         where T : IDeviceInternalData, new()

@@ -1,6 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

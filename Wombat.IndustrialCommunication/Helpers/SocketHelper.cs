@@ -1,9 +1,9 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Net.Sockets;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Helpers
 {
    public static class SocketHelper
     {

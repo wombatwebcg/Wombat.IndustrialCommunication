@@ -5,6 +5,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Adapters;
 using Wombat.IndustrialCommunication.Models;
 
 

@@ -5,6 +5,11 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Core;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Messaging;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

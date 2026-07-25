@@ -9,7 +9,7 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
 
     public class ModbusDataCollection<T>  : MemoryLite<T>
     {
-        private bool _allowZeroElement = true;
+
 
 
         public ModbusDataCollection(int capacity):base(capacity)

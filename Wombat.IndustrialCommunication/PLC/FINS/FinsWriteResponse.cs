@@ -1,6 +1,7 @@
 using System;
 using System.Text;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
 
 namespace Wombat.IndustrialCommunication.PLC
 {

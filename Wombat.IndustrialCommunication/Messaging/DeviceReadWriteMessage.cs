@@ -1,7 +1,8 @@
 using System.Diagnostics.CodeAnalysis;
+using Wombat.IndustrialCommunication.Abstractions;
 using Wombat.IndustrialCommunication.Enums;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Messaging
 {
 
 

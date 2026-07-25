@@ -6,8 +6,12 @@ using System.Threading;
 using System.Threading.Tasks;
 
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Events;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Server
 {
     /// <summary>
     /// 服务器消息传输类，负责处理服务器与客户端的通信
@@ -272,7 +276,7 @@ namespace Wombat.IndustrialCommunication
         /// <summary>
         /// 数据接收事件处理程序
         /// </summary>
-        private async void OnDataReceived(object sender, DataReceivedEventArgs e)
+        private async void OnDataReceived(object sender, Events.DataReceivedEventArgs e)
         {
             byte[] actualData = ExtractActualData(e);
             if (actualData.Length == 0)
@@ -300,7 +304,7 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        private static byte[] ExtractActualData(DataReceivedEventArgs e)
+        private static byte[] ExtractActualData(Events.DataReceivedEventArgs e)
         {
             if (e == null || e.Data == null || e.Count <= 0)
             {

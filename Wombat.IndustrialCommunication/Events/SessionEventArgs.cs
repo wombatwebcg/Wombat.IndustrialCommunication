@@ -1,8 +1,9 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
+using Wombat.IndustrialCommunication.Abstractions;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Events
 {
     /// <summary>
     /// 会话事件参数

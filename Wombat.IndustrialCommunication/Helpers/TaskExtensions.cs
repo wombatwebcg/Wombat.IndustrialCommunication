@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Wombat.IndustrialCommunication.Helper
+namespace Wombat.IndustrialCommunication.Helpers
 {
     internal static class TaskExtensions
     {

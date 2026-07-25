@@ -1,4 +1,4 @@
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
     public static class WriteErrorCodes
     {

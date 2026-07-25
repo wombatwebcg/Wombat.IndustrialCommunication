@@ -9,7 +9,7 @@ using Microsoft.Extensions.Logging;
 
 using System.Collections.Generic;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Core
 {
 
 

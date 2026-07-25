@@ -7,6 +7,11 @@ using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Adapters;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Models;
+using Wombat.IndustrialCommunication.Messaging;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

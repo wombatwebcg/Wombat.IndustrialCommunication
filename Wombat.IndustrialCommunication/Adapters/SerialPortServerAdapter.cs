@@ -6,8 +6,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Events;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Adapters
 {
     /// <summary>
     /// 串口服务器适配器，提供串口通信的服务器端功能

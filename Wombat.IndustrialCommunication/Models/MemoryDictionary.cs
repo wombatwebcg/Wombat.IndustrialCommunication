@@ -1,4 +1,4 @@
-﻿
+
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -10,12 +10,11 @@ using System.Threading.Tasks;
 
 
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
 
     public class MemoryDictionary<T>: MemoryCollection<T>
     {
-        private Memory<T> _memory;
         private readonly object[] _locks;
         private readonly int _segmentCount;
         private readonly ConcurrentDictionary<string, int> _nameIndexMap = new ConcurrentDictionary<string, int>();
@@ -53,7 +52,7 @@ namespace Wombat.IndustrialCommunication
             }
         }
 
-        volatile int count1 =0;
+
         public void Add(string name, T item)
         {
             Add(item);

@@ -1,10 +1,10 @@
-﻿using System;
+using System;
 using System.ComponentModel;
 using System.Reactive.Subjects;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Models
 {
 
     public class DeviceInternalObjectDataUnit : IDeviceInternalData, INotifyPropertyChanged

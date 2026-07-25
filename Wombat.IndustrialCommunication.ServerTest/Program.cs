@@ -7,7 +7,7 @@ using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
-using Wombat.IndustrialCommunication.Servers;
+using Wombat.IndustrialCommunication.Server;
 
 namespace Wombat.IndustrialCommunication.ServerTest
 {

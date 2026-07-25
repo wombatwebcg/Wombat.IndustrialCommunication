@@ -3,7 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Server
 {
     internal static class SnapshotFilePathHelper
     {

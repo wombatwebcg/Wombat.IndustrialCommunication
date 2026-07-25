@@ -4,6 +4,10 @@ using System.Collections.Generic;
 using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Events;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Models;
+using Wombat.IndustrialCommunication.Server;
 
 
 namespace Wombat.IndustrialCommunication.PLC

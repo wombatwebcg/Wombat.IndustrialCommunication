@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.Modbus.Data
 {

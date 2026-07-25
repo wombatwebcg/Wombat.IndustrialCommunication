@@ -3,9 +3,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using Wombat.IndustrialCommunication.Modbus.Data;
+using Wombat.IndustrialCommunication.Models;
 using Wombat.IndustrialCommunication.PLC;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Server
 {
     internal static class ServerSnapshotPersistence
     {

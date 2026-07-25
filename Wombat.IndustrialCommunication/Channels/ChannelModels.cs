@@ -1,5 +1,6 @@
 using System;
 using System.IO.Ports;
+using Wombat.IndustrialCommunication.Models;
 using Wombat.IndustrialCommunication.PLC;
 
 namespace Wombat.IndustrialCommunication.Channels

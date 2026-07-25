@@ -6,7 +6,7 @@ using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Helpers
 {
     /// <summary>
     /// �򻯰��첽��������SemaphoreSlimʵ�֣����⾲̬����͸��ӵ��첽�ͷ��߼�

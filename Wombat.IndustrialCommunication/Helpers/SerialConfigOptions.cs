@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.IO.Ports;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Helpers
 { 
     /// <summary>
     /// SerialConfigOptions

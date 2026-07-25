@@ -5,7 +5,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Server
 {
     /// <summary>
     /// 设备服务器基类

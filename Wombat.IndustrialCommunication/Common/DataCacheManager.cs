@@ -5,7 +5,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Common
 {
     /// <summary>
     /// 缓存配置

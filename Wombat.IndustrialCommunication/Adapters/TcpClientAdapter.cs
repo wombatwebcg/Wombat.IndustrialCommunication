@@ -7,8 +7,10 @@ using System.Net;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Network.Transports.Tcp;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Adapters
 {
 
     public class TcpClientAdapter : IStreamResource, IDisposable

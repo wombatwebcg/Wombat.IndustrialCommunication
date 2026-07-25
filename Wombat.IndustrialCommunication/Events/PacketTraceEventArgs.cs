@@ -1,6 +1,6 @@
 using System;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Events
 {
     public enum PacketTraceDirection
     {

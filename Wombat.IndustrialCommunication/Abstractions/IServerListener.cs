@@ -1,7 +1,9 @@
 using System;
 using System.Threading.Tasks;
+using Wombat.IndustrialCommunication.Events;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Abstractions
 {
     /// <summary>
     /// 具备监听能力的服务端流资源接口。

@@ -2,6 +2,8 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Core;
+using Wombat.IndustrialCommunication.Models;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {

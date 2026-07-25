@@ -1,8 +1,8 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Text;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Core
 {
     internal class ProtocolDataNumber
     {

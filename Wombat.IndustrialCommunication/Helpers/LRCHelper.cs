@@ -1,7 +1,7 @@
-﻿using System;
+using System;
 using System.Linq;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Helpers
 {
     /// <summary>
     /// LRC验证

@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.IO.Ports;
@@ -9,9 +9,12 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Core;
+using Wombat.IndustrialCommunication.Models;
 
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Adapters
 {
     /// <summary>
     /// 串口通信适配器，提供串口通信的基本功能

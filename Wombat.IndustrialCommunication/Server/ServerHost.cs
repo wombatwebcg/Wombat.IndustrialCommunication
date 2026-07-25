@@ -1,8 +1,9 @@
 using System;
 using System.Threading;
 using System.Threading.Tasks;
+using Wombat.IndustrialCommunication.Models;
 
-namespace Wombat.IndustrialCommunication.Servers
+namespace Wombat.IndustrialCommunication.Server
 {
     public sealed class ServerHost : IAsyncDisposable
     {

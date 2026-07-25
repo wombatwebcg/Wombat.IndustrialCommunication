@@ -6,6 +6,9 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Messaging;
+using Wombat.IndustrialCommunication.Models;
 using Wombat.IndustrialCommunication.PLC;
 
 namespace Wombat.IndustrialCommunication

@@ -8,9 +8,13 @@ using System.Net;
 using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
+using Wombat.IndustrialCommunication.Abstractions;
+using Wombat.IndustrialCommunication.Events;
+using Wombat.IndustrialCommunication.Helpers;
+using Wombat.IndustrialCommunication.Models;
 using Wombat.Network.Transports.Tcp;
 
-namespace Wombat.IndustrialCommunication
+namespace Wombat.IndustrialCommunication.Adapters
 {
     /// <summary>
     /// TCP服务器适配器，实现IStreamResource接口，用于服务器端通信

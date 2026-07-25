@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using Wombat.IndustrialCommunication.Helpers;
 
 namespace Wombat.IndustrialCommunication.Modbus
 {
