@@ -7,12 +7,12 @@ using Wombat.IndustrialCommunication.Modbus;
 using Wombat.IndustrialCommunication.Server;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ServerTests
+namespace Wombat.IndustrialCommunicationTestProject.ServerTests
 {
     public class ServerHostTests
     {
         [Fact]
-        public async Task Start_Stop_And_Duplicate_Start_Are_Explicit()
+        public async Task StartStopAndDuplicateStartAreExplicit()
         {
             await using var host = new ServerHost("modbus", new ModbusTcpServer("127.0.0.1", GetFreePort()));
 
@@ -24,7 +24,7 @@ namespace Wombat.IndustrialCommunicationTest.ServerTests
         }
 
         [Fact]
-        public async Task Port_Conflict_Is_Reported()
+        public async Task PortConflictIsReported()
         {
             int port = GetFreePort();
             await using var first = new ServerHost("first", new ModbusTcpServer("127.0.0.1", port));
@@ -35,7 +35,7 @@ namespace Wombat.IndustrialCommunicationTest.ServerTests
         }
 
         [Fact]
-        public async Task Cancelled_Start_Does_Not_Listen()
+        public async Task CancelledStartDoesNotListen()
         {
             await using var host = new ServerHost("cancelled", new ModbusTcpServer("127.0.0.1", GetFreePort()));
             using var cancellation = new CancellationTokenSource();
@@ -46,7 +46,7 @@ namespace Wombat.IndustrialCommunicationTest.ServerTests
         }
 
         [Fact]
-        public async Task Stop_Closes_All_Concurrent_Sessions()
+        public async Task StopClosesAllConcurrentSessions()
         {
             int port = GetFreePort();
             var server = new ModbusTcpServer("127.0.0.1", port) { MaxConnections = 2 };

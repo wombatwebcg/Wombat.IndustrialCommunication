@@ -9,7 +9,7 @@ using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     /// <summary>
     /// ModbusTcpClient 功能测试
@@ -30,7 +30,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_Connect_Disconnect()
+        public void ConnectDisconnect()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             var result = client.Connect();
@@ -41,7 +41,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_SyncReadWrite()
+        public void SyncReadWrite()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -60,7 +60,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_AsyncReadWrite()
+        public async Task AsyncReadWrite()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -79,7 +79,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_BatchReadWrite()
+        public async Task BatchReadWrite()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();

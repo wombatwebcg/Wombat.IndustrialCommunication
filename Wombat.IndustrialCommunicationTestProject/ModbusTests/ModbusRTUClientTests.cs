@@ -10,7 +10,7 @@ using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     /// <summary>
     /// ModbusRTUClient 功能测试
@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_Connect_Disconnect()
+        public void ConnectDisconnect()
         {
             var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             var result = client.Connect();
@@ -42,7 +42,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_SyncReadWrite()
+        public void SyncReadWrite()
         {
             var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             client.Connect();
@@ -61,7 +61,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_AsyncReadWrite()
+        public async Task AsyncReadWrite()
         {
             var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             await client.ConnectAsync();
@@ -80,7 +80,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_BatchReadWrite()
+        public async Task BatchReadWrite()
         {
             var client = new ModbusRtuClient(TEST_RTU_PORT, TEST_RTU_BAUD);
             await client.ConnectAsync();

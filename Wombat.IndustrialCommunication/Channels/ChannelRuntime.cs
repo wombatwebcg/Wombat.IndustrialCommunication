@@ -30,11 +30,6 @@ namespace Wombat.IndustrialCommunication.Channels
         internal event EventHandler<ChannelStateChangedEventArgs> StateChanged;
         internal IProtocolClient Client => _client;
 
-        internal async Task StartAsync(CancellationToken cancellationToken)
-        {
-            await GetConnectionTaskAsync(false, cancellationToken).ConfigureAwait(false);
-        }
-
         internal async ValueTask<TResult> ExecuteAsync<TResult>(Func<IProtocolClient, CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken)
         {
             if (operation == null) throw new ArgumentNullException(nameof(operation));
@@ -49,7 +44,7 @@ namespace Wombat.IndustrialCommunication.Channels
                     entered = true;
                     IncrementWaiting(-1);
                     IncrementActive(1);
-                    await GetConnectionTaskAsync(true, linked.Token).ConfigureAwait(false);
+                    await GetConnectionTaskAsync(linked.Token).ConfigureAwait(false);
                     var result = await operation(_client, linked.Token).ConfigureAwait(false);
                     await RecordResultAsync(result as OperationResult).ConfigureAwait(false);
                     return result;
@@ -116,7 +111,7 @@ namespace Wombat.IndustrialCommunication.Channels
             }
         }
 
-        private async Task GetConnectionTaskAsync(bool reconnect, CancellationToken cancellationToken)
+        private async Task GetConnectionTaskAsync(CancellationToken cancellationToken)
         {
             Task task;
             await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -127,7 +122,7 @@ namespace Wombat.IndustrialCommunication.Channels
                 if (state == ChannelState.Online && _client.Connected) return;
                 if (state == ChannelState.Online) SetState(ChannelState.Faulted);
                 if (_connectionTask == null || _connectionTask.IsCompleted)
-                    _connectionTask = ConnectCoreAsync(reconnect || state == ChannelState.Faulted);
+                    _connectionTask = ConnectCoreAsync(state != ChannelState.Created);
                 task = _connectionTask;
             }
             finally { _lifecycle.Release(); }
@@ -137,7 +132,7 @@ namespace Wombat.IndustrialCommunication.Channels
         private async Task ConnectCoreAsync(bool reconnect)
         {
             SetState(reconnect ? ChannelState.Reconnecting : ChannelState.Connecting);
-            var attempts = reconnect ? Math.Max(1, _options.Reconnect.MaxAttempts) : 1;
+            var attempts = Math.Max(1, _options.Reconnect.MaxAttempts);
             OperationResult last = null;
             for (var attempt = 0; attempt < attempts; attempt++)
             {

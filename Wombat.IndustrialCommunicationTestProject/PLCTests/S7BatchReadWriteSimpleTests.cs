@@ -6,17 +6,17 @@ using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     /// <summary>
     /// S7批量读写功能简化测试
     /// 专门测试地址解析和优化算法的核心逻辑
     /// </summary>
-    public class S7BatchReadWriteSimpleTest
+    public class S7BatchReadWriteSimpleTests
     {
         private readonly ITestOutputHelper _output;
 
-        public S7BatchReadWriteSimpleTest(ITestOutputHelper output = null)
+        public S7BatchReadWriteSimpleTests(ITestOutputHelper output = null)
         {
             _output = output;
         }
@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 测试S7AddressInfo结构体的基本功能
         /// </summary>
         [Fact]
-        public void Test_S7AddressInfo_BasicFunctionality()
+        public void S7AddressInfoBasicFunctionality()
         {
             LogInfo("开始测试S7AddressInfo结构体");
 
@@ -91,7 +91,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 测试S7AddressBlock类的基本功能
         /// </summary>
         [Fact]
-        public void Test_S7AddressBlock_BasicFunctionality()
+        public void S7AddressBlockBasicFunctionality()
         {
             LogInfo("开始测试S7AddressBlock类");
 
@@ -137,7 +137,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 测试数据类型枚举
         /// </summary>
         [Fact]
-        public void Test_S7DataType_Enum()
+        public void S7DataTypeEnum()
         {
             LogInfo("开始测试S7DataType枚举");
 
@@ -167,7 +167,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 测试地址优化的基本概念
         /// </summary>
         [Fact]
-        public void Test_AddressOptimization_Concept()
+        public void AddressOptimizationConcept()
         {
             LogInfo("开始测试地址优化概念");
 
@@ -224,7 +224,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 测试批量读写的预期性能提升
         /// </summary>
         [Fact]
-        public void Test_BatchReadWrite_PerformanceExpectation()
+        public void BatchReadWritePerformanceExpectation()
         {
             LogInfo("开始测试批量读写性能预期");
 

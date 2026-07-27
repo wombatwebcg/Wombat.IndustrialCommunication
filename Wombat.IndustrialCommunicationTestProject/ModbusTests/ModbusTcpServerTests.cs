@@ -6,7 +6,7 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     public class ModbusTcpServerTests
     {
@@ -14,7 +14,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         private const byte Station = 1;
 
         [Fact]
-        public async Task Read_All_Register_Types_Should_Return_Expected_Values()
+        public async Task ReadAllRegisterTypesShouldReturnExpectedValues()
         {
             var port = GetFreePort();
             var server = new ModbusTcpServer(TestIp, port) { SlaveId = Station };
@@ -63,7 +63,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Write_Coil_And_HoldingRegister_Should_Update_Server_DataStore()
+        public async Task WriteCoilAndHoldingRegisterShouldUpdateServerDataStore()
         {
             var port = GetFreePort();
             var server = new ModbusTcpServer(TestIp, port) { SlaveId = Station };
@@ -107,7 +107,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task SingleConnection_Should_Handle_Sticky_And_Split_Modbus_Frames()
+        public async Task SingleConnectionShouldHandleStickyAndSplitModbusFrames()
         {
             var port = GetFreePort();
             var server = new ModbusTcpServer(TestIp, port) { SlaveId = Station };

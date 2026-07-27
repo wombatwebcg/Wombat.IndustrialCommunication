@@ -7,12 +7,12 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.TransportTests
+namespace Wombat.IndustrialCommunicationTestProject.TransportTests
 {
     public class TcpServerAdapterFramingTests
     {
         [Fact]
-        public async Task TcpServerAdapter_Should_Reassemble_S7_Tpkt_Split_Frame()
+        public async Task TcpServerAdapterShouldReassembleS7TpktSplitFrame()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port);
@@ -40,7 +40,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task TcpServerAdapter_Should_Split_Modbus_Sticky_Frames()
+        public async Task TcpServerAdapterShouldSplitModbusStickyFrames()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port);
@@ -68,7 +68,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task TcpServerAdapter_Should_Keep_Same_Session_Instance_For_Events()
+        public async Task TcpServerAdapterShouldKeepSameSessionInstanceForEvents()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port);
@@ -101,7 +101,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task TcpServerAdapter_Should_Reject_Connections_Above_MaxConnections()
+        public async Task TcpServerAdapterShouldRejectConnectionsAboveMaxConnections()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port) { MaxConnections = 1 };
@@ -122,7 +122,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task TcpServerAdapter_Should_Timeout_Incomplete_Frame_But_Keep_Idle_Connection()
+        public async Task TcpServerAdapterShouldTimeoutIncompleteFrameButKeepIdleConnection()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port)
@@ -150,7 +150,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task TcpServerAdapter_Should_Close_Configured_Idle_Session()
+        public async Task TcpServerAdapterShouldCloseConfiguredIdleSession()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port)
@@ -169,7 +169,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ServerMessageTransport_Should_Close_Client_When_Request_Backlog_Is_Full()
+        public async Task ServerMessageTransportShouldCloseClientWhenRequestBacklogIsFull()
         {
             int port = GetFreePort();
             using var adapter = new TcpServerAdapter(IPAddress.Loopback.ToString(), port);

@@ -5,12 +5,12 @@ using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     public class S7ResponseBuilderHandshakeTests
     {
         [Fact]
-        public void CreateConnectionResponse_ShouldReturnStandardCotpConnectionConfirm()
+        public void CreateConnectionResponseShouldReturnStandardCotpConnectionConfirm()
         {
             var request = (byte[])SiemensConstant.Command1.Clone();
             request[21] = 0x01;
@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void CreateConnectionResponse_ShouldReturnStandardSetupCommunicationAckData()
+        public void CreateConnectionResponseShouldReturnStandardSetupCommunicationAckData()
         {
             var request = (byte[])SiemensConstant.Command2.Clone();
 
@@ -51,7 +51,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void CreateConnectionResponse_ShouldCapSetupCommunicationNegotiatedPduLength()
+        public void CreateConnectionResponseShouldCapSetupCommunicationNegotiatedPduLength()
         {
             var request = (byte[])SiemensConstant.Command2.Clone();
             request[23] = 0x08;
@@ -65,7 +65,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task InitAsync_ShouldCaptureNegotiatedPduLength()
+        public async Task InitAsyncShouldCaptureNegotiatedPduLength()
         {
             var handshake1 = S7ResponseBuilder.CreateConnectionResponse((byte[])SiemensConstant.Command1.Clone(), SiemensVersion.S7_1200, 0, 1);
             var handshake2Request = (byte[])SiemensConstant.Command2.Clone();

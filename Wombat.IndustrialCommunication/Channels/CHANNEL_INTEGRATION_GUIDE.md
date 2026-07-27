@@ -52,7 +52,7 @@ if (!result.IsSuccess)
 ushort value = result.ResultValue;
 ```
 
-`AddAsync` 返回前会完成首次连接。首次连接失败时，通道会从管理器中移除并抛出 `ChannelException`。
+`AddAsync` 成功表示通道已注册，不表示设备在线。首次连接发生在第一次 `ExecuteAsync`，连接失败时运行时保留为 `Faulted`，并由后续 `ExecuteAsync` 按重连策略再次尝试。
 
 ## 3. 通道配置
 
@@ -183,7 +183,7 @@ Created -> Connecting -> Online
 
 | 状态 | 含义 |
 | --- | --- |
-| `Created` | 已创建运行时，尚未开始连接 |
+| `Created` | 已注册运行时，尚未开始连接 |
 | `Connecting` | 首次连接中 |
 | `Online` | 已连接，可执行操作 |
 | `Faulted` | 连接或传输故障，等待下一次操作触发重连 |
@@ -220,7 +220,7 @@ if (channels.TryGetSnapshot("line-1-modbus", out var snapshot))
 - 超过并发数的请求进入等待队列；`OperationTimeout` 同时覆盖排队和执行时间。
 - 调用方取消令牌只取消当前请求，不会取消共享的重连任务。
 - 通道停止或移除时，会取消该通道上的活动及排队操作，然后断开客户端。
-- 首次连接只尝试一次；因传输故障触发重连时，最多尝试 `Reconnect.MaxAttempts` 次。
+- 首次连接和故障重连均使用 `Reconnect.MaxAttempts` 次尝试及指数退避策略。
 - 重连间隔使用指数退避：第 `n` 次重试等待 `min(MaxDelay, InitialDelay * 2^(n-1))`，例如默认间隔为 `100ms、200ms、400ms`。
 - `ChannelManager` 创建的底层客户端将 `ConnectTimeout`、`OperationTimeout` 同时设置为客户端的连接/发送/接收超时，并将客户端内部 `Retries` 设置为 `0`；重试由通道统一管理。
 
@@ -277,7 +277,7 @@ await channels.RestartAsync(
 ```
 
 - `RemoveAsync` 找不到通道时不报错。
-- `RestartAsync` 要求参数中的 `options.Id` 与 `channelId` 完全一致；它会先停止并移除旧运行时，再创建并连接新运行时。
+- `RestartAsync` 要求参数中的 `options.Id` 与 `channelId` 完全一致；它会先停止并移除旧运行时，再创建并注册新运行时。
 - 同一 `Id` 重复 `AddAsync` 会抛出 `InvalidOperationException`。
 - 应用退出时使用 `await using` 或显式 `await channels.DisposeAsync()`，不要直接丢弃管理器。
 
@@ -285,7 +285,7 @@ await channels.RestartAsync(
 
 1. 确认设备 IP/串口、端口、站号、S7 版本、Rack/Slot。
 2. 为每个物理端点分配唯一 `Id`，不要让多个管理器同时管理同一端点。
-3. 先调用 `AddAsync`，成功后再调用 `ExecuteAsync`。
+3. 先调用 `AddAsync` 注册通道；设备连接由第一次 `ExecuteAsync` 触发。
 4. 在所有协议调用中传递回调提供的 `CancellationToken`。
 5. 同时处理 `OperationResult.IsSuccess`、`ChannelException` 和 `OperationCanceledException`。
 6. 通过 `StateChanged` 和 `TryGetSnapshot` 输出连接状态与失败计数。

@@ -2,7 +2,7 @@ using System;
 using Microsoft.Extensions.Logging;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTestProject.Helper
+namespace Wombat.IndustrialCommunicationTestProject.TestInfrastructure
 {
     /// <summary>
     /// 测试日志工厂，用于在测试中创建日志记录器

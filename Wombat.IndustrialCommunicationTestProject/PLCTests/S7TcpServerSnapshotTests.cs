@@ -9,12 +9,12 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     public class S7TcpServerSnapshotTests
     {
         [Fact]
-        public void Snapshot_Should_Save_And_Load_For_S7TcpServer()
+        public void SnapshotShouldSaveAndLoadForS7TcpServer()
         {
             var snapshotPath = BuildSnapshotPath();
             try
@@ -62,7 +62,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ResetDataAndDeleteSnapshot_Should_Clear_Data_And_Remove_File_For_S7TcpServer()
+        public void ResetDataAndDeleteSnapshotShouldClearDataAndRemoveFileForS7TcpServer()
         {
             var snapshotPath = BuildSnapshotPath();
             try
@@ -100,7 +100,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task SingleConnection_Should_Handle_Sticky_Reads_And_Split_Writes_For_S7TcpServer()
+        public async Task SingleConnectionShouldHandleStickyReadsAndSplitWritesForS7TcpServer()
         {
             var port = GetFreePort();
             using var server = new S7TcpServer("127.0.0.1", port);

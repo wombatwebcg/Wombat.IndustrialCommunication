@@ -5,12 +5,12 @@ using System.Net.Sockets;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     public class ModbusTcpServerSnapshotTests
     {
         [Fact]
-        public void Snapshot_Should_Save_And_Load_For_ModbusTcpServer()
+        public void SnapshotShouldSaveAndLoadForModbusTcpServer()
         {
             var snapshotPath = BuildSnapshotPath();
             try
@@ -55,7 +55,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void ResetDataAndDeleteSnapshot_Should_Clear_Data_And_Remove_File_For_ModbusTcpServer()
+        public void ResetDataAndDeleteSnapshotShouldClearDataAndRemoveFileForModbusTcpServer()
         {
             var snapshotPath = BuildSnapshotPath();
             try

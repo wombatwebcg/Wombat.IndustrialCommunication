@@ -3,7 +3,7 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTestProject
+namespace Wombat.IndustrialCommunicationTestProject.CoreTests
 {
     public class DataCacheManagerTests
     {

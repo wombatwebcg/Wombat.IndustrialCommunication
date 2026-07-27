@@ -5,7 +5,7 @@ using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     public class S7RandomBatchReadTests
     {
@@ -58,7 +58,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void AnalyzeBatchReadDispatch_ShouldChooseNativeRandom_ForDiscreteShortAddresses()
+        public void AnalyzeBatchReadDispatchShouldChooseNativeRandomForDiscreteShortAddresses()
         {
             var communication = new TestableS7Communication(blockReadMinEfficiency: 0.8, randomReadPreferSingleLengthThreshold: 2);
             var infos = new List<S7BatchHelper.S7AddressInfo>
@@ -76,7 +76,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ReadRequest_ShouldBuildMultiItemReadVarFrame()
+        public void ReadRequestShouldBuildMultiItemReadVarFrame()
         {
             var items = new List<SiemensAddress>
             {
@@ -115,7 +115,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ReadResponse_ShouldParsePartialSuccess()
+        public void ReadResponseShouldParsePartialSuccess()
         {
             var items = new List<SiemensAddress>
             {
@@ -143,7 +143,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitReadBatches_ShouldSplit_WhenItemCountExceedsLimit()
+        public void SplitReadBatchesShouldSplitWhenItemCountExceedsLimit()
         {
             var communication = new TestableS7Communication(nativeRandomReadMaxItems: 2, nativeRandomReadMaxPayloadBytes: 32, randomReadPreferSingleLengthThreshold: 4);
             var items = new List<SiemensAddress>
@@ -162,7 +162,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ReadRequest_EstimateResponsePayloadLength_ShouldIncludeHeadersAndPaddingRules()
+        public void ReadRequestEstimateResponsePayloadLengthShouldIncludeHeadersAndPaddingRules()
         {
             var items = new List<SiemensAddress>
             {
@@ -175,7 +175,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ReadResponse_ShouldFail_WhenResponseItemCountMismatches()
+        public void ReadResponseShouldFailWhenResponseItemCountMismatches()
         {
             var items = new List<SiemensAddress>
             {
@@ -198,7 +198,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitReadBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
+        public void SplitReadBatchesShouldThrowWhenSingleItemExceedsPayloadLimit()
         {
             var communication = new TestableS7Communication(nativeRandomReadMaxItems: 19, nativeRandomReadMaxPayloadBytes: 4, randomReadPreferSingleLengthThreshold: 4);
             var items = new List<SiemensAddress>
@@ -220,7 +220,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void EstimateReadCosts_ShouldPopulateDecisionMetrics()
+        public void EstimateReadCostsShouldPopulateDecisionMetrics()
         {
             var communication = new TestableS7Communication(nativeRandomReadMaxItems: 19, nativeRandomReadMaxPayloadBytes: 180);
             var infos = new List<S7BatchHelper.S7AddressInfo>
@@ -246,7 +246,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void ShouldUseNativeRandomRead_ShouldChooseBlock_ForSingleAddress()
+        public void ShouldUseNativeRandomReadShouldChooseBlockForSingleAddress()
         {
             var communication = new TestableS7Communication();
             var decision = new S7BatchReadDispatchAnalysis { AddressCount = 1, MaxAddressLength = 1 };

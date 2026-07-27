@@ -6,12 +6,12 @@ using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     public class ModbusMessageFrameConsistencyTests
     {
         [Fact]
-        public async Task Tcp_WriteSingleRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task TcpWriteSingleRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureTcpWriteRegisterFrameAsync("1;6;195", 1);
             string newFrame = await CaptureTcpWriteRegisterFrameAsync("1;40196", 1);
@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Tcp_ReadHoldingRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task TcpReadHoldingRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureTcpReadRegisterFrameAsync("1;3;401", 1, false);
             string newFrame = await CaptureTcpReadRegisterFrameAsync("1;40402", 1, false);
@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Tcp_ReadInputRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task TcpReadInputRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureTcpReadRegisterFrameAsync("1;4;3005", 1, true);
             string newFrame = await CaptureTcpReadRegisterFrameAsync("1;33006", 1, true);
@@ -38,7 +38,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Rtu_WriteSingleRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task RtuWriteSingleRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureRtuWriteRegisterFrameAsync("1;6;195", 1);
             string newFrame = await CaptureRtuWriteRegisterFrameAsync("1;40196", 1);
@@ -47,7 +47,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Rtu_ReadHoldingRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task RtuReadHoldingRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureRtuReadRegisterFrameAsync("1;3;401", 1, false);
             string newFrame = await CaptureRtuReadRegisterFrameAsync("1;40402", 1, false);
@@ -56,7 +56,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Rtu_ReadInputRegister_NewAndOldFormat_ShouldProduceSameFrame()
+        public async Task RtuReadInputRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureRtuReadRegisterFrameAsync("1;4;3005", 1, true);
             string newFrame = await CaptureRtuReadRegisterFrameAsync("1;33006", 1, true);

@@ -8,15 +8,15 @@ using Wombat.IndustrialCommunication.Models;
 using Wombat.Extensions.DataTypeExtensions;
 using Xunit;
 using Xunit.Abstractions;
-using Wombat.IndustrialCommunicationTestProject.Helper;
+using Wombat.IndustrialCommunicationTestProject.TestInfrastructure;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     /// <summary>
     /// FINS客户端数据一致性测试 - 连接到真实FINS服务器
     /// </summary>
     [Trait("Category", "RealPlc")]
-    public class FinsDataConsistencyTest : IDisposable
+    public class FinsDataConsistencyTests : IDisposable
     {
         private readonly ITestOutputHelper _output;
         private readonly ILogger _logger;
@@ -25,10 +25,10 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         private const string REAL_SERVER_IP = "127.0.0.1";
         private const int REAL_SERVER_PORT = 9600;
 
-        public FinsDataConsistencyTest(ITestOutputHelper output)
+        public FinsDataConsistencyTests(ITestOutputHelper output)
         {
             _output = output;
-            _logger = TestLoggerFactory.CreateLogger<FinsDataConsistencyTest>(output);
+            _logger = TestLoggerFactory.CreateLogger<FinsDataConsistencyTests>(output);
         }
 
         /// <summary>
@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         [Fact]
         [Trait("TestCategory", "DataConsistency")]
-        public async Task Test_BasicDataTypes_ReadWriteConsistency()
+        public async Task BasicDataTypesReadWriteConsistency()
         {
             // 重定向Console输出到测试输出
             var originalOut = Console.Out;
@@ -208,7 +208,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// </summary>
         [Fact]
         [Trait("TestCategory", "DataConsistency")]
-        public async Task Test_StringData_ReadWriteConsistency()
+        public async Task StringDataReadWriteConsistency()
         {
             // 连接到真实FINS服务器
             var finsClient = new FinsClient(REAL_SERVER_IP, REAL_SERVER_PORT, TimeSpan.FromSeconds(5));

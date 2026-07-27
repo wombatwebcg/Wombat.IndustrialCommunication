@@ -8,7 +8,7 @@ using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     [CollectionDefinition("S7Smart200RealPlc", DisableParallelization = true)]
     public sealed class S7Smart200RealPlcCollection
@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task Smart200_BatchRead_ShouldRoundTrip_ContinuousRandomAndMixedAddresses_Over200()
+        public async Task Smart200BatchReadShouldRoundTripContinuousRandomAndMixedAddressesOver200()
         {
             await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
                 "连续批量读回写校验 - 256 个连续字节地址",
@@ -52,7 +52,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task Smart200_BatchWrite_ShouldRoundTrip_RandomAndMixedAddresses_Over200()
+        public async Task Smart200BatchWriteShouldRoundTripRandomAndMixedAddressesOver200()
         {
             await ExecuteReadWriteRoundTripWithDedicatedClientAsync(
                 "随机批量写入回读校验 - 240 个离散字节地址",

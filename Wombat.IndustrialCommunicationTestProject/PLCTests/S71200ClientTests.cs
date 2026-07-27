@@ -10,18 +10,18 @@ using System.Threading.Tasks;
 using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.PLC;
-using Wombat.IndustrialCommunicationTestProject.Helper;
+using Wombat.IndustrialCommunicationTestProject.TestInfrastructure;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     /// <summary>
     /// S7-1200 PLC通讯测试类
     /// 测试包括：同步/异步读写、断线重连、短连接、数据类型综合测试
     /// </summary>
     [Trait("Category", "RealPlc")]
-    public class S7_1200ClientTest
+    public class S71200ClientTests
     {
         #region 测试配置常量
         
@@ -114,7 +114,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 初始化S7-1200测试类
         /// </summary>
         /// <param name="output">测试输出助手</param>
-        public S7_1200ClientTest(ITestOutputHelper output = null)
+        public S71200ClientTests(ITestOutputHelper output = null)
         {
             _output = output;
         }
@@ -128,7 +128,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 包括各种数据类型的基本读写操作
         /// </summary>
         [Fact]
-        public void Test_S7_1200_SyncReadWrite()
+        public void S71200SyncReadWrite()
         {
             // Arrange
             var testName = "S7-1200同步读写测试";
@@ -168,7 +168,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 包括各种数据类型的异步读写操作
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_AsyncReadWrite()
+        public async Task S71200AsyncReadWrite()
         {
             // Arrange
             var testName = "S7-1200异步读写测试";
@@ -207,7 +207,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证自动重连机制的可靠性
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_DisconnectionRecovery()
+        public async Task S71200DisconnectionRecovery()
         {
             // Arrange
             var testName = "S7-1200断线重连测试";
@@ -282,7 +282,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证短连接模式下的读写操作
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_ShortConnection()
+        public async Task S71200ShortConnection()
         {
             // Arrange
             var testName = "S7-1200短连接测试";
@@ -375,7 +375,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证所有支持的数据类型读写
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_ComprehensiveDataTypes()
+        public async Task S71200ComprehensiveDataTypes()
         {
             // Arrange
             var testName = "S7-1200数据类型综合测试";
@@ -417,7 +417,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证批量读取优化算法的性能和正确性
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_BatchRead()
+        public async Task S71200BatchRead()
         {
             // Arrange
             var testName = "S7-1200批量读取测试";
@@ -456,7 +456,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证批量写入功能的性能和正确性
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_BatchWrite()
+        public async Task S71200BatchWrite()
         {
             // Arrange
             var testName = "S7-1200批量写入测试";
@@ -495,7 +495,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证修复后的TcpClientAdapter不会在批量读取时阻塞
         /// </summary>
         [Fact]
-        public async Task Test_S7_1200_TcpClientAdapter_BlockingFix()
+        public async Task S71200TcpClientAdapterBlockingFix()
         {
             // Arrange
             var testName = "S7-1200 TcpClientAdapter阻塞修复测试";

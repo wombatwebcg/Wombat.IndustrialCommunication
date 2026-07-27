@@ -9,7 +9,7 @@ using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     /// <summary>
     /// Modbus增强地址格式功能测试
@@ -29,7 +29,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_Connect_Disconnect()
+        public void ConnectDisconnect()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             var result = client.Connect();
@@ -40,7 +40,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Coil_ReadWrite()
+        public void EnhancedAddressCoilReadWrite()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -57,7 +57,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Coil_Range_1_90()
+        public void EnhancedAddressCoilRange190()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -83,7 +83,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_HoldingRegister_ReadWrite()
+        public void EnhancedAddressHoldingRegisterReadWrite()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -101,7 +101,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_InputRegister_Read()
+        public void EnhancedAddressInputRegisterRead()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -115,7 +115,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_DiscreteInput_Read()
+        public void EnhancedAddressDiscreteInputRead()
         {
             // 临时关闭严格长度验证，因为服务器返回的异常响应帧长度不正确
             bool originalValidation = ModbusTcpResponse.EnableStrictLengthValidation;
@@ -156,7 +156,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_BatchWrite_NewFormat()
+        public async Task EnhancedAddressBatchWriteNewFormat()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -247,7 +247,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_BatchWrite_LargeRange_1_90()
+        public async Task EnhancedAddressBatchWriteLargeRange190()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -345,7 +345,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_BatchRead_NewFormat()
+        public async Task EnhancedAddressBatchReadNewFormat()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -433,7 +433,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_BatchRead_LargeRange_1_90()
+        public async Task EnhancedAddressBatchReadLargeRange190()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -528,7 +528,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_DataTypes_Comprehensive()
+        public void EnhancedAddressDataTypesComprehensive()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -605,7 +605,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_AddressParser_Validation()
+        public void EnhancedAddressAddressParserValidation()
         {
             // 测试地址解析器对新格式的支持
             var testCases = new[]
@@ -631,7 +631,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_InvalidFormat_ErrorHandling()
+        public void EnhancedAddressInvalidFormatErrorHandling()
         {
             // 测试无效地址格式的错误处理
             var invalidAddresses = new[]
@@ -651,7 +651,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_LargeAddressRange()
+        public async Task EnhancedAddressLargeAddressRange()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -669,7 +669,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_BoundaryValues()
+        public void EnhancedAddressBoundaryValues()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -698,7 +698,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_Performance_LargeBatch()
+        public async Task EnhancedAddressPerformanceLargeBatch()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -737,7 +737,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Simple_ReadWrite()
+        public void EnhancedAddressSimpleReadWrite()
         {
             // 简单的读写测试，只测试基本的连接和单个操作
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
@@ -782,7 +782,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Batch_Simple()
+        public void EnhancedAddressBatchSimple()
         {
             // 简单的批量测试
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
@@ -840,7 +840,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_Concurrent_Operations()
+        public async Task EnhancedAddressConcurrentOperations()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             await client.ConnectAsync();
@@ -908,7 +908,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Stress_Test()
+        public void EnhancedAddressStressTest()
         {
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
             client.Connect();
@@ -982,7 +982,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void Test_EnhancedAddress_Simple_Validation()
+        public void EnhancedAddressSimpleValidation()
         {
             // 简单的验证测试，确保基本功能正常
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);
@@ -1018,7 +1018,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public async Task Test_EnhancedAddress_Batch_Simple_Validation()
+        public async Task EnhancedAddressBatchSimpleValidation()
         {
             // 简单的批量验证测试，确保批量操作正常工作
             var client = new ModbusTcpClient(TEST_TCP_IP, TEST_TCP_PORT);

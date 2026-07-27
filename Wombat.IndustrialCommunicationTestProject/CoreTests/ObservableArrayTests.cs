@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -8,14 +8,14 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTestProject
+namespace Wombat.IndustrialCommunicationTestProject.CoreTests
 {
-    public class Tests
+    public class ObservableArrayTests
     {
 
         [Fact]
 
-        public async Task ObservableArrayTest()
+        public async Task AddRangeAsyncShouldNotifyObservers()
         {
             await using var array = new ObservableArray<int>(1)
             {

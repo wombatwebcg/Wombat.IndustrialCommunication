@@ -6,7 +6,7 @@ using System.Threading;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     /// <summary>
     /// S7-200 Smart 实体PLC对接时的手动监视测试。
@@ -20,7 +20,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
 
         [Fact]
         [Trait("Category", "Manual")]
-        public void Start_S7Smart200_Server_And_MonitorPackets()
+        public void StartS7Smart200ServerAndMonitorPackets()
         {
             if (!string.Equals(Environment.GetEnvironmentVariable("WOMBAT_RUN_S7_SMART200_MONITOR"), "1", StringComparison.Ordinal))
             {

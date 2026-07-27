@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.TransportTests
+namespace Wombat.IndustrialCommunicationTestProject.TransportTests
 {
     public class DeviceMessageTransportTimeoutTests
     {
         [Fact]
-        public async Task ReceiveResponseAsync_OnTimeout_ShouldNotCloseStream_AndNextReceiveCanSucceed()
+        public async Task ReceiveResponseAsyncOnTimeoutShouldNotCloseStreamAndNextReceiveCanSucceed()
         {
             var stream = new SequencedStreamResource();
             stream.EnqueueReceive(async cancellationToken =>
@@ -42,7 +42,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task SendRequestAsync_OnTimeout_ShouldNotCloseStream_AndNextSendCanSucceed()
+        public async Task SendRequestAsyncOnTimeoutShouldNotCloseStreamAndNextSendCanSucceed()
         {
             var stream = new SequencedStreamResource();
             stream.EnqueueSend(async cancellationToken =>
@@ -74,7 +74,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task SendRequestAsync_WhenSendThrows_ShouldOnlySendOnce()
+        public async Task SendRequestAsyncWhenSendThrowsShouldOnlySendOnce()
         {
             var stream = new SequencedStreamResource();
             stream.EnqueueSend(_ => Task.FromException<OperationResult>(new InvalidOperationException("Not connected")));
@@ -92,7 +92,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task UnicastWrite_WhenResponseFails_ShouldReportOutcomeUnknownWithoutRetry()
+        public async Task UnicastWriteWhenResponseFailsShouldReportOutcomeUnknownWithoutRetry()
         {
             var stream = new SequencedStreamResource();
             stream.EnqueueSend(_ => Task.FromResult(OperationResult.CreateSuccessResult()));
@@ -113,7 +113,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ReceiveResponseAsync_WhenStreamIsDisconnected_ShouldNotRetry()
+        public async Task ReceiveResponseAsyncWhenStreamIsDisconnectedShouldNotRetry()
         {
             var stream = new SequencedStreamResource { ConnectedValue = false };
             stream.EnqueueReceive(_ => Task.FromResult(OperationResult.CreateFailedResult<int>("连接已断开")));

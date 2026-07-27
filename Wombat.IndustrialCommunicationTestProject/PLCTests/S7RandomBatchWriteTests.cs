@@ -10,7 +10,7 @@ using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     public class S7RandomBatchWriteTests
     {
@@ -38,7 +38,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteRequest_ShouldBuildMultiItemWriteVarFrame()
+        public void WriteRequestShouldBuildMultiItemWriteVarFrame()
         {
             var items = new List<SiemensAddress>
             {
@@ -78,7 +78,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteResponse_ShouldParsePartialSuccess()
+        public void WriteResponseShouldParsePartialSuccess()
         {
             var items = new List<SiemensAddress>
             {
@@ -105,7 +105,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteRequest_ShouldPadSingleByteNonLastItem_AndKeepLastItemUnpadded()
+        public void WriteRequestShouldPadSingleByteNonLastItemAndKeepLastItemUnpadded()
         {
             var items = new List<SiemensAddress>
             {
@@ -126,7 +126,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteRequest_ShouldDowngradeInvalidBitPayload_ToByteTransport()
+        public void WriteRequestShouldDowngradeInvalidBitPayloadToByteTransport()
         {
             var items = new List<SiemensAddress>
             {
@@ -150,7 +150,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitWriteBatches_ShouldSplit_WhenItemCountExceedsLimit()
+        public void SplitWriteBatchesShouldSplitWhenItemCountExceedsLimit()
         {
             var communication = new TestableS7Communication(nativeRandomWriteMaxItems: 2, nativeRandomWriteMaxPayloadBytes: 32);
             var items = new List<SiemensAddress>
@@ -169,7 +169,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteRequest_EstimateDataLength_ShouldMatchMixedPayloads()
+        public void WriteRequestEstimateDataLengthShouldMatchMixedPayloads()
         {
             var items = new List<SiemensAddress>
             {
@@ -183,7 +183,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void WriteResponse_ShouldSurfaceCustomFailureCode()
+        public void WriteResponseShouldSurfaceCustomFailureCode()
         {
             var items = new List<SiemensAddress>
             {
@@ -207,7 +207,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void SplitWriteBatches_ShouldThrow_WhenSingleItemExceedsPayloadLimit()
+        public void SplitWriteBatchesShouldThrowWhenSingleItemExceedsPayloadLimit()
         {
             var communication = new TestableS7Communication(nativeRandomWriteMaxItems: 10, nativeRandomWriteMaxPayloadBytes: 4);
             var items = new List<SiemensAddress>
@@ -228,7 +228,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task SiemensClient_BatchWriteAsync_OnProtocolSynchronizationFailure_ShouldReportOutcomeUnknownWithoutRetry()
+        public async Task SiemensClientBatchWriteAsyncOnProtocolSynchronizationFailureShouldReportOutcomeUnknownWithoutRetry()
         {
             using var server = new RetryOnceS7WriteTestServer();
             await server.StartAsync().ConfigureAwait(false);

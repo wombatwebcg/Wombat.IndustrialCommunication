@@ -6,12 +6,12 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.TransportTests
+namespace Wombat.IndustrialCommunicationTestProject.TransportTests
 {
     public class TcpClientAdapterTimeoutTests
     {
         [Fact]
-        public async Task ConnectAsync_WithCancelledToken_ReturnsStructuredCancellation()
+        public async Task ConnectAsyncWithCancelledTokenReturnsStructuredCancellation()
         {
             using (var adapter = new TcpClientAdapter("127.0.0.1", 1))
             using (var cancellation = new CancellationTokenSource())
@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ReceiveCancellation_DoesNotCloseConnection()
+        public async Task ReceiveCancellationDoesNotCloseConnection()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -53,7 +53,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ConcurrentDisconnect_IsIdempotent()
+        public async Task ConcurrentDisconnectIsIdempotent()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -74,7 +74,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ReceiveTimeout_ShouldCloseConnection()
+        public async Task ReceiveTimeoutShouldCloseConnection()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -107,7 +107,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task RemoteClose_ShouldMarkConnectionAsDisconnected()
+        public async Task RemoteCloseShouldMarkConnectionAsDisconnected()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();

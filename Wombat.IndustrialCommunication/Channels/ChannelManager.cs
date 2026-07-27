@@ -44,12 +44,6 @@ namespace Wombat.IndustrialCommunication.Channels
             }
             finally { _gate.Release(); }
 
-            try { await runtime.StartAsync(cancellationToken).ConfigureAwait(false); }
-            catch
-            {
-                await RemoveRuntimeAsync(options.Id, runtime).ConfigureAwait(false);
-                throw;
-            }
         }
 
         public async ValueTask RemoveAsync(string channelId)
@@ -115,14 +109,6 @@ namespace Wombat.IndustrialCommunication.Channels
             finally { _gate.Release(); }
             foreach (var runtime in runtimes) await runtime.DisposeAsync().ConfigureAwait(false);
             _gate.Dispose();
-        }
-
-        private async Task RemoveRuntimeAsync(string id, ChannelRuntime runtime)
-        {
-            await _gate.WaitAsync().ConfigureAwait(false);
-            try { if (_channels.TryGetValue(id, out var current) && ReferenceEquals(current, runtime)) _channels.Remove(id); }
-            finally { _gate.Release(); }
-            await runtime.DisposeAsync().ConfigureAwait(false);
         }
 
         private void ForwardStateChanged(object sender, ChannelStateChangedEventArgs e)

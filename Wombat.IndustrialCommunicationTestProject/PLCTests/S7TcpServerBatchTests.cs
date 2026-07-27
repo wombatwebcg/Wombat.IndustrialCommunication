@@ -3,13 +3,13 @@ using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
 
     public class S7TcpServerBatchTests
     {
         [Fact]
-        public void BatchReadWrite_ShouldHandleContinuousDbAddressBlock()
+        public void BatchReadWriteShouldHandleContinuousDbAddressBlock()
         {
             using var server = CreateServer();
 
@@ -36,7 +36,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void BatchWrite_ShouldHandleMixedBitWritesAcrossMIQAreas()
+        public void BatchWriteShouldHandleMixedBitWritesAcrossMIQAreas()
         {
             using var server = CreateServer();
 
@@ -87,7 +87,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void BatchReadWrite_ShouldKeepVAreaAndDb1Consistent()
+        public void BatchReadWriteShouldKeepVAreaAndDb1Consistent()
         {
             using var server = CreateServer();
 
@@ -129,7 +129,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public void BatchRead_ShouldNotCrossFillSeparatedVAreaBlocks()
+        public void BatchReadShouldNotCrossFillSeparatedVAreaBlocks()
         {
             using var server = CreateServer(4096);
 

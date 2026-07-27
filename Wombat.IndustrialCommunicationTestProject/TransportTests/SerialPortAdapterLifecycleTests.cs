@@ -3,12 +3,12 @@ using System.Threading.Tasks;
 using Wombat.IndustrialCommunication;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.TransportTests
+namespace Wombat.IndustrialCommunicationTestProject.TransportTests
 {
     public class SerialPortAdapterLifecycleTests
     {
         [Fact]
-        public async Task ConnectAsync_WithCancelledToken_DoesNotOpenPort()
+        public async Task ConnectAsyncWithCancelledTokenDoesNotOpenPort()
         {
             using (var adapter = new SerialPortAdapter("PORT_THAT_MUST_NOT_BE_OPENED"))
             using (var cancellation = new CancellationTokenSource())
@@ -25,7 +25,7 @@ namespace Wombat.IndustrialCommunicationTest.TransportTests
         }
 
         [Fact]
-        public async Task ConcurrentDisconnect_IsIdempotent()
+        public async Task ConcurrentDisconnectIsIdempotent()
         {
             using (var adapter = new SerialPortAdapter("PORT_THAT_MUST_NOT_BE_OPENED"))
             {

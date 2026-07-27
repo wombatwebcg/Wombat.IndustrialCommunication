@@ -13,7 +13,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
     public class ModbusBluetoothClientTests
     {
         [Fact]
-        public async Task ReadHoldingRegisterAsync_ShouldReturnValue()
+        public async Task ReadHoldingRegisterAsyncShouldReturnValue()
         {
             var channel = new FakeBluetoothChannel();
             var client = new ModbusRtuBluetoothClient(channel);
@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
         }
 
         [Fact]
-        public async Task DisconnectedWrite_DoesNotOwnConnectionLifecycle()
+        public async Task DisconnectedWriteDoesNotOwnConnectionLifecycle()
         {
             var channel = new FakeBluetoothChannel();
             var client = new ModbusRtuBluetoothClient(channel);

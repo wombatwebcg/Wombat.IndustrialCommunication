@@ -16,7 +16,79 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
     public class ChannelManagerTests
     {
         [Fact]
-        public async Task SameChannel_IsStrictlySerial()
+        public async Task AddRegistersWithoutConnecting()
+        {
+            var client = new FakeClient();
+            await using var manager = CreateManager(client);
+
+            await manager.AddAsync(Options("lazy"));
+
+            Assert.Equal(0, client.ConnectCount);
+            Assert.True(manager.TryGetSnapshot("lazy", out var snapshot));
+            Assert.Equal(ChannelState.Created, snapshot.State);
+        }
+
+        [Fact]
+        public async Task FirstExecuteConnectsFromCreated()
+        {
+            var states = new List<ChannelState>();
+            var client = new FakeClient();
+            await using var manager = CreateManager(client);
+            manager.StateChanged += (_, e) => states.Add(e.Current);
+
+            await manager.AddAsync(Options("first"));
+            await manager.ExecuteAsync("first", (_, __) => new ValueTask<int>(1));
+
+            Assert.Equal(new[] { ChannelState.Connecting, ChannelState.Online }, states);
+        }
+
+        [Fact]
+        public async Task FailedFirstExecuteKeepsFaultedRuntime()
+        {
+            var client = new FakeClient { ConnectFailuresRemaining = 1 };
+            var options = Options("offline");
+            options.Reconnect.MaxAttempts = 1;
+            await using var manager = CreateManager(client);
+            await manager.AddAsync(options);
+
+            await Assert.ThrowsAsync<ChannelException>(() => manager.ExecuteAsync("offline", (_, __) => new ValueTask<int>(1)).AsTask());
+
+            Assert.True(manager.TryGetSnapshot("offline", out var snapshot));
+            Assert.Equal(ChannelState.Faulted, snapshot.State);
+        }
+
+        [Fact]
+        public async Task FaultedExecuteReconnects()
+        {
+            var client = new FakeClient { ConnectFailuresRemaining = 1 };
+            var options = Options("retry");
+            options.Reconnect.MaxAttempts = 1;
+            await using var manager = CreateManager(client);
+            await manager.AddAsync(options);
+
+            await Assert.ThrowsAsync<ChannelException>(() => manager.ExecuteAsync("retry", (_, __) => new ValueTask<int>(1)).AsTask());
+            var value = await manager.ExecuteAsync("retry", (_, __) => new ValueTask<int>(2));
+
+            Assert.Equal(2, value);
+            Assert.Equal(2, client.ConnectCount);
+            Assert.True(manager.TryGetSnapshot("retry", out var snapshot));
+            Assert.Equal(ChannelState.Online, snapshot.State);
+        }
+
+        [Fact]
+        public async Task RemoveRemovesRuntime()
+        {
+            await using var manager = CreateManager(new FakeClient());
+            await manager.AddAsync(Options("removed"));
+
+            await manager.RemoveAsync("removed");
+
+            Assert.False(manager.TryGetSnapshot("removed", out _));
+            await Assert.ThrowsAsync<KeyNotFoundException>(() => manager.ExecuteAsync("removed", (_, __) => new ValueTask<int>(1)).AsTask());
+        }
+
+        [Fact]
+        public async Task SameChannelIsStrictlySerial()
         {
             var client = new FakeClient();
             await using var manager = CreateManager(client);
@@ -42,7 +114,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task QueuedOperation_CanBeCancelled()
+        public async Task QueuedOperationCanBeCancelled()
         {
             await using var manager = CreateManager(new FakeClient());
             await manager.AddAsync(Options("cancel"));
@@ -65,7 +137,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task Stop_CancelsActiveOperationAndDisconnects()
+        public async Task StopCancelsActiveOperationAndDisconnects()
         {
             var client = new FakeClient();
             await using var manager = CreateManager(client);
@@ -87,7 +159,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task ConcurrentRequests_AfterFaultShareReconnect()
+        public async Task ConcurrentRequestsAfterFaultShareReconnect()
         {
             var client = new FakeClient();
             await using var manager = CreateManager(client);
@@ -113,7 +185,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task Restart_ReplacesStoppedRuntime()
+        public async Task RestartReplacesStoppedRuntime()
         {
             var clients = new Queue<FakeClient>(new[] { new FakeClient(), new FakeClient() });
             await using var manager = new ChannelManager(_ => clients.Dequeue());
@@ -127,7 +199,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task WaitingForSharedReconnect_CanBeCancelledWithoutCancellingReconnect()
+        public async Task WaitingForSharedReconnectCanBeCancelledWithoutCancellingReconnect()
         {
             var client = new FakeClient();
             await using var manager = CreateManager(client);
@@ -150,7 +222,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task StateSubscriberException_DoesNotBreakChannel()
+        public async Task StateSubscriberExceptionDoesNotBreakChannel()
         {
             await using var manager = CreateManager(new FakeClient());
             manager.StateChanged += (_, __) => throw new InvalidOperationException("subscriber failure");
@@ -164,7 +236,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task ModbusTcpOptions_CreateWorkingSharedChannel()
+        public async Task ModbusTcpOptionsCreateWorkingSharedChannel()
         {
             var port = GetFreePort();
             using var server = new ModbusTcpServer("127.0.0.1", port) { SlaveId = 1 };
@@ -185,7 +257,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task SiemensOptions_CreateWorkingChannel()
+        public async Task SiemensOptionsCreateWorkingChannel()
         {
             var port = GetFreePort();
             using var server = new S7TcpServer("127.0.0.1", port);
@@ -206,7 +278,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task FinsOptions_CompleteHandshakeAndCreateChannel()
+        public async Task FinsOptionsCompleteHandshakeAndCreateChannel()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -249,7 +321,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
-        public async Task FinsHandshake_PropagatesCancellation()
+        public async Task FinsHandshakePropagatesCancellation()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -297,11 +369,17 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
             public int ConnectCount => _connectCount;
             public int DisconnectCount { get; private set; }
             public TimeSpan ConnectDelay { get; set; } = TimeSpan.FromMilliseconds(20);
+            public int ConnectFailuresRemaining { get; set; }
 
             public async Task<OperationResult> ConnectAsync(CancellationToken cancellationToken = default)
             {
                 Interlocked.Increment(ref _connectCount);
                 await Task.Delay(ConnectDelay, cancellationToken);
+                if (ConnectFailuresRemaining > 0)
+                {
+                    ConnectFailuresRemaining--;
+                    return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Message = "offline" };
+                }
                 Connected = true;
                 return OperationResult.CreateSuccessResult();
             }

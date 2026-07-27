@@ -8,12 +8,12 @@ using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     public class ModbusBatchReadStationIntervalTests
     {
         [Fact]
-        public async Task BatchReadAsync_ShouldWaitBetweenDifferentStations()
+        public async Task BatchReadAsyncShouldWaitBetweenDifferentStations()
         {
             var transport = new FakeModbusTcpTransport();
             var client = new ModbusTcpClientBase(transport)

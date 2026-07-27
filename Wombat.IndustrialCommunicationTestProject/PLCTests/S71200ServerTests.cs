@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
 using System;
 using System.Collections.Generic;
@@ -12,13 +12,13 @@ using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 using Xunit.Abstractions;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
     /// <summary>
     /// S7-1200服务器并发读写测试类
     /// 测试服务器在多客户端并发访问时的线程安全性和数据一致性
     /// </summary>
-    public class S7_1200ServerTest : IDisposable
+    public class S71200ServerTests : IDisposable
     {
         #region 测试配置常量
         
@@ -135,7 +135,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 初始化S7-1200服务器测试类
         /// </summary>
         /// <param name="output">测试输出助手</param>
-        public S7_1200ServerTest(ITestOutputHelper output = null)
+        public S71200ServerTests(ITestOutputHelper output = null)
         {
             _output = output;
             
@@ -145,7 +145,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
                 builder.AddConsole();
                 builder.SetMinimumLevel(LogLevel.Debug);
             });
-            _logger = loggerFactory.CreateLogger<S7_1200ServerTest>();
+            _logger = loggerFactory.CreateLogger<S71200ServerTests>();
         }
         
         #endregion
@@ -157,7 +157,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 验证两个客户端同时对同一地址进行读写时的数据一致性
         /// </summary>
         [Fact]
-        public async Task Test_S7Server_ConcurrentReadWrite()
+        public async Task S7ServerConcurrentReadWrite()
         {
             // Arrange
             var testName = "S7服务器并发读写测试";
@@ -203,7 +203,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 客户端1读取地址1并写入地址2，客户端2读取地址2并写入地址1，然后交叉验证结果
         /// </summary>
         [Fact]
-        public async Task Test_S7Server_CrossConcurrentReadWrite()
+        public async Task S7ServerCrossConcurrentReadWrite()
         {
             // Arrange
             var testName = "S7服务器交叉并发读写测试";
@@ -245,7 +245,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// 覆盖DB、M、I、Q、T、C以及V（映射到DB1）
         /// </summary>
         [Fact]
-        public async Task Test_S7Server_AllRegisterAreaReadWriteCoverage()
+        public async Task S7ServerAllRegisterAreaReadWriteCoverage()
         {
             var testName = "S7服务器全寄存器区域读写覆盖测试";
             LogTestStart(testName);
@@ -305,7 +305,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task Test_S7Server_ThirdPartyClientReadWriteWithPreheatedData()
+        public async Task S7ServerThirdPartyClientReadWriteWithPreheatedData()
         {
             var testName = "S7服务器第三方客户端读写测试";
             LogTestStart(testName);
@@ -389,7 +389,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         }
 
         [Fact]
-        public async Task Test_S7Server_BatchBitReadWrite_ShouldPreserveNeighborBits()
+        public async Task S7ServerBatchBitReadWriteShouldPreserveNeighborBits()
         {
             var testName = "S7服务器批量位读写保留相邻位测试";
             LogTestStart(testName);
@@ -1201,7 +1201,7 @@ namespace Wombat.IndustrialCommunicationTest.PLCTests
         /// <summary>
         /// 析构函数
         /// </summary>
-        ~S7_1200ServerTest()
+        ~S71200ServerTests()
         {
             Dispose(false);
         }

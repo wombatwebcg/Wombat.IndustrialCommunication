@@ -10,7 +10,7 @@ using Wombat.IndustrialCommunication;
 using Wombat.IndustrialCommunication.PLC;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.PLCTests
+namespace Wombat.IndustrialCommunicationTestProject.PLCTests
 {
 public class S7ProtocolSynchronizationTests
 {
@@ -29,7 +29,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public void S7ReadRequest_ShouldWriteSpecifiedPduReference()
+        public void S7ReadRequestShouldWriteSpecifiedPduReference()
         {
             var request = new S7ReadRequest("VB2000", 0, 1, false, 0x1234);
 
@@ -39,7 +39,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public void S7WriteRequest_ShouldWriteSpecifiedPduReference()
+        public void S7WriteRequestShouldWriteSpecifiedPduReference()
         {
             var request = new S7WriteRequest("VB2000", 0, new byte[] { 0x5A }, false, 0x5678);
 
@@ -49,7 +49,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task UnicastReadMessageAsync_OnPduMismatch_ShouldFail()
+        public async Task UnicastReadMessageAsyncOnPduMismatchShouldFail()
         {
             var stream = new ResponseFactoryStreamResource(requestBytes =>
             {
@@ -67,7 +67,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task UnicastReadMessageAsync_OnMatchingPdu_ShouldSucceed()
+        public async Task UnicastReadMessageAsyncOnMatchingPduShouldSucceed()
         {
             var stream = new ResponseFactoryStreamResource(requestBytes =>
                 S7ResponseBuilder.CreateReadResponse(requestBytes, new List<byte[]> { new byte[] { 0x22 } }));
@@ -81,7 +81,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task UnicastReadMessageAsync_WhenStrictPduValidationDisabled_ShouldAllowMismatchedPdu()
+        public async Task UnicastReadMessageAsyncWhenStrictPduValidationDisabledShouldAllowMismatchedPdu()
         {
             var stream = new ResponseFactoryStreamResource(requestBytes =>
             {
@@ -101,7 +101,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task BatchReadAsync_OnProtocolSynchronizationFailure_ShouldNotRetryBoundaryFallback()
+        public async Task BatchReadAsyncOnProtocolSynchronizationFailureShouldNotRetryBoundaryFallback()
         {
             var stream = new ResponseFactoryStreamResource(requestBytes =>
             {
@@ -121,7 +121,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task BatchReadAsync_OnProtocolSynchronizationFailure_ShouldStopReadingFollowingBlocks()
+        public async Task BatchReadAsyncOnProtocolSynchronizationFailureShouldStopReadingFollowingBlocks()
         {
             var stream = new ResponseFactoryStreamResource(requestBytes =>
             {
@@ -143,7 +143,7 @@ public class S7ProtocolSynchronizationTests
         }
 
         [Fact]
-        public async Task SiemensClient_BatchReadAsync_OnProtocolSynchronizationFailure_ShouldFailWithoutRetry()
+        public async Task SiemensClientBatchReadAsyncOnProtocolSynchronizationFailureShouldFailWithoutRetry()
         {
             using var server = new RetryOnceS7TestServer(new byte[] { 0x5A });
             await server.StartAsync().ConfigureAwait(false);

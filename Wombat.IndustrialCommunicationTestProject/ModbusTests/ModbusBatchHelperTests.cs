@@ -4,12 +4,12 @@ using Wombat.Extensions.DataTypeExtensions;
 using Wombat.IndustrialCommunication.Modbus;
 using Xunit;
 
-namespace Wombat.IndustrialCommunicationTest.ModbusTests
+namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
 {
     public class ModbusBatchHelperTests
     {
         [Fact]
-        public void TestParseModbusAddresses_WithValueFormat()
+        public void TestParseModbusAddressesWithValueFormat()
         {
             // 准备测试数据
             var addresses = new Dictionary<string, (DataTypeEnums, object)>
@@ -56,7 +56,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void TestParseModbusAddresses_InvalidFormats()
+        public void TestParseModbusAddressesInvalidFormats()
         {
             // 准备包含无效格式的测试数据
             var addresses = new Dictionary<string, (DataTypeEnums, object)>
@@ -75,7 +75,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void TestParseSingleModbusAddress_WithValueFormat()
+        public void TestParseSingleModbusAddressWithValueFormat()
         {
             // 测试各种包含值的地址格式
             var testCases = new[]
@@ -98,7 +98,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void TestParseSingleModbusAddress_InvalidFormat()
+        public void TestParseSingleModbusAddressInvalidFormat()
         {
             // 测试无效地址格式
             Assert.Throws<ArgumentException>(() => 
@@ -106,7 +106,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         }
 
         [Fact]
-        public void TestConvertValueToModbusBytes_WriteSingleCoil()
+        public void TestConvertValueToModbusBytesWriteSingleCoil()
         {
             var addressInfo = new ModbusBatchHelper.ModbusAddressInfo
             {
@@ -130,7 +130,7 @@ namespace Wombat.IndustrialCommunicationTest.ModbusTests
         [InlineData("1;6;195", (byte)6, (ushort)195)]
         [InlineData("1;3;401", (byte)3, (ushort)401)]
         [InlineData("1;4;3005", (byte)4, (ushort)3005)]
-        public void TestParseSingleModbusAddress_StandardFormatRegressionCases(string input, byte expectedFunction, ushort expectedAddress)
+        public void TestParseSingleModbusAddressStandardFormatRegressionCases(string input, byte expectedFunction, ushort expectedAddress)
         {
             var result = ModbusBatchHelper.ParseSingleModbusAddress(input, DataTypeEnums.UInt16, false);
 
