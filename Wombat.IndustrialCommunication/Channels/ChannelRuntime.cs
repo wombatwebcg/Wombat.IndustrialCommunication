@@ -30,6 +30,8 @@ namespace Wombat.IndustrialCommunication.Channels
         internal event EventHandler<ChannelStateChangedEventArgs> StateChanged;
         internal IProtocolClient Client => _client;
 
+        internal Task StartAsync(CancellationToken cancellationToken) => GetConnectionTaskAsync(false, cancellationToken);
+
         internal async ValueTask<TResult> ExecuteAsync<TResult>(Func<IProtocolClient, CancellationToken, ValueTask<TResult>> operation, CancellationToken cancellationToken)
         {
             if (operation == null) throw new ArgumentNullException(nameof(operation));
@@ -44,7 +46,7 @@ namespace Wombat.IndustrialCommunication.Channels
                     entered = true;
                     IncrementWaiting(-1);
                     IncrementActive(1);
-                    await GetConnectionTaskAsync(linked.Token).ConfigureAwait(false);
+                    await GetConnectionTaskAsync(true, linked.Token).ConfigureAwait(false);
                     var result = await operation(_client, linked.Token).ConfigureAwait(false);
                     await RecordResultAsync(result as OperationResult).ConfigureAwait(false);
                     return result;
@@ -111,7 +113,7 @@ namespace Wombat.IndustrialCommunication.Channels
             }
         }
 
-        private async Task GetConnectionTaskAsync(CancellationToken cancellationToken)
+        private async Task GetConnectionTaskAsync(bool retry, CancellationToken cancellationToken)
         {
             Task task;
             await _lifecycle.WaitAsync(cancellationToken).ConfigureAwait(false);
@@ -122,17 +124,17 @@ namespace Wombat.IndustrialCommunication.Channels
                 if (state == ChannelState.Online && _client.Connected) return;
                 if (state == ChannelState.Online) SetState(ChannelState.Faulted);
                 if (_connectionTask == null || _connectionTask.IsCompleted)
-                    _connectionTask = ConnectCoreAsync(state != ChannelState.Created);
+                    _connectionTask = ConnectCoreAsync(retry, state != ChannelState.Created);
                 task = _connectionTask;
             }
             finally { _lifecycle.Release(); }
             await WaitAsync(task, cancellationToken).ConfigureAwait(false);
         }
 
-        private async Task ConnectCoreAsync(bool reconnect)
+        private async Task ConnectCoreAsync(bool retry, bool reconnect)
         {
             SetState(reconnect ? ChannelState.Reconnecting : ChannelState.Connecting);
-            var attempts = Math.Max(1, _options.Reconnect.MaxAttempts);
+            var attempts = retry ? Math.Max(1, _options.Reconnect.MaxAttempts) : 1;
             OperationResult last = null;
             for (var attempt = 0; attempt < attempts; attempt++)
             {

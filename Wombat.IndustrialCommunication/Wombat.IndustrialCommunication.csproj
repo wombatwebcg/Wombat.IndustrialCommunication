@@ -4,7 +4,7 @@
 	 <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
 	<LangVersion>10.0</LangVersion>
 	<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-    <Version>2.1.52</Version>
+    <Version>2.1.53</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>

@@ -16,20 +16,20 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
     public class ChannelManagerTests
     {
         [Fact]
-        public async Task AddRegistersWithoutConnecting()
+        public async Task AddConnectsImmediately()
         {
             var client = new FakeClient();
             await using var manager = CreateManager(client);
 
-            await manager.AddAsync(Options("lazy"));
+            await manager.AddAsync(Options("eager"));
 
-            Assert.Equal(0, client.ConnectCount);
-            Assert.True(manager.TryGetSnapshot("lazy", out var snapshot));
-            Assert.Equal(ChannelState.Created, snapshot.State);
+            Assert.Equal(1, client.ConnectCount);
+            Assert.True(manager.TryGetSnapshot("eager", out var snapshot));
+            Assert.Equal(ChannelState.Online, snapshot.State);
         }
 
         [Fact]
-        public async Task FirstExecuteConnectsFromCreated()
+        public async Task AddPublishesConnectingAndOnlineStates()
         {
             var states = new List<ChannelState>();
             var client = new FakeClient();
@@ -37,22 +37,20 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
             manager.StateChanged += (_, e) => states.Add(e.Current);
 
             await manager.AddAsync(Options("first"));
-            await manager.ExecuteAsync("first", (_, __) => new ValueTask<int>(1));
 
             Assert.Equal(new[] { ChannelState.Connecting, ChannelState.Online }, states);
         }
 
         [Fact]
-        public async Task FailedFirstExecuteKeepsFaultedRuntime()
+        public async Task FailedAddKeepsFaultedRuntime()
         {
             var client = new FakeClient { ConnectFailuresRemaining = 1 };
             var options = Options("offline");
-            options.Reconnect.MaxAttempts = 1;
+            options.Reconnect.MaxAttempts = 3;
             await using var manager = CreateManager(client);
-            await manager.AddAsync(options);
+            await Assert.ThrowsAsync<ChannelException>(() => manager.AddAsync(options).AsTask());
 
-            await Assert.ThrowsAsync<ChannelException>(() => manager.ExecuteAsync("offline", (_, __) => new ValueTask<int>(1)).AsTask());
-
+            Assert.Equal(1, client.ConnectCount);
             Assert.True(manager.TryGetSnapshot("offline", out var snapshot));
             Assert.Equal(ChannelState.Faulted, snapshot.State);
         }
@@ -64,9 +62,8 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
             var options = Options("retry");
             options.Reconnect.MaxAttempts = 1;
             await using var manager = CreateManager(client);
-            await manager.AddAsync(options);
+            await Assert.ThrowsAsync<ChannelException>(() => manager.AddAsync(options).AsTask());
 
-            await Assert.ThrowsAsync<ChannelException>(() => manager.ExecuteAsync("retry", (_, __) => new ValueTask<int>(1)).AsTask());
             var value = await manager.ExecuteAsync("retry", (_, __) => new ValueTask<int>(2));
 
             Assert.Equal(2, value);

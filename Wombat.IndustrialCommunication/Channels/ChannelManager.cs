@@ -44,6 +44,7 @@ namespace Wombat.IndustrialCommunication.Channels
             }
             finally { _gate.Release(); }
 
+            await runtime.StartAsync(cancellationToken).ConfigureAwait(false);
         }
 
         public async ValueTask RemoveAsync(string channelId)
