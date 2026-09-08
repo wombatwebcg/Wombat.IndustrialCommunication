@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "Wombat.IndustrialCommunication.Gateway": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:7564;http://localhost:7565"
+    }
+  }
+}
