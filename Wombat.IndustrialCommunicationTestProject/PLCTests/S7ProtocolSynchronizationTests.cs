@@ -63,6 +63,7 @@ public class S7ProtocolSynchronizationTests
 
             Assert.False(result.IsSuccess);
             Assert.Contains("S7响应PDU Reference不匹配", result.Message);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
             Assert.Equal(1, stream.SendCount);
         }
 
@@ -117,6 +118,7 @@ public class S7ProtocolSynchronizationTests
 
             Assert.False(result.IsSuccess);
             Assert.Contains("S7响应PDU Reference不匹配", result.Message);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
             Assert.Equal(1, stream.SendCount);
         }
 
@@ -138,6 +140,7 @@ public class S7ProtocolSynchronizationTests
 
             Assert.False(result.IsSuccess);
             Assert.Contains("S7响应PDU Reference不匹配", result.Message);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
             Assert.Equal(1, stream.SendCount);
             Assert.All(result.ResultValue.Values, item => Assert.Null(item.Item2));
         }
@@ -168,8 +171,22 @@ public class S7ProtocolSynchronizationTests
 
                 Assert.False(result.IsSuccess);
                 Assert.Contains("S7响应PDU Reference不匹配", result.Message);
+                Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
+                Assert.False(client.Connected);
                 Assert.Equal(1, server.ReadRequestCount);
                 Assert.Equal(1, server.ConnectionCount);
+
+                var reconnectResult = await client.ConnectAsync().ConfigureAwait(false);
+                Assert.True(reconnectResult.IsSuccess, reconnectResult.Message);
+
+                var retry = await client.BatchReadAsync(new Dictionary<string, DataTypeEnums>
+                {
+                    ["VB2000"] = DataTypeEnums.Byte
+                }).ConfigureAwait(false);
+
+                Assert.True(retry.IsSuccess, retry.Message);
+                Assert.Equal(2, server.ReadRequestCount);
+                Assert.Equal(2, server.ConnectionCount);
             }
             finally
             {

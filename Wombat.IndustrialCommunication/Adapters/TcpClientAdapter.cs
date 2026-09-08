@@ -153,6 +153,7 @@ namespace Wombat.IndustrialCommunication.Adapters
             }
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
+                await CloseConnectionAsync().ConfigureAwait(false);
                 return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Send operation was cancelled" };
             }
             catch (Exception ex)
@@ -225,6 +226,7 @@ namespace Wombat.IndustrialCommunication.Adapters
             catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
             {
                 DebugLog("[TcpClientAdapter调试] 接收操作被外部取消");
+                await CloseConnectionAsync().ConfigureAwait(false);
                 return new OperationResult<int> { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Message = "Receive operation was cancelled" };
             }
             catch (Exception ex)

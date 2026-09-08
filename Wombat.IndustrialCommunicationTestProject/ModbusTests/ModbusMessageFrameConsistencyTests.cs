@@ -38,6 +38,30 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
         }
 
         [Fact]
+        public async Task TcpResponseWithMismatchedTransactionIdShouldFailAsProtocolViolation()
+        {
+            var client = new TestableModbusTcpClientBase(new CapturingModbusTransport(isTcp: true, mismatchTransactionId: true));
+
+            var result = await client.CaptureRegisterReadAsync("1;40001", 1, DataTypeEnums.UInt16);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
+            Assert.Contains("Transaction ID不匹配", result.Message);
+        }
+
+        [Fact]
+        public async Task TcpWriteResponseWithMismatchedTransactionIdShouldFailAsProtocolViolation()
+        {
+            var client = new TestableModbusTcpClientBase(new CapturingModbusTransport(isTcp: true, mismatchTransactionId: true));
+
+            var result = await client.WriteAsync("1;40001", (ushort)1);
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, result.FailureKind);
+            Assert.Contains("Transaction ID不匹配", result.Message);
+        }
+
+        [Fact]
         public async Task RtuWriteSingleRegisterNewAndOldFormatShouldProduceSameFrame()
         {
             string oldFrame = await CaptureRtuWriteRegisterFrameAsync("1;6;195", 1);
@@ -142,9 +166,12 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
         {
             private readonly bool _isTcp;
 
-            public CapturingModbusTransport(bool isTcp) : base(new DummyStreamResource())
+            private readonly bool _mismatchTransactionId;
+
+            public CapturingModbusTransport(bool isTcp, bool mismatchTransactionId = false) : base(new DummyStreamResource())
             {
                 _isTcp = isTcp;
+                _mismatchTransactionId = mismatchTransactionId;
             }
 
             public byte[] LastRequestFrame { get; private set; }
@@ -181,6 +208,10 @@ namespace Wombat.IndustrialCommunicationTestProject.ModbusTests
                 byte[] responseFrame = _isTcp
                     ? BuildTcpResponseFrame(LastRequestFrame)
                     : BuildRtuResponseFrame(LastRequestFrame);
+                if (_mismatchTransactionId)
+                {
+                    responseFrame[1]++;
+                }
 
                 var responseMessage = new DeviceReadWriteMessage
                 {

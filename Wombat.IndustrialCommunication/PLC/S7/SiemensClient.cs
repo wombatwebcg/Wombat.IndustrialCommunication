@@ -272,7 +272,7 @@ namespace Wombat.IndustrialCommunication.PLC
             }
         }
 
-        private Task HandleProtocolSynchronizationFailureAsync(string operation, string address, string reason)
+        private async Task HandleProtocolSynchronizationFailureAsync(string operation, string address, string reason)
         {
             Logger?.LogWarning(
                 "S7{Operation}检测到协议同步异常，地址：{Address}，原因：{Reason}，准备废弃当前连接",
@@ -282,13 +282,13 @@ namespace Wombat.IndustrialCommunication.PLC
 
             try
             {
-                _tcpClientAdapter?.StreamClose();
+                await DisconnectAsync().ConfigureAwait(false);
             }
             catch (Exception ex)
             {
                 Logger?.LogWarning(ex, "S7{Operation}协议同步异常后关闭短连接失败，地址：{Address}", operation, address);
             }
-            return Task.CompletedTask;
+            return;
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length, DataTypeEnums dataType, bool isBit = false)
@@ -491,6 +491,10 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
+                if (S7Communication.IsProtocolSynchronizationFailure(result))
+                {
+                    await HandleProtocolSynchronizationFailureAsync("批量读取", string.Empty, result.Message).ConfigureAwait(false);
+                }
                 LogBatchReadDispatch(result);
                 return result;
             }
@@ -504,6 +508,10 @@ namespace Wombat.IndustrialCommunication.PLC
                     return OperationResult.CreateFailedResult<Dictionary<string, (DataTypeEnums, object)>>($"短连接模式连接失败：{connectResult.Message}");
                 }
                 var result = await base.BatchReadAsync(addresses, cancellationToken).ConfigureAwait(false);
+                if (S7Communication.IsProtocolSynchronizationFailure(result))
+                {
+                    await HandleProtocolSynchronizationFailureAsync("批量读取", string.Empty, result.Message).ConfigureAwait(false);
+                }
                 LogBatchReadDispatch(result);
                 return result;
             }

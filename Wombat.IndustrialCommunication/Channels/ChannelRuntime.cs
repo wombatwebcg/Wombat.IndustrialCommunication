@@ -213,7 +213,7 @@ namespace Wombat.IndustrialCommunication.Channels
         }
 
         private static bool IsTransportFailure(Exception ex) => ex is IOException || ex is SocketException || ex is ObjectDisposedException;
-        private static bool IsTransportFailure(OperationFailureKind kind) => kind == OperationFailureKind.ConnectionClosed || kind == OperationFailureKind.Transport || kind == OperationFailureKind.TransportFailure || kind == OperationFailureKind.SendTimeout || kind == OperationFailureKind.ReceiveTimeout || kind == OperationFailureKind.OutcomeUnknown;
+        private static bool IsTransportFailure(OperationFailureKind kind) => kind == OperationFailureKind.ConnectionClosed || kind == OperationFailureKind.Transport || kind == OperationFailureKind.TransportFailure || kind == OperationFailureKind.SendTimeout || kind == OperationFailureKind.ReceiveTimeout || kind == OperationFailureKind.ProtocolViolation || kind == OperationFailureKind.OutcomeUnknown;
 
         private static async Task WaitAsync(Task task, CancellationToken cancellationToken)
         {

@@ -28,7 +28,7 @@ namespace Wombat.IndustrialCommunicationTestProject.TransportTests
         }
 
         [Fact]
-        public async Task ReceiveCancellationDoesNotCloseConnection()
+        public async Task ReceiveCancellationClosesConnection()
         {
             var listener = new TcpListener(IPAddress.Loopback, 0);
             listener.Start();
@@ -45,7 +45,7 @@ namespace Wombat.IndustrialCommunicationTestProject.TransportTests
                     Assert.False(result.IsSuccess);
                     Assert.True(result.IsCancelled);
                     Assert.Equal(OperationFailureKind.Cancelled, result.FailureKind);
-                    Assert.True(adapter.Connected);
+                    Assert.False(adapter.Connected);
                 }
             }
 

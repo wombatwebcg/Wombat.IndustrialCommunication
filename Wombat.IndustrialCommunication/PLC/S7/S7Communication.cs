@@ -144,7 +144,8 @@ namespace Wombat.IndustrialCommunication.PLC
         {
             return result != null
                 && !result.IsSuccess
-                && IsProtocolSynchronizationFailureMessage(result.Message);
+                && (result.FailureKind == OperationFailureKind.ProtocolViolation
+                    || IsProtocolSynchronizationFailureMessage(result.Message));
         }
 
         internal static bool IsProtocolSynchronizationFailureMessage(string message)
@@ -877,6 +878,7 @@ namespace Wombat.IndustrialCommunication.PLC
             var warnings = new List<string>();
             bool hasPreviousBlock = false;
             bool protocolSynchronizationFailure = false;
+            OperationFailureKind failureKind = OperationFailureKind.None;
 
             foreach (var block in optimizedBlocks)
             {
@@ -907,6 +909,9 @@ namespace Wombat.IndustrialCommunication.PLC
                         if (IsProtocolSynchronizationFailure(readResult))
                         {
                             protocolSynchronizationFailure = true;
+                            failureKind = readResult.FailureKind == OperationFailureKind.None
+                                ? OperationFailureKind.ProtocolViolation
+                                : readResult.FailureKind;
                             break;
                         }
                     }
@@ -919,6 +924,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     if (IsProtocolSynchronizationFailureMessage(ex.Message))
                     {
                         protocolSynchronizationFailure = true;
+                        failureKind = OperationFailureKind.ProtocolViolation;
                         break;
                     }
 
@@ -929,7 +935,8 @@ namespace Wombat.IndustrialCommunication.PLC
             if (protocolSynchronizationFailure)
             {
                 result.IsSuccess = false;
-                    result.Message = BuildDispatchMessage(dispatchDecision, string.Join("; ", errors.Concat(warnings)));
+                result.FailureKind = failureKind;
+                result.Message = BuildDispatchMessage(dispatchDecision, string.Join("; ", errors.Concat(warnings)));
                 result.ResultValue = BuildFailedBatchReadResult(addresses);
                 return result.Complete();
             }
@@ -962,6 +969,7 @@ namespace Wombat.IndustrialCommunication.PLC
                 if (!batchResult.IsSuccess)
                 {
                     result.IsSuccess = false;
+                    result.FailureKind = batchResult.FailureKind;
                     result.Message = BuildDispatchMessage(dispatchDecision, batchResult.Message);
                     result.ResultValue = BuildFailedBatchReadResult(addresses);
                     return result.Complete();
@@ -1205,12 +1213,17 @@ namespace Wombat.IndustrialCommunication.PLC
                 }
 
                 var failed = OperationResult.CreateFailedResult<S7ReadResponse>(failureMessage);
+                failed.FailureKind = response.FailureKind;
                 failed.Requsts.AddRange(response.Requsts);
                 failed.Responses.AddRange(response.Responses);
                 return failed;
             }
 
             var parsed = S7ReadResponse.Parse(response.ResultValue.ProtocolMessageFrame, batch.Items);
+            if (!parsed.IsSuccess)
+            {
+                parsed.FailureKind = OperationFailureKind.ProtocolViolation;
+            }
             parsed.Requsts.AddRange(response.Requsts);
             parsed.Responses.AddRange(response.Responses);
             return parsed;

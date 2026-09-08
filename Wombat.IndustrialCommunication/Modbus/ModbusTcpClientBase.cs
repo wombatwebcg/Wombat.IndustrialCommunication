@@ -61,6 +61,8 @@ namespace Wombat.IndustrialCommunication.Modbus
             var request = new ModbusTcpRequest(GenerateTransactionId(), stationNumber, functionCode, address, length);
             var response = await Transport.UnicastReadMessageAsync(request, cancellationToken);
 
+            response = ValidateResponseTransactionId(request, response);
+
             if (response.IsSuccess)
             {
                 var dataPackage = response.ResultValue.ProtocolMessageFrame;
@@ -76,11 +78,60 @@ namespace Wombat.IndustrialCommunication.Modbus
             return WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data, CancellationToken.None);
         }
 
-        protected async Task<OperationResult> WriteByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data, CancellationToken cancellationToken)
+        protected virtual async Task<OperationResult> WriteByModbusAddressAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data, CancellationToken cancellationToken)
         {
             var request = new ModbusTcpRequest(GenerateTransactionId(), stationNumber, functionCode, address, registerOrCoilCount, data);
             var response = await Transport.UnicastWriteMessageAsync(request, cancellationToken);
+            response = ValidateResponseTransactionId(request, response);
             return _writeResponseHandle(response);
+        }
+
+        private static OperationResult<IDeviceReadWriteMessage> ValidateResponseTransactionId(
+            ModbusTcpRequest request,
+            OperationResult<IDeviceReadWriteMessage> response)
+        {
+            if (response == null)
+            {
+                return new OperationResult<IDeviceReadWriteMessage>
+                {
+                    IsSuccess = false,
+                    FailureKind = OperationFailureKind.TransportFailure,
+                    Message = "Modbus TCP未收到响应"
+                };
+            }
+
+            if (!response.IsSuccess)
+            {
+                return response;
+            }
+
+            var frame = response.ResultValue?.ProtocolMessageFrame;
+            if (frame != null && frame.Length >= 2)
+            {
+                var responseTransactionId = (ushort)((frame[0] << 8) | frame[1]);
+                if (responseTransactionId == request.TransactionId)
+                {
+                    return response;
+                }
+
+                return new OperationResult<IDeviceReadWriteMessage>
+                {
+                    IsSuccess = false,
+                    FailureKind = OperationFailureKind.ProtocolViolation,
+                    Message = $"Modbus TCP Transaction ID不匹配，请求:{request.TransactionId} 响应:{responseTransactionId}",
+                    Requsts = response.Requsts,
+                    Responses = response.Responses
+                };
+            }
+
+            return new OperationResult<IDeviceReadWriteMessage>
+            {
+                IsSuccess = false,
+                FailureKind = OperationFailureKind.ProtocolViolation,
+                Message = "Modbus TCP响应缺少Transaction ID",
+                Requsts = response.Requsts,
+                Responses = response.Responses
+            };
         }
 
         protected ushort CalculateWriteEntityCount(byte functionCode, byte[] data, bool isBit)

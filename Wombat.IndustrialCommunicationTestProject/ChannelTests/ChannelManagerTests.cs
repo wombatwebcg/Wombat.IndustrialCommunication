@@ -182,6 +182,26 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
+        public async Task ProtocolViolationFaultsAndDisconnectsChannel()
+        {
+            var client = new FakeClient();
+            await using var manager = CreateManager(client);
+            await manager.AddAsync(Options("protocol-violation"));
+
+            var result = await manager.ExecuteAsync("protocol-violation", (_, __) => new ValueTask<OperationResult>(new OperationResult
+            {
+                IsSuccess = false,
+                FailureKind = OperationFailureKind.ProtocolViolation
+            }));
+
+            Assert.False(result.IsSuccess);
+            Assert.Equal(1, client.DisconnectCount);
+            Assert.True(manager.TryGetSnapshot("protocol-violation", out var snapshot));
+            Assert.Equal(ChannelState.Faulted, snapshot.State);
+            Assert.Equal(OperationFailureKind.ProtocolViolation, snapshot.LastError);
+        }
+
+        [Fact]
         public async Task RestartReplacesStoppedRuntime()
         {
             var clients = new Queue<FakeClient>(new[] { new FakeClient(), new FakeClient() });

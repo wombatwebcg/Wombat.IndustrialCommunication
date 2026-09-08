@@ -68,6 +68,7 @@ namespace Wombat.IndustrialCommunication
                 if (StrictPduReferenceValidation && !pduValidation.IsSuccess)
                 {
                     result.IsSuccess = false;
+                    result.FailureKind = pduValidation.FailureKind;
                     result.Message = pduValidation.Message;
                     return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
                 }
@@ -183,20 +184,20 @@ namespace Wombat.IndustrialCommunication
         {
             if (response == null || response.Length < 5)
             {
-                return OperationResult.CreateFailedResult("响应长度不足");
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = "响应长度不足" };
             }
 
             var cotpTotalLength = 1 + response[4];
             var s7Offset = 4 + cotpTotalLength;
             if (s7Offset + 12 > response.Length)
             {
-                return OperationResult.CreateFailedResult("S7响应头长度不足");
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = "S7响应头长度不足" };
             }
 
             var responsePduReference = (ushort)((response[s7Offset + 4] << 8) | response[s7Offset + 5]);
             if (responsePduReference != requestPduReference)
             {
-                return OperationResult.CreateFailedResult($"S7响应PDU Reference不匹配，请求:{requestPduReference} 响应:{responsePduReference}");
+                return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = $"S7响应PDU Reference不匹配，请求:{requestPduReference} 响应:{responsePduReference}" };
             }
 
             return OperationResult.CreateSuccessResult();

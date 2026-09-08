@@ -293,8 +293,30 @@ namespace Wombat.IndustrialCommunication.Modbus
                 return OperationResult.CreateFailedResult<byte[]>("Modbus TCP客户端没有连接");
             }
 
-            return await base.ReadByModbusAddressAsync(
+            var result = await base.ReadByModbusAddressAsync(
                 stationNumber, functionCode, address, length, cancellationToken).ConfigureAwait(false);
+            if (result.FailureKind == OperationFailureKind.ProtocolViolation)
+            {
+                await DisconnectAsync().ConfigureAwait(false);
+            }
+            return result;
+        }
+
+        protected override async Task<OperationResult> WriteByModbusAddressAsync(
+            byte stationNumber,
+            byte functionCode,
+            ushort address,
+            ushort registerOrCoilCount,
+            byte[] data,
+            CancellationToken cancellationToken)
+        {
+            var result = await base.WriteByModbusAddressAsync(
+                stationNumber, functionCode, address, registerOrCoilCount, data, cancellationToken).ConfigureAwait(false);
+            if (result.FailureKind == OperationFailureKind.ProtocolViolation)
+            {
+                await DisconnectAsync().ConfigureAwait(false);
+            }
+            return result;
         }
 
         protected internal override async ValueTask<OperationResult<byte[]>> ReadAsync(string address, int length,DataTypeEnums dataType, bool isBit = false)
