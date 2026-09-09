@@ -156,6 +156,36 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         }
 
         [Fact]
+        public async Task RegisteredOptionsAreSnapshotBeforeCallerMutation()
+        {
+            var client = new FakeClient();
+            await using var manager = CreateManager(client);
+            var options = Options("snapshot");
+            options.MaxConcurrency = 1;
+            await manager.AddAsync(options);
+
+            options.MaxConcurrency = 2;
+            options.OperationTimeout = TimeSpan.FromMilliseconds(1);
+            options.Reconnect.MaxAttempts = 99;
+            await manager.RemoveAsync("snapshot");
+
+            Assert.Equal(1, client.DisconnectCount);
+            Assert.False(client.Connected);
+        }
+
+        [Fact]
+        public async Task ConcurrentRemoveDisconnectsOnlyOnce()
+        {
+            var client = new FakeClient();
+            await using var manager = CreateManager(client);
+            await manager.AddAsync(Options("concurrent-remove"));
+
+            await Task.WhenAll(manager.RemoveAsync("concurrent-remove").AsTask(), manager.RemoveAsync("concurrent-remove").AsTask());
+
+            Assert.Equal(1, client.DisconnectCount);
+        }
+
+        [Fact]
         public async Task ConcurrentRequestsAfterFaultShareReconnect()
         {
             var client = new FakeClient();

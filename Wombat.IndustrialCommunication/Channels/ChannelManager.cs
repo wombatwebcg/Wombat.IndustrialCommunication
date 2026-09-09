@@ -24,6 +24,7 @@ namespace Wombat.IndustrialCommunication.Channels
         private readonly SemaphoreSlim _gate = new SemaphoreSlim(1, 1);
         private readonly Func<ChannelOptions, IProtocolClient> _factory;
         private bool _disposed;
+        private Task _disposeTask;
 
         public ChannelManager() : this(CreateClient) { }
         public ChannelManager(Func<ChannelOptions, IProtocolClient> factory) { _factory = factory ?? throw new ArgumentNullException(nameof(factory)); }
@@ -33,7 +34,9 @@ namespace Wombat.IndustrialCommunication.Channels
         public async ValueTask AddAsync(ChannelOptions options, CancellationToken cancellationToken = default)
         {
             Validate(options);
-            var runtime = new ChannelRuntime(options, _factory(options));
+            var snapshot = Snapshot(options);
+            var runtimeOptions = new ChannelRuntimeOptions(snapshot);
+            var runtime = new ChannelRuntime(runtimeOptions, _factory(snapshot));
             runtime.StateChanged += ForwardStateChanged;
             await _gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -97,19 +100,27 @@ namespace Wombat.IndustrialCommunication.Channels
 
         public async ValueTask DisposeAsync()
         {
-            ChannelRuntime[] runtimes;
+            Task disposeTask;
             await _gate.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (_disposed) return;
-                _disposed = true;
-                runtimes = new ChannelRuntime[_channels.Count];
-                _channels.Values.CopyTo(runtimes, 0);
-                _channels.Clear();
+                if (_disposeTask == null)
+                {
+                    _disposed = true;
+                    var runtimes = new ChannelRuntime[_channels.Count];
+                    _channels.Values.CopyTo(runtimes, 0);
+                    _channels.Clear();
+                    _disposeTask = DisposeRuntimesAsync(runtimes);
+                }
+                disposeTask = _disposeTask;
             }
             finally { _gate.Release(); }
+            await disposeTask.ConfigureAwait(false);
+        }
+
+        private static async Task DisposeRuntimesAsync(ChannelRuntime[] runtimes)
+        {
             foreach (var runtime in runtimes) await runtime.DisposeAsync().ConfigureAwait(false);
-            _gate.Dispose();
         }
 
         private void ForwardStateChanged(object sender, ChannelStateChangedEventArgs e)
@@ -146,6 +157,31 @@ namespace Wombat.IndustrialCommunication.Channels
             if (options.ConnectTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(options.ConnectTimeout));
             if (options.OperationTimeout <= TimeSpan.Zero) throw new ArgumentOutOfRangeException(nameof(options.OperationTimeout));
             if (options.Reconnect == null || options.Reconnect.MaxAttempts < 1) throw new ArgumentOutOfRangeException(nameof(options.Reconnect));
+        }
+
+        private static ChannelOptions Snapshot(ChannelOptions options)
+        {
+            ChannelOptions snapshot = options switch
+            {
+                ModbusTcpChannelOptions tcp => new ModbusTcpChannelOptions(tcp.Id, tcp.Host, tcp.Port),
+                ModbusRtuChannelOptions rtu => new ModbusRtuChannelOptions(rtu.Id, rtu.PortName)
+                {
+                    BaudRate = rtu.BaudRate, DataBits = rtu.DataBits, Parity = rtu.Parity, StopBits = rtu.StopBits, Handshake = rtu.Handshake
+                },
+                SiemensS7ChannelOptions s7 => new SiemensS7ChannelOptions(s7.Id, s7.Host, s7.Version, s7.Port) { Slot = s7.Slot, Rack = s7.Rack },
+                FinsTcpChannelOptions fins => new FinsTcpChannelOptions(fins.Id, fins.Host, fins.Port),
+                _ => throw new NotSupportedException($"Channel options '{options.GetType().Name}' are not supported.")
+            };
+            snapshot.MaxConcurrency = options.MaxConcurrency;
+            snapshot.ConnectTimeout = options.ConnectTimeout;
+            snapshot.OperationTimeout = options.OperationTimeout;
+            snapshot.Reconnect = new ReconnectOptions
+            {
+                InitialDelay = options.Reconnect.InitialDelay,
+                MaxDelay = options.Reconnect.MaxDelay,
+                MaxAttempts = options.Reconnect.MaxAttempts
+            };
+            return snapshot;
         }
 
         private void ThrowIfDisposed() { if (_disposed) throw new ObjectDisposedException(nameof(ChannelManager)); }

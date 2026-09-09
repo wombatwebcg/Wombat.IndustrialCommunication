@@ -45,7 +45,7 @@ namespace Wombat.IndustrialCommunication
             {
                 result.IsSuccess = false;
                 result.Message = "无效的请求类型。期望S7ReadRequest类型。";
-                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
             }
 
             try
@@ -85,7 +85,7 @@ namespace Wombat.IndustrialCommunication
             {
                 result.IsSuccess = false;
                 result.Message = $"读取操作过程中发生错误: {ex.Message}";
-                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>();
+                return OperationResult.CreateFailedResult<IDeviceReadWriteMessage>(result);
             }
         }
 
@@ -165,7 +165,13 @@ namespace Wombat.IndustrialCommunication
 
             result.Responses.Add(string.Join(" ", headerResponse.ResultValue.Select(t => t.ToString("X2"))));
 
-            var dataLength = S7CommonMethods.GetContentLength(headerResponse.ResultValue);
+            if (headerResponse.ResultValue.Length < 4 || headerResponse.ResultValue[0] != 3 || headerResponse.ResultValue[1] != 0)
+                return new OperationResult<byte[]> { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = "Invalid TPKT header", Requsts = result.Requsts, Responses = result.Responses };
+            var totalLength = (headerResponse.ResultValue[2] << 8) | headerResponse.ResultValue[3];
+            if (totalLength < headerResponse.ResultValue.Length || totalLength > 65535)
+                return new OperationResult<byte[]> { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = "Invalid TPKT length", Requsts = result.Requsts, Responses = result.Responses };
+
+            var dataLength = totalLength - headerResponse.ResultValue.Length;
             var dataResponse = await ReceiveResponseAsync(0, dataLength, cancellationToken).ConfigureAwait(false);
             if (!dataResponse.IsSuccess)
             {

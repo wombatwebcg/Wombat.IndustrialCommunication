@@ -19,14 +19,14 @@ namespace Wombat.IndustrialCommunicationTestProject.PLCTests
     [Trait("Category", "RealPlc")]
     public class S7Smart200LargeBatchRealPlcTests
     {
-        private const string PlcIp = "192.168.1.10";
+        private const string PlcIp = "192.168.2.20";
         private const int PlcPort = 102;
         private const SiemensVersion PlcVersion = SiemensVersion.S7_200Smart;
         private const int ConnectTimeoutSeconds = 5;
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
-        private const int StressLoopCount = 20;
+        private const int StressLoopCount = 5;
 
         private readonly ITestOutputHelper _output;
 

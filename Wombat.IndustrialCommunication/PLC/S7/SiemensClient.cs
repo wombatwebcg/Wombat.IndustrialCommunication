@@ -338,7 +338,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     await DisconnectAsync().ConfigureAwait(false);
                     
                     // 建立新连接
-                    var connectResult = await ConnectAsync().ConfigureAwait(false);
+                    var connectResult = await ConnectAsync(cancellationToken).ConfigureAwait(false);
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误
@@ -433,7 +433,7 @@ namespace Wombat.IndustrialCommunication.PLC
                     await DisconnectAsync().ConfigureAwait(false);
                     
                     // 建立新连接
-                    var connectResult = await ConnectAsync().ConfigureAwait(false);
+                    var connectResult = await ConnectAsync(cancellationToken).ConfigureAwait(false);
                     if (!connectResult.IsSuccess)
                     {
                         // 短连接模式下连接失败直接返回错误

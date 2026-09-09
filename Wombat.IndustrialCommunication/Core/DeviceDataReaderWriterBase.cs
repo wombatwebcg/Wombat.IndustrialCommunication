@@ -236,6 +236,12 @@ namespace Wombat.IndustrialCommunication.Core
             return new OperationResult<bool> { IsSuccess = false, Message = result.Message };
         }
 
+        public async ValueTask<OperationResult<bool>> ReadBooleanAsync(string address, CancellationToken cancellationToken)
+        {
+            var result = await ReadBooleanAsync(address, 1, cancellationToken);
+            return result.IsSuccess ? new OperationResult<bool> { IsSuccess = true, ResultValue = result.ResultValue[0] } : new OperationResult<bool>(result);
+        }
+
         /// <summary>
         /// 异步读取布尔数组
         /// </summary>
@@ -251,6 +257,14 @@ namespace Wombat.IndustrialCommunication.Core
                 IsSuccess = true, 
                 ResultValue = readResult.ResultValue.ToBool(0, length, false) 
             };
+        }
+
+        public virtual async ValueTask<OperationResult<bool[]>> ReadBooleanAsync(string address, int length, CancellationToken cancellationToken)
+        {
+            var readResult = await ReadAsync(address, length, DataTypeEnums.Bool, true, cancellationToken);
+            return readResult.IsSuccess
+                ? new OperationResult<bool[]> { IsSuccess = true, ResultValue = readResult.ResultValue.ToBool(0, length, false) }
+                : new OperationResult<bool[]>(readResult);
         }
 
         public OperationResult<bool> ReadBoolean(int startAddressOffest, int addressIndex, byte[] values)
@@ -344,6 +358,12 @@ namespace Wombat.IndustrialCommunication.Core
             return new OperationResult<ushort> { IsSuccess = false, Message = result.Message };
         }
 
+        public async ValueTask<OperationResult<ushort>> ReadUInt16Async(string address, CancellationToken cancellationToken)
+        {
+            var result = await ReadUInt16Async(address, 1, cancellationToken);
+            return result.IsSuccess ? new OperationResult<ushort> { IsSuccess = true, ResultValue = result.ResultValue[0] } : new OperationResult<ushort>(result);
+        }
+
         /// <summary>
         /// 读取UInt16
         /// </summary>
@@ -361,6 +381,14 @@ namespace Wombat.IndustrialCommunication.Core
                 IsSuccess = true, 
                 ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse) 
             };
+        }
+
+        public async ValueTask<OperationResult<ushort[]>> ReadUInt16Async(string address, int length, CancellationToken cancellationToken)
+        {
+            var readResult = await ReadAsync(address, 2 * length, DataTypeEnums.UInt16, false, cancellationToken);
+            return readResult.IsSuccess
+                ? new OperationResult<ushort[]> { IsSuccess = true, ResultValue = readResult.ResultValue.ToUInt16(0, length, IsReverse) }
+                : new OperationResult<ushort[]>(readResult);
         }
 
         public OperationResult<ushort> ReadUInt16(int startAddressOffest, int addressIndex, byte[] values)
@@ -1533,7 +1561,7 @@ namespace Wombat.IndustrialCommunication.Core
             {
                 if (disposing)
                 {
-                    // 释放托管资源
+                    Transport?.Dispose();
                 }
 
                 // 释放非托管资源

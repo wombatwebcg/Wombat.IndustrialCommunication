@@ -101,6 +101,28 @@ namespace Wombat.IndustrialCommunication.Channels
         public int Port { get; }
     }
 
+    internal sealed class ChannelRuntimeOptions
+    {
+        internal ChannelRuntimeOptions(ChannelOptions options)
+        {
+            Id = options.Id;
+            MaxConcurrency = options.MaxConcurrency;
+            ConnectTimeout = options.ConnectTimeout;
+            OperationTimeout = options.OperationTimeout;
+            ReconnectInitialDelay = options.Reconnect.InitialDelay;
+            ReconnectMaxDelay = options.Reconnect.MaxDelay;
+            ReconnectMaxAttempts = options.Reconnect.MaxAttempts;
+        }
+
+        internal string Id { get; }
+        internal int MaxConcurrency { get; }
+        internal TimeSpan ConnectTimeout { get; }
+        internal TimeSpan OperationTimeout { get; }
+        internal TimeSpan ReconnectInitialDelay { get; }
+        internal TimeSpan ReconnectMaxDelay { get; }
+        internal int ReconnectMaxAttempts { get; }
+    }
+
     public sealed class ChannelSnapshot
     {
         internal ChannelSnapshot(string channelId) { ChannelId = channelId; }

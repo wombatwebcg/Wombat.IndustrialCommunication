@@ -61,7 +61,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             var request = new ModbusTcpRequest(GenerateTransactionId(), stationNumber, functionCode, address, length);
             var response = await Transport.UnicastReadMessageAsync(request, cancellationToken);
 
-            response = ValidateResponseTransactionId(request, response);
+            response = ValidateResponse(request, response, false);
 
             if (response.IsSuccess)
             {
@@ -82,13 +82,13 @@ namespace Wombat.IndustrialCommunication.Modbus
         {
             var request = new ModbusTcpRequest(GenerateTransactionId(), stationNumber, functionCode, address, registerOrCoilCount, data);
             var response = await Transport.UnicastWriteMessageAsync(request, cancellationToken);
-            response = ValidateResponseTransactionId(request, response);
+            response = ValidateResponse(request, response, true);
             return _writeResponseHandle(response);
         }
 
-        private static OperationResult<IDeviceReadWriteMessage> ValidateResponseTransactionId(
+        private static OperationResult<IDeviceReadWriteMessage> ValidateResponse(
             ModbusTcpRequest request,
-            OperationResult<IDeviceReadWriteMessage> response)
+            OperationResult<IDeviceReadWriteMessage> response, bool write)
         {
             if (response == null)
             {
@@ -109,19 +109,15 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (frame != null && frame.Length >= 2)
             {
                 var responseTransactionId = (ushort)((frame[0] << 8) | frame[1]);
-                if (responseTransactionId == request.TransactionId)
-                {
-                    return response;
-                }
+                if (responseTransactionId != request.TransactionId) return ProtocolFailure(response, $"Modbus TCP Transaction ID不匹配，请求:{request.TransactionId} 响应:{responseTransactionId}");
+                if (frame.Length < 8 || frame[2] != 0 || frame[3] != 0 || frame[6] != request.Station) return ProtocolFailure(response, "Modbus TCP响应头不匹配");
+                var fc = frame[7];
+                if ((fc & 0x80) != 0) return fc == (byte)(request.FunctionCode | 0x80) && frame.Length == 9 ? response : ProtocolFailure(response, "Modbus TCP异常响应不匹配");
+                if (fc != request.FunctionCode || frame.Length != 6 + ((frame[4] << 8) | frame[5])) return ProtocolFailure(response, "Modbus TCP响应不匹配");
+                if (request.FunctionCode is 1 or 2 or 3 or 4 && (frame.Length < 9 || frame[8] != frame.Length - 9)) return ProtocolFailure(response, "Modbus TCP字节数不匹配");
+                if (write && request.FunctionCode is 5 or 6 or 15 or 16) for (var i = 8; i < 12; i++) if (frame[i] != request.ProtocolMessageFrame[i]) return ProtocolFailure(response, "Modbus TCP写入回显不匹配");
+                return response;
 
-                return new OperationResult<IDeviceReadWriteMessage>
-                {
-                    IsSuccess = false,
-                    FailureKind = OperationFailureKind.ProtocolViolation,
-                    Message = $"Modbus TCP Transaction ID不匹配，请求:{request.TransactionId} 响应:{responseTransactionId}",
-                    Requsts = response.Requsts,
-                    Responses = response.Responses
-                };
             }
 
             return new OperationResult<IDeviceReadWriteMessage>
@@ -133,6 +129,8 @@ namespace Wombat.IndustrialCommunication.Modbus
                 Responses = response.Responses
             };
         }
+
+        private static OperationResult<IDeviceReadWriteMessage> ProtocolFailure(OperationResult<IDeviceReadWriteMessage> source, string message) => new OperationResult<IDeviceReadWriteMessage> { IsSuccess = false, FailureKind = OperationFailureKind.ProtocolViolation, Message = message, Exception = source.Exception, Requsts = source.Requsts, Responses = source.Responses };
 
         protected ushort CalculateWriteEntityCount(byte functionCode, byte[] data, bool isBit)
         {

@@ -10,20 +10,24 @@ namespace Wombat.IndustrialCommunication.Channels
 {
     internal sealed class ChannelRuntime : IAsyncDisposable
     {
-        private readonly ChannelOptions _options;
+        private readonly ChannelRuntimeOptions _options;
         private readonly IProtocolClient _client;
         private readonly SemaphoreSlim _operations;
+        private readonly int _operationCapacity;
         private readonly SemaphoreSlim _lifecycle = new SemaphoreSlim(1, 1);
         private readonly CancellationTokenSource _stopping = new CancellationTokenSource();
         private readonly object _snapshotLock = new object();
         private readonly ChannelSnapshot _snapshot;
         private Task _connectionTask;
+        private Task _stopTask;
+        private int _disposed;
 
-        internal ChannelRuntime(ChannelOptions options, IProtocolClient client)
+        internal ChannelRuntime(ChannelRuntimeOptions options, IProtocolClient client)
         {
             _options = options;
             _client = client;
-            _operations = new SemaphoreSlim(options.MaxConcurrency, options.MaxConcurrency);
+            _operationCapacity = options.MaxConcurrency;
+            _operations = new SemaphoreSlim(_operationCapacity, _operationCapacity);
             _snapshot = new ChannelSnapshot(options.Id) { State = ChannelState.Created };
         }
 
@@ -98,18 +102,22 @@ namespace Wombat.IndustrialCommunication.Channels
             await _lifecycle.WaitAsync().ConfigureAwait(false);
             try
             {
-                if (GetSnapshot().State == ChannelState.Stopped) return;
-                SetState(ChannelState.Stopping);
-                _stopping.Cancel();
+                if (_stopTask == null) _stopTask = StopCoreAsync();
             }
             finally { _lifecycle.Release(); }
+            await _stopTask.ConfigureAwait(false);
+        }
 
-            for (var i = 0; i < _options.MaxConcurrency; i++) await _operations.WaitAsync().ConfigureAwait(false);
+        private async Task StopCoreAsync()
+        {
+            SetState(ChannelState.Stopping);
+            _stopping.Cancel();
+            for (var i = 0; i < _operationCapacity; i++) await _operations.WaitAsync().ConfigureAwait(false);
             try { await _client.DisconnectAsync().ConfigureAwait(false); }
             finally
             {
                 SetState(ChannelState.Stopped);
-                for (var i = 0; i < _options.MaxConcurrency; i++) _operations.Release();
+                for (var i = 0; i < _operationCapacity; i++) _operations.Release();
             }
         }
 
@@ -134,14 +142,14 @@ namespace Wombat.IndustrialCommunication.Channels
         private async Task ConnectCoreAsync(bool retry, bool reconnect)
         {
             SetState(reconnect ? ChannelState.Reconnecting : ChannelState.Connecting);
-            var attempts = retry ? Math.Max(1, _options.Reconnect.MaxAttempts) : 1;
+            var attempts = retry ? Math.Max(1, _options.ReconnectMaxAttempts) : 1;
             OperationResult last = null;
             for (var attempt = 0; attempt < attempts; attempt++)
             {
                 if (attempt > 0)
                 {
-                    var delay = TimeSpan.FromMilliseconds(Math.Min(_options.Reconnect.MaxDelay.TotalMilliseconds,
-                        _options.Reconnect.InitialDelay.TotalMilliseconds * Math.Pow(2, attempt - 1)));
+                    var delay = TimeSpan.FromMilliseconds(Math.Min(_options.ReconnectMaxDelay.TotalMilliseconds,
+                        _options.ReconnectInitialDelay.TotalMilliseconds * Math.Pow(2, attempt - 1)));
                     await Task.Delay(delay, _stopping.Token).ConfigureAwait(false);
                 }
                 using (var timeout = new CancellationTokenSource(_options.ConnectTimeout))
@@ -265,10 +273,7 @@ namespace Wombat.IndustrialCommunication.Channels
         public async ValueTask DisposeAsync()
         {
             await StopAsync().ConfigureAwait(false);
-            (_client as IDisposable)?.Dispose();
-            _operations.Dispose();
-            _lifecycle.Dispose();
-            _stopping.Dispose();
+            if (Interlocked.Exchange(ref _disposed, 1) == 0) (_client as IDisposable)?.Dispose();
         }
     }
 }

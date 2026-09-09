@@ -365,7 +365,9 @@ namespace Wombat.IndustrialCommunication.Adapters
                 Volatile.Write(ref _connected, 0);
                 try { _stream?.Dispose(); } catch { }
                 _stream = null;
+                var connection = _connection;
                 _connection = null;
+                if (connection != null) try { connection.CloseAsync().GetAwaiter().GetResult(); } catch { }
             }
 
             _disposed = true;

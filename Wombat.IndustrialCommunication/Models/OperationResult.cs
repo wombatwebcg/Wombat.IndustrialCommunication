@@ -1008,6 +1008,7 @@ namespace Wombat.IndustrialCommunication.Models
         public OperationResult(OperationResult result)
         {
             this.ErrorCode = result.ErrorCode;
+            this.FailureKind = result.FailureKind;
             this.Exception = result.Exception;
             this.InitialTime = result.InitialTime;
             this.IsSuccess = result.IsSuccess;
@@ -1024,6 +1025,7 @@ namespace Wombat.IndustrialCommunication.Models
         public OperationResult(OperationResult result,T data)
         {
             this.ErrorCode = result.ErrorCode;
+            this.FailureKind = result.FailureKind;
             this.Exception = result.Exception;
             this.InitialTime = result.InitialTime;
             this.IsSuccess = result.IsSuccess;

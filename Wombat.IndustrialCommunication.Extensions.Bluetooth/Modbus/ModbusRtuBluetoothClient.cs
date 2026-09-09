@@ -465,6 +465,19 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus
             }
         }
 
+        public Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadCoilAsync(stationNumber, address);
+        public Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken) => ReadCoilsAsync(stationNumber, startAddress, count);
+        public Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadDiscreteInputAsync(stationNumber, address);
+        public Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken) => ReadDiscreteInputsAsync(stationNumber, startAddress, count);
+        public Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadHoldingRegisterAsync(stationNumber, address);
+        public Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken) => ReadHoldingRegistersAsync(stationNumber, startAddress, count);
+        public Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadInputRegisterAsync(stationNumber, address);
+        public Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken) => ReadInputRegistersAsync(stationNumber, startAddress, count);
+        public Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value, CancellationToken cancellationToken) => WriteCoilAsync(stationNumber, address, value);
+        public Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values, CancellationToken cancellationToken) => WriteCoilsAsync(stationNumber, startAddress, values);
+        public Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value, CancellationToken cancellationToken) => WriteHoldingRegisterAsync(stationNumber, address, value);
+        public Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values, CancellationToken cancellationToken) => WriteHoldingRegistersAsync(stationNumber, startAddress, values);
+
         public async Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count)
         {
             try

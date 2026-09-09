@@ -60,11 +60,11 @@ namespace Wombat.IndustrialCommunication.Modbus
             }
             // 解析 MBAP Header
             // Transaction ID（2字节）
-            TransactionId = BitConverter.ToUInt16(frame, 0);
+            TransactionId = (ushort)((frame[0] << 8) | frame[1]);
             // Protocol ID（2字节，通常是0x0000）
-            ProtocolId = BitConverter.ToUInt16(frame, 2);
+            ProtocolId = (ushort)((frame[2] << 8) | frame[3]);
             // Length（2字节）
-            Length = BitConverter.ToUInt16(frame, 4);
+            Length = (ushort)((frame[4] << 8) | frame[5]);
             // Unit ID（1字节）
             Station = frame[6];
 

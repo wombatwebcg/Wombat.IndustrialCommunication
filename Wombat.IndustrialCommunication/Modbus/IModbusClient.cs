@@ -1,4 +1,5 @@
 using System;
+using System.Threading;
 using System.Threading.Tasks;
 using Wombat.IndustrialCommunication.Models;
 
@@ -126,6 +127,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="address">起始地址</param>
         /// <returns>线圈状态</returns>
         Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address);
+        Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取多个线圈状态 (功能码 01)
@@ -135,6 +137,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="count">读取数量</param>
         /// <returns>线圈状态数组</returns>
         Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count);
+        Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取离散输入状态 (功能码 02)
@@ -143,6 +146,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="address">起始地址</param>
         /// <returns>离散输入状态</returns>
         Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address);
+        Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取多个离散输入状态 (功能码 02)
@@ -152,6 +156,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="count">读取数量</param>
         /// <returns>离散输入状态数组</returns>
         Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count);
+        Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取保持寄存器 (功能码 03)
@@ -160,6 +165,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="address">起始地址</param>
         /// <returns>保持寄存器值</returns>
         Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address);
+        Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取多个保持寄存器 (功能码 03)
@@ -169,6 +175,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="count">读取数量</param>
         /// <returns>保持寄存器值数组</returns>
         Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count);
+        Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取输入寄存器 (功能码 04)
@@ -177,6 +184,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="address">起始地址</param>
         /// <returns>输入寄存器值</returns>
         Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address);
+        Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步读取多个输入寄存器 (功能码 04)
@@ -186,6 +194,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="count">读取数量</param>
         /// <returns>输入寄存器值数组</returns>
         Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count);
+        Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort startAddress, ushort count, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步写入单个线圈 (功能码 05)
@@ -195,6 +204,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入值</param>
         /// <returns>操作结果</returns>
         Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value);
+        Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步写入多个线圈 (功能码 15)
@@ -204,6 +214,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="values">写入值数组</param>
         /// <returns>操作结果</returns>
         Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values);
+        Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort startAddress, bool[] values, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步写入单个保持寄存器 (功能码 06)
@@ -213,6 +224,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="value">写入值</param>
         /// <returns>操作结果</returns>
         Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value);
+        Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value, CancellationToken cancellationToken);
 
         /// <summary>
         /// 异步写入多个保持寄存器 (功能码 16)
@@ -222,7 +234,8 @@ namespace Wombat.IndustrialCommunication.Modbus
         /// <param name="values">写入值数组</param>
         /// <returns>操作结果</returns>
         Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values);
+        Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort startAddress, ushort[] values, CancellationToken cancellationToken);
 
         #endregion
     }
-} 
+}

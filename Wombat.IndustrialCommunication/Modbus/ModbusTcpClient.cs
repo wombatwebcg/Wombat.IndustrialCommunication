@@ -553,9 +553,14 @@ namespace Wombat.IndustrialCommunication.Modbus
 
         private Task<OperationResult> WriteByFunctionAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data)
         {
+            return WriteByFunctionAsync(stationNumber, functionCode, address, registerOrCoilCount, data, CancellationToken.None);
+        }
+
+        private Task<OperationResult> WriteByFunctionAsync(byte stationNumber, byte functionCode, ushort address, ushort registerOrCoilCount, byte[] data, CancellationToken cancellationToken)
+        {
             string requestAddress = $"{stationNumber};{functionCode};{address}";
             return HandleWriteAsync(
-                () => WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data),
+                () => WriteByModbusAddressAsync(stationNumber, functionCode, address, registerOrCoilCount, data, cancellationToken),
                 requestAddress);
         }
 
@@ -728,6 +733,19 @@ namespace Wombat.IndustrialCommunication.Modbus
         #endregion
 
         #region IModbusClient 接口实现 - 异步方法
+
+        public Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x01, address), cancellationToken).AsTask();
+        public Task<OperationResult<bool[]>> ReadCoilsAsync(byte stationNumber, ushort address, ushort count, CancellationToken cancellationToken) => ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x01, address), count, cancellationToken).AsTask();
+        public Task<OperationResult<bool>> ReadDiscreteInputAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x02, address), cancellationToken).AsTask();
+        public Task<OperationResult<bool[]>> ReadDiscreteInputsAsync(byte stationNumber, ushort address, ushort count, CancellationToken cancellationToken) => ReadBooleanAsync(BuildLogicalReadAddress(stationNumber, 0x02, address), count, cancellationToken).AsTask();
+        public Task<OperationResult<ushort>> ReadHoldingRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x03, address), cancellationToken).AsTask();
+        public Task<OperationResult<ushort[]>> ReadHoldingRegistersAsync(byte stationNumber, ushort address, ushort count, CancellationToken cancellationToken) => ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x03, address), count, cancellationToken).AsTask();
+        public Task<OperationResult<ushort>> ReadInputRegisterAsync(byte stationNumber, ushort address, CancellationToken cancellationToken) => ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x04, address), cancellationToken).AsTask();
+        public Task<OperationResult<ushort[]>> ReadInputRegistersAsync(byte stationNumber, ushort address, ushort count, CancellationToken cancellationToken) => ReadUInt16Async(BuildLogicalReadAddress(stationNumber, 0x04, address), count, cancellationToken).AsTask();
+        public Task<OperationResult> WriteCoilAsync(byte stationNumber, ushort address, bool value, CancellationToken cancellationToken) => WriteByFunctionAsync(stationNumber, 0x05, address, 1, new byte[] { (byte)(value ? 0xFF : 0x00), 0 }, cancellationToken);
+        public Task<OperationResult> WriteCoilsAsync(byte stationNumber, ushort address, bool[] values, CancellationToken cancellationToken) => WriteByFunctionAsync(stationNumber, 0x0F, address, (ushort)values.Length, values.ToBytes(), cancellationToken);
+        public Task<OperationResult> WriteHoldingRegisterAsync(byte stationNumber, ushort address, ushort value, CancellationToken cancellationToken) => WriteByFunctionAsync(stationNumber, 0x06, address, 1, value.ToByte(IsReverse), cancellationToken);
+        public Task<OperationResult> WriteHoldingRegistersAsync(byte stationNumber, ushort address, ushort[] values, CancellationToken cancellationToken) => WriteByFunctionAsync(stationNumber, 0x10, address, (ushort)values.Length, values.ToByte(IsReverse), cancellationToken);
 
         public async Task<OperationResult<bool>> ReadCoilAsync(byte stationNumber, ushort address)
         {

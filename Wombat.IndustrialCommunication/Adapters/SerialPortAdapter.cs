@@ -191,19 +191,20 @@ namespace Wombat.IndustrialCommunication.Adapters
                 {
                     string errorMessage = $"向串口 {PortName} 发送数据超时，超时设置: {SendTimeout.TotalMilliseconds}ms";
                     Logger?.LogError(te, errorMessage);
-                    return OperationResult.CreateFailedResult(errorMessage);
+                    return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.SendTimeout, Exception = te, Message = errorMessage };
                 }
+                catch (OperationCanceledException ex) { return new OperationResult { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Exception = ex, Message = ex.Message }; }
                 catch (InvalidOperationException ioe)
                 {
                     string errorMessage = $"向串口 {PortName} 发送数据时操作无效: {ioe.Message}";
                     Logger?.LogError(ioe, errorMessage);
-                    return OperationResult.CreateFailedResult(errorMessage);
+                    return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.ConnectionClosed, Exception = ioe, Message = errorMessage };
                 }
                 catch (Exception ex)
                 {
                     string errorMessage = $"向串口 {PortName} 发送数据时发生错误: {ex.Message}";
                     Logger?.LogError(ex, errorMessage);
-                    return OperationResult.CreateFailedResult(errorMessage);
+                    return new OperationResult { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Exception = ex, Message = errorMessage };
                 }
             }
             finally { _ioGate.Release(); }
@@ -234,19 +235,21 @@ namespace Wombat.IndustrialCommunication.Adapters
                 {
                     string errorMessage = $"从串口 {PortName} 接收数据超时，超时设置: {ReceiveTimeout.TotalMilliseconds}ms";
                     Logger?.LogError(te, errorMessage);
-                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = te };
+                    if (_serialPort.IsOpen) _serialPort.Close();
+                    return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.ReceiveTimeout, Message = errorMessage, Exception = te };
                 }
+                catch (OperationCanceledException ex) { return new OperationResult<int> { IsSuccess = false, IsCancelled = true, FailureKind = OperationFailureKind.Cancelled, Exception = ex, Message = ex.Message }; }
                 catch (InvalidOperationException ioe)
                 {
                     string errorMessage = $"从串口 {PortName} 接收数据时操作无效: {ioe.Message}";
                     Logger?.LogError(ioe, errorMessage);
-                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ioe };
+                    return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.ConnectionClosed, Message = errorMessage, Exception = ioe };
                 }
                 catch (Exception ex)
                 {
                     string errorMessage = $"从串口 {PortName} 接收数据时发生错误: {ex.Message}";
                     Logger?.LogError(ex, errorMessage);
-                    return new OperationResult<int> { IsSuccess = false, Message = errorMessage, Exception = ex };
+                    return new OperationResult<int> { IsSuccess = false, FailureKind = OperationFailureKind.TransportFailure, Message = errorMessage, Exception = ex };
                 }
             }
             finally { _ioGate.Release(); }
