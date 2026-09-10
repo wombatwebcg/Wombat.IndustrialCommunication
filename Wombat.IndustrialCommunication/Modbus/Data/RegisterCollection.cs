@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
         }
 
         public RegisterCollection(byte[] bytes)
-: this((IList<ushort>)ModbusUtility.NetworkBytesToHostUInt16(bytes))
+: this(NetworkBytesToHostUInt16(bytes))
         {
         }
 
@@ -55,6 +55,19 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
         public override string ToString()
         {
             return String.Concat("{", String.Join(", ", this.Select(v => v.ToString()).ToArray()), "}");
+        }
+
+        private static ushort[] NetworkBytesToHostUInt16(byte[] bytes)
+        {
+            if (bytes == null)
+                throw new ArgumentNullException(nameof(bytes));
+            if (bytes.Length % 2 != 0)
+                throw new FormatException("Array bytes must contain an even number of bytes.");
+
+            var registers = new ushort[bytes.Length / 2];
+            for (int i = 0; i < registers.Length; i++)
+                registers[i] = (ushort)IPAddress.NetworkToHostOrder(BitConverter.ToInt16(bytes, i * 2));
+            return registers;
         }
     }
 }

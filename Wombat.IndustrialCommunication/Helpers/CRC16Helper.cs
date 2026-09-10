@@ -1,5 +1,4 @@
 using System;
-using System.Linq;
 
 namespace Wombat.IndustrialCommunication.Helpers
 {
@@ -8,6 +7,8 @@ namespace Wombat.IndustrialCommunication.Helpers
     /// </summary>
     internal class CRC16Helper
     {
+        private static readonly ushort[] CrcTable = CreateCrcTable();
+
         /// <summary>
         /// 验证CRC16Helper校验码
         /// </summary>
@@ -17,7 +18,7 @@ namespace Wombat.IndustrialCommunication.Helpers
         /// <returns></returns>
         public static bool ValidateCRC(byte[] value, ushort poly = 0xA001, ushort crcInit = 0xFFFF)
         {
-            if (value == null || !value.Any())
+            if (value == null || value.Length == 0)
                 throw new ArgumentException("生成CRC16Helper的入参有误");
 
             var crc16 = GetCRC16(value.AsSpan<byte>(0, value.Length-2).ToArray(), poly, crcInit);
@@ -35,22 +36,43 @@ namespace Wombat.IndustrialCommunication.Helpers
         /// <returns></returns>
         public static byte[] GetCRC16(byte[] value, ushort poly = 0xA001, ushort crcInit = 0xFFFF)
         {
-            if (value == null || !value.Any())
+            if (value == null || value.Length == 0)
                 throw new ArgumentException("生成CRC16的入参有误");
 
             ushort crc = crcInit;
 
-            foreach (byte b in value)
+            if (poly == 0xA001)
             {
-                crc ^= b;
-                for (int i = 0; i < 8; i++)
+                foreach (byte b in value)
                 {
-                    crc = (crc & 1) != 0 ? (ushort)((crc >> 1) ^ poly) : (ushort)(crc >> 1);
+                    crc = (ushort)((crc >> 8) ^ CrcTable[(byte)(crc ^ b)]);
+                }
+            }
+            else
+            {
+                foreach (byte b in value)
+                {
+                    crc ^= b;
+                    for (int i = 0; i < 8; i++)
+                        crc = (crc & 1) != 0 ? (ushort)((crc >> 1) ^ poly) : (ushort)(crc >> 1);
                 }
             }
 
             // 小端序：低字节在前，高字节在后
             return new byte[] { (byte)(crc & 0x00FF), (byte)((crc & 0xFF00) >> 8) };
+        }
+
+        private static ushort[] CreateCrcTable()
+        {
+            var table = new ushort[256];
+            for (int i = 0; i < table.Length; i++)
+            {
+                ushort crc = (ushort)i;
+                for (int bit = 0; bit < 8; bit++)
+                    crc = (crc & 1) != 0 ? (ushort)((crc >> 1) ^ 0xA001) : (ushort)(crc >> 1);
+                table[i] = crc;
+            }
+            return table;
         }
     }
 }

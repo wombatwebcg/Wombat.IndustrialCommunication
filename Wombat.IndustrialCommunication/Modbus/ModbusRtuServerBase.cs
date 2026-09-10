@@ -261,44 +261,7 @@ namespace Wombat.IndustrialCommunication.Modbus
             if (data.Length < 2)
                 return false;
                 
-            // 计算CRC
-            ushort calculatedCrc = CalculateCrc(data, 0, data.Length - 2);
-            
-            // 从数据中提取CRC（低字节在前，高字节在后）
-            ushort receivedCrc = (ushort)((data[data.Length - 1] << 8) | data[data.Length - 2]);
-            
-            return calculatedCrc == receivedCrc;
-        }
-        
-        /// <summary>
-        /// 计算CRC
-        /// </summary>
-        /// <param name="data">数据</param>
-        /// <param name="start">起始索引</param>
-        /// <param name="length">长度</param>
-        /// <returns>CRC值</returns>
-        private ushort CalculateCrc(byte[] data, int start, int length)
-        {
-            ushort crc = 0xFFFF;
-            
-            for (int i = start; i < start + length; i++)
-            {
-                crc ^= data[i];
-                for (int j = 0; j < 8; j++)
-                {
-                    if ((crc & 0x0001) != 0)
-                    {
-                        crc >>= 1;
-                        crc ^= 0xA001;
-                    }
-                    else
-                    {
-                        crc >>= 1;
-                    }
-                }
-            }
-            
-            return crc;
+            return CRC16Helper.ValidateCRC(data);
         }
         
         /// <summary>
