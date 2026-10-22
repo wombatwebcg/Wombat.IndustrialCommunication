@@ -17,8 +17,10 @@
 对应到本扩展中的关键类型：
 
 - `IBluetoothChannel`：平台无关的蓝牙字节通道抽象（连接、断开、收发、超时）
+- `IBluetoothServerChannel`：服务端（外设）通道派生接口，在 `IBluetoothChannel` 之上区分「在广播」与「已连接」
 - `BluetoothStreamAdapter`：把 `IBluetoothChannel` 适配为主库 `IStreamResource`
 - `BluetoothClientFactory`：校验并下发 `BluetoothConnectionOptions`，创建客户端
+- `BluetoothServerFactory`：校验并下发 `BluetoothServerOptions`，创建从站
 - `ModbusRtuBluetoothClient`：执行单次连接、断开和 Modbus 读写；生命周期由 Channel 管理
 - `BluetoothServerAdapter` + `ModbusRtuBluetoothServer`：蓝牙服务端透传（含 DataStore 快照持久化）
 
@@ -86,43 +88,63 @@ if (readResult.IsSuccess)
 
 ## 4. 服务端接入步骤（本机发布 BLE 服务）
 
-服务端场景使用 `ModbusRtuBluetoothServer`，底层依赖宿主提供“本机蓝牙服务通道”实现：
+服务端场景由**宿主**实现「本机蓝牙服务通道」（`IBluetoothServerChannel`），再交给 `BluetoothServerFactory`（或直接 `new ModbusRtuBluetoothServer(channel)`）。
+从站（Modbus RTU slave）由**调用方承载**：本扩展负责 Modbus RTU 协议处理与监听编排，平台的广播与收发细节由宿主的服务通道实现。
+
+1. 宿主实现 `IBluetoothServerChannel`（本机 GATT service + 广播 + 接受 central）
+2. 构建并校验 `BluetoothServerOptions`
+3. `BluetoothServerFactory.CreateModbusRtuServer(channel, options, logger)` 创建从站
+4. `await server.ListenAsync()` 启动监听；数据区通过 `server.DataStore` 读写
 
 ```csharp
 using System;
 using Wombat.IndustrialCommunication.Extensions.Bluetooth;
+using Wombat.IndustrialCommunication.Extensions.Bluetooth.Factory;
 using Wombat.IndustrialCommunication.Extensions.Bluetooth.Models;
-using Wombat.IndustrialCommunication.Extensions.Bluetooth.Modbus;
 
 var serverOptions = new BluetoothServerOptions
 {
     ServiceId = "0000FF00-0000-1000-8000-00805F9B34FB",
     WriteCharacteristicId = "0000FF01-0000-1000-8000-00805F9B34FB",
     NotifyCharacteristicId = "0000FF02-0000-1000-8000-00805F9B34FB",
-    ConnectTimeout = TimeSpan.FromSeconds(5),
-    ReceiveTimeout = TimeSpan.FromSeconds(3),
-    SendTimeout = TimeSpan.FromSeconds(3)
+    SlaveId = 1
 };
 
-var validate = serverOptions.Validate();
-if (!validate.IsSuccess)
-{
-    throw new InvalidOperationException(validate.Message);
-}
+IBluetoothServerChannel serverChannel = new YourBluetoothServerChannelImplementation(serverOptions);
+var server = BluetoothServerFactory.CreateModbusRtuServer(serverChannel, serverOptions);
 
-IBluetoothChannel serverChannel = new YourBluetoothServerChannelImplementation(serverOptions);
-var server = new ModbusRtuBluetoothServer(serverChannel)
-{
-    EnableSnapshotPersistence = true,
-    SnapshotSaveInterval = TimeSpan.FromSeconds(5)
-};
-
-var listenResult = server.Listen();
+var listenResult = await server.ListenAsync();
 if (!listenResult.IsSuccess)
 {
     throw new InvalidOperationException(listenResult.Message);
 }
 ```
+
+`BluetoothServerOptions` 字段：
+
+- `ServiceId` / `WriteCharacteristicId` / `NotifyCharacteristicId`：本机服务/特征 UUID（必填）
+- `ConnectTimeout` / `ReceiveTimeout` / `SendTimeout`：必须大于 0
+- `SlaveId`：Modbus RTU 从站地址，默认 `1`（范围 1-247）
+- `MaxConnections`：最大并发连接数，默认 `1`（预留，多会话启用前不产生行为）
+- `Mtu`：BLE 单包有效载荷上限，默认 `247`（预留，MTU 分片启用前不产生行为）
+
+### 4.1 服务端 `IBluetoothServerChannel` 契约
+
+```csharp
+public interface IBluetoothServerChannel : IBluetoothChannel
+{
+    bool IsAdvertising { get; }   // 是否正在广播（与「已连接」相互独立）
+}
+```
+
+服务端角色下的语义（供宿主实现时遵循）：
+
+- `ConnectAsync`：启动本机服务/广播，并等待接受一个 central
+- `Connected`：是否存在活动字节链路（服务端 = 至少有一个 central 已接入）
+- `IsAdvertising`：是否正在广播；无 central 时可为 `true`
+- 断开时如实上报；`Send` / `Receive` 超时返回结构化失败
+
+`BluetoothServerAdapter` 已把 `IsAdvertising` 透传出去（底层非服务通道时为 `false`），并触发 `ClientConnected` / `ClientDisconnected` / `DataReceived` 事件。
 
 ## 5. 来自 `Wombat.IndustrialCommunication.Tools` 的实战经验
 
@@ -141,6 +163,7 @@ if (!listenResult.IsSuccess)
 - Windows：可基于 BLE GATT（通知或读轮询）实现 `IBluetoothChannel`
 - Linux：可基于 BlueZ D-Bus/GATT 映射到有序字节流
 - Android：可基于 `BluetoothGatt` 的写特征 + 通知特征
+- 服务端（外设）：实现 `IBluetoothServerChannel`（如 Windows 用 `GattServiceProvider` 建服务并 `StartAdvertising`）
 
 实现 `IBluetoothChannel` 时建议满足：
 

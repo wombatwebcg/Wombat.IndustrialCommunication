@@ -26,7 +26,7 @@ namespace Wombat.IndustrialCommunicationTestProject.PLCTests
         private const int OperationTimeoutSeconds = 5;
         private const int WriteReadbackDelayMilliseconds = 150;
         private const int ReconnectPollIntervalSeconds = 2;
-        private const int StressLoopCount = 5;
+        private const int StressLoopCount = 20;
 
         private readonly ITestOutputHelper _output;
 

@@ -1,10 +1,10 @@
 <Project Sdk="Microsoft.NET.Sdk" TreatAsLocalProperty="PublishAot;PublishTrimmed;InvariantGlobalization;SelfContained;RuntimeIdentifier">
 
   <PropertyGroup>
-	 <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+	 <TargetFrameworks>netstandard2.0;net8.0;net10.0</TargetFrameworks>
 	<LangVersion>10.0</LangVersion>
 	<IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
-    <Version>2.1.55</Version>
+    <Version>2.1.56-preview</Version>
     <Authors>wombatwebcg</Authors>
     <Company>wombatwebcg</Company>
     <Product>wombatwebcg</Product>
@@ -25,11 +25,11 @@
 
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.10" />
-    <PackageReference Include="System.IO.Ports" Version="10.0.10" />
+    <PackageReference Include="Microsoft.Extensions.Logging" Version="10.0.12" />
+    <PackageReference Include="System.IO.Ports" Version="10.0.12" />
     <PackageReference Include="System.Reactive" Version="7.0.0" />
     <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.1.1" />
-    <PackageReference Include="Wombat.Network" Version="1.1.8" />
+    <PackageReference Include="Wombat.Network" Version="1.1.9" />
   </ItemGroup>
 
   <ItemGroup>

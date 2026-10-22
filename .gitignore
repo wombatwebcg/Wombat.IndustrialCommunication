@@ -368,3 +368,5 @@ FodyWeavers.xsd
 /docs/S7批量读取连接失步修复方案.md
 /docs/gateway-implementation-plan.md
 /startup-smoke.ps1
+/codebuddy-project.cmd
+/docs/MITSUBISHI_MC_IMPLEMENTATION_PLAN.md

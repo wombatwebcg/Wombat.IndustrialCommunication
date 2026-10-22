@@ -28,6 +28,12 @@ namespace Wombat.IndustrialCommunication.Extensions.Bluetooth
 
         public bool Connected => !_disposed && _isListening && _channel.Connected;
 
+        /// <summary>
+        /// 是否正在广播。来自 <see cref="IBluetoothServerChannel"/> 的透传；
+        /// 当底层通道未实现该接口时返回 false。
+        /// </summary>
+        public bool IsAdvertising => (_channel as IBluetoothServerChannel)?.IsAdvertising ?? false;
+
         public TimeSpan ConnectTimeout
         {
             get => _channel.ConnectTimeout;

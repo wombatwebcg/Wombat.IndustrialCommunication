@@ -17,7 +17,7 @@ namespace Wombat.IndustrialCommunicationTestProject.ChannelTests
         private const string PlcIp = "192.168.2.20";
         private const int PlcPort = 102;
         private const SiemensVersion PlcVersion = SiemensVersion.S7_200Smart;
-        private const int ChannelCount = 6;
+        private const int ChannelCount = 8;
         private static readonly TimeSpan RecoveryWindow = TimeSpan.FromMinutes(2);
         private static readonly TimeSpan RecoveryPollInterval = TimeSpan.FromSeconds(1);
 
