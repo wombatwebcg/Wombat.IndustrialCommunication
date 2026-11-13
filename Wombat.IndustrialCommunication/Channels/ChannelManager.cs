@@ -147,6 +147,10 @@ namespace Wombat.IndustrialCommunication.Channels
             {
                 return new FinsClient(fins.Host, fins.Port) { ConnectTimeout = fins.ConnectTimeout, SendTimeout = fins.OperationTimeout, ReceiveTimeout = fins.OperationTimeout, Retries = 0 };
             }
+            if (options is MitsubishiMcChannelOptions mc)
+            {
+                return new McClient(mc.Host, mc.Port, mc.FrameType, mc.Series) { ConnectTimeout = mc.ConnectTimeout, SendTimeout = mc.OperationTimeout, ReceiveTimeout = mc.OperationTimeout, Retries = 0 };
+            }
             throw new NotSupportedException($"Channel options '{options.GetType().Name}' are not supported.");
         }
 
@@ -170,6 +174,7 @@ namespace Wombat.IndustrialCommunication.Channels
                 },
                 SiemensS7ChannelOptions s7 => new SiemensS7ChannelOptions(s7.Id, s7.Host, s7.Version, s7.Port) { Slot = s7.Slot, Rack = s7.Rack },
                 FinsTcpChannelOptions fins => new FinsTcpChannelOptions(fins.Id, fins.Host, fins.Port),
+                MitsubishiMcChannelOptions mc => new MitsubishiMcChannelOptions(mc.Id, mc.Host, mc.FrameType, mc.Series, mc.Port),
                 _ => throw new NotSupportedException($"Channel options '{options.GetType().Name}' are not supported.")
             };
             snapshot.MaxConcurrency = options.MaxConcurrency;

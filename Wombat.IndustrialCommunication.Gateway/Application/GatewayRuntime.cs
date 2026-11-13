@@ -255,6 +255,7 @@ public sealed class GatewayRuntimeService(GatewayDb db, HistoryLogService histor
             "modbusrtu" or "modbus-rtu" => new ModbusRtuChannelOptions(RuntimeId(channel.Id), S("portName", "COM1")) { BaudRate = I("baudRate", 9600), DataBits = I("dataBits", 8), Parity = Enum.TryParse<Parity>(S("parity", "None"), true, out var parity) ? parity : Parity.None, StopBits = Enum.TryParse<StopBits>(S("stopBits", "One"), true, out var stopBits) ? stopBits : StopBits.One, Handshake = Enum.TryParse<Handshake>(S("handshake", "None"), true, out var handshake) ? handshake : Handshake.None },
             "s7" or "siemenss7" => new SiemensS7ChannelOptions(RuntimeId(channel.Id), S("host", "127.0.0.1"), Enum.TryParse<SiemensVersion>(S("version", "S7_1200"), true, out var version) ? version : SiemensVersion.S7_1200, I("port", 102)) { Rack = (byte)I("rack", 0), Slot = (byte)I("slot", 0) },
             "finstcp" or "fins-tcp" or "fins" => new FinsTcpChannelOptions(RuntimeId(channel.Id), S("host", "127.0.0.1"), I("port", 9600)),
+            "mitsubishimc" or "mitsubishi-mc" or "mc" => new MitsubishiMcChannelOptions(RuntimeId(channel.Id), S("host", "127.0.0.1"), ParseMcFrameType(S("frameType", "3e")), ParseMcSeries(S("series", "q")), I("port", 5000)),
             _ => throw new InvalidOperationException($"不支持的协议: {channel.Protocol}")
         };
         options.MaxConcurrency = Math.Max(1, channel.MaxConcurrency);
@@ -262,6 +263,22 @@ public sealed class GatewayRuntimeService(GatewayDb db, HistoryLogService histor
         options.OperationTimeout = TimeSpan.FromMilliseconds(Math.Max(100, channel.OperationTimeoutMs));
         return options;
     }
+
+    static McFrameType ParseMcFrameType(string value) => value.ToLowerInvariant() switch
+    {
+        "1e" or "a1e" or "a-1e" => McFrameType.A1E,
+        "4e" or "q4e" or "qna4e" or "qna-4e" => McFrameType.Q4E,
+        _ => McFrameType.Q3E
+    };
+
+    static McSeries ParseMcSeries(string value) => value.ToLowerInvariant() switch
+    {
+        "fx" => McSeries.Fx,
+        "a" => McSeries.A,
+        "l" => McSeries.L,
+        "iqr" or "iq-r" => McSeries.IqR,
+        _ => McSeries.Q
+    };
 
     static IDeviceServer BuildServer(Channel channel)
     {
@@ -274,6 +291,7 @@ public sealed class GatewayRuntimeService(GatewayDb db, HistoryLogService histor
             "modbustcp" or "modbus-tcp" => new ModbusTcpServer(S("host", "0.0.0.0"), I("port", 502)),
             "modbusrtu" or "modbus-rtu" => new ModbusRtuServer(S("portName", "COM1"), I("baudRate", 9600), I("dataBits", 8), Enum.TryParse<StopBits>(S("stopBits", "One"), true, out var stopBits) ? stopBits : StopBits.One, Enum.TryParse<Parity>(S("parity", "None"), true, out var parity) ? parity : Parity.None, Enum.TryParse<Handshake>(S("handshake", "None"), true, out var handshake) ? handshake : Handshake.None),
             "s7" or "siemenss7" => new S7TcpServer(S("host", "0.0.0.0"), I("port", 102)),
+            "mitsubishimc" or "mitsubishi-mc" or "mc" => new McTcpServer(S("host", "0.0.0.0"), I("port", 5000), ParseMcSeries(S("series", "q"))),
             _ => throw new InvalidOperationException($"不支持的服务端协议: {channel.Protocol}")
         };
         server.ConnectTimeout = TimeSpan.FromMilliseconds(Math.Max(100, channel.ConnectTimeoutMs));

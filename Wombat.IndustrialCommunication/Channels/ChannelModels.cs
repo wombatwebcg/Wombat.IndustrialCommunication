@@ -101,6 +101,28 @@ namespace Wombat.IndustrialCommunication.Channels
         public int Port { get; }
     }
 
+    public sealed class MitsubishiMcChannelOptions : ChannelOptions
+    {
+        public MitsubishiMcChannelOptions(string id, string host, McFrameType frameType, McSeries series, int port = 5000) : base(id)
+        {
+            if (string.IsNullOrWhiteSpace(host)) throw new ArgumentException("Host is required.", nameof(host));
+            if (port < 1 || port > 65535) throw new ArgumentOutOfRangeException(nameof(port));
+
+            // 帧类型与系列的组合规则由 McProfile 统一校验，避免两处口径
+            new McProfile(frameType, series);
+
+            Host = host;
+            Port = port;
+            FrameType = frameType;
+            Series = series;
+        }
+
+        public string Host { get; }
+        public int Port { get; }
+        public McFrameType FrameType { get; }
+        public McSeries Series { get; }
+    }
+
     internal sealed class ChannelRuntimeOptions
     {
         internal ChannelRuntimeOptions(ChannelOptions options)

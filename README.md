@@ -1,6 +1,6 @@
 # Wombat.IndustrialCommunication
 
-开源的 .NET 工业通讯库，面向 PLC、仪表、采集网关等场景，提供 **Modbus TCP / Modbus RTU / 西门子 S7 / 欧姆龙 FINS** 等协议的客户端与服务端实现，并附带蓝牙透传（Modbus RTU）、采集网关（Gateway）等扩展。
+开源的 .NET 工业通讯库，面向 PLC、仪表、采集网关等场景，提供 **Modbus TCP / Modbus RTU / 西门子 S7 / 欧姆龙 FINS / 三菱 MC** 等协议的客户端与服务端实现，并附带蓝牙透传（Modbus RTU）、采集网关（Gateway）等扩展。
 
 > 本 README 面向**第三方接入方**，依据当前代码库（`Version 2.1.56-preview`）的真实 API 编写。文中示例可直接映射到源码中的公开类型。
 
@@ -17,16 +17,17 @@
 - [7. Modbus 客户端（TCP / RTU）](#7-modbus-客户端tcp--rtu)
 - [8. 西门子 S7 客户端](#8-西门子-s7-客户端)
 - [9. 欧姆龙 FINS 客户端](#9-欧姆龙-fins-客户端)
-- [10. 通道管理 ChannelManager（推荐的生产接入方式）](#10-通道管理-channelmanager推荐的生产接入方式)
-- [11. 服务端（Modbus / S7 模拟）](#11-服务端modbus--s7-模拟)
-- [12. 蓝牙扩展（Bluetooth Modbus RTU）](#12-蓝牙扩展bluetooth-modbus-rtu)
-- [13. 采集网关 Gateway](#13-采集网关-gateway)
-- [14. 项目结构](#14-项目结构)
-- [15. 构建与测试](#15-构建与测试)
-- [16. 常见问题 / 注意事项](#16-常见问题--注意事项)
-- [17. 文档索引](#17-文档索引)
-- [18. 贡献指南](#18-贡献指南)
-- [19. 许可证](#19-许可证)
+- [10. 三菱 MC 客户端（1E / 3E / 4E）](#10-三菱-mc-客户端1e--3e--4e)
+- [11. 通道管理 ChannelManager（推荐的生产接入方式）](#11-通道管理-channelmanager推荐的生产接入方式)
+- [12. 服务端（Modbus / S7 / MC 模拟）](#12-服务端modbus--s7--mc-模拟)
+- [13. 蓝牙扩展（Bluetooth Modbus RTU）](#13-蓝牙扩展bluetooth-modbus-rtu)
+- [14. 采集网关 Gateway](#14-采集网关-gateway)
+- [15. 项目结构](#15-项目结构)
+- [16. 构建与测试](#16-构建与测试)
+- [17. 常见问题 / 注意事项](#17-常见问题--注意事项)
+- [18. 文档索引](#18-文档索引)
+- [19. 贡献指南](#19-贡献指南)
+- [20. 许可证](#20-许可证)
 
 ---
 
@@ -55,11 +56,12 @@ Wombat.IndustrialCommunication 是一个基于 **.NET Standard 2.0 / .NET 8 / .N
 | 西门子 S7（S7-200 / 200Smart / 300 / 400 / 1200 / 1500） | ✅ 已实现 | `SiemensClient` | `S7TcpServer` |
 | 欧姆龙 FINS（Ethernet） | ✅ 已实现 | `FinsClient` | — |
 | 蓝牙透传 Modbus RTU | ✅ 已实现（扩展包） | `ModbusRtuBluetoothClient` | `ModbusRtuBluetoothServer` |
-| 三菱 Qna-3E / A-1E、FX 编程口 | 🚧 规划中 | — | — |
+| 三菱 MC（Qna-3E / Qna-4E / A-1E，二进制 + TCP） | ✅ 已实现 | `McClient` | `McTcpServer` |
+| 三菱 FX 编程口（串口 ASCII） | 🚧 规划中 | — | — |
 | 汇川 H3U | 🚧 规划中 | — | — |
 | Allen-Bradley (CIP) | 🚧 规划中 | — | — |
 
-> 说明：仓库中存在 `MitsubishiVersion` 枚举、`MitsubishiMCAddress` / `AllenBradleyAddress` 模型类及部分本地化字符串，但它们**尚未被任何客户端实现消费**，不构成可用能力。
+> 说明：仓库中存在 `AllenBradleyAddress` 模型类及部分本地化字符串，但它们**尚未被任何客户端实现消费**，不构成可用能力。
 
 ---
 
@@ -443,13 +445,81 @@ var batch = await fins.BatchReadAsync(new Dictionary<string, DataTypeEnums>
 
 ---
 
-## 10. 通道管理 ChannelManager（推荐的生产接入方式）
+## 10. 三菱 MC 客户端（1E / 3E / 4E）
+
+命名空间：`Wombat.IndustrialCommunication.PLC`。只实现**二进制帧 + TCP**；ASCII 帧与 UDP 不在范围内。
+
+### 10.1 构造与连接
+
+```csharp
+using Wombat.IndustrialCommunication.PLC;
+
+var mc3E = new McClient("192.168.0.10", 5000, McFrameType.Q3E, McSeries.Q);
+await mc3E.ConnectAsync();
+
+var mc4E = new McClient("192.168.0.10", 5000, McFrameType.Q4E, McSeries.Q);  // 带序列号回显校验
+var mc1E = new McClient("192.168.0.10", 5000, McFrameType.A1E, McSeries.A);
+```
+
+| 帧类型 | 适用系列 | 说明 |
+|---|---|---|
+| `McFrameType.Q3E` | `Q` / `L` / `IqR` / `Fx` | Qna-3E，最常用 |
+| `McFrameType.Q4E` | `Q` / `L` / `IqR` / `Fx` | Qna-4E，序列号必须原样回显 |
+| `McFrameType.A1E` | `A` | A 兼容 1E，软元件集最小 |
+
+选 `McSeries.IqR` 时自动切到子指令 0002/0003、2 字节软元件码与 4 字节设备号；其余系列用 0000/0001。
+
+### 10.2 地址格式与软元件
+
+地址是「软元件前缀 + 编号」，如 `D100`、`M100`、`X10`、`LTN0`。前缀按**最长匹配**，所以 `SM`/`SD`/`SB`/`SW`/`LSTN` 不会被误判成 `S`，`ZR` 不会被误判成 `Z`，`DX`/`DY` 不会被误判成 `D`。
+
+| 类别 | 软元件 |
+|---|---|
+| 位 | `X` `Y` `M` `L` `F` `V` `B` `SB` `S` `DX` `DY` `SM` `TS` `TC` `SS` `SC` `CS` `CC`（iQ-R 另加 `LTS` `LTC` `LSTS` `LSTC` `LCS` `LCC`） |
+| 字 | `D` `W` `R` `ZR` `Z` `SW` `SD` `RD` `LZ` `TN` `SN` `CN`（iQ-R 另加 `LTN` `LSTN` `LCN`） |
+
+- **X/Y 进制**：FX 系列按 8 进制解析，其余系列按 16 进制；现场编号规则不同时用 `mc.AddressRadixOverride = 10`（或 8 / 16）兜底。
+- **1E 别名**：`SM1000~SM1255` → `M9000~M9255`、`SD1000~SD1255` → `D9000~D9255`、`L`/`S` → `M`；1E 下 `SB`/`SW`/`V`/`Z`/`ZR`/`DX`/`DY` 会**本地报错**，不会发出去等 PLC 回 `C05B`。
+- **长定时器**：iQ-R 的 `LTN` / `LSTN` / `LCN` 每点占 4 个字（第 1 字当前值、第 3 字装触点/线圈位）。直接对 `LTS`/`LTC` 做批量读会本地报错；对外结果按元素压紧为 2 字节。
+
+### 10.3 读写与批量
+
+长度语义与其他协议一致：**字访问为字节数，位访问为点数**。
+
+```csharp
+var words = await mc3E.ReadUInt16Async("D100", 20);     // 20 个 UInt16
+await mc3E.WriteAsync("D100", new ushort[] { 1, 2, 3 });
+
+var bits = await mc3E.ReadBooleanAsync("M100", 8);      // 8 个点
+await mc3E.WriteAsync("M100", new[] { true, false, true });
+
+var typed = await mc3E.ReadAsync("D200", 4, DataTypeEnums.Int32);
+await mc3E.WriteAsync("D200", 123456, DataTypeEnums.Int32);
+
+var batch = await mc3E.BatchReadAsync(new Dictionary<string, DataTypeEnums>
+{
+    ["D100"] = DataTypeEnums.UInt16,
+    ["M100"] = DataTypeEnums.Bool,
+});
+```
+
+单帧点数按手册上限自动切分：3E/4E 字 960 点、位 7168 点（iQ-R 7904），1E 字 128 点、位 256 点。批量只合并**同软元件、同进制**的连续地址。
+
+### 10.4 错误码与验证边界
+
+PLC 返回的结束码会原样透出：`OperationResult.ErrorCode` 是原始码，`Message` 形如 `0xC051 点数超出允许范围`；1E 为 `0x5B + 异常码`。不会出现「PLC 报错变成本地超时」。4E 序列号不匹配、副头部不符会判为 `ProtocolViolation` 并主动断开，避免后续帧继续错位。
+
+> 验证边界：三种帧的编解码与客户端↔服务端回环已由单测覆盖，3E 已在模拟器实测。**4E 响应里的保留 2 字节、1E 的位编码与异常码取值尚未在真机核对**，现场首次接入建议先用 3E 打通。
+
+---
+
+## 11. 通道管理 ChannelManager（推荐的生产接入方式）
 
 命名空间：`Wombat.IndustrialCommunication.Channels`
 
 `ChannelManager` 将“一个物理端点”注册为一个**通道**，统一负责：连接生命周期、**自动重连**（指数退避）、并发控制（`MaxConcurrency`）、操作超时、状态快照与状态变更事件。
 
-### 10.1 注册与执行
+### 11.1 注册与执行
 
 ```csharp
 using Wombat.IndustrialCommunication.Channels;
@@ -474,7 +544,7 @@ var result = await channels.ExecuteAsync(
             }, ct));
 ```
 
-### 10.2 通道选项
+### 11.2 通道选项
 
 所有选项继承自 `ChannelOptions`，公共可调项：
 
@@ -496,7 +566,7 @@ new SiemensS7ChannelOptions(id, host, version, port = 102) { Slot = 0, Rack = 0 
 new FinsTcpChannelOptions(id, host, port = 9600);
 ```
 
-### 10.3 生命周期与状态
+### 11.3 生命周期与状态
 
 ```csharp
 channels.StateChanged += (_, e) =>
@@ -516,11 +586,11 @@ if (channels.TryGetSnapshot("modbus-tcp-1", out ChannelSnapshot snap))
 
 ---
 
-## 11. 服务端（Modbus / S7 模拟）
+## 12. 服务端（Modbus / S7 / MC 模拟）
 
 服务端用于**模拟从站 / PLC**，与真实设备对接时第三方程序可作为主站向它读写。
 
-### 11.1 Modbus TCP / RTU 服务端
+### 12.1 Modbus TCP / RTU 服务端
 
 ```csharp
 using Wombat.IndustrialCommunication.Modbus;
@@ -562,7 +632,7 @@ server.DataWritten += (_, e) => Console.WriteLine($"写: {e.ModbusDataType} @{e.
 server.DataRead    += (_, e) => Console.WriteLine($"读: {e.ModbusDataType} @{e.StartAddress}");
 ```
 
-### 11.2 西门子 S7 服务端
+### 12.2 西门子 S7 服务端
 
 ```csharp
 using Wombat.IndustrialCommunication.PLC;
@@ -592,7 +662,31 @@ var w = s7Server.ReadUInt16("DB1.DBW0");
 
 事件：`s7Server.DataRead` / `s7Server.DataWritten`（`S7DataStoreEventArgs`）。
 
-### 11.3 统一服务端宿主 `ServerHost`
+### 12.3 三菱 MC 服务端
+
+`McTcpServer` 自动识别 1E / 3E / 4E 请求（按首字节嗅探），客户端与服务端共用同一份 `McFrameCodec`：
+
+```csharp
+using Wombat.IndustrialCommunication.PLC;
+
+var mcServer = new McTcpServer("0.0.0.0", 5000);
+mcServer.EnableSnapshotPersistence = true;
+mcServer.ConfigureSnapshotPersistence("mc-sim");   // 默认写 运行目录/Snapshots/McTcpServer_5000.snapshot
+await mcServer.ListenAsync();
+
+// 本地按数据区或地址读写（IReadWrite 风格，与客户端同一套地址语义）
+mcServer.Write("D100", (ushort)1234);
+var value = mcServer.ReadUInt16("D100");
+
+var area = mcServer.ReadArea(McDeviceKind.D, 100, 4);      // 每点 2 字节小端
+mcServer.WriteArea(McDeviceKind.M, 0, new byte[] { 1, 0, 1 });
+```
+
+数据区按**归一化软元件种类**（`McDeviceKind`）分区，而不是按协议码：1E 客户端与 3E 客户端读写的是同一块内存。位区 1 字节/点，字区 2 字节/点（默认各 8192 点，可用 `server.DataStore.Resize(kind, points)` 调整），iQ-R 长定时器 4 字/点。
+
+错误响应按手册生成结束码：点数越界 `C051`、软元件不支持 `C05B`、数据长度不符 `C058`、超出数据区 `C056`、指令不支持 `C059`；1E 返回 `0x5B + 异常码`。
+
+### 12.4 统一服务端宿主 `ServerHost`
 
 `ServerHost`（`Wombat.IndustrialCommunication.Server`）封装单个服务端的启停与释放，适合在网关/宿主中批量托管多个服务端：
 
@@ -605,9 +699,9 @@ await host.StartAsync();     // -> server.ListenAsync()
 await host.StopAsync();      // -> server.ShutdownAsync()
 ```
 
-### 11.4 快照持久化
+### 12.5 快照持久化
 
-Modbus / S7 服务端支持将 `DataStore` 快照落盘并在启动时恢复：
+Modbus / S7 / MC 服务端支持将 `DataStore` 快照落盘并在启动时恢复（MC 在 `ListenAsync` 时加载、`ShutdownAsync` 时保存，也可随时调用 `SaveSnapshot()`）：
 
 ```csharp
 server.EnableSnapshotPersistence = true;
@@ -618,7 +712,7 @@ server.ConfigureSnapshotPersistence("my-server");  // 自定义文件名
 
 ---
 
-## 12. 蓝牙扩展（Bluetooth Modbus RTU）
+## 13. 蓝牙扩展（Bluetooth Modbus RTU）
 
 包：`Wombat.IndustrialCommunication.Extensions.Bluetooth`，命名空间根 `Wombat.IndustrialCommunication.Extensions.Bluetooth`。用于通过 BLE 透传通道跑 Modbus RTU。扩展本身**不绑定任何平台蓝牙 SDK**，由宿主实现 `IBluetoothChannel`（对接 Windows / Linux BlueZ / Android `BluetoothGatt` 等）。
 
@@ -662,7 +756,7 @@ public interface IBluetoothChannel : IDisposable
 
 ---
 
-## 13. 采集网关 Gateway
+## 14. 采集网关 Gateway
 
 项目：`Wombat.IndustrialCommunication.Gateway`（ASP.NET Core，`net10.0`），一个可独立部署的**数据采集网关**。以“通道（Channel）+ 点位（Point）”为中心，提供：
 
@@ -672,7 +766,7 @@ public interface IBluetoothChannel : IDisposable
 - JWT 鉴权 + RBAC 权限
 - 既能作为**客户端**接入 ModbusTcp / ModbusRtu / S7 / FinsTcp，也能作为**服务端**托管 ModbusTcp / ModbusRtu / S7
 
-### 13.1 运行与配置
+### 14.1 运行与配置
 
 ```bash
 # 在 Gateway 项目目录下
@@ -690,7 +784,7 @@ dotnet run
 - 自注册默认关闭（`Auth:AllowSelfRegistration=false`）。
 - 首次启动且设置了 `BOOTSTRAP_ADMIN_PASSWORD` 环境变量时，会创建管理员 `admin` 并授予 `Admin` 角色。
 
-### 13.2 HTTP API 概览
+### 14.2 HTTP API 概览
 
 鉴权：`POST /api/auth/login` 获取 `AccessToken`（8 小时）与 `RefreshToken`（30 天），后续请求带 `Authorization: Bearer <token>`。
 
@@ -750,11 +844,11 @@ PointBatchReadRequest  { long[] PointIds }
 PointBatchWriteRequest { Dictionary<long, JsonElement> Values }
 ```
 
-`Protocol` 支持 `ModbusTcp` / `ModbusRtu` / `S7` / `FinsTcp`；`Role` 取 `Client`（客户端采集）或 `Server`（托管服务端）。
+`Protocol` 支持 `ModbusTcp` / `ModbusRtu` / `S7` / `FinsTcp` / `MitsubishiMc`（别名 `mc`）；`Role` 取 `Client`（客户端采集）或 `Server`（托管服务端）。
 
 ---
 
-## 14. 项目结构
+## 15. 项目结构
 
 ```
 Wombat.IndustrialCommunication.sln
@@ -763,7 +857,7 @@ Wombat.IndustrialCommunication.sln
 │  ├─ Adapters/        # TcpClientAdapter / TcpServerAdapter / SerialPortAdapter / SerialPortServerAdapter
 │  ├─ Channels/        # ChannelManager / ChannelOptions / ChannelRuntime / ChannelSnapshot
 │  ├─ Core/            # DeviceDataReaderWriterBase / ObservableArray / ProtocolDataNumber
-│  ├─ Enums/           # SiemensVersion / MitsubishiVersion / ModbusStandardFunctionCode / OperationMethod ...
+│  ├─ Enums/           # SiemensVersion / ModbusStandardFunctionCode / OperationMethod ...
 │  ├─ Events/          # DataReceivedEventArgs / PacketTraceEventArgs / SessionEventArgs
 │  ├─ Helpers/         # CRC16 / LRC / AsyncLock / SerialConfigOptions / DiscriminatedUnion
 │  ├─ Messaging/       # DeviceMessageTransport / DeviceReadWriteMessage / DeviceMessageFactory
@@ -771,6 +865,7 @@ Wombat.IndustrialCommunication.sln
 │  ├─ PLC/
 │  │  ├─ S7/           # SiemensClient / S7TcpServer / S7DataStore / 批量与报文构建
 │  │  ├─ FINS/         # FinsClient / FinsAddress / FinsBatchHelper / FinsEthernetTransport
+│  │  ├─ MC/           # 三菱 MC：McClient / McTcpServer / McFrameCodec / McDataStore / McAddress
 │  │  └─ Models/       # 地址模型
 │  ├─ Models/          # OperationResult / IReadWrite / StringResources ...
 │  └─ Server/          # IServer / ServerBase / DeviceServerBase / ServerHost / 快照持久化
@@ -785,7 +880,7 @@ Wombat.IndustrialCommunication.sln
 
 ---
 
-## 15. 构建与测试
+## 16. 构建与测试
 
 ```bash
 # 还原 + 编译
@@ -795,11 +890,11 @@ dotnet build Wombat.IndustrialCommunication.sln -c Release
 dotnet test Wombat.IndustrialCommunicationTestProject/Wombat.IndustrialCommunicationTestProject.csproj
 ```
 
-测试项目覆盖：Modbus CRC16 / 地址解析 / 批量算法 / 报文一致性、S7 握手与批量、Modbus 与 S7 服务端快照持久化、`ServerHost` 生命周期、`ChannelManager`、传输层超时与分帧等。
+测试项目覆盖：Modbus CRC16 / 地址解析 / 批量算法 / 报文一致性、S7 握手与批量、MC 黄金帧与三帧回环、Modbus / S7 / MC 服务端快照持久化、`ServerHost` 生命周期、`ChannelManager`、传输层超时与分帧等。
 
 ---
 
-## 16. 常见问题 / 注意事项
+## 17. 常见问题 / 注意事项
 
 - **没有同步 `Connect()` / `Disconnect()`**：客户端一律使用 `ConnectAsync()` / `DisconnectAsync()`。
 - **服务端启用**：使用 `ListenAsync()` / `ShutdownAsync()`（或 `ServerHost`）；`ServerBase` 上的同步 `Listen()` / `Shutdown()` 仅供 `DeviceServer` 分支使用，协议服务端请优先用异步方法。
@@ -808,12 +903,12 @@ dotnet test Wombat.IndustrialCommunicationTestProject/Wombat.IndustrialCommunica
 - **重连不在客户端**：单个客户端只执行一次协议操作，**恢复策略由 `ChannelManager` 承担**。生产环境建议统一用通道。
 - **FINS 批量短码**：批量接口只认 `D/W/H/A/E/T/C/CIO` 短码。
 - **S7 地址需带大小标识**：`DB1.0` 非法，应为 `DB1.DBX0.0` / `DB1.DBB0` / `DB1.DBW0` / `DB1.DBD0`。
-- **规划中协议**：三菱 Q3E/FX、汇川 H3U、Allen-Bradley 尚未实现，请勿对接。
+- **规划中协议**：三菱 FX 编程口（串口）、汇川 H3U、Allen-Bradley 尚未实现，请勿对接。
 - **AOT/裁剪**：`net8.0+` 标记 AOT 兼容，但请以实际发布裁剪验证为准。
 
 ---
 
-## 17. 文档索引
+## 18. 文档索引
 
 | 文档 | 说明 |
 |---|---|
@@ -825,7 +920,7 @@ dotnet test Wombat.IndustrialCommunicationTestProject/Wombat.IndustrialCommunica
 
 ---
 
-## 18. 贡献指南
+## 19. 贡献指南
 
 1. Fork 本仓库
 2. 创建特性分支（`git checkout -b feature/amazing-feature`）
@@ -839,7 +934,7 @@ dotnet test Wombat.IndustrialCommunicationTestProject/Wombat.IndustrialCommunica
 
 ---
 
-## 19. 许可证
+## 20. 许可证
 
 本项目采用 **MIT License**，详见 [`LICENSE.md`](LICENSE.md)。
 

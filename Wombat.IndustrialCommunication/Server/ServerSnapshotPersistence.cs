@@ -12,8 +12,10 @@ namespace Wombat.IndustrialCommunication.Server
     {
         private const int S7SnapshotVersion = 1;
         private const int ModbusSnapshotVersion = 1;
+        private const int McSnapshotVersion = 1;
         private const string S7SnapshotMagic = "WIC_S7SNAP";
         private const string ModbusSnapshotMagic = "WIC_MBSNAP";
+        private const string McSnapshotMagic = "WIC_MCSNAP";
 
         public static void SaveS7Snapshot(string filePath, S7DataStore dataStore)
         {
@@ -161,6 +163,80 @@ namespace Wombat.IndustrialCommunication.Server
                     dataStore.InputDiscretes = inputs;
                     dataStore.HoldingRegisters = holdingRegisters;
                     dataStore.InputRegisters = inputRegisters;
+                }
+            }
+        }
+
+        public static void SaveMcSnapshot(string filePath, McDataStore dataStore)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentNullException(nameof(filePath));
+            if (dataStore == null)
+                throw new ArgumentNullException(nameof(dataStore));
+
+            var directory = Path.GetDirectoryName(filePath);
+            if (!string.IsNullOrWhiteSpace(directory))
+            {
+                Directory.CreateDirectory(directory);
+            }
+
+            var tempFilePath = filePath + ".tmp";
+            lock (dataStore.SyncRoot)
+            {
+                using (var stream = new FileStream(tempFilePath, FileMode.Create, FileAccess.Write, FileShare.None))
+                using (var writer = new BinaryWriter(stream))
+                {
+                    writer.Write(McSnapshotMagic);
+                    writer.Write(McSnapshotVersion);
+
+                    var kinds = dataStore.Kinds;
+                    writer.Write(kinds.Count);
+                    foreach (var kind in kinds)
+                    {
+                        writer.Write((int)kind);
+                        var bytes = dataStore.GetAreaBytes(kind);
+                        writer.Write(bytes.Length);
+                        writer.Write(bytes);
+                    }
+                }
+            }
+
+            ReplaceFile(tempFilePath, filePath);
+        }
+
+        public static void LoadMcSnapshot(string filePath, McDataStore dataStore)
+        {
+            if (string.IsNullOrWhiteSpace(filePath))
+                throw new ArgumentNullException(nameof(filePath));
+            if (dataStore == null)
+                throw new ArgumentNullException(nameof(dataStore));
+            if (!File.Exists(filePath))
+                return;
+
+            using (var stream = new FileStream(filePath, FileMode.Open, FileAccess.Read, FileShare.Read))
+            using (var reader = new BinaryReader(stream))
+            {
+                var magic = reader.ReadString();
+                if (!string.Equals(magic, McSnapshotMagic, StringComparison.Ordinal))
+                    throw new InvalidDataException("无效的MC快照文件");
+
+                var version = reader.ReadInt32();
+                if (version != McSnapshotVersion)
+                    throw new InvalidDataException($"不支持的MC快照版本: {version}");
+
+                var count = reader.ReadInt32();
+                for (var index = 0; index < count; index++)
+                {
+                    var kind = (McDeviceKind)reader.ReadInt32();
+                    if (!Enum.IsDefined(typeof(McDeviceKind), kind))
+                        throw new InvalidDataException($"快照中存在未知的MC软元件种类: {kind}");
+
+                    var length = reader.ReadInt32();
+                    var bytes = reader.ReadBytes(length);
+                    if (bytes.Length != length)
+                        throw new EndOfStreamException();
+
+                    dataStore.SetAreaBytes(kind, bytes);
                 }
             }
         }
