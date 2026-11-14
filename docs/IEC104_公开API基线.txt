@@ -1,0 +1,727 @@
+# 合并前公开 API 基线
+# 生成时间：2026-11-14 10:12:41
+# 仅列出 exported 类型的 public/protected 成员；编译器生成的访问器与支持字段已省略。
+
+## Wombat.IndustrialCommunication.Extensions.IEC104 1.0.0.0
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ClientEventArgs : System.EventArgs
+    public .ctor(System.Guid sessionId, System.Net.EndPoint remoteEndPoint)
+    public System.Guid SessionId { get; }
+    public System.Net.EndPoint RemoteEndPoint { get; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104CommandRequestEventArgs : System.EventArgs
+    public .ctor(System.Int32 ioa, System.Boolean isSelect, System.Nullable<System.Boolean> singlePointValue, System.Nullable<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState> doublePointState)
+    public System.Boolean Cancel { get; set; }
+    public System.Boolean IsSelect { get; }
+    public System.Int32 Ioa { get; }
+    public System.Nullable<System.Boolean> SinglePointValue { get; }
+    public System.Nullable<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState> DoublePointState { get; }
+    public System.String RejectReason { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs : System.EventArgs
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState state, System.String message, System.Exception exception)
+    public System.Exception Exception { get; }
+    public System.String Message { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState State { get; }
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState Connected
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState Connecting
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState DataTransferActive
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState Disconnected
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState Failed
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104TraceEventArgs : System.EventArgs
+    public .ctor(System.Boolean isSending, System.Byte[] data, System.String meaning)
+    public System.Boolean IsSending { get; }
+    public System.Byte[] Data { get; }
+    public System.DateTime Timestamp { get; }
+    public System.String Hex { get; }
+    public System.String Meaning { get; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ValueEventArgs : System.EventArgs
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value value)
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value Value { get; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Iec104Master
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions options, Microsoft.Extensions.Logging.ILogger logger)
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions options, System.Func<System.Threading.CancellationToken, System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Transport.IIec104Link>> linkFactory, Microsoft.Extensions.Logging.ILogger logger)
+    public System.Boolean IsConnected { get; }
+    public System.Boolean TryGetValue(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value& value)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public System.Threading.Tasks.Task ConnectAsync(System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task DisconnectAsync()
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> DoubleCommandAsync(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState state, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SelectSingleCommandAsync(System.Int32 ioa, System.Boolean on, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SingleCommandAsync(System.Int32 ioa, System.Boolean on, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104InterrogationResult> InterrogateAsync(System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.ValueTask DisposeAsync()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions Options { get; }
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs> LinkStateChanged
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104TraceEventArgs> FrameTraced
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ValueEventArgs> ValueReceived
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Iec104Slave
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104SlaveOptions options, Microsoft.Extensions.Logging.ILogger logger)
+    public System.Boolean IsListening { get; }
+    public System.Boolean SetQuality(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public System.Boolean SetSinglePoint(System.Int32 ioa, System.Boolean state, System.Nullable<System.DateTime> timestamp)
+    public System.Boolean SetValue(System.Int32 ioa, System.Double value, System.Nullable<System.DateTime> timestamp)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public System.Int32 ClientCount { get; }
+    public System.Net.IPEndPoint LocalEndPoint { get; }
+    public System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task StopAsync()
+    public System.Threading.Tasks.ValueTask DisposeAsync()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104DataStore DataStore { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104SlaveOptions Options { get; }
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ClientEventArgs> ClientConnected
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ClientEventArgs> ClientDisconnected
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104CommandRequestEventArgs> CommandRequested
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104TraceEventArgs> FrameTraced
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode Direct
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode SelectAndExecute
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult
+    public .ctor()
+    public System.Boolean Accepted { get; set; }
+    public System.Boolean Negative { get; set; }
+    public System.Boolean TimedOut { get; set; }
+    public System.Int32 Ioa { get; set; }
+    public System.String Message { get; set; }
+    public System.TimeSpan Duration { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage Stage { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Cause { get; set; }
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage Execute
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage None
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage Select
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandStage Termination
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104DataStore
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable table)
+    public System.Boolean SetBoolean(System.Int32 ioa, System.Boolean state, System.Nullable<System.DateTime> timestamp)
+    public System.Boolean SetNumeric(System.Int32 ioa, System.Double value, System.Nullable<System.DateTime> timestamp)
+    public System.Boolean SetQuality(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public System.Boolean TryGet(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value& value)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable Table { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject BuildObject(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point point, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value value)
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> ValueChanged
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104InterrogationResult
+    public .ctor()
+    public System.Boolean Completed { get; set; }
+    public System.Boolean Confirmed { get; set; }
+    public System.Boolean TimedOut { get; set; }
+    public System.Collections.Generic.IReadOnlyList<System.Int32> MissingIoa { get; set; }
+    public System.Int32 ExpectedCount { get; set; }
+    public System.Int32 ReceivedCount { get; set; }
+    public System.TimeSpan Duration { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point
+    public .ctor()
+    public System.Boolean Invert { get; set; }
+    public System.Boolean IsCommand { get; set; }
+    public System.Boolean IsSoe { get; set; }
+    public System.Double Deadband { get; set; }
+    public System.Double Offset { get; set; }
+    public System.Double Scale { get; set; }
+    public System.Double ToEngineering(System.Double raw)
+    public System.Double ToProtocol(System.Double engineering)
+    public System.Int32 ForwardNo { get; set; }
+    public System.Int32 InterrogationGroup { get; set; }
+    public System.Int32 Ioa { get; set; }
+    public System.String Channel { get; set; }
+    public System.String Description { get; set; }
+    public System.String Device { get; set; }
+    public System.UInt16 CommonAddress { get; set; }
+    public Wombat.Extensions.DataTypeExtensions.DataTypeEnums DataType { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TypeId { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable
+    public System.Boolean TryGetPoint(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point& point)
+    public System.Collections.Generic.IReadOnlyList<System.String> Warnings { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point> GetPoints(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point> Points { get; }
+    public System.Int32 Count { get; }
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable FromPoints(System.Collections.Generic.IEnumerable<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point> points, System.Collections.Generic.IEnumerable<System.String> warnings)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable Load(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTableOptions options)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTableOptions
+    public .ctor()
+    public System.Boolean PreferTimeTaggedSoe { get; set; }
+    public System.Int32 InterrogationGroup { get; set; }
+    public System.Int32 IoaBase { get; set; }
+    public System.Nullable<System.Int32> CommandIoaBase { get; set; }
+    public System.Nullable<System.Int32> DiscreteIoaBase { get; set; }
+    public System.Nullable<System.Int32> TelemetryIoaBase { get; set; }
+    public System.Nullable<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId> DiscreteTypeOverride { get; set; }
+    public System.String CommandPath { get; set; }
+    public System.String DiscretePath { get; set; }
+    public System.String TelemetryPath { get; set; }
+    public System.UInt16 CommonAddress { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId CommandTypeId { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value
+    public .ctor()
+    public System.Boolean Boolean { get; set; }
+    public System.Boolean HasTimestamp { get; set; }
+    public System.DateTime ReceivedAt { get; set; }
+    public System.DateTime Timestamp { get; set; }
+    public System.Double Numeric { get; set; }
+    public System.Int32 Ioa { get; set; }
+    public System.UInt16 CommonAddress { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags Quality { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TypeId { get; set; }
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value FromObject(System.UInt16 commonAddress, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject item, System.DateTime receivedAt)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions
+    public .ctor()
+    public System.Boolean AutoReconnect { get; set; }
+    public System.Boolean EnableTrace { get; set; }
+    public System.Boolean InterrogateOnConnect { get; set; }
+    public System.Int32 K { get; set; }
+    public System.Int32 Port { get; set; }
+    public System.Int32 W { get; set; }
+    public System.String Host { get; set; }
+    public System.TimeSpan CommandTimeout { get; set; }
+    public System.TimeSpan ConnectTimeout { get; set; }
+    public System.TimeSpan CyclicInterrogation { get; set; }
+    public System.TimeSpan InterrogationTimeout { get; set; }
+    public System.TimeSpan ReconnectDelay { get; set; }
+    public System.TimeSpan T1 { get; set; }
+    public System.TimeSpan T2 { get; set; }
+    public System.TimeSpan T3 { get; set; }
+    public System.UInt16 CommonAddress { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable PointTable { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104SlaveOptions
+    public .ctor()
+    public System.Boolean EnableTrace { get; set; }
+    public System.Boolean PauseUnsolicitedDuringInterrogation { get; set; }
+    public System.Boolean RequireSelectBeforeOperate { get; set; }
+    public System.Boolean SendEndOfInitialization { get; set; }
+    public System.Int32 K { get; set; }
+    public System.Int32 MaxConnections { get; set; }
+    public System.Int32 Port { get; set; }
+    public System.Int32 W { get; set; }
+    public System.String BindAddress { get; set; }
+    public System.TimeSpan CyclicPeriod { get; set; }
+    public System.TimeSpan SelectTimeout { get; set; }
+    public System.TimeSpan T1 { get; set; }
+    public System.TimeSpan T2 { get; set; }
+    public System.TimeSpan T3 { get; set; }
+    public System.UInt16 CommonAddress { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable PointTable { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrame
+    public System.Byte[] Asdu { get; }
+    public System.Byte[] ToBytes()
+    public System.UInt16 ReceiveSequence { get; }
+    public System.UInt16 SendSequence { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrameType FrameType { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction Function { get; }
+    public static System.Boolean TryParse(System.Byte[] buffer, System.Int32 offset, System.Int32 count, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrame& frame, System.String& error)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrame CreateInformation(System.UInt16 sendSequence, System.UInt16 receiveSequence, System.Byte[] asdu)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrame CreateSupervisory(System.UInt16 receiveSequence)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrame CreateUnnumbered(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction function)
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrameType
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrameType Information
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrameType Supervisory
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFrameType Unnumbered
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction None
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction StartDataTransferActivation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction StartDataTransferConfirmation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction StopDataTransferActivation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction StopDataTransferConfirmation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction TestFrameActivation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction TestFrameConfirmation
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Asdu
+    public System.Boolean Negative { get; }
+    public System.Boolean Sequence { get; }
+    public System.Boolean Test { get; }
+    public System.Byte Originator { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject> Objects { get; }
+    public System.UInt16 CommonAddress { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Cause { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TypeId { get; }
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Asdu Parse(System.Byte[] buffer, System.Int32 offset, System.Int32 count)
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.AsduBuilder
+    public static System.Byte[] Build(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId, System.UInt16 commonAddress, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause cause, System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject> objects, System.Byte originator, System.Boolean negative, System.Boolean test)
+    public static System.Byte[] ClockSynchronization(System.UInt16 commonAddress, System.DateTime time)
+    public static System.Byte[] EndOfInitialization(System.UInt16 commonAddress, System.Byte causeOfInitialization)
+    public static System.Byte[] InterrogationCommand(System.UInt16 commonAddress, System.Byte qualifier)
+    public static System.Byte[] InterrogationConfirmation(System.UInt16 commonAddress, System.Byte qualifier)
+    public static System.Byte[] InterrogationTermination(System.UInt16 commonAddress, System.Byte qualifier)
+    public static System.Collections.Generic.IReadOnlyList<System.Byte[]> BuildFrames(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId, System.UInt16 commonAddress, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause cause, System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject> objects, System.Byte originator, System.Boolean negative, System.Boolean test)
+    public static System.Int32 GetCapacity(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+
+### struct Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Cp56Time2a
+    public .ctor(System.DateTime value, System.Boolean invalid, System.Boolean summerTime)
+    public System.Boolean Invalid { get; }
+    public System.Boolean SummerTime { get; }
+    public System.DateTime Value { get; }
+    public System.Void WriteTo(System.Byte[] buffer, System.Int32 offset)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Cp56Time2a FromDateTime(System.DateTime value)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Cp56Time2a ReadFrom(System.Byte[] buffer, System.Int32 offset)
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Activation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause ActivationConfirmation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause ActivationTermination
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Background
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Deactivation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause DeactivationConfirmation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause FileTransfer
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Initialized
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause InterrogatedByGroup1
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause InterrogatedByGroup16
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause InterrogatedByStation
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause NotUsed
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Periodic
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Request
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause ReturnInformationLocal
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause ReturnInformationRemote
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause Spontaneous
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause UnknownCause
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause UnknownCommonAddress
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause UnknownInformationObjectAddress
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Cause UnknownTypeId
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104Constants
+    public static System.Byte QualifierStationInterrogation
+    public static System.Byte StartByte
+    public static System.Int32 ApciLength
+    public static System.Int32 AsduHeaderLength
+    public static System.Int32 DefaultK
+    public static System.Int32 DefaultPort
+    public static System.Int32 DefaultW
+    public static System.Int32 InformationObjectAddressLength
+    public static System.Int32 MaxApduLength
+    public static System.Int32 MaxAsduLength
+    public static System.Int32 MaxInformationObjectAddress
+    public static System.Int32 MaxLengthField
+    public static System.Int32 MaxObjectsPerAsdu
+    public static System.TimeSpan DefaultT0
+    public static System.TimeSpan DefaultT1
+    public static System.TimeSpan DefaultT2
+    public static System.TimeSpan DefaultT3
+    public static System.UInt16 SequenceMask
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState Indeterminate
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState NotPermitted
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState Off
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState On
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind CapacityExceeded
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind InvalidAddress
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind InvalidLength
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind Protocol
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind UnknownType
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104FrameParser
+    public .ctor()
+    public System.Boolean TryReadFrame(System.Byte[]& frame)
+    public System.Int32 BufferedBytes { get; }
+    public System.Int32 InvalidFrames { get; }
+    public System.Int32 Resynchronizations { get; }
+    public System.Void Append(System.Byte[] data, System.Int32 offset, System.Int32 count)
+    public System.Void Reset()
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId, System.Int32 ioa, System.Byte[] element)
+    public System.Boolean GetSinglePoint()
+    public System.Boolean TryGetFloat(System.Single& value)
+    public System.Boolean TryGetTime(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Cp56Time2a& time)
+    public System.Byte[] Element { get; }
+    public System.Int32 Ioa { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState GetDoublePoint()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags GetQuality()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TypeId { get; }
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject ClockSynchronization(System.DateTime time)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject DoubleCommand(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState state, System.Byte qualifier, System.Boolean select)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject DoublePoint(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState state, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject InterrogationCommand(System.Byte qualifier)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject InterrogationResponse(System.Byte qualifier)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject MeasuredFloat(System.Int32 ioa, System.Single value, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject MeasuredFloatWithTime(System.Int32 ioa, System.Single value, System.DateTime time, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject SingleCommand(System.Int32 ioa, System.Boolean on, System.Byte qualifier, System.Boolean select)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject SinglePoint(System.Int32 ioa, System.Boolean on, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104InformationObject SinglePointWithTime(System.Int32 ioa, System.Boolean on, System.DateTime time, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags quality)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ProtocolException : System.Exception
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind kind, System.String message)
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind kind, System.String message, System.Exception innerException)
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104ErrorKind Kind { get; }
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags Blocked
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags Invalid
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags None
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags NotTopical
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags Overflow
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104QualityFlags Substituted
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId BitString32
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId BitString32WithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId ClockSynchronizationCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId CounterInterrogationCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId DelayAcquisitionCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId DoubleCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId DoublePoint
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId DoublePointWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId DoublePointWithTime24
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId EndOfInitialization
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId IntegratedTotals
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId InterrogationCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredFloat
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredFloatWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredNormalized
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredNormalizedWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredScaled
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId MeasuredScaledWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId ReadCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId ResetProcessCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SetpointFloat
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SetpointNormalized
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SetpointScaled
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SingleCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SinglePoint
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SinglePointWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId SinglePointWithTime24
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId StepCommand
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId StepPosition
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId StepPositionWithTime
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TestCommand
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeInfo
+    public static System.Boolean HasInformationObjectAddress(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+    public static System.Boolean HasTimeTag(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+    public static System.Boolean IsCommand(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+    public static System.Boolean IsKnown(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId)
+    public static System.Boolean TryGetElementSize(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId typeId, System.Int32& size)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Session.Iec104MasterSession : Wombat.IndustrialCommunication.Extensions.IEC104.Session.Iec104SessionBase
+    protected System.Void OnAsdu(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Asdu asdu)
+    protected System.Void OnFault(System.Exception exception)
+    protected System.Void OnStarted()
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Transport.IIec104Link link, Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions options)
+    public System.Boolean TryGetValue(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value& value)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public System.Threading.Tasks.Task StartAsync(System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> DoubleCommandAsync(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104DoublePointState state, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SelectSingleCommandAsync(System.Int32 ioa, System.Boolean on, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SingleCommandAsync(System.Int32 ioa, System.Boolean on, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104InterrogationResult> InterrogateAsync(System.Threading.CancellationToken cancellationToken)
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs> LinkStateChanged
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ValueEventArgs> ValueReceived
+
+### abstract class Wombat.IndustrialCommunication.Extensions.IEC104.Session.Iec104SessionBase
+    protected .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Transport.IIec104Link link, System.Int32 k, System.Int32 w, System.TimeSpan t1, System.TimeSpan t2, System.TimeSpan t3, System.Boolean enableTrace)
+    protected System.Threading.CancellationToken SessionToken { get; }
+    protected System.Threading.Tasks.Task SendInformationAsync(System.Byte[] asdu, System.Threading.CancellationToken cancellationToken)
+    protected System.Threading.Tasks.Task SendSupervisoryAsync(System.Threading.CancellationToken cancellationToken)
+    protected System.Threading.Tasks.Task SendUnnumberedAsync(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.ApciFunction function, System.Threading.CancellationToken cancellationToken)
+    protected System.Void Fault(System.Exception exception)
+    protected System.Void OnAsdu(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Asdu asdu)
+    protected System.Void OnFault(System.Exception exception)
+    protected System.Void OnStarted()
+    protected System.Void StartLoops()
+    public System.Boolean DataTransferActive { get; set; }
+    public System.Boolean EnableTrace { get; }
+    public System.Boolean IsConnected { get; }
+    public System.Int32 DroppedFrames { get; }
+    public System.Int32 InvalidFrames { get; }
+    public System.Int32 K { get; }
+    public System.Int32 ReceivedFrames { get; }
+    public System.Int32 SentFrames { get; }
+    public System.Int32 UnknownTypeFrames { get; }
+    public System.Int32 W { get; }
+    public System.Threading.Tasks.Task StopAsync()
+    public System.TimeSpan T1 { get; }
+    public System.TimeSpan T2 { get; }
+    public System.TimeSpan T3 { get; }
+    public System.Void Dispose()
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104TraceEventArgs> FrameTraced
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Session.Iec104SlaveSession : Wombat.IndustrialCommunication.Extensions.IEC104.Session.Iec104SessionBase
+    protected System.Void OnAsdu(Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Asdu asdu)
+    protected System.Void OnFault(System.Exception exception)
+    protected System.Void OnStarted()
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Transport.IIec104Link link, Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104SlaveOptions options, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104DataStore store)
+    public System.Guid SessionId { get; }
+    public System.Threading.Tasks.Task StopAsync()
+    public System.Void NotifyValueChanged(System.Int32 ioa)
+    public System.Void Start()
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104CommandRequestEventArgs> CommandRequested
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs> LinkStateChanged
+
+### interface Wombat.IndustrialCommunication.Extensions.IEC104.Transport.IIec104Link
+    public System.Boolean IsConnected { get; }
+    public System.Net.EndPoint RemoteEndPoint { get; }
+    public System.Threading.Tasks.Task WriteAsync(System.Byte[] buffer, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<System.Int32> ReadAsync(System.Byte[] buffer, System.Threading.CancellationToken cancellationToken)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.Transport.Iec104TcpLink
+    public System.Boolean IsConnected { get; }
+    public System.Net.EndPoint RemoteEndPoint { get; }
+    public System.Threading.Tasks.Task WriteAsync(System.Byte[] buffer, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<System.Int32> ReadAsync(System.Byte[] buffer, System.Threading.CancellationToken cancellationToken)
+    public System.Void Dispose()
+    public static System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Transport.Iec104TcpLink> ConnectAsync(System.Net.IPEndPoint endPoint, System.TimeSpan connectTimeout, System.Threading.CancellationToken cancellationToken)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.Transport.Iec104TcpLink Accept(Wombat.Network.Transports.Tcp.TcpTransportConnection connection)
+
+## Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge 1.0.0.0
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason Busy
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason ConfirmMismatch
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason Disabled
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason IoaNotAllowed
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason LinkUnavailable
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason NegativeConfirm
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason None
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandReason Timeout
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Busy
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState ConfirmTimeout
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Disabled
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Executing
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Idle
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState PendingOff
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState PendingOn
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Rejected
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Selecting
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandState Succeeded
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeCommandValue
+    public static System.UInt16 ConfirmOff
+    public static System.UInt16 ConfirmOn
+    public static System.UInt16 None
+    public static System.UInt16 RequestOff
+    public static System.UInt16 RequestOn
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.BridgeHealthRegister
+    public static System.Int32 DiscreteAge
+    public static System.Int32 DiscreteCount
+    public static System.Int32 LinkState
+    public static System.Int32 MapVersion
+    public static System.Int32 Reserved
+    public static System.Int32 Running
+    public static System.Int32 TelemetryAge
+    public static System.Int32 TelemetryCount
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.CommandChannelSettings
+    public .ctor()
+    public System.Boolean Enabled { get; set; }
+    public System.Double ConfirmTimeoutSeconds { get; set; }
+    public System.Double SelectTimeoutSeconds { get; set; }
+    public System.Int32[] AllowedIoa { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode Mode { get; set; }
+
+### interface Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.IIec104CommandSink
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SelectSingleCommandAsync(System.Int32 ioa, System.Boolean on, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SingleCommandAsync(System.Int32 ioa, System.Boolean on, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+
+### interface Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.IIec104ValueSource
+    public System.Boolean TryGetValue(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value& value)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState LinkState { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable PointTable { get; }
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs> LinkStateChanged
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ValueEventArgs> ValueChanged
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.Iec104ConnectionSettings
+    public .ctor()
+    public System.Boolean AutoReconnect { get; set; }
+    public System.Boolean InterrogateOnConnect { get; set; }
+    public System.Double CommandTimeoutSeconds { get; set; }
+    public System.Double ConnectTimeoutSeconds { get; set; }
+    public System.Double CyclicInterrogationSeconds { get; set; }
+    public System.Double InterrogationTimeoutSeconds { get; set; }
+    public System.Double ReconnectDelaySeconds { get; set; }
+    public System.Double T1Seconds { get; set; }
+    public System.Double T2Seconds { get; set; }
+    public System.Double T3Seconds { get; set; }
+    public System.Int32 CommonAddress { get; set; }
+    public System.Int32 K { get; set; }
+    public System.Int32 Port { get; set; }
+    public System.Int32 W { get; set; }
+    public System.String Host { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.Iec104MasterValueSource
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.Iec104Master master)
+    public System.Boolean TryGetValue(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value& value)
+    public System.Collections.Generic.IReadOnlyDictionary<System.Int32, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Value> Snapshot()
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SelectSingleCommandAsync(System.Int32 ioa, System.Boolean on, System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandResult> SingleCommandAsync(System.Int32 ioa, System.Boolean on, Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode mode, System.Threading.CancellationToken cancellationToken)
+    public System.Void Dispose()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkState LinkState { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable PointTable { get; }
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104LinkEventArgs> LinkStateChanged
+    public event System.EventHandler<Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics.Iec104ValueEventArgs> ValueChanged
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.Iec104ModbusBridge
+    public .ctor(Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.IIec104ValueSource source, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeOptions options, Microsoft.Extensions.Logging.ILogger logger)
+    public System.Boolean IsRunning { get; }
+    public System.Threading.Tasks.Task StopAsync()
+    public System.Threading.Tasks.Task<Wombat.IndustrialCommunication.Models.OperationResult> StartAsync(System.Threading.CancellationToken cancellationToken)
+    public System.Threading.Tasks.ValueTask DisposeAsync()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusRegisterMap Map { get; }
+    public Wombat.IndustrialCommunication.Modbus.ModbusTcpServer Server { get; }
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea DiscreteInput
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea HoldingRegister
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea InputRegister
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeConfiguration
+    public .ctor()
+    public System.Collections.Generic.IReadOnlyList<System.String> Validate()
+    public System.Void EnsureValid()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.CommandChannelSettings Command { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.Iec104ConnectionSettings Iec104 { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeOptions CreateOptions()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusEndpointSettings Modbus { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.PointTableSettings PointTable { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.StaleDataSettings Stale { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable LoadPointTable()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Options.Iec104MasterOptions CreateMasterOptions(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable table)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeConfiguration Load(System.String path)
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeConfiguration Parse(System.String json, System.String baseDirectory)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeConfigurationException : System.Exception
+    public .ctor(System.Collections.Generic.IReadOnlyList<System.String> errors)
+    public System.Collections.Generic.IReadOnlyList<System.String> Errors { get; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeOptions
+    public .ctor()
+    public System.Boolean EnableCommands { get; set; }
+    public System.Byte UnitId { get; set; }
+    public System.Collections.Generic.IReadOnlyCollection<System.Int32> AllowedCommandIoa { get; set; }
+    public System.Int32 CommandBase { get; set; }
+    public System.Int32 DiscreteBase { get; set; }
+    public System.Int32 HealthBase { get; set; }
+    public System.Int32 Port { get; set; }
+    public System.Int32 TelemetryBase { get; set; }
+    public System.String BindAddress { get; set; }
+    public System.TimeSpan ConfirmTimeout { get; set; }
+    public System.TimeSpan FlushInterval { get; set; }
+    public System.TimeSpan SelectTimeout { get; set; }
+    public System.TimeSpan StaleTimeout { get; set; }
+    public System.Void Validate()
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder WordOrder { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusStaleReadMode StaleReadMode { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104CommandMode CommandMode { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusEndpointSettings
+    public .ctor()
+    public System.Int32 CommandBase { get; set; }
+    public System.Int32 DiscreteBase { get; set; }
+    public System.Int32 FlushIntervalMs { get; set; }
+    public System.Int32 HealthBase { get; set; }
+    public System.Int32 Port { get; set; }
+    public System.Int32 TelemetryBase { get; set; }
+    public System.Int32 UnitId { get; set; }
+    public System.String BindAddress { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder WordOrder { get; set; }
+
+### static class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatCodec
+    public static System.Single Decode(System.UInt16 first, System.UInt16 second, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder order)
+    public static System.Void Encode(System.Single value, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder order, System.UInt16& first, System.UInt16& second)
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder Abcd
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusFloatWordOrder Cdab
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping
+    public System.Int32 ForwardNo { get; }
+    public System.Int32 Ioa { get; }
+    public System.Int32 RegisterCount { get; }
+    public System.UInt16 Address { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea Area { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104Point Point { get; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusRegisterMap
+    public System.Boolean TryGetCommandRegister(System.Int32 address, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping& mapping, System.Int32& offset)
+    public System.Boolean TryGetMapping(System.Int32 ioa, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping& mapping)
+    public System.Collections.Generic.IReadOnlyList<System.String> Warnings { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping> CommandPoints { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping> DiscretePoints { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping> TelemetryPoints { get; }
+    public System.Collections.Generic.IReadOnlyList<Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusRegisterRow> Export()
+    public System.Int32 CommandBase { get; }
+    public System.Int32 DiscreteBase { get; }
+    public System.Int32 HealthBase { get; }
+    public System.Int32 TelemetryBase { get; }
+    public System.String ExportCsv()
+    public System.String VersionText { get; }
+    public System.UInt16 MapVersion { get; }
+    public System.Void ExportCsv(System.String path)
+    public static System.Int32 CommandRegisterStride
+    public static System.Int32 HealthRegisterCount
+    public static System.Int32 MaxAddress
+    public static System.Int32 TelemetryRegisterStride
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusRegisterMap Build(Wombat.IndustrialCommunication.Extensions.IEC104.Model.Iec104PointTable table, Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeOptions options)
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusRegisterRow
+    public System.Int32 Address { get; }
+    public System.Int32 ForwardNo { get; }
+    public System.Int32 Ioa { get; }
+    public System.Int32 RegisterCount { get; }
+    public System.String Description { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusBridgeArea Area { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusPointMapping Mapping { get; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId TypeId { get; }
+
+### enum Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusStaleReadMode
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusStaleReadMode Exception
+    public static Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusStaleReadMode LastValue
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.PointTableSettings
+    public .ctor()
+    public System.Boolean PreferTimeTaggedSoe { get; set; }
+    public System.Int32 CommonAddress { get; set; }
+    public System.Int32 IoaBase { get; set; }
+    public System.Nullable<System.Int32> CommandIoaBase { get; set; }
+    public System.Nullable<System.Int32> DiscreteIoaBase { get; set; }
+    public System.Nullable<System.Int32> TelemetryIoaBase { get; set; }
+    public System.Nullable<Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId> DiscreteTypeOverride { get; set; }
+    public System.String CommandPath { get; set; }
+    public System.String DiscretePath { get; set; }
+    public System.String TelemetryPath { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.Protocol.Iec104TypeId CommandTypeId { get; set; }
+
+### sealed class Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.StaleDataSettings
+    public .ctor()
+    public System.Double TimeoutSeconds { get; set; }
+    public Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge.ModbusStaleReadMode ReadMode { get; set; }
+
+## Wombat.IndustrialCommunication 2.1.56.0
+
+### class Wombat.IndustrialCommunication.Modbus.Data.DataStore
+    public .ctor()
+    public System.Object SyncRoot { get; }
+    public System.Void WriteCoilsDirect(System.UInt16 startAddress, System.Collections.Generic.IList<System.Boolean> values)
+    public System.Void WriteHoldingRegistersDirect(System.UInt16 startAddress, System.Collections.Generic.IList<System.UInt16> values)
+    public System.Void WriteInputDiscretesDirect(System.UInt16 startAddress, System.Collections.Generic.IList<System.Boolean> values)
+    public System.Void WriteInputRegistersDirect(System.UInt16 startAddress, System.Collections.Generic.IList<System.UInt16> values)
+    public Wombat.IndustrialCommunication.Models.MemoryLite<System.Boolean> CoilDiscretes { get; set; }
+    public Wombat.IndustrialCommunication.Models.MemoryLite<System.Boolean> InputDiscretes { get; set; }
+    public Wombat.IndustrialCommunication.Models.MemoryLite<System.Int32> HoldingRegisters { get; set; }
+    public Wombat.IndustrialCommunication.Models.MemoryLite<System.Int32> InputRegisters { get; set; }
+    public event System.EventHandler<Wombat.IndustrialCommunication.Modbus.Data.DataStoreEventArgs> DataStoreReadFrom
+    public event System.EventHandler<Wombat.IndustrialCommunication.Modbus.Data.DataStoreEventArgs> DataStoreWrittenTo
