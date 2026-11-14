@@ -30,6 +30,7 @@
     <PackageReference Include="System.Reactive" Version="7.0.0" />
     <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.1.1" />
     <PackageReference Include="Wombat.Network" Version="1.1.9" />
+    <PackageReference Include="System.Text.Json" Version="8.0.5" Condition="'$(TargetFramework)' == 'netstandard2.0'" />
   </ItemGroup>
 
   <ItemGroup>
