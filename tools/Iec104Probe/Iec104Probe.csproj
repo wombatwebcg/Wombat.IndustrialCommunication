@@ -11,7 +11,7 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Wombat.IndustrialCommunication.Extensions.IEC104\Wombat.IndustrialCommunication.Extensions.IEC104\Wombat.IndustrialCommunication.Extensions.IEC104.csproj" />
+    <ProjectReference Include="..\..\Wombat.IndustrialCommunication\Wombat.IndustrialCommunication.csproj" />
   </ItemGroup>
 
 </Project>
