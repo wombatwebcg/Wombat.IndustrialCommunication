@@ -1,6 +1,6 @@
 # IEC104 → Modbus TCP 桥接实施计划
 
-版本：v1.0　　适用工程：Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge
+版本：v1.0（历史计划）　　原适用工程：Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge（2026-11 起并入核心程序集，见 `IEC104_合并进核心库计划.md`）
 
 ## 1. 目标与拓扑
 
@@ -32,16 +32,16 @@
 
 ## 3. 工程与依赖
 
-新建工程，避免 104 扩展反向依赖核心库：
+新建工程，避免 104 扩展反向依赖核心库（写作时；2026-11 起桥接与 104 同属核心程序集，本段仅作历史记录）：
 
 ```
-Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge/
+Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge/   （已迁入 Wombat.IndustrialCommunication/IEC104/Bridge/）
   ├─ ProjectReference → IEC104 扩展
   ├─ ProjectReference → Wombat.IndustrialCommunication
   └─ TargetFrameworks: netstandard2.0;net8.0
 ```
 
-104 扩展保持零核心依赖；桥接工程是唯一同时认识两边的地方。代价是多一个包，以及两边的版本需要一起升级。
+（历史方案）104 扩展保持零核心依赖；桥接工程是唯一同时认识两边的地方。代价是多一个包，以及两边的版本需要一起升级。2026-11 合并后桥接与 104 同属核心程序集，不再有独立包，本段只说明当时的取舍。
 
 核心库直接用 `ModbusTcpServer`：它支持 01/02/03/04/05/06/0F/10 八个功能码，四个区各 65535 点，`DataStore` 的写入事件可以挂遥控。
 

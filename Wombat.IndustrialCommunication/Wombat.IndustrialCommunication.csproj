@@ -10,11 +10,11 @@
     <Product>wombatwebcg</Product>
     <Copyright>wombatwebcg</Copyright>
 	<Nullable>disable</Nullable>
-    <Description>开源的工业通讯库:modbus协议,三菱Q3E二进制、FX编程口协议,西门子S7，汇川H3U
+    <Description>开源的工业通讯库:modbus协议,三菱Q3E二进制、FX编程口协议,西门子S7，汇川H3U，IEC 60870-5-104 主站/从站与 Modbus TCP 桥接
 </Description>
     <PackageProjectUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</PackageProjectUrl>
     <RepositoryType>git</RepositoryType>
-    <PackageTags>plc;modbus;</PackageTags>
+    <PackageTags>plc;modbus;iec104;iec60870;104;scada;</PackageTags>
     <RepositoryUrl>https://github.com/wombatwebcg/Wombat.IndustrialCommunication</RepositoryUrl>
   </PropertyGroup>
 

@@ -53,6 +53,7 @@ Wombat.IndustrialCommunication 是一个基于 **.NET Standard 2.0 / .NET 8 / .N
 |---|---|---|---|
 | Modbus TCP | ✅ 已实现 | `ModbusTcpClient` | `ModbusTcpServer` |
 | Modbus RTU | ✅ 已实现 | `ModbusRtuClient` | `ModbusRtuServer` |
+| IEC 60870-5-104（主站 / 从站，含 Modbus TCP 桥接） | ✅ 已实现 | `Iec104Master` | `Iec104Slave` |
 | 西门子 S7（S7-200 / 200Smart / 300 / 400 / 1200 / 1500） | ✅ 已实现 | `SiemensClient` | `S7TcpServer` |
 | 欧姆龙 FINS（Ethernet） | ✅ 已实现 | `FinsClient` | — |
 | 蓝牙透传 Modbus RTU | ✅ 已实现（扩展包） | `ModbusRtuBluetoothClient` | `ModbusRtuBluetoothServer` |
@@ -78,6 +79,7 @@ Wombat.IndustrialCommunication 是一个基于 **.NET Standard 2.0 / .NET 8 / .N
   - `System.Reactive` 7.0.0
   - `Wombat.Extensions.DataTypeExtensions` 1.1.1
   - `Wombat.Network` 1.1.9
+  - `System.Text.Json` 8.0.5（仅 `netstandard2.0` 目标，桥接配置用）
 
 **蓝牙扩展** `Wombat.IndustrialCommunication.Extensions.Bluetooth`
 
@@ -861,6 +863,7 @@ Wombat.IndustrialCommunication.sln
 │  ├─ Events/          # DataReceivedEventArgs / PacketTraceEventArgs / SessionEventArgs
 │  ├─ Helpers/         # CRC16 / LRC / AsyncLock / SerialConfigOptions / DiscriminatedUnion
 │  ├─ Messaging/       # DeviceMessageTransport / DeviceReadWriteMessage / DeviceMessageFactory
+│  ├─ IEC104/          # IEC 60870-5-104 主站/从站、Protocol/Session/Model，Bridge/ 为 Modbus TCP 桥接
 │  ├─ Modbus/          # ModbusTcpClient|Server、ModbusRtuClient|Server、IModbusClient、地址解析、批量、DataStore
 │  ├─ PLC/
 │  │  ├─ S7/           # SiemensClient / S7TcpServer / S7DataStore / 批量与报文构建
@@ -916,6 +919,9 @@ dotnet test Wombat.IndustrialCommunicationTestProject/Wombat.IndustrialCommunica
 | [`docs/MODBUS_S7_RELIABILITY_REMEDIATION_PLAN.md`](docs/MODBUS_S7_RELIABILITY_REMEDIATION_PLAN.md) | Modbus / S7 可靠性修复两阶段整改计划 |
 | [`docs/S7批量读取连接失步修复方案.md`](docs/S7批量读取连接失步修复方案.md) | S7 长连接批量读取失步问题的原因与修复方案 |
 | [`docs/gateway-implementation-plan.md`](docs/gateway-implementation-plan.md) | 采集网关 Gateway 的实现计划 |
+| [`docs/IEC104_主站接入指南.md`](docs/IEC104_主站接入指南.md) | 104 主站接入：连接、总召、遥控、事件与探测工具 |
+| [`docs/IEC104_Modbus桥接_部署说明.md`](docs/IEC104_Modbus桥接_部署说明.md) | 104 → Modbus TCP 桥接的部署与寄存器表 |
+| [`docs/IEC104_合并进核心库计划.md`](docs/IEC104_合并进核心库计划.md) | 104 与桥接并入核心程序集的实施记录 |
 | [`LICENSE.md`](LICENSE.md) | 许可证 |
 
 ---

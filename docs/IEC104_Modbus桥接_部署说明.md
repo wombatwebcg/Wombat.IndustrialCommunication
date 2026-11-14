@@ -1,6 +1,6 @@
 # IEC104 → Modbus TCP 桥接：部署说明与寄存器表
 
-版本：v1.2（阶段一 + 阶段二 + 阶段三）　　适用工程：`Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge`　　对应计划：`IEC104_Modbus桥接计划.md`
+版本：v1.3（阶段一 + 阶段二 + 阶段三）　　适用位置：`Wombat.IndustrialCommunication` 包的 `Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge` 命名空间（2026-11 起并入核心程序集）　　对应计划：`IEC104_Modbus桥接计划.md`
 
 ## 1. 已完成范围
 
@@ -29,13 +29,14 @@
 ## 3. 工程与依赖
 
 ```
-Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge
-  ├─ ProjectReference → Wombat.IndustrialCommunication.Extensions.IEC104
-  ├─ ProjectReference → Wombat.IndustrialCommunication（只用 ModbusTcpServer / DataStore）
-  └─ TargetFrameworks: netstandard2.0;net8.0
+Wombat.IndustrialCommunication（单一程序集）
+  ├─ IEC104/           104 主站与从站
+  └─ IEC104/Bridge/    104 缓存 → Modbus 寄存器桥接
+     ├─ 复用核心 ModbusTcpServer / DataStore
+     └─ TargetFrameworks: netstandard2.0;net8.0;net10.0
 ```
 
-104 扩展仍是零核心依赖；桥接工程是唯一同时认识两边的工程。阶段二给 `Iec104Master` 增加了一个 `SelectSingleCommandAsync`（只发选择帧），供两段确认的上半段使用。
+桥接与 104 现在同属一个程序集，桥接直接使用核心的 `DataStore` 内部写入方法，不再需要为跨程序集访问公开这些方法。阶段二给 `Iec104Master` 增加了一个 `SelectSingleCommandAsync`（只发选择帧），供两段确认的上半段使用。
 
 ## 4. 接入示例
 
