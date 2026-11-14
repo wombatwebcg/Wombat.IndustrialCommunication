@@ -1,0 +1,17 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <AssemblyName>Iec104Probe</AssemblyName>
+    <RootNamespace>Wombat.IndustrialCommunication.Extensions.IEC104.Probe</RootNamespace>
+    <InvariantGlobalization>false</InvariantGlobalization>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\Wombat.IndustrialCommunication.Extensions.IEC104\Wombat.IndustrialCommunication.Extensions.IEC104\Wombat.IndustrialCommunication.Extensions.IEC104.csproj" />
+  </ItemGroup>
+
+</Project>

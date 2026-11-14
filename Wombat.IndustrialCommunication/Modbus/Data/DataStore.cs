@@ -142,22 +142,32 @@ namespace Wombat.IndustrialCommunication.Modbus.Data
             WriteRegisters(dataStore, dataStore.InputRegisters, startAddress, values, ModbusDataType.InputRegister);
         }
 
-        internal void WriteCoilsDirect(ushort startAddress, IList<bool> values)
+        /// <summary>
+        /// 直接写入线圈区，地址从 0 开始，与客户端读写路径一致。
+        /// 整批写入期间持有 <see cref="SyncRoot"/>，并在完成后触发 <see cref="DataStoreWrittenTo"/>。
+        /// </summary>
+        public void WriteCoilsDirect(ushort startAddress, IList<bool> values)
         {
             WriteDiscretesDirect(this, CoilDiscretes, startAddress, values, ModbusDataType.Coil);
         }
 
-        internal void WriteInputDiscretesDirect(ushort startAddress, IList<bool> values)
+        /// <summary>直接写入离散输入区，地址从 0 开始。</summary>
+        public void WriteInputDiscretesDirect(ushort startAddress, IList<bool> values)
         {
             WriteDiscretesDirect(this, InputDiscretes, startAddress, values, ModbusDataType.Input);
         }
 
-        internal void WriteHoldingRegistersDirect(ushort startAddress, IList<ushort> values)
+        /// <summary>
+        /// 直接写入保持寄存器区，地址从 0 开始，与客户端读写路径一致。
+        /// 整批写入期间持有 <see cref="SyncRoot"/>，并在完成后触发 <see cref="DataStoreWrittenTo"/>。
+        /// </summary>
+        public void WriteHoldingRegistersDirect(ushort startAddress, IList<ushort> values)
         {
             WriteRegistersDirect(this, HoldingRegisters, startAddress, values, ModbusDataType.HoldingRegister);
         }
 
-        internal void WriteInputRegistersDirect(ushort startAddress, IList<ushort> values)
+        /// <summary>直接写入输入寄存器区，地址从 0 开始。</summary>
+        public void WriteInputRegistersDirect(ushort startAddress, IList<ushort> values)
         {
             WriteRegistersDirect(this, InputRegisters, startAddress, values, ModbusDataType.InputRegister);
         }

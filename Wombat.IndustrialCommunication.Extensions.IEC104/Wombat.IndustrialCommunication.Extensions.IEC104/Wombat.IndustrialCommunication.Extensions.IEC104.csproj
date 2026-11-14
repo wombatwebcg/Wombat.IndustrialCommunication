@@ -1,0 +1,20 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFrameworks>netstandard2.0;net8.0</TargetFrameworks>
+    <LangVersion>10.0</LangVersion>
+    <Nullable>disable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net8.0'))">true</IsAotCompatible>
+    <Version>1.0.0-preview</Version>
+    <Authors>wombatwebcg</Authors>
+    <Description>IEC 60870-5-104 主站与从站实现，仅依赖 Wombat.Network 与 Wombat.Extensions.DataTypeExtensions。</Description>
+    <PackageTags>iec104;iec60870;104;scada</PackageTags>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Wombat.Network" Version="1.1.9" />
+    <PackageReference Include="Wombat.Extensions.DataTypeExtensions" Version="1.1.1" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+  </ItemGroup>
+
+</Project>
