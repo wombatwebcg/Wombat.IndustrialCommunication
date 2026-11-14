@@ -1,6 +1,6 @@
 # IEC104 → Modbus TCP 桥接：运维手册
 
-适用位置：`Wombat.IndustrialCommunication` 包的 `Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge` 命名空间（2026-11 起并入核心程序集）　　配套文档：`IEC104_Modbus桥接_部署说明.md`（寄存器表、编码、命令协议）
+适用位置：`Wombat.IndustrialCommunication` 包的 `Wombat.IndustrialCommunication.Iec104.ModbusBridge` 命名空间（2026-11 起并入核心程序集）　　配套文档：`IEC104_Modbus桥接_部署说明.md`（寄存器表、编码、命令协议）
 
 ## 1. 职责边界
 

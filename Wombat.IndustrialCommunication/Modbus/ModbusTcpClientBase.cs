@@ -19,7 +19,7 @@ namespace Wombat.IndustrialCommunication.Modbus
         private volatile int _transactionId = 0;
         public ModbusTcpClientBase(DeviceMessageTransport transport):base(transport)
         {
-            DataFormat = EndianFormat.ABCD;
+            DataFormat = Extensions.DataTypeExtensions.EndianFormat.ABCD;
             IsReverse = true;
 
         }

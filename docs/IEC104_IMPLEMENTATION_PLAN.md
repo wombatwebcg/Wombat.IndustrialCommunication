@@ -20,7 +20,7 @@ TargetFrameworks: netstandard2.0;net8.0，LangVersion 10，Nullable disable（�
 ## 2. 目录结构
 
 ```
-Wombat.IndustrialCommunication/IEC104/     （2026-11 迁入核心；命名空间 Wombat.IndustrialCommunication.Extensions.IEC104）
+Wombat.IndustrialCommunication/Iec104/     （2026-11 迁入核心；命名空间 Wombat.IndustrialCommunication.Iec104）
   Protocol/                      纯函数，无 IO，可单测
     Iec104Constants.cs           端口 2404、APDU 上限、默认 k/w/t0-t3
     ApciFrame.cs                 0x68 + len + 4 字节控制域，I/S/U 三种
@@ -225,7 +225,7 @@ public sealed class Iec104Point
 
 ## 8. 测试
 
-新增独立测试工程 Wombat.IndustrialCommunication.Extensions.IEC104.Tests（xunit 2.9.3，net8.0），写作时不引用核心库；2026-11 合并后改为只引用核心工程。
+新增独立测试工程 Wombat.IndustrialCommunication.Iec104.Tests（xunit 2.9.3，net8.0），写作时不引用核心库；2026-11 合并后改为只引用核心工程。
 
 协议单元测试：
 - APCI 三种帧编解码往返；长度边界 253；N(S)/N(R) 32767→0 回绕。

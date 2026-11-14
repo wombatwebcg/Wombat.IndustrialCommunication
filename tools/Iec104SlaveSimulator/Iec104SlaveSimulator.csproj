@@ -6,7 +6,7 @@
     <LangVersion>10.0</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Iec104SlaveSimulator</AssemblyName>
-    <RootNamespace>Wombat.IndustrialCommunication.Extensions.IEC104.Simulator</RootNamespace>
+    <RootNamespace>Wombat.IndustrialCommunication.Iec104.Simulator</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 

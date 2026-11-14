@@ -4,14 +4,14 @@ using System.Linq;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.IndustrialCommunication.Extensions.IEC104;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Diagnostics;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Model;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Options;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Protocol;
+using Wombat.IndustrialCommunication.Iec104;
+using Wombat.IndustrialCommunication.Iec104.Diagnostics;
+using Wombat.IndustrialCommunication.Iec104.Model;
+using Wombat.IndustrialCommunication.Iec104.Options;
+using Wombat.IndustrialCommunication.Iec104.Protocol;
 using Wombat.Extensions.DataTypeExtensions;
 
-namespace Wombat.IndustrialCommunication.Extensions.IEC104.Simulator
+namespace Wombat.IndustrialCommunication.Iec104.Simulator
 {
     internal static class Program
     {

@@ -6,7 +6,7 @@
     <LangVersion>10.0</LangVersion>
     <Nullable>disable</Nullable>
     <AssemblyName>Iec104Probe</AssemblyName>
-    <RootNamespace>Wombat.IndustrialCommunication.Extensions.IEC104.Probe</RootNamespace>
+    <RootNamespace>Wombat.IndustrialCommunication.Iec104.Probe</RootNamespace>
     <InvariantGlobalization>false</InvariantGlobalization>
   </PropertyGroup>
 

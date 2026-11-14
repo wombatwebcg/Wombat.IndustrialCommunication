@@ -17,7 +17,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunicat
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunication.Extensions.IEC104.Tests", "tests\Wombat.IndustrialCommunication.Extensions.IEC104.Tests\Wombat.IndustrialCommunication.Extensions.IEC104.Tests.csproj", "{31C56154-6CEB-437D-87B7-80CDEE45D809}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Wombat.IndustrialCommunication.Iec104.Tests", "tests\Wombat.IndustrialCommunication.Iec104.Tests\Wombat.IndustrialCommunication.Iec104.Tests.csproj", "{31C56154-6CEB-437D-87B7-80CDEE45D809}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tools", "tools", "{07C2787E-EAC7-C090-1BA3-A61EC2A24D84}"
 EndProject

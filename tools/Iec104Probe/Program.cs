@@ -6,12 +6,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
-using Wombat.IndustrialCommunication.Extensions.IEC104;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Model;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Options;
-using Wombat.IndustrialCommunication.Extensions.IEC104.Protocol;
+using Wombat.IndustrialCommunication.Iec104;
+using Wombat.IndustrialCommunication.Iec104.Model;
+using Wombat.IndustrialCommunication.Iec104.Options;
+using Wombat.IndustrialCommunication.Iec104.Protocol;
 
-namespace Wombat.IndustrialCommunication.Extensions.IEC104.Probe
+namespace Wombat.IndustrialCommunication.Iec104.Probe
 {
     internal static class Program
     {

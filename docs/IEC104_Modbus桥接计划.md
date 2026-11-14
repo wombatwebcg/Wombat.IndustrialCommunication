@@ -1,6 +1,6 @@
 # IEC104 → Modbus TCP 桥接实施计划
 
-版本：v1.0（历史计划）　　原适用工程：Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge（2026-11 起并入核心程序集，见 `IEC104_合并进核心库计划.md`）
+版本：v1.0（历史计划）　　原适用工程：Wombat.IndustrialCommunication.Iec104.ModbusBridge（2026-11 起并入核心程序集，见 `IEC104_合并进核心库计划.md`）
 
 ## 1. 目标与拓扑
 
@@ -35,7 +35,7 @@
 新建工程，避免 104 扩展反向依赖核心库（写作时；2026-11 起桥接与 104 同属核心程序集，本段仅作历史记录）：
 
 ```
-Wombat.IndustrialCommunication.Extensions.IEC104.ModbusBridge/   （已迁入 Wombat.IndustrialCommunication/IEC104/Bridge/）
+Wombat.IndustrialCommunication.Iec104.ModbusBridge/   （已迁入 Wombat.IndustrialCommunication/Iec104/Bridge/）
   ├─ ProjectReference → IEC104 扩展
   ├─ ProjectReference → Wombat.IndustrialCommunication
   └─ TargetFrameworks: netstandard2.0;net8.0
