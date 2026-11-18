@@ -31,7 +31,7 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
         private bool _interrogationConfirmed;
 
         public Iec104MasterSession(IIec104Link link, Iec104MasterOptions options)
-            : base(link, options.K, options.W, options.T1, options.T2, options.T3, options.EnableTrace)
+            : base(link, options.K, options.W, options.T1, options.T2, options.T3, options.EnableTrace, options.StrictSequence)
         {
             _options = options ?? throw new ArgumentNullException(nameof(options));
         }

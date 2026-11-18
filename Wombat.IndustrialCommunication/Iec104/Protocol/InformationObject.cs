@@ -9,9 +9,9 @@ namespace Wombat.IndustrialCommunication.Iec104.Protocol
     {
         public Iec104InformationObject(Iec104TypeId typeId, int ioa, byte[] element)
         {
-            if (Iec104TypeInfo.HasInformationObjectAddress(typeId) &&
-                (ioa <= 0 || ioa > Iec104Constants.MaxInformationObjectAddress))
-                throw new ArgumentOutOfRangeException(nameof(ioa), "信息对象地址必须在 1..16777215 之间。");
+            var minimumAddress = Iec104TypeInfo.IsStationCommand(typeId) ? 0 : 1;
+            if (ioa < minimumAddress || ioa > Iec104Constants.MaxInformationObjectAddress)
+                throw new ArgumentOutOfRangeException(nameof(ioa), "信息对象地址必须在 1..16777215 之间（站级命令固定为 0）。");
             if (element == null) throw new ArgumentNullException(nameof(element));
 
             if (Iec104TypeInfo.TryGetElementSize(typeId, out var expected) && element.Length != expected)

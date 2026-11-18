@@ -44,6 +44,12 @@ namespace Wombat.IndustrialCommunication.Iec104.Options
         /// <summary>是否输出收发帧追踪。</summary>
         public bool EnableTrace { get; set; }
 
+        /// <summary>
+        /// 是否严格校验接收序号 N(S) 与确认序号 N(R)。默认 false：序号不符时自动重新对齐并计数，
+        /// 避免现场装置计数器跨连接保留或提前确认导致刚连上就断链。
+        /// </summary>
+        public bool StrictSequence { get; set; }
+
         /// <summary>可选点表，用于统计缺失点与按转发号查询。</summary>
         public Model.Iec104PointTable PointTable { get; set; }
     }

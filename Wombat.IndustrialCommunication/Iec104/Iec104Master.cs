@@ -56,6 +56,26 @@ namespace Wombat.IndustrialCommunication.Iec104
             get { return _options; }
         }
 
+        /// <summary>因接收序号不连续而重新对齐的次数；非 0 说明装置计数器与协议约定不一致。</summary>
+        public int SequenceResyncs
+        {
+            get
+            {
+                var session = _session;
+                return session == null ? 0 : session.SequenceResyncs;
+            }
+        }
+
+        /// <summary>因 N(R) 越界而按全部确认处理的次数。</summary>
+        public int ClampedAcknowledgements
+        {
+            get
+            {
+                var session = _session;
+                return session == null ? 0 : session.ClampedAcknowledgements;
+            }
+        }
+
         public bool IsConnected
         {
             get

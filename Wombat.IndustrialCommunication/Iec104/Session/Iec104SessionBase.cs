@@ -48,7 +48,8 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
             TimeSpan t1,
             TimeSpan t2,
             TimeSpan t3,
-            bool enableTrace)
+            bool enableTrace,
+            bool strictSequence = false)
         {
             _link = link ?? throw new ArgumentNullException(nameof(link));
             if (k < 1 || k > 32767) throw new ArgumentOutOfRangeException(nameof(k));
@@ -60,6 +61,7 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
             T2 = t2;
             T3 = t3;
             EnableTrace = enableTrace;
+            StrictSequence = strictSequence;
         }
 
         public int K { get; }
@@ -73,6 +75,18 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
         public TimeSpan T3 { get; }
 
         public bool EnableTrace { get; }
+
+        /// <summary>
+        /// true 时按协议严格校验 N(S)/N(R)，序号不符直接断链；false 时自动重新对齐。
+        /// 现场装置常出现计数器跨连接保留、激活前已上送帧等情况，默认取 false。
+        /// </summary>
+        public bool StrictSequence { get; }
+
+        /// <summary>因接收序号不连续而重新对齐的次数（严格模式下不会发生）。</summary>
+        public int SequenceResyncs { get; private set; }
+
+        /// <summary>因 N(R) 超过已发帧数而按全部确认处理的次数（严格模式下不会发生）。</summary>
+        public int ClampedAcknowledgements { get; private set; }
 
         /// <summary>是否已完成 STARTDT。</summary>
         public bool DataTransferActive { get; protected set; }
@@ -211,10 +225,18 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
 
             if (frame.SendSequence != _receiveSequence)
             {
-                Fault(new Iec104ProtocolException(
-                    Iec104ErrorKind.Protocol,
-                    $"接收序号不连续：期望 {_receiveSequence}，实际 {frame.SendSequence}。"));
-                return;
+                if (StrictSequence)
+                {
+                    Fault(new Iec104ProtocolException(
+                        Iec104ErrorKind.Protocol,
+                        $"接收序号不连续：期望 {_receiveSequence}，实际 {frame.SendSequence}。"));
+                    return;
+                }
+
+                // 宽松模式：以装置的 N(S) 重新对齐。装置计数器跨连接保留、激活前已上送帧、
+                // 或链路丢帧都会造成不同步，这里按收到的序号续接，避免一次错位就整条链路断开。
+                SequenceResyncs++;
+                _receiveSequence = frame.SendSequence;
             }
 
             _receiveSequence = Next(_receiveSequence);
@@ -435,9 +457,19 @@ namespace Wombat.IndustrialCommunication.Iec104.Session
             var delta = (receiveNumber - _acknowledgedSequence + 32768) % 32768;
             if (delta > Volatile.Read(ref _unacked))
             {
-                Fault(new Iec104ProtocolException(
-                    Iec104ErrorKind.Protocol,
-                    $"确认序号越界：N(R)={receiveNumber}，已确认 {_acknowledgedSequence}，未确认 {_unacked}。"));
+                if (StrictSequence)
+                {
+                    Fault(new Iec104ProtocolException(
+                        Iec104ErrorKind.Protocol,
+                        $"确认序号越界：N(R)={receiveNumber}，已确认 {_acknowledgedSequence}，未确认 {_unacked}。"));
+                    return;
+                }
+
+                // 宽松模式：部分装置会提前或越界确认，按“全部已发送帧均已确认”处理。
+                ClampedAcknowledgements++;
+                _acknowledgedSequence = receiveNumber;
+                Interlocked.Exchange(ref _unacked, 0);
+                _lastAckProgressTicks = Stopwatch.GetTimestamp();
                 return;
             }
 

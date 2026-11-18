@@ -94,10 +94,18 @@ namespace Wombat.IndustrialCommunication.Iec104.Protocol
         }
 
         /// <summary>
-        /// 类型是否携带信息对象地址。站级命令（初始化结束、总召、电度总召、时钟同步、
-        /// 测试、复位进程、延时获取）的 ASDU 中没有 3 字节地址字段。
+        /// 类型是否携带信息对象地址。IEC 60870-5-104 的每个信息对象都带 3 字节地址，
+        /// 站级命令的地址固定为 0，因此这里始终为 true。
         /// </summary>
         public static bool HasInformationObjectAddress(Iec104TypeId typeId)
+        {
+            return true;
+        }
+
+        /// <summary>
+        /// 是否为站级命令：ASDU 中地址固定为 0，不含具体测点。
+        /// </summary>
+        public static bool IsStationCommand(Iec104TypeId typeId)
         {
             switch (typeId)
             {
@@ -108,9 +116,9 @@ namespace Wombat.IndustrialCommunication.Iec104.Protocol
                 case Iec104TypeId.TestCommand:
                 case Iec104TypeId.ResetProcessCommand:
                 case Iec104TypeId.DelayAcquisitionCommand:
-                    return false;
-                default:
                     return true;
+                default:
+                    return false;
             }
         }
 
